@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens are imported via the layout's metadata link order; kept here too so
+   global utility classes can resolve the vars during Tailwind processing. */
+@import "./tokens.css";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    /* viewport-fit=cover is set in the layout viewport export; this guards the
+       background extending under the notch / home indicator. */
+    background-color: var(--bg);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: linear-gradient(180deg, var(--void) 0%, var(--onyx) 100%) fixed;
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Prevent rubber-band scroll revealing a non-token background on iOS. */
+    overscroll-behavior-y: none;
+    min-height: 100dvh;
+  }
+
+  :root[data-theme="light"] body,
+  :root[data-theme="system"] body {
+    background: var(--bg) fixed;
+  }
+
+  /* Visible focus everywhere — Laser edge-glow (style-guide §1.4). */
+  :focus-visible {
+    outline: none;
+    box-shadow:
+      var(--tw-shadow, 0 0 0 1px var(--laser)),
+      0 0 24px var(--laser-glow);
+    border-radius: 8px;
+  }
+}
+
+@layer components {
+  /* Frosted Onyx glass panel — the "raised" elevation tier. */
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--hair);
+  }
+
+  /* The "focused" elevation tier — glass + Laser edge-light. */
+  .glass-focus {
+    box-shadow:
+      0 0 0 1px var(--laser),
+      0 0 24px var(--laser-glow);
+  }
+
+  /* Primary CTA — ALWAYS Void text on a Laser fill (never the reverse). */
+  .btn-laser {
+    background: var(--laser);
+    color: var(--void);
+    font-family: var(--font-body);
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+  }
+  .btn-laser:active {
+    filter: brightness(0.94);
+  }
+
+  /* Mono utility text — prompts, diffs, tokens, version hashes. */
+  .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* Safe-area insets, wired by the v2 luminance-polarity template. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+  .min-h-screen-safe {
+    min-height: 100dvh;
+  }
+
+  /* Editor surface: suppress pull-to-refresh so in-progress text is protected. */
+  .no-pull-refresh {
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y;
+  }
+}

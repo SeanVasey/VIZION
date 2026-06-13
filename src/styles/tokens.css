@@ -1,0 +1,63 @@
+/* =====================================================================
+ * VIZ(IO)N — design tokens (LOCKED, derived from IMG_2994.JPG).
+ * Seven roles + Amber warning.  See VIZION-product-spec.md §1.2.
+ *
+ * --laser is a FILL / ACCENT on dark surfaces ONLY.  It is never used as
+ * text on a light background.  Buttons are always Void text on a Laser fill.
+ * Laser text on Chalk = 1.09:1 (FAIL) — prohibited.
+ * ===================================================================== */
+
+:root {
+  /* --- The seven roles (verbatim) ----------------------------------- */
+  --void: #0f1012; /* background                       */
+  --onyx: #2b2d33; /* surface / glass                  */
+  --silver: #b9bcc5; /* secondary / muted / borders      */
+  --chalk: #f2f3f6; /* primary text / light base        */
+  --laser: #b7ff3c; /* accent / primary action / IO glow */
+  --pulse: #3dd68c; /* success (derived)                */
+  --flare: #ff5247; /* error (derived)                  */
+  --amber: #ffc24b; /* warning (derived)                */
+
+  /* --- Spacing: 4px base, 8-pt rhythm ------------------------------- */
+  --space: 4px;
+
+  /* --- Glass elevation (translucency + light, not shadow) ----------- */
+  --glass: rgba(43, 45, 51, 0.72); /* Onyx @ 72%        */
+  --hair: rgba(185, 188, 197, 0.2); /* Silver @ 20%      */
+  --laser-glow: rgba(183, 255, 60, 0.25);
+
+  /* --- Semantic aliases — DARK is the default theme ----------------- */
+  --bg: var(--void);
+  --surface: var(--onyx);
+  --text: var(--chalk);
+  --muted: var(--silver);
+
+  color-scheme: dark;
+}
+
+/* Explicit light theme (Chalk canvas, Void text; Laser stays fill-only). */
+:root[data-theme="light"] {
+  --bg: var(--chalk);
+  --surface: #ffffff;
+  --text: var(--void);
+  --muted: #4a4d55;
+  --glass: rgba(255, 255, 255, 0.72);
+  --hair: rgba(15, 16, 18, 0.12);
+
+  color-scheme: light;
+}
+
+/* System theme: follow the OS when no explicit choice is stored.
+   The data-theme="system" hook lets the no-flash bootstrap script opt in. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --bg: var(--chalk);
+    --surface: #ffffff;
+    --text: var(--void);
+    --muted: #4a4d55;
+    --glass: rgba(255, 255, 255, 0.72);
+    --hair: rgba(15, 16, 18, 0.12);
+
+    color-scheme: light;
+  }
+}

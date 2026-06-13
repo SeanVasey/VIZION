@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="VIZ(IO)N hero placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0F1012"/>
+      <stop offset="1" stop-color="#2B2D33"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" rx="20" fill="url(#bg)"/>
+  <rect x="0.5" y="0.5" width="639" height="359" rx="20" fill="none" stroke="#B9BCC5" stroke-opacity="0.2"/>
+  <text x="320" y="180" text-anchor="middle" font-family="Arial Narrow, sans-serif" font-weight="700" font-size="72" letter-spacing="4">
+    <tspan fill="#F2F3F6">VIZ</tspan><tspan fill="#B9BCC5">(</tspan><tspan fill="#B7FF3C">I&#8250;O</tspan><tspan fill="#B9BCC5">)</tspan><tspan fill="#F2F3F6">N</tspan>
+  </text>
+  <text x="320" y="220" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" letter-spacing="3" fill="#B9BCC5">PROMPT-ENGINEERING STUDIO · HERO PLACEHOLDER</text>
+</svg>
