@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>VIZ(IO)N — Brand Style Guide · VASEY/AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Reddit+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0F1012; --onyx:#2B2D33; --silver:#B9BCC5; --chalk:#F2F3F6;
+    --laser:#B7FF3C; --pulse:#3DD68C; --flare:#FF5247; --amber:#FFC24B;
+    --glass:rgba(43,45,51,.72);
+    --hair:rgba(185,188,197,.20);
+    --display:"Bebas Neue", "Arial Narrow", sans-serif;
+    --body:"Reddit Sans", system-ui, sans-serif;
+    --mono:"JetBrains Mono", ui-monospace, monospace;
+    --u:4px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:
+      radial-gradient(120% 80% at 80% -10%, rgba(183,255,60,.06), transparent 60%),
+      linear-gradient(180deg,#0c0e11 0%, var(--void) 40%);
+    color:var(--chalk); font-family:var(--body); line-height:1.55;
+    -webkit-font-smoothing:antialiased; padding-bottom:env(safe-area-inset-bottom);
+    min-height:100vh;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+  a{color:var(--laser); text-decoration:none}
+
+  /* ---------- top bar ---------- */
+  .topbar{position:sticky; top:0; z-index:50;
+    background:rgba(15,16,18,.8); backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--hair);}
+  .topbar .wrap{display:flex; align-items:center; justify-content:space-between; height:60px}
+  .mark{font-family:var(--display); font-size:30px; letter-spacing:1px; line-height:1}
+  .mark .br{color:var(--silver); font-weight:400}
+  .mark .io{color:var(--laser)}
+  .navlinks{display:flex; gap:22px; font-size:13px; color:var(--silver)}
+  .navlinks a{color:var(--silver)}
+  .navlinks a:hover{color:var(--chalk)}
+  @media(max-width:720px){ .navlinks{display:none} }
+
+  /* ---------- hero ---------- */
+  .hero{padding:96px 0 64px; text-align:center}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.32em; text-transform:uppercase;
+    color:var(--silver); margin-bottom:28px}
+  .word{font-family:var(--display); font-size:clamp(72px,18vw,176px); line-height:.82; letter-spacing:2px}
+  .word .br{color:var(--silver); font-weight:400; position:relative; top:-.04em}
+  .word .io{color:var(--laser); text-shadow:0 0 40px rgba(183,255,60,.35)}
+  .tagline{margin:26px auto 0; max-width:560px; color:var(--silver); font-size:17px}
+  /* input->output ramp */
+  .ramp{display:flex; height:14px; max-width:520px; margin:40px auto 8px; border-radius:8px; overflow:hidden;
+    border:1px solid var(--hair)}
+  .ramp span{flex:1}
+  .ramp .l-void{background:var(--void)} .ramp .l-onyx{background:var(--onyx)}
+  .ramp .l-silver{background:var(--silver)} .ramp .l-chalk{background:var(--chalk)} .ramp .l-laser{background:var(--laser)}
+  .ramp-cap{display:flex; justify-content:space-between; max-width:520px; margin:0 auto;
+    font-family:var(--mono); font-size:11px; color:var(--silver); letter-spacing:.06em}
+
+  /* ---------- sections ---------- */
+  section{padding:56px 0; border-top:1px solid var(--hair)}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:30px}
+  .sec-num{font-family:var(--mono); font-size:12px; color:var(--laser)}
+  h2{font-family:var(--display); font-size:40px; letter-spacing:1px; font-weight:400; line-height:1}
+  .lead{color:var(--silver); max-width:680px; margin-bottom:28px}
+
+  .grid{display:grid; gap:16px}
+  .card{background:var(--glass); backdrop-filter:blur(16px); border:1px solid var(--hair);
+    border-radius:16px; padding:22px}
+
+  /* personality chips */
+  .chips{display:flex; flex-wrap:wrap; gap:10px}
+  .chip{font-family:var(--mono); font-size:12px; letter-spacing:.05em; padding:8px 14px;
+    border:1px solid var(--hair); border-radius:999px; color:var(--chalk)}
+  .chip b{color:var(--laser); font-weight:500}
+
+  /* logo lab */
+  .logolab{display:grid; grid-template-columns:1.4fr 1fr; gap:16px}
+  @media(max-width:720px){ .logolab{grid-template-columns:1fr} }
+  .aperture{font-family:var(--display); font-size:64px; letter-spacing:2px; text-align:center; padding:18px 0}
+  .aperture .br{color:var(--silver); font-weight:400}
+  .aperture .io{color:var(--laser)}
+  .appicon{width:96px; height:96px; border-radius:22px; background:var(--void);
+    border:1px solid var(--hair); display:flex; align-items:center; justify-content:center; margin:0 auto;
+    box-shadow:0 0 0 1px rgba(183,255,60,.1), 0 0 40px rgba(183,255,60,.12)}
+  .appicon .glyph{font-family:var(--display); font-size:40px; color:var(--laser); letter-spacing:2px}
+  .appicon .glyph .ch{color:var(--silver); font-size:26px}
+  .micro{font-family:var(--mono); font-size:11px; color:var(--silver); margin-top:12px; text-align:center}
+  .dos{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:6px}
+  .do,.dont{border-radius:12px; padding:14px; font-size:13px}
+  .do{border:1px solid rgba(61,214,138,.4)} .dont{border:1px solid rgba(255,82,71,.4)}
+  .do .t{color:var(--pulse)} .dont .t{color:var(--flare)}
+  .do .t,.dont .t{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; display:block; margin-bottom:6px}
+
+  /* swatches */
+  .swatches{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:880px){ .swatches{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:480px){ .swatches{grid-template-columns:1fr} }
+  .sw{border:1px solid var(--hair); border-radius:14px; overflow:hidden; cursor:pointer; transition:transform .15s ease}
+  .sw:hover{transform:translateY(-3px)}
+  .sw:focus-visible{outline:2px solid var(--laser); outline-offset:2px}
+  .sw .chip-fill{height:96px; display:flex; align-items:flex-end; justify-content:flex-end; padding:8px}
+  .sw .copy{font-family:var(--mono); font-size:10px; padding:3px 7px; border-radius:6px;
+    background:rgba(15,16,18,.55); color:var(--chalk)}
+  .sw .meta{padding:12px 14px; background:var(--onyx)}
+  .sw .role{font-family:var(--display); font-size:18px; letter-spacing:.5px}
+  .sw .hex{font-family:var(--mono); font-size:12px; color:var(--silver)}
+  .sw .use{font-size:12px; color:var(--silver); margin-top:6px; line-height:1.4}
+  .derived{font-family:var(--mono); font-size:10px; color:var(--amber); letter-spacing:.08em}
+
+  /* table */
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{text-align:left; padding:11px 12px; border-bottom:1px solid var(--hair)}
+  th{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--silver)}
+  td .mono{font-family:var(--mono)}
+  .pass{color:var(--pulse)} .aa{color:var(--chalk)} .fail{color:var(--flare); font-weight:600}
+  .tag{font-family:var(--mono); font-size:10px; padding:2px 7px; border-radius:5px; border:1px solid var(--hair)}
+
+  /* type specimens */
+  .spec{padding:20px 0; border-bottom:1px solid var(--hair)}
+  .spec:last-child{border-bottom:none}
+  .spec .label{font-family:var(--mono); font-size:11px; color:var(--silver); letter-spacing:.1em; margin-bottom:10px}
+  .sp-display{font-family:var(--display); font-size:56px; letter-spacing:1px; line-height:1}
+  .sp-body{font-family:var(--body); font-size:18px}
+  .sp-mono{font-family:var(--mono); font-size:15px; color:var(--laser)}
+  .scale{display:flex; flex-wrap:wrap; align-items:baseline; gap:18px; margin-top:8px}
+  .scale span{font-family:var(--body)}
+  .scale i{font-family:var(--mono); font-size:10px; color:var(--silver); font-style:normal; display:block}
+
+  /* elevation tiers */
+  .tiers{grid-template-columns:repeat(3,1fr)} @media(max-width:720px){ .tiers{grid-template-columns:1fr} }
+  .tier{border-radius:14px; padding:22px; min-height:120px}
+  .t-base{background:var(--void); border:1px solid var(--hair)}
+  .t-raise{background:var(--glass); backdrop-filter:blur(16px); border:1px solid var(--hair)}
+  .t-focus{background:var(--glass); backdrop-filter:blur(16px);
+    border:1px solid rgba(183,255,60,.5); box-shadow:0 0 24px rgba(183,255,60,.22)}
+  .tier .n{font-family:var(--display); font-size:20px; letter-spacing:.5px}
+  .tier .d{font-size:13px; color:var(--silver); margin-top:6px}
+
+  /* signature diff */
+  .diff{display:grid; grid-template-columns:1fr auto 1fr; gap:0; border:1px solid var(--hair); border-radius:16px; overflow:hidden}
+  @media(max-width:720px){ .diff{grid-template-columns:1fr} }
+  .diff .pane{padding:20px; font-family:var(--mono); font-size:13px; line-height:1.7}
+  .diff .in{background:var(--void)}
+  .diff .out{background:#15171b}
+  .diff .arrow{display:flex; align-items:center; justify-content:center; padding:0 14px; background:#101216;
+    color:var(--laser); font-size:24px}
+  @media(max-width:720px){ .diff .arrow{padding:14px; transform:rotate(90deg)} }
+  .diff .ph{font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--silver); margin-bottom:12px}
+  .lit{color:var(--laser); background:rgba(183,255,60,.10); border-radius:4px; padding:0 3px}
+  .dim{color:var(--silver)}
+
+  /* btn demo */
+  .btnrow{display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-top:8px}
+  .btn{font-family:var(--body); font-weight:600; font-size:15px; padding:12px 26px; border-radius:12px; border:none; cursor:pointer}
+  .btn-primary{background:var(--laser); color:var(--void)}
+  .btn-ghost{background:transparent; color:var(--chalk); border:1px solid var(--hair)}
+  .note{font-family:var(--mono); font-size:11px; color:var(--silver)}
+
+  footer{padding:48px 0 64px; border-top:1px solid var(--hair); text-align:center; color:var(--silver)}
+  footer .vai{font-family:var(--display); font-size:22px; letter-spacing:1px; color:var(--chalk)}
+  footer .vai .s{color:var(--laser)}
+
+  /* toast */
+  #toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+    background:var(--onyx); border:1px solid rgba(61,214,138,.5); color:var(--pulse);
+    font-family:var(--mono); font-size:12px; padding:10px 16px; border-radius:10px; opacity:0;
+    transition:opacity .2s ease, transform .2s ease; pointer-events:none; z-index:99}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; scroll-behavior:auto !important}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="mark">VIZ<span class="br">(</span><span class="io">IO</span><span class="br">)</span>N</div>
+    <nav class="navlinks">
+      <a href="#logo">Logo</a><a href="#color">Color</a><a href="#a11y">Access</a>
+      <a href="#type">Type</a><a href="#space">Space</a><a href="#sig">Signature</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="eyebrow">VASEY/AI · Brand Style Guide · v1.0</div>
+    <div class="word">VIZ<span class="br">(</span><span class="io">IO</span><span class="br">)</span>N</div>
+    <p class="tagline">A prompt-engineering studio where raw <b style="color:var(--chalk)">input</b> becomes refined <b style="color:var(--chalk)">output</b>. The aperture frames the transformation.</p>
+    <div class="ramp" aria-hidden="true">
+      <span class="l-void"></span><span class="l-onyx"></span><span class="l-silver"></span><span class="l-chalk"></span><span class="l-laser"></span>
+    </div>
+    <div class="ramp-cap"><span>input · void</span><span>output · chalk</span><span>signal</span></div>
+  </div>
+
+  <!-- ESSENCE -->
+  <section>
+    <div class="sec-head"><span class="sec-num">00</span><h2>Brand essence</h2></div>
+    <p class="lead">An instrument console, not a chat box. Precise, technical, and quietly confident — the discipline of a studio rack unit with a single live signal light. The palette is monochrome restraint punctuated by one electric green; the personality lives in the restraint.</p>
+    <div class="chips">
+      <span class="chip"><b>Precise</b></span><span class="chip"><b>Technical</b></span>
+      <span class="chip"><b>Restrained</b></span><span class="chip"><b>Energetic</b> (in one place)</span>
+      <span class="chip"><b>Premium</b></span><span class="chip"><b>Instrumental</b></span>
+    </div>
+  </section>
+
+  <!-- LOGO -->
+  <section id="logo">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Logo &amp; wordmark</h2></div>
+    <p class="lead">VIZ(IO)N reads as <i>vision</i>; structurally it is <span class="sp-mono" style="font-size:14px">viz · io · n</span>. The parentheses are a lens <b style="color:var(--chalk)">aperture</b>; the enclosed <b style="color:var(--laser)">IO</b> is the focal point where Input becomes Output.</p>
+    <div class="logolab">
+      <div class="card">
+        <div class="aperture">VIZ<span class="br">(</span><span class="io">IO</span><span class="br">)</span>N</div>
+        <div class="micro">Chalk letterforms · Silver aperture brackets at ~40% weight · Laser IO, one weight heavier · optional hairline caret <span style="color:var(--laser)">I › O</span> at large sizes only</div>
+      </div>
+      <div class="card">
+        <div class="appicon"><div class="glyph"><span class="ch">(</span>I<span style="font-size:22px">›</span>O<span class="ch">)</span></div></div>
+        <div class="micro">App-icon glyph — Void tile · transparent-PNG suite · manifest declares <span style="color:var(--chalk)">any</span> + <span style="color:var(--chalk)">maskable</span></div>
+      </div>
+    </div>
+    <div class="dos" style="margin-top:16px">
+      <div class="do"><span class="t">Do</span>Keep IO in Laser; everything around it quiet. Use the aperture as the only ornament.</div>
+      <div class="dont"><span class="t">Don't</span>Set IO in Laser as text on a light background, recolor the brackets, or add a second accent hue.</div>
+    </div>
+  </section>
+
+  <!-- COLOR -->
+  <section id="color">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Color system</h2></div>
+    <p class="lead">Five values extracted from the source palette; two semantic colors derived (no green/red exists in a mono+lime strip). Tap any swatch to copy its hex.</p>
+    <div class="grid swatches">
+      <div class="sw" tabindex="0" data-hex="#0F1012"><div class="chip-fill" style="background:#0F1012"><span class="copy">copy</span></div><div class="meta"><div class="role">Void</div><div class="hex">#0F1012</div><div class="use">Background · splash · status backdrop</div></div></div>
+      <div class="sw" tabindex="0" data-hex="#2B2D33"><div class="chip-fill" style="background:#2B2D33"><span class="copy">copy</span></div><div class="meta"><div class="role">Onyx</div><div class="hex">#2B2D33</div><div class="use">Surface · glass panels · bottom-nav</div></div></div>
+      <div class="sw" tabindex="0" data-hex="#B9BCC5"><div class="chip-fill" style="background:#B9BCC5"><span class="copy" style="color:var(--void)">copy</span></div><div class="meta"><div class="role">Silver</div><div class="hex">#B9BCC5</div><div class="use">Secondary text · borders · brackets · disabled</div></div></div>
+      <div class="sw" tabindex="0" data-hex="#F2F3F6"><div class="chip-fill" style="background:#F2F3F6"><span class="copy" style="color:var(--void)">copy</span></div><div class="meta"><div class="role">Chalk</div><div class="hex">#F2F3F6</div><div class="use">Primary text on dark · light-theme base</div></div></div>
+      <div class="sw" tabindex="0" data-hex="#B7FF3C"><div class="chip-fill" style="background:#B7FF3C"><span class="copy" style="color:var(--void)">copy</span></div><div class="meta"><div class="role">Laser</div><div class="hex">#B7FF3C</div><div class="use">Accent · primary action · IO highlight · diff</div></div></div>
+      <div class="sw" tabindex="0" data-hex="#3DD68C"><div class="chip-fill" style="background:#3DD68C"><span class="copy" style="color:var(--void)">copy</span></div><div class="meta"><div class="role">Pulse <span class="derived">derived</span></div><div class="hex">#3DD68C</div><div class="use">Success · saved · copied · synced</div></div></div>
+      <div class="sw" tabindex="0" data-hex="#FF5247"><div class="chip-fill" style="background:#FF5247"><span class="copy">copy</span></div><div class="meta"><div class="role">Flare <span class="derived">derived</span></div><div class="hex">#FF5247</div><div class="use">Error · auth failure · validation</div></div></div>
+      <div class="sw" tabindex="0" data-hex="#FFC24B"><div class="chip-fill" style="background:#FFC24B"><span class="copy" style="color:var(--void)">copy</span></div><div class="meta"><div class="role">Amber <span class="derived">derived</span></div><div class="hex">#FFC24B</div><div class="use">Warning · storage / token-limit cautions</div></div></div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <span class="note">Why Pulse ≠ Laser: Laser is the action/identity hue and appears constantly. Success painted in the same green would read as "click me." Pulse is cooler and slightly desaturated so confirmation never competes with a call to action.</span>
+    </div>
+  </section>
+
+  <!-- A11Y -->
+  <section id="a11y">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Accessibility</h2></div>
+    <p class="lead">Verified by the WCAG 2.1 relative-luminance method. The math surfaces one hard rule: Laser is fill/accent on dark only — never text on light.</p>
+    <div class="card" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Combination</th><th>Ratio</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td>Chalk text on Void</td><td class="mono">17.16:1</td><td class="pass">AAA</td></tr>
+          <tr><td>Silver text on Void</td><td class="mono">10.03:1</td><td class="pass">AAA</td></tr>
+          <tr><td>Chalk on Onyx</td><td class="mono">12.40:1</td><td class="pass">AAA</td></tr>
+          <tr><td>Silver on Onyx</td><td class="mono">7.25:1</td><td class="pass">AAA</td></tr>
+          <tr><td>Laser on Void</td><td class="mono">15.76:1</td><td class="pass">AAA</td></tr>
+          <tr><td>Laser on Onyx</td><td class="mono">11.39:1</td><td class="pass">AAA</td></tr>
+          <tr><td><b>Void text on Laser fill</b> (button)</td><td class="mono">15.76:1</td><td class="pass">AAA</td></tr>
+          <tr><td>Void text on Chalk (light mode)</td><td class="mono">17.16:1</td><td class="pass">AAA</td></tr>
+          <tr><td>Pulse on Void</td><td class="mono">10.15:1</td><td class="pass">AAA</td></tr>
+          <tr><td>Flare on Void</td><td class="mono">5.94:1</td><td class="aa">AA</td></tr>
+          <tr><td>Amber on Void</td><td class="mono">11.85:1</td><td class="pass">AAA</td></tr>
+          <tr><td><b>Laser <i>text</i> on Chalk</b></td><td class="mono">1.09:1</td><td class="fail">FAIL · prohibited</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="btnrow">
+      <button class="btn btn-primary">Enhance</button>
+      <button class="btn btn-ghost">Cancel</button>
+      <span class="note">Primary = Void text on Laser fill. Never the reverse.</span>
+    </div>
+  </section>
+
+  <!-- TYPE -->
+  <section id="type">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Typography</h2></div>
+    <p class="lead">Consistent with the VASEY/AI suite, with the utility face elevated — prompts are code-adjacent, so the mono carries real weight.</p>
+    <div class="card">
+      <div class="spec">
+        <div class="label">DISPLAY · Bebas Neue · wordmark, titles, mode labels</div>
+        <div class="sp-display">CLARIFY · EXPAND · CONDENSE · REFORMAT</div>
+      </div>
+      <div class="spec">
+        <div class="label">BODY / UI · Reddit Sans · buttons, copy, fields, nav</div>
+        <div class="sp-body">Take a raw prompt and clarify, expand, condense, reformat, or re-target it for the model about to receive it.</div>
+      </div>
+      <div class="spec">
+        <div class="label">UTILITY / MONO · JetBrains Mono · prompts, diff, JSON/XML, tokens, tags</div>
+        <div class="sp-mono">{ "role": "system", "target": "opus_4_8", "tokens": 412 }</div>
+      </div>
+      <div class="spec">
+        <div class="label">TYPE SCALE · Major Third (1.25) · base 16</div>
+        <div class="scale">
+          <span style="font-size:12px">12<i>xs</i></span><span style="font-size:14px">14<i>sm</i></span>
+          <span style="font-size:16px">16<i>base</i></span><span style="font-size:20px">20<i>lg</i></span>
+          <span style="font-size:25px">25<i>xl</i></span><span style="font-size:31px">31<i>2xl</i></span>
+          <span style="font-size:39px">39<i>3xl</i></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPACE -->
+  <section id="space">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Spacing &amp; elevation</h2></div>
+    <p class="lead">4px base unit on an 8-point rhythm. Elevation is built from translucency and light — frosted glass and edge-glow — not drop shadow.</p>
+    <div class="grid tiers">
+      <div class="tier t-base"><div class="n">Base</div><div class="d">Void canvas. The ground plane — no elevation.</div></div>
+      <div class="tier t-raise"><div class="n">Raised</div><div class="d">Onyx glass · blur 16px · 1px Silver hairline at 20%.</div></div>
+      <div class="tier t-focus"><div class="n">Focused</div><div class="d">Glass + Laser edge-glow. Reserved for active / focus.</div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <span class="note">Iconography: 1.5px stroke · rounded joins · 24px grid · Silver at rest, Laser when active. Provider &amp; dev logos sourced from thesvg.org, optimized via Potrace/SVGO.</span>
+    </div>
+  </section>
+
+  <!-- SIGNATURE -->
+  <section id="sig">
+    <div class="sec-head"><span class="sec-num">06</span><h2>The signature</h2></div>
+    <p class="lead">The transformation diff is the brand's one memorable gesture: input on the Void side, enhanced output on the lighter side, changed tokens lit in Laser, with a plain-language rationale.</p>
+    <div class="diff">
+      <div class="pane in">
+        <div class="ph">Input · raw</div>
+        <span class="dim">write a prompt for a product launch email</span>
+      </div>
+      <div class="arrow" aria-hidden="true">›</div>
+      <div class="pane out">
+        <div class="ph">Output · expand → opus 4.8</div>
+        <span class="lit">&lt;role&gt;</span>You are a senior product marketer.<span class="lit">&lt;/role&gt;</span><br>
+        Write a launch email for <span class="lit">[product]</span> to <span class="lit">[segment]</span>.<br>
+        Constraints: <span class="lit">≤120 words</span>, one CTA, <span class="lit">subject line + preview text</span>.<br>
+        <span class="lit">&lt;tone&gt;</span>confident, concrete<span class="lit">&lt;/tone&gt;</span>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <span class="note">Changed tokens glow Laser · everything carried over stays Silver · the rationale always explains <i>what changed and why</i> in the interface's own voice.</span>
+    </div>
+  </section>
+
+  <footer>
+    <div class="vai">VASEY<span class="s">/</span>AI</div>
+    <div class="note" style="margin-top:8px">VIZ(IO)N Brand Style Guide · v1.0 · derived from IMG_2994 · assembled via brand-identity-architect</div>
+  </footer>
+
+</div>
+
+<div id="toast">copied</div>
+
+<script>
+  const toast = document.getElementById('toast');
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=>toast.classList.remove('show'), 1300);
+  }
+  function copyHex(hex){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(hex).then(()=>showToast(hex + ' copied')).catch(()=>showToast(hex));
+    } else { showToast(hex); }
+  }
+  document.querySelectorAll('.sw').forEach(sw=>{
+    const hex = sw.getAttribute('data-hex');
+    sw.addEventListener('click', ()=>copyHex(hex));
+    sw.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); copyHex(hex);} });
+  });
+</script>
+</body>
+</html>
