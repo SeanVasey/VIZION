@@ -11,21 +11,6 @@ const config: Config = {
     "./src/stores/**/*.{ts,tsx}",
   ],
   theme: {
-    // 4px base unit, 8-pt rhythm (per FINAL_PLAN §2).
-    spacing: {
-      px: "1px",
-      0: "0",
-      1: "var(--space)" /* 4px  */,
-      2: "calc(var(--space) * 2)" /* 8px  */,
-      3: "calc(var(--space) * 3)" /* 12px */,
-      4: "calc(var(--space) * 4)" /* 16px */,
-      5: "calc(var(--space) * 5)" /* 20px */,
-      6: "calc(var(--space) * 6)" /* 24px */,
-      8: "calc(var(--space) * 8)" /* 32px */,
-      10: "calc(var(--space) * 10)" /* 40px */,
-      12: "calc(var(--space) * 12)" /* 48px */,
-      16: "calc(var(--space) * 16)" /* 64px */,
-    },
     colors: {
       transparent: "transparent",
       current: "currentColor",
@@ -64,6 +49,22 @@ const config: Config = {
       "3xl": ["2.4375rem", { lineHeight: "1.05" }] /* 39 */,
     },
     extend: {
+      // 4px base unit, 8-pt rhythm (per FINAL_PLAN §2). These keys are pinned to
+      // the --space variable so the rhythm can be retuned in one place; they sit
+      // in `extend` (not a full replacement) so Tailwind's complete spacing scale
+      // — e.g. h-9 / h-11 / h-24 and the fractional steps — stays available.
+      spacing: {
+        1: "var(--space)" /* 4px  */,
+        2: "calc(var(--space) * 2)" /* 8px  */,
+        3: "calc(var(--space) * 3)" /* 12px */,
+        4: "calc(var(--space) * 4)" /* 16px */,
+        5: "calc(var(--space) * 5)" /* 20px */,
+        6: "calc(var(--space) * 6)" /* 24px */,
+        8: "calc(var(--space) * 8)" /* 32px */,
+        10: "calc(var(--space) * 10)" /* 40px */,
+        12: "calc(var(--space) * 12)" /* 48px */,
+        16: "calc(var(--space) * 16)" /* 64px */,
+      },
       backdropBlur: {
         glass: "16px",
       },

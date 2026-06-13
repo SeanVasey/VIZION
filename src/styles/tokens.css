@@ -22,6 +22,8 @@
 
   --surface: rgba(43, 45, 51, 0.55); /* card/surface fill   */
   --glass: rgba(43, 45, 51, 0.72); /* floating glass fill   */
+  --chrome: rgba(16, 18, 22, 0.45); /* translucent top/bottom bars — lets the
+                                       ambient glow bloom through            */
   --onyx: #2b2d33; /* opaque surface                   */
   --hair: rgba(185, 188, 197, 0.2); /* hairline border    */
 
@@ -70,6 +72,7 @@
 
   --surface: rgba(255, 255, 255, 0.72);
   --glass: rgba(255, 255, 255, 0.82);
+  --chrome: rgba(255, 255, 255, 0.6);
   --onyx: #ffffff;
   --hair: rgba(15, 16, 18, 0.12);
 
@@ -94,6 +97,7 @@
 
     --surface: rgba(255, 255, 255, 0.72);
     --glass: rgba(255, 255, 255, 0.82);
+    --chrome: rgba(255, 255, 255, 0.6);
     --onyx: #ffffff;
     --hair: rgba(15, 16, 18, 0.12);
     --accent-ink: #3f6b00;

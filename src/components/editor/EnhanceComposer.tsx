@@ -33,6 +33,8 @@ export function EnhanceComposer() {
     ? Math.max(1, Math.ceil(editorDraft.trim().length / 4))
     : 0;
 
+  const isEmpty = editorDraft.trim() === "";
+
   function runEnhance() {
     const input = editorDraft.trim();
     if (!input) return;
@@ -40,13 +42,59 @@ export function EnhanceComposer() {
     enhanceMutation.mutate({ input, mode: activeMode, target: targetModel });
   }
 
+  function resetComposer() {
+    setEditorDraft("");
+    enhanceMutation.reset();
+  }
+
   return (
     <section className="flex flex-col gap-5">
       {/* Mode instrument — full-width grid with the sliding lens-lock. */}
       <ModeRig activeMode={activeMode} onSelect={setActiveMode} />
 
-      {/* Prompt editor — Reddit Sans (input is NOT the output region). */}
-      <div className="glass no-pull-refresh rounded-2xl p-1">
+      {/* Composer — a single rounded surface that nests the target picker into
+          its top rail and the reset / Enhance actions into its bottom rail, so
+          every control lives within the one rounded-rectangle. */}
+      <div className="glass no-pull-refresh overflow-hidden rounded-2xl transition-shadow focus-within:shadow-focus">
+        {/* Top rail — model target, nested under the rounded top corners. */}
+        <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
+          <label
+            htmlFor="target-model"
+            className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver"
+          >
+            Target
+          </label>
+          <div className="relative inline-flex items-center">
+            <select
+              id="target-model"
+              value={targetModel}
+              onChange={(e) => setTargetModel(e.target.value as typeof targetModel)}
+              className="font-body cursor-pointer appearance-none rounded-full bg-surface py-1.5 pl-3.5 pr-8 text-sm text-text focus:outline-none focus-visible:shadow-none"
+            >
+              {TARGET_MODELS.map((m) => (
+                <option key={m.id} value={m.id} className="bg-onyx text-chalk">
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="pointer-events-none absolute right-2.5 h-4 w-4 text-silver"
+            >
+              <path
+                d="M8 10l4 4 4-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Prompt editor — Reddit Sans (input is NOT the output region). */}
         <label htmlFor="prompt-input" className="sr-only">
           Prompt input
         </label>
@@ -56,52 +104,47 @@ export function EnhanceComposer() {
           onChange={(e) => setEditorDraft(e.target.value)}
           placeholder="Type or paste your prompt…"
           rows={8}
-          className="font-body w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text placeholder:text-muted focus:outline-none"
+          className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
         />
-        <div className="flex items-center justify-between px-3 pb-2 pt-1">
-          <span className="font-body text-xs text-silver">📎 Media reference below</span>
-          <span className="font-body text-xs text-silver" aria-live="polite">
-            ⌁ {approxTokens} tokens
-          </span>
+
+        {/* Bottom rail — readouts + reset / Enhance, nested under the rounded
+            bottom corners so the whole composer reads as one object. */}
+        <div className="flex items-center justify-between gap-2 border-t border-hair px-2.5 py-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="font-body shrink-0 text-xs text-silver">📎 Media below</span>
+            <span
+              className="font-body shrink-0 text-xs text-silver"
+              aria-live="polite"
+            >
+              ⌁ {approxTokens} tokens
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={resetComposer}
+              disabled={isEmpty && !result}
+              aria-label="Clear prompt"
+              title="Clear prompt"
+              className="glass flex h-9 w-9 items-center justify-center rounded-full text-base text-silver transition-colors hover:text-chalk disabled:opacity-40"
+            >
+              <span aria-hidden="true">↺</span>
+            </button>
+            <button
+              type="button"
+              onClick={runEnhance}
+              disabled={enhanceMutation.isPending || isEmpty}
+              className="btn-laser pill flex h-9 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
+            >
+              {enhanceMutation.isPending ? "Enhancing…" : "► ENHANCE"}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Target picker — centered, content-width pill (NOT full-bleed). */}
-      <div className="flex flex-col items-center gap-1">
-        <label
-          htmlFor="target-model"
-          className="font-body text-xs uppercase tracking-wider text-silver"
-        >
-          Target
-        </label>
-        <div className="glass inline-flex items-center rounded-full">
-          <select
-            id="target-model"
-            value={targetModel}
-            onChange={(e) => setTargetModel(e.target.value as typeof targetModel)}
-            className="font-body cursor-pointer rounded-full bg-transparent px-4 py-2 text-center text-sm text-text focus:outline-none"
-          >
-            {TARGET_MODELS.map((m) => (
-              <option key={m.id} value={m.id} className="bg-onyx text-chalk">
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <p className="font-body text-[0.625rem] text-silver">
-          Same intent, fitted to the chosen engine.
-        </p>
-      </div>
-
-      {/* Primary CTA — full-width pill, --on-laser ink on a Laser fill. */}
-      <button
-        type="button"
-        onClick={runEnhance}
-        disabled={enhanceMutation.isPending || editorDraft.trim() === ""}
-        className="btn-laser pill flex min-h-[52px] items-center justify-center gap-2 px-6 text-base disabled:opacity-60"
-      >
-        {enhanceMutation.isPending ? "Enhancing…" : "► ENHANCE"}
-      </button>
+      <p className="-mt-2 text-center font-body text-[0.625rem] text-silver">
+        Same intent, fitted to the chosen engine.
+      </p>
 
       {/* Errors — provider-not-configured and cap messages get a friendly note. */}
       {enhanceMutation.isError && (

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useUIStore } from "@/stores/ui";
@@ -41,6 +41,7 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
 
   const [pickedFile, setPickedFile] = useState<File | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -48,6 +49,9 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
   const [fullName, setFullName] = useState(profile.full_name ?? "");
   const [displayName, setDisplayName] = useState(profile.display_name ?? "");
   const [emailField, setEmailField] = useState(email);
+
+  // A freshly saved avatar (new URL) should get another load attempt.
+  useEffect(() => setAvatarError(false), [profile.avatar_url]);
 
   function flash(ok: boolean, text: string) {
     setNotice({ ok, text });
@@ -116,7 +120,7 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
           className="glass relative h-24 w-24 overflow-hidden rounded-full disabled:opacity-60"
           aria-label="Change avatar"
         >
-          {profile.avatar_url ? (
+          {profile.avatar_url && !avatarError ? (
             <Image
               src={profile.avatar_url}
               alt=""
@@ -124,10 +128,11 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
               sizes="96px"
               className="object-cover"
               unoptimized
+              onError={() => setAvatarError(true)}
             />
           ) : (
-            <span className="flex h-full w-full items-center justify-center font-display text-2xl text-silver">
-              ◉
+            <span className="flex h-full w-full items-center justify-center font-display text-3xl text-silver">
+              {initials(profile.full_name, profile.display_name)}
             </span>
           )}
         </button>
@@ -254,6 +259,15 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
       )}
     </div>
   );
+}
+
+/** Up-to-two-letter monogram from the user's name, with a quiet glyph fallback. */
+function initials(fullName: string | null, displayName: string | null): string {
+  const source = (fullName || displayName || "").trim();
+  if (!source) return "◉";
+  const parts = source.split(/\s+/).filter(Boolean);
+  const letters = (parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "");
+  return letters.toUpperCase() || "◉";
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
