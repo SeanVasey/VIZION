@@ -1,35 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Bebas_Neue, Reddit_Sans, JetBrains_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { UI_STORE_KEY } from "@/lib/constants";
 import { QueryProvider } from "@/lib/query/provider";
 import { ThemeManager } from "@/components/ThemeManager";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
-
-const display = Bebas_Neue({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-  fallback: ["Arial Narrow", "sans-serif"],
-});
-
-const body = Reddit_Sans({
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-  variable: "--font-body",
-  display: "swap",
-  fallback: ["system-ui", "sans-serif"],
-});
-
-const mono = JetBrains_Mono({
-  weight: ["400", "500", "700"],
-  subsets: ["latin"],
-  variable: "--font-mono",
-  display: "swap",
-  fallback: ["ui-monospace", "monospace"],
-});
 
 export const metadata: Metadata = {
   applicationName: "VIZ(IO)N",
@@ -61,12 +36,7 @@ const NO_FLASH = `(function(){try{var r=localStorage.getItem("${UI_STORE_KEY}");
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      data-theme="system"
-      className={`${display.variable} ${body.variable} ${mono.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="en" data-theme="system" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
       </head>
