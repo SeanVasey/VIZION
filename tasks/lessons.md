@@ -214,10 +214,10 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   `.flatten({ background: VOID })` to make apple-touch/favicons opaque squares (iOS
   expects a filled square and applies its own squircle mask).
 - **Maskable ≠ the full tile.** The plate's glow border sits near the edge and would be
-  clipped by the OS maskable crop. Composite the *mark* (no plate) at ~78% inside a
+  clipped by the OS maskable crop. Composite the _mark_ (no plate) at ~78% inside a
   full-bleed Void canvas so the safe zone never clips.
 - **Keep the transparent "any" matrix transparent** (guardrail §6) — render the mark
   alone; the maskable set provides the filled variant.
-- **e2e webserver needs `NEXT_PUBLIC_SUPABASE_*` at build time** (NEXT_PUBLIC_ vars are
-  inlined) or the middleware throws "URL and Key are required". The sandbox also can't
-  install WebKit system deps — Chromium e2e is the reliable local signal.
+- **e2e webserver without Supabase env must fail closed** (public env vars are inlined)
+  or the middleware throws "URL and Key are required". The sandbox also can't install
+  WebKit system deps — Chromium e2e is the reliable local signal.
