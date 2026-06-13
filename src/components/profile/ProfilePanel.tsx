@@ -266,7 +266,8 @@ function initials(fullName: string | null, displayName: string | null): string {
   const source = (fullName || displayName || "").trim();
   if (!source) return "◉";
   const parts = source.split(/\s+/).filter(Boolean);
-  const letters = (parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "");
+  const letters =
+    (parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "");
   return letters.toUpperCase() || "◉";
 }
 
