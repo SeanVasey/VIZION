@@ -142,10 +142,6 @@ export function EnhanceComposer() {
         </div>
       </div>
 
-      <p className="-mt-2 text-center font-body text-[0.625rem] text-silver">
-        Same intent, fitted to the chosen engine.
-      </p>
-
       {/* Errors — provider-not-configured and cap messages get a friendly note. */}
       {enhanceMutation.isError && (
         <p

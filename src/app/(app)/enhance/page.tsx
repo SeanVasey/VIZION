@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { EnhanceComposer } from "@/components/editor/EnhanceComposer";
+import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = { title: "Enhance" };
 
@@ -23,6 +24,7 @@ export default function EnhancePage() {
         <EnhanceComposer />
         <div className="h-px bg-hair" />
         <MediaStudio />
+        <Footer inset />
       </div>
     </>
   );
