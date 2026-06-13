@@ -6,6 +6,45 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — UI remediation (R1–R8): restore the locked VIZION spec
+
+- **Brand wiring (R1):** the squircle `vizion-icon-token.svg` now sits left of the
+  wordmark in the top bar; the transparent `vizion-mark-token.svg` is the centered
+  login hero. New `BrandPills` (VASEY/AI + live `v{version}` read from
+  `package.json` via `NEXT_PUBLIC_APP_VERSION`, never hardcoded).
+- **Type system (R2):** Bebas Neue / Reddit Sans / JetBrains Mono are now
+  self-hosted via `next/font/local` (vendored OFL woff2 in `src/app/fonts/`).
+  JetBrains Mono is scoped to the enhanced-prompt **output/result region only**;
+  every other surface — including the prompt input editor — is Reddit Sans
+  (guarded by `tests/unit/type-scoping.test.ts`). The wordmark is now plain
+  `VIZION` (IO in accent), with the bracket/chevron motif left to the mark/icon.
+- **Light/dark & contrast (R3):** role-mapped tokens for both themes;
+  `--chalk`/`--silver` swap per theme. Added `--on-laser` (constant dark ink on
+  laser fills) and theme-aware `--accent-ink`/light `--flare` so laser/error are
+  never used as low-contrast text on light. Every text/bg pair passes WCAG AA in
+  both themes.
+- **Glass + background (R4):** an ambient neural-mesh `<canvas>`
+  (`NeuralMeshBackground`) decoupled from React, capped ~30fps, particle count
+  scaled to viewport, fully paused on `document.hidden`, with a static-gradient
+  fallback under `prefers-reduced-motion`. Glass stays on floating elements only;
+  the active result surface gets a top-edge laser shimmer.
+- **Mode instrument & balance (R5):** the five modes are now one glass chassis
+  (`ModeRig`) with a sliding laser lens-lock indicator, symmetric at 360/390/430px.
+  The target-model picker is a centered content-width pill; full width is reserved
+  for the Enhance CTA and the mode grid. Unified `.btn-laser`/`.btn-secondary`/
+  `.btn-destructive` system.
+- **Auth & profile (R6):** branded OAuth marks (multicolor Google G, theme-aware
+  GitHub) via `ProviderIcon`, capped/centered. The profile shows the auth provider
+  as its branded mark ("Connected with GitHub"); sign-out is a capped destructive
+  button.
+- **Footer (R7):** canonical `Footer` on login + profile — "VASEY/AI Presents" /
+  Vasey Multimedia, dynamic year, version pill, safe-area aware. VM + V/AI
+  monograms render behind `BRAND_MONOGRAMS_READY` (typographic fallback until
+  Sean's real files land) with `filter:invert(1)` theming.
+- **iOS & performance (R8):** library rows memoized; the media studio is a
+  route-level dynamic import; the result tree reads the *submitted* input so typing
+  never re-renders it; canvas paused offscreen.
+
 ### Changed — Brand icons
 
 - Replaced the placeholder aperture glyph across the full icon/splash matrix with

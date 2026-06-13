@@ -109,24 +109,30 @@ export function TransformationDiff({
     <section className="flex flex-col gap-4" aria-label="Transformation diff">
       {/* Input — the Void end. */}
       <div className="rounded-2xl border border-hair bg-void/60 p-4">
-        <p className="mono mb-2 text-xs uppercase tracking-wider text-silver">Input</p>
+        <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
+          Input
+        </p>
+        {/* OUTPUT REGION: the prompt body renders in mono (JetBrains). */}
         <p className="mono whitespace-pre-wrap break-words text-sm text-silver">
           {input}
         </p>
       </div>
 
       {/* Output — the Chalk end, changed tokens lit in Laser. */}
-      <div className="glass rounded-2xl p-4">
+      <div className="glass result-shimmer rounded-2xl p-4">
         <div className="mb-2 flex items-center justify-between">
-          <p className="mono text-xs uppercase tracking-wider text-silver">Enhanced</p>
-          <p className="mono text-xs text-laser">
+          <p className="font-body text-xs uppercase tracking-wider text-silver">
+            Enhanced
+          </p>
+          <p className="font-body text-xs text-accent">
             {changes} change{changes === 1 ? "" : "s"}
           </p>
         </div>
+        {/* OUTPUT REGION: result text + diff tokens render in mono (JetBrains). */}
         <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
           {result.diff.map((seg, i) =>
             seg.op === "removed" ? null : (
-              <span key={i} className={seg.op === "added" ? "text-laser" : undefined}>
+              <span key={i} className={seg.op === "added" ? "text-accent" : undefined}>
                 {seg.text}
               </span>
             ),
@@ -136,11 +142,11 @@ export function TransformationDiff({
 
       {/* Plain-language rationale. */}
       <div className="rounded-2xl border border-hair p-4">
-        <p className="mono mb-1 text-xs uppercase tracking-wider text-silver">
+        <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
           What changed
         </p>
         <p className="font-body text-sm text-text">{result.rationale}</p>
-        <p className="mono mt-3 text-xs text-silver">
+        <p className="font-body mt-3 text-xs text-silver">
           {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok · $
           {result.costUsd.toFixed(4)}
         </p>
@@ -151,12 +157,12 @@ export function TransformationDiff({
         {savedId ? (
           <Link
             href={`/library/${savedId}`}
-            className="min-h-[44px] rounded-xl bg-pulse px-4 text-sm leading-[44px] text-void"
+            className="min-h-[44px] rounded-xl bg-pulse px-4 text-sm leading-[44px] text-on-laser"
           >
             Saved ✓ — open
           </Link>
         ) : queued ? (
-          <span className="mono min-h-[44px] rounded-xl bg-amber px-4 text-sm leading-[44px] text-void">
+          <span className="font-body min-h-[44px] rounded-xl bg-amber px-4 text-sm leading-[44px] text-on-laser">
             Queued — syncs when online
           </span>
         ) : (
@@ -183,7 +189,7 @@ export function TransformationDiff({
         >
           Share
         </button>
-        <span className="mono ml-1 text-xs text-silver">Export</span>
+        <span className="font-body ml-1 text-xs text-silver">Export</span>
         {(Object.keys(EXPORTERS) as ExportFormat[]).map((fmt) => (
           <button
             key={fmt}
@@ -196,7 +202,7 @@ export function TransformationDiff({
         ))}
       </div>
       {saveError && (
-        <p className="mono text-sm text-flare" role="alert">
+        <p className="font-body text-sm text-flare" role="alert">
           {saveError}
         </p>
       )}

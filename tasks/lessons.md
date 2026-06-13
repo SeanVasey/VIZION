@@ -221,3 +221,36 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 - **e2e webserver without Supabase env must fail closed** (public env vars are inlined)
   or the middleware throws "URL and Key are required". The sandbox also can't install
   WebKit system deps — Chromium e2e is the reliable local signal.
+
+## UI remediation (R1–R8) — restoring the locked spec
+
+- **Brand files named in a spec may not be in the repo.** The remediation prompt
+  referenced `vizion-mark.svg`/`vizion-icon.svg`/`vm-monogram.svg`/`vai-monogram.svg`
+  and a `vizion-brand-lockup.html` that don't exist — only the `*-token.svg` pair
+  does. Verify asset presence *before* planning; wire the real tokens, and gate the
+  missing monograms behind `BRAND_MONOGRAMS_READY` so the footer ships with a
+  typographic fallback and flips to the real files with no code change.
+- **The contrast-law guardrail (§6) overrides literal brand wording.** "IO in
+  `--laser`" fails on light (laser-on-light = 1.09:1). Resolved with theme-aware
+  *ink* tokens: `--accent-ink` (laser→deep green on light) and a light-only
+  `--flare` (#c81d10) for error text. Laser stays a FILL (`--laser` + `--on-laser`),
+  which is always legible. Verified every text/bg pair ≥ AA in both themes.
+- **Role tokens must be theme-swapped, not fixed.** Making `--chalk`/`--silver`
+  flip per theme means existing `text-chalk`/`text-silver` utilities become legible
+  in light mode automatically — far less churn than re-classing every component.
+- **`text-void` is a trap once `--void` is theme-swapped.** Dark ink on a colored
+  fill (pulse/amber chips) must use the constant `--on-laser`, not `--void` (which
+  now inverts to a light value in light mode).
+- **Vendor fonts locally with `next/font/local`.** Fetch the OFL latin woff2
+  subsets at build-prep, commit them under `src/app/fonts/`, point the CSS-var
+  font stacks at the generated `--font-*` vars (fallbacks after). No build-time
+  Google Fonts egress; honours the earlier P1 lesson.
+- **Mono-scoping is enforceable by a source-grep unit test.** `type-scoping.test.ts`
+  asserts UI components carry no `mono` class so JetBrains can't leak back onto
+  chrome; mono lives only on the output/result body text.
+- **Tailwind utilities beat `@layer components`.** A `rounded-xl` at the call site
+  overrides a `border-radius` baked into `.btn-laser`; use an explicit `.pill`
+  modifier on the hero CTAs rather than relying on the base class radius.
+- **The background canvas must capture non-null handles for its closures.** TS
+  doesn't carry `if (!ctx) return` narrowing into nested rAF helpers — assign
+  `const g = ctx` after the guard so the loop sees a non-null type.

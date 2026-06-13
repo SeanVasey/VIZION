@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import Link from "next/link";
 import { TARGET_MODELS } from "@/lib/constants";
 import { filterPrompts, relativeTime } from "@/lib/library/util";
@@ -87,27 +87,10 @@ export function LibraryBrowser({ prompts }: { prompts: PromptCard[] }) {
       {/* Cards. */}
       <ul className="flex flex-col gap-3">
         {filtered.map((p) => (
-          <li key={p.id}>
-            <Link
-              href={`/library/${p.id}`}
-              className="glass block rounded-2xl p-4 transition-colors hover:border-hair"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-body text-base text-text">{p.title}</p>
-                <span className="mono shrink-0 text-xs text-laser">
-                  {MODEL_LABEL.get(p.target_model) ?? p.target_model}
-                </span>
-              </div>
-              <p className="mono mt-1 text-xs text-silver">
-                edited {relativeTime(p.updated_at)} · {p.versions} version
-                {p.versions === 1 ? "" : "s"}
-                {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
-              </p>
-            </Link>
-          </li>
+          <PromptRow key={p.id} prompt={p} />
         ))}
         {filtered.length === 0 && (
-          <li className="mono py-6 text-center text-sm text-silver">
+          <li className="font-body py-6 text-center text-sm text-silver">
             No prompts match your filters.
           </li>
         )}
@@ -115,6 +98,30 @@ export function LibraryBrowser({ prompts }: { prompts: PromptCard[] }) {
     </section>
   );
 }
+
+/** Memoized card row (R8 perf): re-renders only when its prompt changes. */
+const PromptRow = memo(function PromptRow({ prompt: p }: { prompt: PromptCard }) {
+  return (
+    <li>
+      <Link
+        href={`/library/${p.id}`}
+        className="glass block rounded-2xl p-4 transition-colors hover:border-hair"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <p className="font-body text-base text-text">{p.title}</p>
+          <span className="font-body shrink-0 text-xs text-accent">
+            {MODEL_LABEL.get(p.target_model) ?? p.target_model}
+          </span>
+        </div>
+        <p className="font-body mt-1 text-xs text-silver">
+          edited {relativeTime(p.updated_at)} · {p.versions} version
+          {p.versions === 1 ? "" : "s"}
+          {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
+        </p>
+      </Link>
+    </li>
+  );
+});
 
 function FilterChip({
   active,
@@ -131,8 +138,8 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={[
-        "mono rounded-full px-3 py-1.5 text-xs transition-colors",
-        active ? "bg-laser text-void" : "glass text-silver hover:text-chalk",
+        "font-body rounded-full px-3 py-1.5 text-xs transition-colors",
+        active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
       ].join(" ")}
     >
       {children}

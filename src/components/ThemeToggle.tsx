@@ -27,7 +27,7 @@ export function ThemeToggle() {
       onClick={() => setTheme(NEXT[theme])}
       aria-label={`Theme: ${theme}. Switch to ${NEXT[theme]}.`}
       title={`Theme: ${theme}`}
-      className="glass flex h-11 w-11 items-center justify-center rounded-xl text-lg text-silver transition-colors hover:text-laser"
+      className="glass flex h-11 w-11 items-center justify-center rounded-xl text-lg text-silver transition-colors hover:text-accent"
     >
       <span aria-hidden="true">{GLYPH[theme]}</span>
     </button>
@@ -54,7 +54,7 @@ export function ThemeSegmented() {
           onClick={() => setTheme(t)}
           className={[
             "rounded-lg px-3 py-2 text-sm capitalize transition-colors",
-            theme === t ? "bg-laser text-void" : "text-silver hover:text-chalk",
+            theme === t ? "bg-laser text-on-laser" : "text-silver hover:text-chalk",
           ].join(" ")}
         >
           {t}

@@ -168,7 +168,7 @@ export function MediaStudio() {
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl tracking-wide text-text">Media reference</h2>
         {budget.warn && (
-          <span className="mono text-xs text-amber">
+          <span className="font-body text-xs text-amber">
             ⚠ {formatBytes(budget.usedBytes)} / {formatBytes(budget.quotaBytes)}
           </span>
         )}
@@ -201,7 +201,7 @@ export function MediaStudio() {
       </button>
 
       {error && (
-        <p className="mono text-sm text-flare" role="alert">
+        <p className="font-body text-sm text-flare" role="alert">
           {error}
         </p>
       )}
@@ -210,7 +210,7 @@ export function MediaStudio() {
         <>
           {/* Detected attributes. */}
           <div className="glass flex flex-col gap-2 rounded-2xl p-4">
-            <p className="mono text-xs uppercase tracking-wider text-silver">
+            <p className="font-body text-xs uppercase tracking-wider text-silver">
               Detected · {attrs.source}
             </p>
             {attrs.palette && attrs.palette.length > 0 && (
@@ -225,7 +225,7 @@ export function MediaStudio() {
                 ))}
               </div>
             )}
-            <dl className="mono grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-silver">
+            <dl className="font-body grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-silver">
               {(
                 [
                   ["subject", attrs.subject],
@@ -258,9 +258,9 @@ export function MediaStudio() {
                 type="button"
                 onClick={() => setGenTarget(t.id)}
                 className={[
-                  "mono rounded-full px-3 py-1.5 text-xs transition-colors",
+                  "font-body rounded-full px-3 py-1.5 text-xs transition-colors",
                   genTarget === t.id
-                    ? "bg-laser text-void"
+                    ? "bg-laser text-on-laser"
                     : "glass text-silver hover:text-chalk",
                 ].join(" ")}
               >
@@ -275,14 +275,15 @@ export function MediaStudio() {
             placeholder={
               editorDraft ? "Using your editor prompt…" : "Describe what to generate…"
             }
-            className="glass mono w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text placeholder:text-muted focus:outline-none"
+            className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text placeholder:text-muted focus:outline-none"
           />
 
           {/* Generation-ready prompt. */}
           <div className="glass rounded-2xl p-4">
-            <p className="mono mb-2 text-xs uppercase tracking-wider text-silver">
+            <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
               Generation prompt
             </p>
+            {/* OUTPUT REGION: generation prompt body in mono (JetBrains). */}
             <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
               {generated}
             </p>
@@ -298,7 +299,7 @@ export function MediaStudio() {
             {savedId ? (
               <Link
                 href={`/library/${savedId}`}
-                className="min-h-[44px] rounded-xl bg-pulse px-4 text-sm leading-[44px] text-void"
+                className="min-h-[44px] rounded-xl bg-pulse px-4 text-sm leading-[44px] text-on-laser"
               >
                 Saved ✓ — open
               </Link>

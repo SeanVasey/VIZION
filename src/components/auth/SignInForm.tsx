@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ProviderIcon } from "@/components/auth/ProviderIcon";
 
 type Status =
   | { kind: "idle" }
@@ -49,18 +50,44 @@ export function SignInForm({ initialError }: { initialError?: string }) {
 
   if (status.kind === "sent") {
     return (
-      <div className="glass rounded-xl p-5 text-center" role="status">
+      <div
+        className="glass mx-auto w-full max-w-[300px] rounded-2xl p-5 text-center"
+        role="status"
+      >
         <p className="font-display text-xl tracking-wide text-text">Check your email</p>
-        <p className="mt-2 text-sm text-muted">
-          We sent a magic link to <span className="mono text-chalk">{email}</span>. Open
-          it on this device to continue.
+        <p className="font-body mt-2 text-sm text-muted">
+          We sent a magic link to{" "}
+          <span className="font-body font-medium text-text">{email}</span>. Open it on
+          this device to continue.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    // Capped + centered: every auth control is content-width (the balance rule).
+    <div className="mx-auto flex w-full max-w-[300px] flex-col gap-3">
+      {/* OAuth — branded marks, equal weight. */}
+      {(["google", "github"] as const).map((provider) => (
+        <button
+          key={provider}
+          type="button"
+          disabled={busy}
+          onClick={() => signInWithProvider(provider)}
+          className="btn-secondary font-body flex min-h-[48px] w-full items-center justify-center gap-3 px-4 text-sm disabled:opacity-60"
+        >
+          <ProviderIcon provider={provider} />
+          {PROVIDER_LABEL[provider]}
+        </button>
+      ))}
+
+      <div className="flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-hair" />
+        <span className="font-body text-xs text-silver">or</span>
+        <span className="h-px flex-1 bg-hair" />
+      </div>
+
+      {/* Magic email link. */}
       <form onSubmit={sendMagicLink} className="flex flex-col gap-2">
         <label htmlFor="email" className="sr-only">
           Email address
@@ -74,39 +101,19 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-base text-text placeholder:text-muted focus:outline-none"
+          className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-center text-base text-text placeholder:text-muted focus:outline-none"
         />
         <button
           type="submit"
           disabled={busy}
-          className="btn-laser flex min-h-[48px] items-center justify-center rounded-xl px-6 text-base disabled:opacity-60"
+          className="btn-laser font-body flex min-h-[48px] items-center justify-center rounded-xl px-6 text-base disabled:opacity-60"
         >
           {busy ? "Sending…" : "Email me a magic link"}
         </button>
       </form>
 
-      <div className="flex items-center gap-3" aria-hidden="true">
-        <span className="h-px flex-1 bg-hair" />
-        <span className="mono text-xs text-silver">or</span>
-        <span className="h-px flex-1 bg-hair" />
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {(["github", "google"] as const).map((provider) => (
-          <button
-            key={provider}
-            type="button"
-            disabled={busy}
-            onClick={() => signInWithProvider(provider)}
-            className="glass font-body flex min-h-[48px] w-full items-center justify-center rounded-xl px-4 text-text disabled:opacity-60"
-          >
-            {PROVIDER_LABEL[provider]}
-          </button>
-        ))}
-      </div>
-
       {status.kind === "error" && (
-        <p className="mono text-center text-sm text-flare" role="alert">
+        <p className="font-body text-center text-sm text-flare" role="alert">
           {status.message}
         </p>
       )}

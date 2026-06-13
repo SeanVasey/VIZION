@@ -6,17 +6,33 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useUIStore } from "@/stores/ui";
 import { ThemeSegmented } from "@/components/ThemeToggle";
+import { ProviderIcon } from "@/components/auth/ProviderIcon";
+import { Footer } from "@/components/Footer";
 import { AvatarCropper } from "@/components/avatar-crop/AvatarCropper";
 import { updateProfileAction, updateEmailAction } from "@/lib/profile/actions";
 import { setPasswordAction } from "@/app/(auth)/actions";
 import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
 import type { Profile } from "@/lib/supabase/database.types";
 
-const AUTH_BADGE: Record<string, string> = {
-  github: "GitHub",
-  google: "Google",
-  magic_link: "Email",
+const AUTH_LABEL: Record<string, string> = {
+  github: "Connected with GitHub",
+  google: "Connected with Google",
+  magic_link: "Signed in with email",
 };
+
+/** Auth-provider badge: the branded mark for OAuth, plain text for magic link. */
+function ProviderBadge({ method }: { method: string | null }) {
+  if (!method) return null;
+  const label = AUTH_LABEL[method] ?? method;
+  return (
+    <span className="font-body inline-flex items-center gap-1.5 text-xs text-silver">
+      {method === "github" || method === "google" ? (
+        <ProviderIcon provider={method} className="h-4 w-4" />
+      ) : null}
+      {label}
+    </span>
+  );
+}
 
 export function ProfilePanel({ profile, email }: { profile: Profile; email: string }) {
   const router = useRouter();
@@ -126,14 +142,14 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
             e.target.value = "";
           }}
         />
-        <div>
+        <div className="flex flex-col items-center gap-1">
           <p className="font-display text-2xl tracking-wide text-text">
             {profile.full_name || profile.display_name || "Your name"}
           </p>
-          <p className="mono text-sm text-silver">
+          <p className="font-body text-sm text-silver">
             {profile.display_name ? `@${profile.display_name}` : "set a display name"}
-            {profile.auth_method ? ` · ${AUTH_BADGE[profile.auth_method]}` : ""}
           </p>
+          <ProviderBadge method={profile.auth_method} />
         </div>
       </div>
 
@@ -153,7 +169,7 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="unique handle"
-            className="mono w-full rounded-lg bg-transparent text-right text-text placeholder:text-muted focus:outline-none"
+            className="font-body w-full rounded-lg bg-transparent text-right text-text placeholder:text-muted focus:outline-none"
           />
         </Field>
         <Divider />
@@ -162,7 +178,7 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
             type="email"
             value={emailField}
             onChange={(e) => setEmailField(e.target.value)}
-            className="mono w-full rounded-lg bg-transparent text-right text-text placeholder:text-muted focus:outline-none"
+            className="font-body w-full rounded-lg bg-transparent text-right text-text placeholder:text-muted focus:outline-none"
           />
         </Field>
         <button
@@ -206,22 +222,24 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
 
       {notice && (
         <p
-          className={`mono text-center text-sm ${notice.ok ? "text-pulse" : "text-flare"}`}
+          className={`font-body text-center text-sm ${notice.ok ? "text-pulse" : "text-flare"}`}
           role="status"
         >
           {notice.text}
         </p>
       )}
 
-      {/* Account actions */}
-      <form action="/auth/sign-out" method="post">
+      {/* Account actions — capped + centered (the balance rule). */}
+      <form action="/auth/sign-out" method="post" className="flex justify-center">
         <button
           type="submit"
-          className="glass flex min-h-[44px] w-full items-center justify-center rounded-xl px-5 text-sm text-flare"
+          className="btn-destructive font-body min-h-[44px] w-full max-w-[260px] px-5 text-sm"
         >
           Sign out
         </button>
       </form>
+
+      <Footer inset />
 
       {/* Avatar crop modal */}
       {pickedFile && (

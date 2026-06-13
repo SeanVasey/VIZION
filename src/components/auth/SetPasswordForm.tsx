@@ -55,7 +55,7 @@ export function SetPasswordForm() {
         {pending ? "Saving…" : "Set password & continue"}
       </button>
       {state?.error && (
-        <p className="mono text-center text-sm text-flare" role="alert">
+        <p className="font-body text-center text-sm text-flare" role="alert">
           {state.error}
         </p>
       )}

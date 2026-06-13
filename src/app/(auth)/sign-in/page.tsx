@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import { Wordmark } from "@/components/Wordmark";
+import { AuthHero } from "@/components/auth/AuthHero";
 import { SignInForm } from "@/components/auth/SignInForm";
+import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 /**
  * Auth gate (product-spec §3). Unauthenticated visitors land here (enforced by
- * middleware) and see only the brand, a one-line value prop, and the three auth
- * methods — magic link, GitHub, and Google. No DIY auth: Supabase Auth only.
+ * middleware) and see the brand mark hero, the three auth methods, the brand/
+ * version pills, and the canonical footer — over the animated background.
+ * No DIY auth: Supabase Auth only.
  */
 export default async function SignInPage({
   searchParams,
@@ -18,15 +20,12 @@ export default async function SignInPage({
 
   return (
     // A <div>, not <main>: the layout's SafeAreaProvider already renders <main>.
-    <div className="mx-auto flex min-h-[100dvh] max-w-sm flex-col items-center justify-center gap-8 px-6 pb-safe pt-safe">
-      <div className="text-center">
-        <Wordmark className="text-3xl" />
-        <p className="mt-3 text-sm text-muted">
-          Transform any prompt for the engine that&apos;s about to receive it.
-        </p>
+    <div className="mx-auto flex min-h-[100dvh] max-w-sm flex-col items-center justify-between gap-8 px-6 pt-safe">
+      <div className="flex flex-1 flex-col items-center justify-center gap-8 py-8">
+        <AuthHero />
+        <SignInForm initialError={error} />
       </div>
-
-      <SignInForm initialError={error} />
+      <Footer />
     </div>
   );
 }
