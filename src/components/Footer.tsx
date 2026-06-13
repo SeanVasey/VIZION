@@ -41,7 +41,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
         <a
           href="https://vaseymultimedia.com"
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
           aria-label="Vasey Multimedia"
           className="inline-flex items-center text-silver opacity-45 transition-opacity hover:opacity-75"
         >
@@ -63,7 +63,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
         <a
           href="https://vasey.ai"
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
           aria-label="VASEY/AI"
           className="inline-flex items-center text-silver opacity-45 transition-opacity hover:opacity-75"
         >
@@ -91,7 +91,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
         <a
           href="https://vaseymultimedia.com"
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
           className="text-accent transition-colors hover:underline"
         >
           VASEY Multimedia
@@ -102,7 +102,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
         <a
           href="https://vasey.ai"
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
           className="text-accent transition-colors hover:underline"
         >
           VASEY/AI

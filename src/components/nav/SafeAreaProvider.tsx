@@ -18,7 +18,7 @@ export function SafeAreaProvider({ children }: { children: ReactNode }) {
         // Reserve space for the ~60px nav bar (+ comfortable buffer) and the
         // home-indicator inset, so the footer/last controls never sit under it.
         style={{
-          paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
+          paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
         }}
       >
         {children}
