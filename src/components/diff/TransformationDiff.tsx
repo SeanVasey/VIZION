@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import Link from "next/link";
 import type { ModeId, TargetModelId } from "@/lib/constants";
 import type { EnhanceResponse } from "@/lib/enhance/use-enhance";
 import { countChanges } from "@/lib/enhance/diff";
 import { EXPORTERS, type ExportData, type ExportFormat } from "@/lib/enhance/export";
+import { savePromptAction } from "@/lib/library/actions";
 
 /**
  * The transformation diff (product-spec §1.1, §4.1) — the brand's signature
@@ -23,7 +25,28 @@ export function TransformationDiff({
   result: EnhanceResponse;
 }) {
   const [copied, setCopied] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, startSave] = useTransition();
   const changes = countChanges(result.diff);
+
+  function save() {
+    setSaveError(null);
+    startSave(async () => {
+      const res = await savePromptAction({
+        input,
+        output: result.output,
+        rationale: result.rationale,
+        mode,
+        target,
+        modelUsed: result.modelUsed,
+        tokenIn: result.tokenIn,
+        tokenOut: result.tokenOut,
+      });
+      if (res.ok && res.promptId) setSavedId(res.promptId);
+      else setSaveError(res.error ?? "Couldn't save.");
+    });
+  }
 
   const exportData: ExportData = {
     input,
@@ -109,8 +132,25 @@ export function TransformationDiff({
         </p>
       </div>
 
-      {/* Copy / share / export. */}
+      {/* Save / copy / share / export. */}
       <div className="flex flex-wrap items-center gap-2">
+        {savedId ? (
+          <Link
+            href={`/library/${savedId}`}
+            className="min-h-[44px] rounded-xl bg-pulse px-4 text-sm leading-[44px] text-void"
+          >
+            Saved ✓ — open
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="glass min-h-[44px] rounded-xl px-4 text-sm text-text disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save to library"}
+          </button>
+        )}
         <button
           type="button"
           onClick={copyOutput}
@@ -137,6 +177,11 @@ export function TransformationDiff({
           </button>
         ))}
       </div>
+      {saveError && (
+        <p className="mono text-sm text-flare" role="alert">
+          {saveError}
+        </p>
+      )}
     </section>
   );
 }

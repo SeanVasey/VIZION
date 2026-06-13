@@ -1,48 +1,56 @@
 import type { Metadata } from "next";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { createClient } from "@/lib/supabase/server";
+import { LibraryBrowser, type PromptCard } from "@/components/library/LibraryBrowser";
+import { ActivityFeed } from "@/components/library/ActivityFeed";
 
 export const metadata: Metadata = { title: "Library" };
 
-/** P1 shell of the Library screen.  Saved prompts, versioning, search, and the
- *  activity feed are wired in P4 (server state via TanStack Query). */
-export default function LibraryPage() {
+/** Library — saved prompts with tags/search/model filter + the activity feed
+ *  (product-spec §4.4). Server state via Supabase, scoped by RLS. */
+export default async function LibraryPage() {
+  const supabase = await createClient();
+
+  const { data: prompts } = await supabase
+    .from("prompts")
+    .select("id, title, target_model, tags, updated_at")
+    .order("updated_at", { ascending: false });
+
+  const ids = (prompts ?? []).map((p) => p.id);
+
+  // Version counts (light: ids only) keyed by prompt.
+  const counts = new Map<string, number>();
+  if (ids.length) {
+    const { data: vers } = await supabase
+      .from("prompt_versions")
+      .select("prompt_id")
+      .in("prompt_id", ids);
+    for (const v of vers ?? []) {
+      counts.set(v.prompt_id, (counts.get(v.prompt_id) ?? 0) + 1);
+    }
+  }
+
+  const cards: PromptCard[] = (prompts ?? []).map((p) => ({
+    id: p.id,
+    title: p.title,
+    target_model: p.target_model,
+    tags: p.tags,
+    updated_at: p.updated_at,
+    versions: counts.get(p.id) ?? 1,
+  }));
+
+  const { data: activity } = await supabase
+    .from("activity_events")
+    .select("id, type, meta, created_at, prompt_id")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
   return (
     <>
       <ScreenHeader title="Library" />
-      <div className="mx-auto flex max-w-screen-sm flex-col gap-5 px-4 py-5">
-        {/* Tag rail (static placeholder). */}
-        <div className="flex flex-wrap gap-2">
-          {["#marketing", "#code", "+ tag"].map((t) => (
-            <span
-              key={t}
-              className="mono glass rounded-full px-3 py-1.5 text-xs text-silver"
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-
-        {/* Empty-state card — the server is the source of truth (P4). */}
-        <div className="glass rounded-2xl p-6 text-center">
-          <p className="font-display text-xl tracking-wide text-text">
-            Nothing saved yet
-          </p>
-          <p className="mt-2 text-sm text-muted">
-            Enhanced prompts you save will appear here with full version history and a
-            diff between any two versions.
-          </p>
-          <p className="mono mt-4 text-xs text-silver">Library · arrives in P4</p>
-        </div>
-
-        <div>
-          <h2 className="mono mb-2 text-xs uppercase tracking-wider text-silver">
-            ⟲ Activity
-          </h2>
-          <div className="glass rounded-2xl p-5 text-center text-sm text-muted">
-            Your activity feed will stream created, enhanced, saved, shared, and restored
-            events.
-          </div>
-        </div>
+      <div className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5">
+        <LibraryBrowser prompts={cards} />
+        <ActivityFeed events={activity ?? []} />
       </div>
     </>
   );

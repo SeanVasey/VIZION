@@ -17,6 +17,108 @@ export type Database = {
   };
   public: {
     Tables: {
+      prompts: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          current_ver: string | null;
+          target_model: Database["public"]["Enums"]["model_target"];
+          tags: string[];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          current_ver?: string | null;
+          target_model: Database["public"]["Enums"]["model_target"];
+          tags?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          current_ver?: string | null;
+          target_model?: Database["public"]["Enums"]["model_target"];
+          tags?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      prompt_versions: {
+        Row: {
+          id: string;
+          prompt_id: string;
+          parent_ver: string | null;
+          input_text: string;
+          output_text: string;
+          rationale: string | null;
+          mode: Database["public"]["Enums"]["enhance_mode"];
+          model_used: string;
+          token_in: number;
+          token_out: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          prompt_id: string;
+          parent_ver?: string | null;
+          input_text: string;
+          output_text: string;
+          rationale?: string | null;
+          mode: Database["public"]["Enums"]["enhance_mode"];
+          model_used: string;
+          token_in?: number;
+          token_out?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          prompt_id?: string;
+          parent_ver?: string | null;
+          input_text?: string;
+          output_text?: string;
+          rationale?: string | null;
+          mode?: Database["public"]["Enums"]["enhance_mode"];
+          model_used?: string;
+          token_in?: number;
+          token_out?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      activity_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          prompt_id: string | null;
+          type: Database["public"]["Enums"]["activity_type"];
+          meta: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          prompt_id?: string | null;
+          type: Database["public"]["Enums"]["activity_type"];
+          meta?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          prompt_id?: string | null;
+          type?: Database["public"]["Enums"]["activity_type"];
+          meta?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       usage_events: {
         Row: {
           id: string;
@@ -133,7 +235,15 @@ export type Database = {
       };
     };
     Enums: {
+      activity_type:
+        | "created"
+        | "enhanced"
+        | "saved"
+        | "shared"
+        | "restored"
+        | "profile_updated";
       auth_method: "magic_link" | "github" | "google";
+      enhance_mode: "clarify" | "expand" | "condense" | "reformat" | "target";
       model_target: "opus_4_8" | "gpt_5_5" | "gemini_pro_3_1";
       oauth_provider: "github" | "google";
       theme: "dark" | "light" | "system";
@@ -156,3 +266,6 @@ export type Enums<T extends keyof DefaultSchema["Enums"]> = DefaultSchema["Enums
 
 export type Profile = Tables<"profiles">;
 export type OAuthIdentity = Tables<"oauth_identities">;
+export type Prompt = Tables<"prompts">;
+export type PromptVersion = Tables<"prompt_versions">;
+export type ActivityEvent = Tables<"activity_events">;

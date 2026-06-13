@@ -6,6 +6,20 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — v0.4 Library & versioning (P4)
+
+- Schema (RLS owner-only from creation): `prompts`, immutable `prompt_versions`
+  (no update/delete policy → snapshots), and `activity_events`. `Prompt.current_ver`
+  points at the active version; versions chain via `parent_ver`.
+- Save flow: an enhancement saves a `Prompt` + first `PromptVersion`
+  (Save-to-library on the diff). Revise → re-enhance → append a new version.
+- Prompt detail (`/library/[id]`): version history, **diff any two versions**
+  (reusing the word-diff), one-tap **restore** (sets `current_ver`), and delete.
+- Library browser: search + tag + model filter over saved prompts; the **activity
+  feed** (created · enhanced · saved · shared · restored) tied to the profile.
+- Pure helpers (`deriveTitle`, `parseTags`, `filterPrompts`, `relativeTime`) with
+  unit tests.
+
 ### Added — v0.3 Enhance core (P3)
 
 - Provider adapter (`enhance(input, mode, target)`) fanning out to per-target

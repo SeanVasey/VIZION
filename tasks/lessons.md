@@ -115,3 +115,32 @@ by a `usage_events` ledger; the transformation diff (pure LCS word-diff) + copy/
 
 **Carry into P4:** save → `Prompt` + immutable `PromptVersion`; reuse the word-diff for
 diff-any-two-versions; activity feed logs every event type; tags + search + model filter.
+
+## Phase 4 — Library & versioning
+
+**What we built:** `prompts` + immutable `prompt_versions` + `activity_events` (RLS from
+creation); save / revise→append / restore / delete; the library browser (search + tag +
+model filter); prompt detail with diff-any-two + version history; the activity feed.
+
+**What to watch / decisions:**
+
+- **Immutability via RLS, not just convention.** `prompt_versions` has select + insert
+  policies but **no update/delete** policy — so RLS denies any mutation, making snapshots
+  truly immutable. Restore never edits a version; it only re-points `prompts.current_ver`.
+- **Circular FK** (`prompts.current_ver` ↔ `prompt_versions.prompt_id`): create `prompts`
+  with a nullable `current_ver`, create `prompt_versions`, then `ALTER TABLE prompts ADD
+CONSTRAINT … on delete set null`. Insert version → set `current_ver` in a second update.
+- **`prompt_versions` RLS joins through the parent** (`exists (select 1 from prompts …)`)
+  rather than carrying its own `user_id` — keeps a single source of ownership truth.
+- **The word-diff is reused for version diffs.** `diffWords(a.output_text, b.output_text)`
+  powers both the live transformation diff and diff-any-two — one tested primitive.
+- **Library list keeps queries light:** prompts (flat) + a `prompt_id`-only count query;
+  avoids embedding the full version bodies. Filtering (search/tag/model) is a pure,
+  unit-tested client function.
+- **Activity is logged from the server actions** (created/enhanced/saved/restored/shared);
+  the feed reads the last 20, newest-first, linking back to each prompt.
+
+**Carry into P5:** `MediaAsset` is first-class (A5); extraction pipeline behind a flag
+(on-device vs proxy — default proxy + on-device fallback); generation-syntax formatters
+(Midjourney image-ref · Runway/Sora/Kling motion · audio spec); storage budget + Amber
+warnings near quota.
