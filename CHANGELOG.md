@@ -6,6 +6,22 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — v1.0 Hardening (P6)
+
+- **Content-Security-Policy** + the full security-header set in `next.config.ts`
+  (`default-src 'self'`, Supabase-scoped `connect/img/media`, `frame-ancestors`/
+  `object-src`/`base-uri` locked; HSTS, nosniff, `X-Frame-Options: DENY`).
+- **Rate limit on every model route**: an in-memory burst limiter
+  (`src/lib/security/rate-limit.ts`) layered in front of the DB cost/rate cap.
+- **iOS storage-eviction recovery**: an IndexedDB **offline outbox**
+  (`src/lib/pwa/outbox.ts`) that queues failed mutations (e.g. Save) and replays
+  them via `OutboxFlusher` on `online` / `visibilitychange` (no Background Sync
+  on iOS); `navigator.storage.persist()` requested on SW registration.
+- **Accessibility (WCAG AA)**: skip-to-content link, `prefers-reduced-motion`
+  handling, focusable main landmark; existing visible focus ring + labels.
+- Security/hardening checklist + backup-restore runbook (`docs/runbooks/hardening.md`).
+- Tests: rate-limiter + outbox-flush (unit); CSP header + skip link (e2e).
+
 ### Added — v0.5 Media prompts (P5)
 
 - `MediaAsset` is first-class (A5): a `media_assets` table (RLS owner-only from

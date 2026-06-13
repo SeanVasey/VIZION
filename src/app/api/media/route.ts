@@ -9,6 +9,7 @@ import {
   COST_CAP_USD_PER_DAY,
 } from "@/lib/providers/config";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
+import { rateLimit } from "@/lib/security/rate-limit";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
 
@@ -28,6 +29,10 @@ export async function POST(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return err(401, "Sign in to analyze media.");
+
+  if (!rateLimit(`media:${user.id}`, RATE_LIMIT_PER_MIN, 60_000).allowed) {
+    return err(429, "You're going fast — wait a moment and try again.");
+  }
 
   let body: unknown;
   try {

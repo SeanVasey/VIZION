@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { needsPasswordOnboarding } from "@/lib/auth/onboarding";
 import { ProfileHydrator } from "@/components/ProfileHydrator";
+import { OutboxFlusher } from "@/components/pwa/OutboxFlusher";
 
 /**
  * Authenticated app shell. Middleware guarantees a session here; this layout
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         theme={profile?.theme ?? "system"}
         defaultModel={profile?.default_model ?? "opus_4_8"}
       />
+      <OutboxFlusher />
       {children}
     </>
   );

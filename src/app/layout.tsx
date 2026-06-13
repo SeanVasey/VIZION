@@ -71,6 +71,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
       </head>
       <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[100] focus:rounded-lg focus:bg-laser focus:px-3 focus:py-2 focus:text-void"
+        >
+          Skip to content
+        </a>
         <QueryProvider>
           <ThemeManager />
           <SafeAreaProvider>{children}</SafeAreaProvider>

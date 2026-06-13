@@ -4,6 +4,7 @@ import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/con
 import { enhance } from "@/lib/providers/adapter";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { RATE_LIMIT_PER_MIN, COST_CAP_USD_PER_DAY } from "@/lib/providers/config";
+import { rateLimit } from "@/lib/security/rate-limit";
 import { diffWords } from "@/lib/enhance/diff";
 
 const MAX_INPUT_CHARS = 20_000;
@@ -25,6 +26,11 @@ export async function POST(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return err(401, "Sign in to enhance prompts.");
+
+  // Cheap in-memory burst guard in front of the DB cost/rate window.
+  if (!rateLimit(`enhance:${user.id}`, RATE_LIMIT_PER_MIN, 60_000).allowed) {
+    return err(429, "You're going fast — wait a moment and try again.");
+  }
 
   let body: unknown;
   try {

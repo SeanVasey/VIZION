@@ -1,14 +1,35 @@
 import type { NextConfig } from "next";
 
 /**
- * Security headers applied to every route.
+ * Content-Security-Policy (P6 hardening). Locks the app to its own origin plus
+ * Supabase (auth/db/storage/realtime). Model-provider calls are server-side only,
+ * so they never appear in the browser's `connect-src`. Fonts are self-hosted via
+ * next/font, so no external font origin is needed.
  *
- * The Content-Security-Policy is intentionally conservative for the P1 shell:
- * - `connect-src` is widened in later phases to the Supabase + provider proxy origins.
- * - `script-src` allows the small inline theme-bootstrap script via 'unsafe-inline'
- *   for now; this is tightened to a nonce-based policy during P6 hardening.
+ * Residual: `script-src 'unsafe-inline'` remains for the pre-paint no-flash theme
+ * bootstrap (and Next's inline runtime). A nonce-based policy is the next step;
+ * `object-src 'none'` + `base-uri 'self'` + `frame-ancestors 'none'` blunt the
+ * common injection vectors in the meantime.
  */
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://*.supabase.co",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "media-src 'self' blob: https://*.supabase.co",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "form-action 'self' https://*.supabase.co",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "upgrade-insecure-requests",
+].join("; ");
+
 const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

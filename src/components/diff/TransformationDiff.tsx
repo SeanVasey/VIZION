@@ -7,6 +7,7 @@ import type { EnhanceResponse } from "@/lib/enhance/use-enhance";
 import { countChanges } from "@/lib/enhance/diff";
 import { EXPORTERS, type ExportData, type ExportFormat } from "@/lib/enhance/export";
 import { savePromptAction } from "@/lib/library/actions";
+import { enqueueOutbox } from "@/lib/pwa/outbox";
 
 /**
  * The transformation diff (product-spec §1.1, §4.1) — the brand's signature
@@ -26,25 +27,38 @@ export function TransformationDiff({
 }) {
   const [copied, setCopied] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, startSave] = useTransition();
   const changes = countChanges(result.diff);
 
   function save() {
     setSaveError(null);
+    const payload = {
+      input,
+      output: result.output,
+      rationale: result.rationale,
+      mode,
+      target,
+      modelUsed: result.modelUsed,
+      tokenIn: result.tokenIn,
+      tokenOut: result.tokenOut,
+    };
     startSave(async () => {
-      const res = await savePromptAction({
-        input,
-        output: result.output,
-        rationale: result.rationale,
-        mode,
-        target,
-        modelUsed: result.modelUsed,
-        tokenIn: result.tokenIn,
-        tokenOut: result.tokenOut,
-      });
-      if (res.ok && res.promptId) setSavedId(res.promptId);
-      else setSaveError(res.error ?? "Couldn't save.");
+      // Offline → queue to the outbox; it flushes on reconnect/foreground.
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        await enqueueOutbox("save-prompt", payload);
+        setQueued(true);
+        return;
+      }
+      try {
+        const res = await savePromptAction(payload);
+        if (res.ok && res.promptId) setSavedId(res.promptId);
+        else setSaveError(res.error ?? "Couldn't save.");
+      } catch {
+        await enqueueOutbox("save-prompt", payload);
+        setQueued(true);
+      }
     });
   }
 
@@ -141,6 +155,10 @@ export function TransformationDiff({
           >
             Saved ✓ — open
           </Link>
+        ) : queued ? (
+          <span className="mono min-h-[44px] rounded-xl bg-amber px-4 text-sm leading-[44px] text-void">
+            Queued — syncs when online
+          </span>
         ) : (
           <button
             type="button"

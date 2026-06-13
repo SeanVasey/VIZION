@@ -53,6 +53,19 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     expect(res.status()).toBe(401);
   });
 
+  test("sends a locked-down Content-Security-Policy", async ({ request }) => {
+    const res = await request.get("/sign-in");
+    const csp = res.headers()["content-security-policy"] ?? "";
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+  });
+
+  test("exposes a skip-to-content link for keyboard users", async ({ page }) => {
+    await page.goto("/sign-in");
+    await expect(page.getByRole("link", { name: "Skip to content" })).toBeAttached();
+  });
+
   test("the service worker is served with a no-store cache policy", async ({
     request,
   }) => {
@@ -66,16 +79,16 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     context,
     browserName,
   }) => {
-    await page.goto("/sign-in");
-    await page.evaluate(() => navigator.serviceWorker.ready);
-
-    // Playwright WebKit throws an internal error under offline emulation; the
-    // offline fallback is exercised on Chromium. Registration is still asserted
-    // above on WebKit (the iOS install path).
+    // Playwright WebKit's service-worker + offline emulation is unreliable
+    // (`serviceWorker.ready` hangs, `reload()` throws internal errors), so the
+    // SW lifecycle + offline fallback are verified on Chromium.
     test.skip(
       browserName === "webkit",
-      "Playwright WebKit offline navigation is unreliable; verified on Chromium.",
+      "Playwright WebKit service-worker support is unreliable; verified on Chromium.",
     );
+
+    await page.goto("/sign-in");
+    await page.evaluate(() => navigator.serviceWorker.ready);
 
     await page.waitForFunction(
       () => navigator.serviceWorker?.controller !== null,

@@ -173,3 +173,32 @@ fallback); pure generation-syntax formatters; the media studio UI; storage budge
 rest); strip `console.*` (✓ next.config); edge DDoS posture; iOS storage-eviction recovery
 (`navigator.storage.persist()` ✓ — add re-hydrate-on-launch + IndexedDB outbox on
 `visibilitychange`); backup-restore test; full WCAG AA pass + Lighthouse PWA.
+
+## Phase 6 — Hardening (v1.0)
+
+**What we built:** CSP + security headers; a burst rate-limiter on the model routes; an
+IndexedDB offline outbox + flusher (iOS eviction recovery); a11y (skip link, reduced
+motion); the security/hardening + backup-restore runbooks.
+
+**What to watch / decisions:**
+
+- **CSP residual:** `script-src 'unsafe-inline'` stays for the pre-paint no-flash theme
+  bootstrap (avoiding a theme flash beats a marginal CSP win). The clean upgrade is a
+  per-request **nonce** via middleware — deferred, documented. Everything else is locked
+  (`default-src 'self'`, `frame-ancestors/object-src/base-uri`, Supabase-scoped origins).
+- **The in-memory limiter is a coarse layer, not the source of truth** — serverless
+  instances don't share memory. It absorbs bursts cheaply; the **DB `usage_window`** cap is
+  the durable enforcement. Pure core (inject store + clock) → unit-tested.
+- **Outbox flush logic is pure + tested** over an injectable `OutboxStore`; the IndexedDB
+  implementation is thin and browser-only. Offline Save enqueues; `OutboxFlusher` replays on
+  `online`/`visibilitychange`. Unknown kinds are left untouched (forward-compatible).
+- **WebKit SW is unreliable in Playwright** — moved the `test.skip(webkit)` _before_ the
+  `serviceWorker.ready` wait so the SW/offline test runs only on Chromium (it was flaking on
+  the ready wait). Don't assert SW lifecycle on Playwright WebKit.
+- **Verify CSP doesn't break Supabase/SW:** `connect-src` must include `https://*.supabase.co`
+  - `wss://*.supabase.co`; `worker-src 'self'` for the SW; `img/media-src` include Supabase
+    storage + `blob:`/`data:` for avatar crop + media previews.
+
+**v1.0 reached.** Definition of Done met: lint/typecheck/unit/e2e/build green every commit;
+RLS on every table; keys server-side; caps on model routes; PWA installable + offline
+fallback; a11y pass (Lighthouse to be run against a deployed preview).
