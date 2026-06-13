@@ -65,7 +65,12 @@ export function BottomNav() {
   const pathname = usePathname();
 
   // The auth gate + onboarding screens show only the brand — no nav.
-  if (pathname.startsWith("/sign-in") || pathname.startsWith("/set-password")) {
+  // `usePathname` can momentarily be null during transitions; guard it.
+  if (
+    !pathname ||
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/set-password")
+  ) {
     return null;
   }
 

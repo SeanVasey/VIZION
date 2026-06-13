@@ -27,7 +27,7 @@ export default async function SetPasswordPage() {
   if (!needsPasswordOnboarding(profile)) redirect("/enhance");
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-sm flex-col items-center justify-center gap-8 px-6 pb-safe pt-safe">
+    <div className="mx-auto flex min-h-[100dvh] max-w-sm flex-col items-center justify-center gap-8 px-6 pb-safe pt-safe">
       <div className="text-center">
         <Wordmark className="text-2xl" />
         <h1 className="mt-4 font-display text-xl tracking-wide text-text">
@@ -39,6 +39,6 @@ export default async function SetPasswordPage() {
         </p>
       </div>
       <SetPasswordForm />
-    </main>
+    </div>
   );
 }

@@ -12,7 +12,9 @@ export function SafeAreaProvider({ children }: { children: ReactNode }) {
       <main
         id="main-content"
         tabIndex={-1}
-        className="flex-1 pl-safe pr-safe pt-safe focus:outline-none"
+        // No pt-safe here: each screen's sticky header (or full-bleed gate)
+        // owns its own top inset, so adding it here would double the padding.
+        className="flex-1 pl-safe pr-safe focus:outline-none"
         // Reserve space for the 64px nav bar + the home-indicator inset.
         style={{
           paddingBottom: "calc(64px + env(safe-area-inset-bottom))",

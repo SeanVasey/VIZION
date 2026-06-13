@@ -68,14 +68,16 @@ self.addEventListener("message", (event) => {
 // --- Runtime routes -------------------------------------------------------
 
 // 1. Navigations + same-origin static assets → StaleWhileRevalidate.
-const isShellAsset = ({ request, sameOrigin }) => {
-  if (!sameOrigin) return false;
+// (Workbox does pass `sameOrigin`, but we check `url.origin` explicitly so the
+// same-origin guard is self-evident and not reliant on the callback shape.)
+const isShellAsset = ({ request, url }) => {
+  if (url.origin !== self.location.origin) return false;
   if (request.mode === "navigate") return true;
   return ["script", "style", "font", "image"].includes(request.destination);
 };
 
 registerRoute(
-  ({ request, sameOrigin }) => isShellAsset({ request, sameOrigin }),
+  ({ request, url }) => isShellAsset({ request, url }),
   new StaleWhileRevalidate({
     cacheName: SHELL_CACHE,
     plugins: [

@@ -17,7 +17,8 @@ export default async function SignInPage({
   const { error } = await searchParams;
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-sm flex-col items-center justify-center gap-8 px-6 pb-safe pt-safe">
+    // A <div>, not <main>: the layout's SafeAreaProvider already renders <main>.
+    <div className="mx-auto flex min-h-[100dvh] max-w-sm flex-col items-center justify-center gap-8 px-6 pb-safe pt-safe">
       <div className="text-center">
         <Wordmark className="text-3xl" />
         <p className="mt-3 text-sm text-muted">
@@ -26,6 +27,6 @@ export default async function SignInPage({
       </div>
 
       <SignInForm initialError={error} />
-    </main>
+    </div>
   );
 }
