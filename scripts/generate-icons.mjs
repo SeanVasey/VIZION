@@ -1,9 +1,16 @@
 // VIZ(IO)N PWA icon + splash generator.
 //
-// Renders placeholder brand assets (icons, maskable tiles, apple-touch-icon,
-// Next.js App Router favicons, and iOS splash screens) from SVG glyph builders
-// using sharp. These are intentionally PLACEHOLDER assets — swap in the real
-// Bebas-Neue artwork later. Run with: node scripts/generate-icons.mjs
+// Renders the full brand asset matrix (icons, maskable tiles, apple-touch-icon,
+// Next.js App Router favicons, and iOS splash screens) from the master brand
+// SVGs using sharp. Run with: node scripts/generate-icons.mjs
+//
+// Sources (master, hand-authored artwork — see public/brand/):
+//   • vizion-icon-token.svg — the full branded tile (rounded Void plate, glow
+//     border, aperture mark). Used for opaque surfaces: apple-touch-icon,
+//     favicons, and the App Router icon/apple-icon.
+//   • vizion-mark-token.svg — the aperture mark ALONE on a transparent ground.
+//     Used for the transparent "any" PWA matrix, the maskable safe zone, and
+//     the iOS splash glyph.
 //
 // Idempotent: every output is overwritten on each run.
 
@@ -12,18 +19,21 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import sharp from "sharp";
 
-import { transparentGlyphSvg, maskableTileSvg, appTileSvg } from "./lib/glyph.mjs";
-
 // Resolve paths relative to the repo root (this script lives in scripts/).
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 
+const BRAND_DIR = path.join(repoRoot, "public", "brand");
 const ICONS_DIR = path.join(repoRoot, "public", "icons");
 const SPLASH_DIR = path.join(repoRoot, "public", "splash");
 const APP_DIR = path.join(repoRoot, "src", "app");
 
+const ICON_SVG = path.join(BRAND_DIR, "vizion-icon-token.svg");
+const MARK_SVG = path.join(BRAND_DIR, "vizion-mark-token.svg");
+
 // Transparent fill for the "any" purpose PNGs.
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
+// Void background (style-guide §1.1) for opaque tiles + splashes.
 const VOID = "#0F1012";
 
 // Sizes for the transparent "any" icon matrix.
@@ -45,38 +55,32 @@ const SPLASH_SIZES = [
 
 const written = [];
 
-// Render an SVG string to a square PNG with the given background.
-async function renderSquarePng(svg, size, outPath, background) {
-  await sharp(Buffer.from(svg), { density: 384 })
-    .resize(size, size, { fit: "contain", background })
-    .png()
-    .toFile(outPath);
+// Render an SVG buffer to a square PNG.
+//   • flatten=false → preserve transparency (the "any" matrix, mark-only).
+//   • flatten=true  → composite onto Void so transparent corners read opaque
+//     (apple-touch / favicons, where the OS expects a filled square).
+async function renderSquarePng(svgBuffer, size, outPath, { flatten = false } = {}) {
+  let pipe = sharp(svgBuffer, { density: 384 }).resize(size, size, {
+    fit: "contain",
+    background: TRANSPARENT,
+  });
+  if (flatten) pipe = pipe.flatten({ background: VOID });
+  await pipe.png().toFile(outPath);
   logWrite(outPath);
 }
 
-// Composite the centered transparent glyph onto a Void canvas of WxH (splash).
-async function renderSplashPng(width, height, outPath) {
-  // Glyph occupies ~30% of the splash width; render at that pixel size.
-  const glyphSize = Math.round(width * 0.3);
-  const glyphPng = await sharp(Buffer.from(transparentGlyphSvg(glyphSize)), {
-    density: 384,
-  })
-    .resize(glyphSize, glyphSize, {
-      fit: "contain",
-      background: TRANSPARENT,
-    })
+// Composite the transparent mark, centered, onto a Void canvas of WxH. Used for
+// the maskable safe zone (square) and the iOS splash screens (portrait).
+async function renderMarkOnVoid(markBuffer, width, height, markSize, outPath) {
+  const mark = await sharp(markBuffer, { density: 384 })
+    .resize(markSize, markSize, { fit: "contain", background: TRANSPARENT })
     .png()
     .toBuffer();
 
   await sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: VOID,
-    },
+    create: { width, height, channels: 4, background: VOID },
   })
-    .composite([{ input: glyphPng, gravity: "centre" }])
+    .composite([{ input: mark, gravity: "centre" }])
     .png()
     .toFile(outPath);
   logWrite(outPath);
@@ -89,52 +93,62 @@ function logWrite(outPath) {
 }
 
 async function main() {
+  // Load the master artwork once.
+  const [iconSvg, markSvg] = await Promise.all([
+    fs.readFile(ICON_SVG),
+    fs.readFile(MARK_SVG),
+  ]);
+
   // Ensure output directories exist.
   await fs.mkdir(ICONS_DIR, { recursive: true });
   await fs.mkdir(SPLASH_DIR, { recursive: true });
   await fs.mkdir(APP_DIR, { recursive: true });
 
-  // 1. Transparent "any" icon matrix.
+  // 1. Transparent "any" icon matrix (mark alone, no plate).
   console.log("Rendering transparent 'any' icons...");
   for (const size of ANY_SIZES) {
     const out = path.join(ICONS_DIR, `icon-${size}.png`);
-    await renderSquarePng(transparentGlyphSvg(size), size, out, TRANSPARENT);
+    await renderSquarePng(markSvg, size, out);
   }
 
-  // 2. Maskable set (full-bleed Void tile, glyph in 80% safe zone).
+  // 2. Maskable set: mark inside the inner ~78% safe zone on a full-bleed Void
+  //    canvas, so the OS maskable crop never clips the aperture.
   console.log("Rendering maskable icons...");
   for (const size of [192, 512]) {
     const out = path.join(ICONS_DIR, `maskable-${size}.png`);
-    await renderSquarePng(maskableTileSvg(size), size, out, VOID);
+    await renderMarkOnVoid(markSvg, size, size, Math.round(size * 0.78), out);
   }
 
-  // 3. apple-touch-icon (opaque Void tile — iOS ignores transparency).
+  // 3. apple-touch-icon (opaque branded tile — iOS ignores transparency).
   console.log("Rendering apple-touch-icon...");
-  await renderSquarePng(
-    appTileSvg(180),
-    180,
-    path.join(ICONS_DIR, "apple-touch-icon.png"),
-    VOID,
-  );
+  await renderSquarePng(iconSvg, 180, path.join(ICONS_DIR, "apple-touch-icon.png"), {
+    flatten: true,
+  });
 
-  // 4. Favicon PNGs (filled tile reads better at small sizes).
+  // 4. Favicon PNGs (branded tile reads better than a bare mark at small sizes).
   console.log("Rendering favicons...");
   for (const size of [16, 32, 48]) {
     const out = path.join(ICONS_DIR, `favicon-${size}.png`);
-    await renderSquarePng(appTileSvg(size), size, out, VOID);
+    await renderSquarePng(iconSvg, size, out, { flatten: true });
   }
 
-  // 5. Next.js App Router auto-wired favicons (src/app/icon.png,
-  //    src/app/apple-icon.png). No .ico is produced.
+  // 5. Next.js App Router auto-wired icons:
+  //    • icon.svg   — scalable favicon (preferred by modern browsers)
+  //    • icon.png   — raster fallback
+  //    • apple-icon.png — home-screen tile
   console.log("Rendering Next.js App Router icons...");
-  await renderSquarePng(appTileSvg(512), 512, path.join(APP_DIR, "icon.png"), VOID);
-  await renderSquarePng(appTileSvg(180), 180, path.join(APP_DIR, "apple-icon.png"), VOID);
+  await fs.copyFile(ICON_SVG, path.join(APP_DIR, "icon.svg"));
+  logWrite(path.join(APP_DIR, "icon.svg"));
+  await renderSquarePng(iconSvg, 512, path.join(APP_DIR, "icon.png"), { flatten: true });
+  await renderSquarePng(iconSvg, 180, path.join(APP_DIR, "apple-icon.png"), {
+    flatten: true,
+  });
 
-  // 6. iOS splash placeholders (Void canvas + centered glyph).
+  // 6. iOS splash screens (Void canvas + centered mark at ~30% of the width).
   console.log("Rendering iOS splash screens...");
   for (const [width, height] of SPLASH_SIZES) {
     const out = path.join(SPLASH_DIR, `splash-${width}x${height}.png`);
-    await renderSplashPng(width, height, out);
+    await renderMarkOnVoid(markSvg, width, height, Math.round(width * 0.3), out);
   }
 
   console.log(`\nDone. ${written.length} files written.`);
