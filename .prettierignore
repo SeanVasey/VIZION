@@ -1,0 +1,14 @@
+.next
+node_modules
+public/sw.js
+public/icons
+public/splash
+playwright-report
+test-results
+pnpm-lock.yaml
+package-lock.json
+CHANGELOG.md
+# Authoritative source docs — never reformat.
+VIZION FINAL PLAN v1.md
+VIZION-product-spec.md
+VIZION-style-guide.html
