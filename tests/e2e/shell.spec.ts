@@ -46,6 +46,13 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     expect(res.status()).toBe(401);
   });
 
+  test("the media API rejects unauthenticated requests with 401", async ({ request }) => {
+    const res = await request.post("/api/media", {
+      data: { dataUrl: "data:image/jpeg;base64,AAAA" },
+    });
+    expect(res.status()).toBe(401);
+  });
+
   test("the service worker is served with a no-store cache policy", async ({
     request,
   }) => {

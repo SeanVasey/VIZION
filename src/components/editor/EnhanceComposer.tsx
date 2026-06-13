@@ -68,14 +68,7 @@ export function EnhanceComposer() {
           className="mono w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text placeholder:text-muted focus:outline-none"
         />
         <div className="flex items-center justify-between px-3 pb-2 pt-1">
-          <button
-            type="button"
-            className="mono text-xs text-silver transition-colors hover:text-chalk"
-            disabled
-            title="Media attachments arrive in P5"
-          >
-            📎 Attach media
-          </button>
+          <span className="mono text-xs text-silver">📎 Media reference below</span>
           <span className="mono text-xs text-silver" aria-live="polite">
             ⌁ {approxTokens} tokens
           </span>

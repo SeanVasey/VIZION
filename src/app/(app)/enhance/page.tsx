@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { EnhanceComposer } from "@/components/editor/EnhanceComposer";
+import { MediaStudio } from "@/components/media/MediaStudio";
 
 export const metadata: Metadata = { title: "Enhance" };
 
 /**
- * P1 shell of the Enhance screen — the composer chrome (mode chips, mono editor,
- * target "club rack", ENHANCE CTA).  The live provider-adapter wiring lands in P3.
+ * Enhance screen — the composer (modes · editor · target · diff) plus the media
+ * studio (attach a reference → fold it into a generation-ready prompt, §4.2).
  */
 export default function EnhancePage() {
   return (
     <>
       <ScreenHeader brand />
-      <div className="mx-auto max-w-screen-sm px-4 py-5">
+      <div className="mx-auto flex max-w-screen-sm flex-col gap-8 px-4 py-5">
         <EnhanceComposer />
+        <div className="h-px bg-hair" />
+        <MediaStudio />
       </div>
     </>
   );

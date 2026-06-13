@@ -6,6 +6,21 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — v0.5 Media prompts (P5)
+
+- `MediaAsset` is first-class (A5): a `media_assets` table (RLS owner-only from
+  creation) + a private `media` Storage bucket with owner-scoped policies.
+- Attach an image / video / audio reference in the Enhance studio; it uploads to
+  the owner's prefix and records the asset.
+- **Extraction pipeline behind a flag** (`NEXT_PUBLIC_MEDIA_EXTRACTION`, default
+  `proxy`): vision via the model proxy (`/api/media`, Anthropic, cost-capped) with
+  an **on-device fallback** (canvas palette + dimensions, audio duration) — the
+  locked open question resolved as *proxy + on-device fallback*.
+- **Generation-syntax formatters** (pure, unit-tested): Midjourney image-ref
+  (`--ar/--v/--iw`), Runway/Sora/Kling motion phrasing, and an audio spec — fold
+  the detected attributes into a generation-ready prompt that can be copied/saved.
+- Storage budget with an **Amber** warning near quota (50 MB).
+
 ### Added — v0.4 Library & versioning (P4)
 
 - Schema (RLS owner-only from creation): `prompts`, immutable `prompt_versions`

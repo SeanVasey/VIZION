@@ -17,6 +17,39 @@ export type Database = {
   };
   public: {
     Tables: {
+      media_assets: {
+        Row: {
+          id: string;
+          user_id: string;
+          prompt_ver_id: string | null;
+          storage_path: string;
+          kind: Database["public"]["Enums"]["media_kind"];
+          size_bytes: number;
+          extracted: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          prompt_ver_id?: string | null;
+          storage_path: string;
+          kind: Database["public"]["Enums"]["media_kind"];
+          size_bytes?: number;
+          extracted?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          prompt_ver_id?: string | null;
+          storage_path?: string;
+          kind?: Database["public"]["Enums"]["media_kind"];
+          size_bytes?: number;
+          extracted?: Json | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       prompts: {
         Row: {
           id: string;
@@ -244,6 +277,7 @@ export type Database = {
         | "profile_updated";
       auth_method: "magic_link" | "github" | "google";
       enhance_mode: "clarify" | "expand" | "condense" | "reformat" | "target";
+      media_kind: "image" | "video" | "audio";
       model_target: "opus_4_8" | "gpt_5_5" | "gemini_pro_3_1";
       oauth_provider: "github" | "google";
       theme: "dark" | "light" | "system";
@@ -269,3 +303,4 @@ export type OAuthIdentity = Tables<"oauth_identities">;
 export type Prompt = Tables<"prompts">;
 export type PromptVersion = Tables<"prompt_versions">;
 export type ActivityEvent = Tables<"activity_events">;
+export type MediaAsset = Tables<"media_assets">;

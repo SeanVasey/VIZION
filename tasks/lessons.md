@@ -144,3 +144,32 @@ CONSTRAINT … on delete set null`. Insert version → set `current_ver` in a se
 (on-device vs proxy — default proxy + on-device fallback); generation-syntax formatters
 (Midjourney image-ref · Runway/Sora/Kling motion · audio spec); storage budget + Amber
 warnings near quota.
+
+## Phase 5 — Media prompts
+
+**What we built:** `media_assets` + a private `media` bucket (RLS owner-only); attach +
+upload; the flagged extraction pipeline (proxy vision via `/api/media`, on-device
+fallback); pure generation-syntax formatters; the media studio UI; storage budget.
+
+**What to watch / decisions:**
+
+- **Open question resolved as planned:** `NEXT_PUBLIC_MEDIA_EXTRACTION` defaults to
+  `proxy` (vision via the model proxy) and falls back to **on-device** (canvas palette +
+  dimensions; audio duration) when the flag is `ondevice`, the key is missing, or the
+  proxy call fails. Video uses a client-captured frame as the proxy image.
+- **The generation formatters are the testable core** — `buildGenerationPrompt` is pure
+  and deterministic per engine (MJ `--ar/--v/--iw`, motion phrasing, audio spec). Live
+  vision needs `ANTHROPIC_API_KEY`; everything else (palette quantize, budget, parsing) is
+  unit-tested without keys.
+- **`/api/media` is a model route** → it reuses the same auth + rate-limit + cost-cap +
+  usage-logging as `/api/enhance` (asserted 401 unauth in e2e).
+- **Private bucket, signed URLs.** The `media` bucket is not public; the Midjourney image
+  ref uses a 7-day signed URL. Owner-scoped storage policies key on the `{user_id}/…` path
+  prefix (same pattern as avatars, but private).
+- **jsonb typing:** `MediaAttributes` lacks a string index signature, so writing it to the
+  `extracted` jsonb column needs `as unknown as Json`.
+
+**Carry into P6 (Hardening):** rate limits on all endpoints (✓ on model routes — audit the
+rest); strip `console.*` (✓ next.config); edge DDoS posture; iOS storage-eviction recovery
+(`navigator.storage.persist()` ✓ — add re-hydrate-on-launch + IndexedDB outbox on
+`visibilitychange`); backup-restore test; full WCAG AA pass + Lighthouse PWA.
