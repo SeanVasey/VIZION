@@ -92,7 +92,7 @@ export function NeuralMeshBackground() {
           const dy = a0.y - b0.y;
           const d = Math.hypot(dx, dy);
           if (d < LINK_DIST) {
-            const alpha = (1 - d / LINK_DIST) * 0.12;
+            const alpha = (1 - d / LINK_DIST) * 0.14;
             g.strokeStyle = `rgba(185, 188, 197, ${alpha})`;
             g.beginPath();
             g.moveTo(a0.x, a0.y);
@@ -102,15 +102,27 @@ export function NeuralMeshBackground() {
         }
       }
 
-      // Nodes.
+      // Nodes — quiet Silver specks, with the occasional Laser node given a
+      // soft halo so the field reads as a living, glowing mesh.  The halo is a
+      // second translucent fill rather than canvas `shadowBlur`, which is far
+      // cheaper to redraw within the mobile frame budget.
       for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i]!;
-        g.beginPath();
-        g.arc(n.x, n.y, laserAccent(i) ? 1.8 : 1.2, 0, Math.PI * 2);
-        g.fillStyle = laserAccent(i)
-          ? "rgba(183, 255, 60, 0.5)"
-          : "rgba(185, 188, 197, 0.35)";
-        g.fill();
+        if (laserAccent(i)) {
+          g.beginPath();
+          g.arc(n.x, n.y, 5, 0, Math.PI * 2);
+          g.fillStyle = "rgba(183, 255, 60, 0.16)";
+          g.fill();
+          g.beginPath();
+          g.arc(n.x, n.y, 2, 0, Math.PI * 2);
+          g.fillStyle = "rgba(183, 255, 60, 0.7)";
+          g.fill();
+        } else {
+          g.beginPath();
+          g.arc(n.x, n.y, 1.3, 0, Math.PI * 2);
+          g.fillStyle = "rgba(185, 188, 197, 0.42)";
+          g.fill();
+        }
       }
     }
 
@@ -159,10 +171,13 @@ export function NeuralMeshBackground() {
   }, []);
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
       {/* Static gradient ground — always present; the canvas layers on top.
           Under reduced-motion the canvas stays empty and this is the whole bg. */}
       <div className="bg-mesh-ground absolute inset-0" />
+      {/* Drifting Laser glow — the top bloom shows through the header chrome. */}
+      <div className="bg-aurora bg-aurora-top" />
+      <div className="bg-aurora bg-aurora-drift" />
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
     </div>
   );

@@ -17,7 +17,7 @@ export function ScreenHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="glass sticky top-0 z-40 pt-safe">
+    <header className="glass-chrome sticky top-0 z-40 pt-safe">
       <div className="mx-auto flex max-w-screen-sm items-center justify-between gap-3 px-4 py-3">
         {brand ? (
           <div className="flex items-center gap-2">

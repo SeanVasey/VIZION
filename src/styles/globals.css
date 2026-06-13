@@ -66,6 +66,16 @@
     border: 1px solid var(--hair);
   }
 
+  /* Translucent chrome — the top header and bottom nav. Thinner fill + a touch
+     of saturation so the ambient aurora glow blooms through the bar (the glass
+     panels stay on the denser --glass tier). */
+  .glass-chrome {
+    background: var(--chrome);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid var(--hair);
+  }
+
   /* The "focused" elevation tier — glass + Laser edge-light. */
   .glass-focus {
     box-shadow:
@@ -153,6 +163,52 @@
     background:
       radial-gradient(120% 80% at 50% -10%, var(--lift) 0%, transparent 60%),
       linear-gradient(180deg, var(--void) 0%, var(--void-2) 100%);
+  }
+
+  /* Ambient aurora blooms — soft Laser glow that drifts behind the glass. The
+     top bloom sits under the translucent header so the chrome reveals a halo;
+     a slower secondary bloom keeps the lower canvas alive. Drift is paused by
+     the global reduced-motion rule (the blooms stay as a static glow). */
+  .bg-aurora {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(64px);
+    will-change: transform;
+  }
+  .bg-aurora-top {
+    top: -160px;
+    left: 50%;
+    height: 360px;
+    width: min(680px, 92vw);
+    background: radial-gradient(closest-side, var(--laser-glow), transparent 72%);
+    opacity: 0.85;
+    animation: aurora-top 19s ease-in-out infinite alternate;
+  }
+  .bg-aurora-drift {
+    bottom: 8%;
+    left: 8%;
+    height: 320px;
+    width: min(560px, 80vw);
+    background: radial-gradient(closest-side, var(--laser-glow), transparent 70%);
+    opacity: 0.4;
+    animation: aurora-drift 27s ease-in-out infinite alternate;
+  }
+
+  @keyframes aurora-top {
+    from {
+      transform: translate(-56%, -8%) scale(1);
+    }
+    to {
+      transform: translate(-44%, 6%) scale(1.18);
+    }
+  }
+  @keyframes aurora-drift {
+    from {
+      transform: translate(-6%, 6%) scale(1);
+    }
+    to {
+      transform: translate(14%, -10%) scale(1.22);
+    }
   }
 
   /* Theme-adaptive brand monograms (R7): native on dark, inverted on light so

@@ -16,7 +16,7 @@ const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.supabase.co",
+  "img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
   "media-src 'self' blob: https://*.supabase.co",
@@ -51,13 +51,16 @@ const nextConfig: NextConfig = {
   // The brand/version pills read this at build (never hardcoded) — see R1.
   env: { NEXT_PUBLIC_APP_VERSION: pkg.version },
   images: {
-    // Avatars are served from the project's Supabase Storage public bucket.
+    // Avatars come from Supabase Storage (custom uploads) or, for OAuth accounts
+    // that haven't uploaded one, the provider's CDN (Google / GitHub).
     remotePatterns: [
       {
         protocol: "https",
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "avatars.githubusercontent.com" },
     ],
   },
   // Strip console output in production builds (keep error/warn for observability).

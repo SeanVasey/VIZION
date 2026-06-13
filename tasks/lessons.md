@@ -254,3 +254,23 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 - **The background canvas must capture non-null handles for its closures.** TS
   doesn't carry `if (!ctx) return` narrowing into nested rAF helpers — assign
   `const g = ctx` after the guard so the loop sees a non-null type.
+- **A top-level `theme.spacing` REPLACES Tailwind's scale — never put it there.**
+  The config defined `spacing` at `theme.spacing` (not `theme.extend.spacing`),
+  pruning every key outside `{px,0,1–6,8,10,12,16}`. Because width/height/inset
+  derive from spacing, `h-24 w-24` (the 96px avatar), `h-11 w-11` (theme toggle),
+  `h-9`, and all fractional steps silently generated **no CSS** — so the avatar
+  button collapsed to ~0 and "wasn't showing up." Fix: move the var-based keys to
+  `theme.extend.spacing` (their px values equal the defaults, so nothing shifts)
+  and the full scale returns. Verify utility generation with a one-off
+  `tailwindcss -i … --content probe.html` grep when a class "does nothing."
+- **OAuth avatars are hot-linked from the provider CDN — allow the host.** The
+  signup trigger copies `raw_user_meta_data->>'avatar_url'` verbatim, i.e. a
+  `lh3.googleusercontent.com` (Google) / `avatars.githubusercontent.com` (GitHub)
+  URL. Both the CSP `img-src` and next/image `remotePatterns` only allowed
+  `*.supabase.co`, so the image was blocked twice over. Allow those two hosts in
+  both places, and give `<Image>` an `onError` fallback to a name monogram so a
+  rotated/expired provider URL degrades gracefully instead of an empty circle.
+- **Translucent chrome needs its own token, not bare `.glass`.** A new `--chrome`
+  (lighter alpha) + `.glass-chrome` lets the header/bottom-nav reveal the ambient
+  aurora glow through the bar while the floating panels stay on the denser
+  `--glass` tier.

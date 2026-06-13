@@ -6,6 +6,31 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — avatar, composer & ambient polish
+
+- **Profile avatar now renders.** Root cause was the Tailwind config defining
+  `theme.spacing` at the top level, which *replaced* the scale and pruned
+  `h-24`/`w-24` (and `h-11`, `h-9`, every fractional step) — so the 96px avatar
+  button generated no size and collapsed to a dot. Moved the var-based 8-pt keys
+  into `theme.extend.spacing` (identical px values) to restore the full scale.
+  Additionally allowed the OAuth avatar CDNs (`lh3.googleusercontent.com`,
+  `avatars.githubusercontent.com`) in both the CSP `img-src` and next/image
+  `remotePatterns`, and added a name-monogram fallback with `onError` recovery so
+  an expired provider URL no longer leaves an empty circle.
+
+### Changed — integrated composer & ambient glow
+
+- **Unified Enhance composer.** The target-model picker is nested into the
+  composer's rounded top rail (as an `appearance-none` dropdown with a chevron),
+  and a reset (↺) control plus the **► ENHANCE** action sit in the rounded bottom
+  rail beside the token/media readouts — so every control lives inside one
+  rounded-rectangle surface, with a Laser `focus-within` edge-glow.
+- **Ambient aurora behind translucent chrome.** Added drifting Laser glow blooms
+  (CSS, paused under reduced-motion) to the neural-mesh background and a new
+  `--chrome` token + `.glass-chrome` so the header and bottom nav are more
+  translucent and reveal the glow beneath. Canvas specks are slightly brighter
+  with a soft halo on the Laser nodes.
+
 ### Fixed — UI remediation (R1–R8): restore the locked VIZION spec
 
 - **Brand wiring (R1):** the squircle `vizion-icon-token.svg` now sits left of the
