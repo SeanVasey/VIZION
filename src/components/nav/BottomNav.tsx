@@ -64,8 +64,10 @@ const TABS: Tab[] = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  // The unauthenticated gate shows only the brand + auth methods — no nav.
-  if (pathname.startsWith("/sign-in")) return null;
+  // The auth gate + onboarding screens show only the brand — no nav.
+  if (pathname.startsWith("/sign-in") || pathname.startsWith("/set-password")) {
+    return null;
+  }
 
   return (
     <nav aria-label="Primary" className="glass fixed inset-x-0 bottom-0 z-50 pb-safe">

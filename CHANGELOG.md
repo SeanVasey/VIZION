@@ -6,6 +6,25 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — v0.2 Auth & profile (P2)
+
+- Supabase Auth wired end-to-end: magic link + GitHub + Google on the sign-in gate, with
+  OAuth/PKCE (`/auth/callback`) and email-OTP (`/auth/confirm`) route handlers and
+  sign-out.
+- Session middleware (`src/middleware.ts`) refreshes the JWT and gates every route to the
+  sign-in page when signed out (server is the source of truth).
+- Database (applied to the live project): `profiles` + `oauth_identities` with **RLS
+  owner-only policies from creation**, an auto-profile trigger on signup, an `updated_at`
+  trigger, and a `password_set` flag. Security advisors: clean.
+- Avatars: Supabase Storage bucket (public read, owner-scoped writes) + a dependency-free
+  client-side square→circular **avatar cropper**.
+- Profile screen with real data — editable full name, display name, email (re-verify),
+  default model, and theme; preferences sync to the account and hydrate on load.
+- Magic-link → set-password onboarding (D15/A4), enforced by the `(app)` layout.
+- Routes reorganised into an authenticated `(app)` group; offline shell decoupled from
+  auth (static `offline.html` fallback). Tests: onboarding gate (unit), auth-gate +
+  PWA/offline (e2e). Docs: `docs/runbooks/auth-setup.md`.
+
 ### Added — v0.1 Shell (Phase 0 + P1)
 
 - Repo scaffold: Standard `CLAUDE.md` v2.0, configs (TypeScript strict, Tailwind +

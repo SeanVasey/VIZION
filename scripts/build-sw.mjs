@@ -26,7 +26,6 @@ import { join } from "node:path";
 
 const SW_SRC = "src/lib/pwa/sw-src.js";
 const SW_DEST = "public/sw.js";
-const buildRevision = Date.now().toString(36);
 
 async function main() {
   const workDir = await mkdtemp(join(tmpdir(), "vizion-sw-"));
@@ -47,17 +46,15 @@ async function main() {
       logLevel: "warning",
     });
 
-    // 2. Inject the precache manifest into the bundled worker.
+    // 2. Inject the precache manifest into the bundled worker. We precache only
+    // static, auth-agnostic assets — `offline.html` is the navigation fallback.
+    // App routes are auth-gated (they redirect by session state), so they are
+    // cached at runtime via stale-while-revalidate rather than precached.
     const { count, size, warnings } = await injectManifest({
       swSrc: bundled,
       swDest: SW_DEST,
       globDirectory: "public",
       globPatterns: ["icons/**/*.png", "manifest.webmanifest", "offline.html"],
-      // The app shell is served by Next at runtime (not present in `public/`),
-      // so inject it manually with a per-build revision. We precache `/enhance` —
-      // the real entry screen — rather than `/`, because `/` issues a redirect
-      // and Workbox refuses to precache a redirected response (install fails).
-      additionalManifestEntries: [{ url: "/enhance", revision: buildRevision }],
     });
 
     for (const warning of warnings) {
@@ -65,10 +62,7 @@ async function main() {
     }
 
     const sizeKb = (size / 1024).toFixed(1);
-    console.log(
-      `[build-sw] Precached ${count} entries (${sizeKb} KiB) → ${SW_DEST} ` +
-        `(shell revision ${buildRevision}).`,
-    );
+    console.log(`[build-sw] Precached ${count} entries (${sizeKb} KiB) → ${SW_DEST}.`);
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }

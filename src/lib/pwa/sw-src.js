@@ -39,10 +39,12 @@ const SHELL_CACHE = "vizion-shell";
 const ENHANCE_CACHE = "vizion-enhance";
 const LIBRARY_CACHE = "vizion-library";
 
-// The URL of the precached app-shell document used for offline navigations.
-// `/enhance` (not `/`) because `/` redirects and a redirected response cannot
-// be precached; `/enhance` is the studio's real entry screen.
-const APP_SHELL_URL = "/enhance";
+// The offline navigation fallback. With auth gating, every app route redirects
+// depending on session state (so none is safe to precache as "the shell").
+// `/offline.html` is a static, auth-agnostic document that is always available;
+// authenticated routes the user has visited are served from the runtime
+// stale-while-revalidate cache instead.
+const APP_SHELL_URL = "/offline.html";
 
 // --- Lifecycle ------------------------------------------------------------
 

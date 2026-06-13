@@ -1,6 +1,7 @@
 "use client";
 
 import { useUIStore } from "@/stores/ui";
+import { useSetTheme } from "@/lib/profile/use-theme-preference";
 import { THEMES, type Theme } from "@/lib/constants";
 
 const NEXT: Record<Theme, Theme> = {
@@ -18,7 +19,7 @@ const GLYPH: Record<Theme, string> = {
 /** Cycles dark → light → system.  Laser is retained as accent in both themes. */
 export function ThemeToggle() {
   const theme = useUIStore((s) => s.theme);
-  const setTheme = useUIStore((s) => s.setTheme);
+  const setTheme = useSetTheme();
 
   return (
     <button
@@ -36,7 +37,7 @@ export function ThemeToggle() {
 /** Inline segmented control used on the Profile screen. */
 export function ThemeSegmented() {
   const theme = useUIStore((s) => s.theme);
-  const setTheme = useUIStore((s) => s.setTheme);
+  const setTheme = useSetTheme();
 
   return (
     <div

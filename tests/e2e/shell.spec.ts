@@ -1,34 +1,29 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("VIZ(IO)N P1 shell", () => {
-  test("root redirects to Enhance and renders the brand wordmark", async ({ page }) => {
+test.describe("VIZ(IO)N shell + auth gate", () => {
+  test("unauthenticated root redirects to the sign-in gate", async ({ page }) => {
     await page.goto("/");
-    await expect(page).toHaveURL(/\/enhance$/);
+    await expect(page).toHaveURL(/\/sign-in$/);
     await expect(page.getByRole("img", { name: "VIZ(IO)N" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /ENHANCE/i })).toBeVisible();
+    await expect(page.getByPlaceholder("you@example.com")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Continue with GitHub/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Continue with Google/i }),
+    ).toBeVisible();
   });
 
-  test("bottom nav switches between the three tabs", async ({ page }) => {
-    await page.goto("/enhance");
-    const nav = page.getByRole("navigation", { name: "Primary" });
-    await expect(nav).toBeVisible();
-
-    await nav.getByRole("link", { name: "Library" }).click();
-    await expect(page).toHaveURL(/\/library$/);
-    await expect(page.getByRole("heading", { name: "Library" })).toBeVisible();
-
-    await nav.getByRole("link", { name: "Profile" }).click();
-    await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+  test("protected routes redirect to the gate when signed out", async ({ page }) => {
+    for (const path of ["/enhance", "/library", "/profile"]) {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/sign-in$/);
+    }
   });
 
-  test("theme toggle flips the document data-theme attribute", async ({ page }) => {
-    await page.goto("/enhance");
-    const html = page.locator("html");
-    const initial = await html.getAttribute("data-theme");
-
-    await page.getByRole("button", { name: /Theme:/ }).click();
-    await expect(html).not.toHaveAttribute("data-theme", initial ?? "system");
+  test("the gate honours the stored theme via data-theme", async ({ page }) => {
+    await page.goto("/sign-in");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", /dark|light|system/);
   });
 
   test("manifest is reachable and declares any + maskable icons", async ({ request }) => {
@@ -50,35 +45,34 @@ test.describe("VIZ(IO)N P1 shell", () => {
     expect(res.headers()["cache-control"]).toContain("no-cache");
   });
 
-  test("registers a service worker and serves the shell offline", async ({
+  test("registers a service worker and serves the offline fallback", async ({
     page,
     context,
     browserName,
   }) => {
-    await page.goto("/enhance");
-    // The SW must register + activate on every engine (incl. WebKit/iOS).
+    await page.goto("/sign-in");
     await page.evaluate(() => navigator.serviceWorker.ready);
 
-    // Playwright's WebKit throws an internal error on `reload()` under offline
-    // emulation, so the offline-navigation assertion runs on Chromium, where it
-    // faithfully exercises the precached shell. (Registration above still runs
-    // on WebKit, covering the iOS install path.)
+    // Playwright WebKit throws an internal error under offline emulation; the
+    // offline fallback is exercised on Chromium. Registration is still asserted
+    // above on WebKit (the iOS install path).
     test.skip(
       browserName === "webkit",
-      "Playwright WebKit offline reload is unreliable; offline shell verified on Chromium.",
+      "Playwright WebKit offline navigation is unreliable; verified on Chromium.",
     );
 
-    // Wait until the active worker controls the page (clientsClaim).
     await page.waitForFunction(
       () => navigator.serviceWorker?.controller !== null,
       undefined,
       { timeout: 20_000 },
     );
 
+    // A never-visited protected route, while offline, falls through to the
+    // precached static offline.html (auth-agnostic shell).
     await context.setOffline(true);
-    await page.reload();
-    // The precached shell should still render the wordmark while offline.
-    await expect(page.getByRole("img", { name: "VIZ(IO)N" })).toBeVisible();
+    await page.goto("/enhance");
+    await expect(page.getByRole("heading", { name: "VIZ(IO)N" })).toBeVisible();
+    await expect(page.locator("body")).toContainText(/offline/i);
     await context.setOffline(false);
   });
 });

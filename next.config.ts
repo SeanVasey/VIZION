@@ -26,6 +26,16 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  images: {
+    // Avatars are served from the project's Supabase Storage public bucket.
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
+  },
   // Strip console output in production builds (keep error/warn for observability).
   compiler: {
     removeConsole:
