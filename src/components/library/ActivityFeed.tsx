@@ -26,7 +26,7 @@ const VERB: Record<ActivityType, string> = {
 export function ActivityFeed({ events }: { events: Event[] }) {
   return (
     <section aria-label="Activity">
-      <h2 className="mono mb-2 text-xs uppercase tracking-wider text-silver">
+      <h2 className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
         ⟲ Activity
       </h2>
       {events.length === 0 ? (
@@ -49,7 +49,7 @@ export function ActivityFeed({ events }: { events: Event[] }) {
                     <span className="text-silver"> “{title}”</span>
                   ) : null}
                 </span>
-                <span className="mono shrink-0 text-xs text-silver">
+                <span className="font-body shrink-0 text-xs text-silver">
                   {relativeTime(e.created_at)}
                 </span>
               </div>

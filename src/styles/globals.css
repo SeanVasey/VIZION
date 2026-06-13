@@ -19,7 +19,7 @@
   }
 
   body {
-    background: linear-gradient(180deg, var(--void) 0%, var(--onyx) 100%) fixed;
+    background: linear-gradient(180deg, var(--void) 0%, var(--lift) 100%) fixed;
     color: var(--text);
     font-family: var(--font-body);
     line-height: 1.55;
@@ -73,10 +73,11 @@
       0 0 24px var(--laser-glow);
   }
 
-  /* Primary CTA — ALWAYS Void text on a Laser fill (never the reverse). */
+  /* Primary CTA — ALWAYS --on-laser ink on a Laser fill (never the reverse),
+     in BOTH themes.  Pill radius, Laser focus ring (via :focus-visible). */
   .btn-laser {
     background: var(--laser);
-    color: var(--void);
+    color: var(--on-laser);
     font-family: var(--font-body);
     font-weight: 600;
     border: none;
@@ -84,6 +85,35 @@
   }
   .btn-laser:active {
     filter: brightness(0.94);
+  }
+
+  /* Secondary — surface fill, primary text, hairline.  Content-width/centered
+     at the call site (the balance rule). */
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-weight: 500;
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+  }
+  .btn-secondary:active {
+    filter: brightness(1.06);
+  }
+
+  /* Destructive — Flare.  Used for sign-out / delete affordances. */
+  .btn-destructive {
+    background: transparent;
+    color: var(--flare);
+    font-family: var(--font-body);
+    font-weight: 500;
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+  }
+
+  /* Pill modifier for the hero CTAs (Enhance, auth buttons). */
+  .pill {
+    border-radius: 9999px;
   }
 
   /* Mono utility text — prompts, diffs, tokens, version hashes. */
@@ -115,5 +145,43 @@
   .no-pull-refresh {
     overscroll-behavior: contain;
     touch-action: pan-x pan-y;
+  }
+
+  /* Ambient mesh ground — quiet directional wash over Void; the animated
+     canvas (or, under reduced-motion, nothing) layers on top. */
+  .bg-mesh-ground {
+    background:
+      radial-gradient(120% 80% at 50% -10%, var(--lift) 0%, transparent 60%),
+      linear-gradient(180deg, var(--void) 0%, var(--void-2) 100%);
+  }
+
+  /* Theme-adaptive brand monograms (R7): native on dark, inverted on light so
+     Sean's real SVG files stay legible without recolouring/redrawing them. */
+  :root[data-theme="light"] .monogram,
+  :root[data-theme="system"] .monogram {
+    filter: invert(1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-theme="system"] .monogram {
+      filter: none;
+    }
+  }
+
+  /* Top-edge Laser shimmer for the active result surface (R4). */
+  .result-shimmer {
+    position: relative;
+  }
+  .result-shimmer::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--laser) 50%,
+      transparent 100%
+    );
+    opacity: 0.6;
   }
 }

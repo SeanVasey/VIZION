@@ -1,72 +1,103 @@
 /* =====================================================================
- * VIZ(IO)N — design tokens (LOCKED, derived from IMG_2994.JPG).
- * Seven roles + Amber warning.  See VIZION-product-spec.md §1.2.
+ * VIZ(IO)N — design tokens (LOCKED).  Role-mapped, both themes.
+ * See VIZION-product-spec.md §1.2 and the R-series remediation contract.
  *
- * --laser is a FILL / ACCENT on dark surfaces ONLY.  It is never used as
- * text on a light background.  Buttons are always Void text on a Laser fill.
- * Laser text on Chalk = 1.09:1 (FAIL) — prohibited.
+ * Contrast law: text on a --laser fill is ALWAYS --on-laser (fixed dark) in
+ * BOTH themes.  --laser is never used as text or a thin stroke on a light
+ * surface (laser-on-light = 1.09:1, FAIL).  Buttons = --on-laser on --laser.
+ *
+ * --chalk / --silver are theme-swapped role tokens (primary / muted text), so
+ * the same component utilities stay WCAG-AA legible in dark and light.
+ * --laser / --on-laser / --flare are constant across themes.
  * ===================================================================== */
 
 :root {
-  /* --- The seven roles (verbatim) ----------------------------------- */
-  --void: #0f1012; /* background                       */
-  --onyx: #2b2d33; /* surface / glass                  */
-  --silver: #b9bcc5; /* secondary / muted / borders      */
-  --chalk: #f2f3f6; /* primary text / light base        */
-  --laser: #b7ff3c; /* accent / primary action / IO glow */
+  /* --- dark (default) ------------------------------------------------ */
+  --void: #0f1012; /* page bg stop                     */
+  --void-2: #0e1013; /* page bg stop / on-laser ink      */
+  --lift: #16181d; /* raised page bg stop              */
+
+  --chalk: #f2f3f6; /* primary text                     */
+  --silver: #b9bcc5; /* muted text                       */
+
+  --surface: rgba(43, 45, 51, 0.55); /* card/surface fill   */
+  --glass: rgba(43, 45, 51, 0.72); /* floating glass fill   */
+  --onyx: #2b2d33; /* opaque surface                   */
+  --hair: rgba(185, 188, 197, 0.2); /* hairline border    */
+
+  --laser: #b7ff3c; /* accent FILL + primary action     */
+  --on-laser: #0e1013; /* the dark ink that sits ON laser */
+  /* Laser used AS TEXT/ICON: equals --laser on dark, but a deep laser-derived
+     green on light so it never trips the laser-on-light contrast FAIL.  Laser
+     as a fill is unaffected. */
+  --accent-ink: var(--laser);
+  --flare: #ff5247; /* error / destructive              */
   --pulse: #3dd68c; /* success (derived)                */
-  --flare: #ff5247; /* error (derived)                  */
   --amber: #ffc24b; /* warning (derived)                */
 
-  /* --- Font stacks: local-first so production builds do not depend on
-     Google Fonts network fetches from next/font. --------------------- */
-  --font-display: "Bebas Neue", "Arial Narrow", "Aptos Condensed", Impact, sans-serif;
+  --laser-glow: rgba(183, 255, 60, 0.25);
+
+  /* --- Font roles: self-hosted family (next/font/local var) first, then
+     a system fallback stack.  Mono is scoped to the OUTPUT region only. --- */
+  --font-display: var(--font-bebas), "Arial Narrow", "Aptos Condensed", Impact,
+    sans-serif;
   --font-body:
-    "Reddit Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+    var(--font-reddit-sans), Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace,
-    monospace;
+    var(--font-jetbrains), "SFMono-Regular", Consolas, "Liberation Mono",
+    ui-monospace, monospace;
 
   /* --- Spacing: 4px base, 8-pt rhythm ------------------------------- */
   --space: 4px;
 
-  /* --- Glass elevation (translucency + light, not shadow) ----------- */
-  --glass: rgba(43, 45, 51, 0.72); /* Onyx @ 72%        */
-  --hair: rgba(185, 188, 197, 0.2); /* Silver @ 20%      */
-  --laser-glow: rgba(183, 255, 60, 0.25);
-
   /* --- Semantic aliases — DARK is the default theme ----------------- */
   --bg: var(--void);
-  --surface: var(--onyx);
   --text: var(--chalk);
   --muted: var(--silver);
 
   color-scheme: dark;
 }
 
-/* Explicit light theme (Chalk canvas, Void text; Laser stays fill-only). */
+/* Light theme — Chalk canvas, Void ink.  Laser stays fill-only. */
 :root[data-theme="light"] {
-  --bg: var(--chalk);
-  --surface: #ffffff;
-  --text: var(--void);
-  --muted: #4a4d55;
-  --glass: rgba(255, 255, 255, 0.72);
+  --void: #eef0f4;
+  --void-2: #e3e6ec;
+  --lift: #ffffff;
+
+  --chalk: #0f1012; /* primary text on light            */
+  --silver: #565b63; /* muted text on light (AA on light) */
+
+  --surface: rgba(255, 255, 255, 0.72);
+  --glass: rgba(255, 255, 255, 0.82);
+  --onyx: #ffffff;
   --hair: rgba(15, 16, 18, 0.12);
+
+  /* --laser / --on-laser unchanged (laser stays a fill).  Laser-as-text and
+     flare-as-text switch to darker tones that pass WCAG AA on a light surface
+     (flare is only ever used as text/border — never a fill). */
+  --accent-ink: #3f6b00;
+  --flare: #c81d10;
 
   color-scheme: light;
 }
 
-/* System theme: follow the OS when no explicit choice is stored.
-   The data-theme="system" hook lets the no-flash bootstrap script opt in. */
+/* System theme: follow the OS when no explicit choice is stored. */
 @media (prefers-color-scheme: light) {
   :root[data-theme="system"] {
-    --bg: var(--chalk);
-    --surface: #ffffff;
-    --text: var(--void);
-    --muted: #4a4d55;
-    --glass: rgba(255, 255, 255, 0.72);
+    --void: #eef0f4;
+    --void-2: #e3e6ec;
+    --lift: #ffffff;
+
+    --chalk: #0f1012;
+    --silver: #565b63;
+
+    --surface: rgba(255, 255, 255, 0.72);
+    --glass: rgba(255, 255, 255, 0.82);
+    --onyx: #ffffff;
     --hair: rgba(15, 16, 18, 0.12);
+    --accent-ink: #3f6b00;
+    --flare: #c81d10;
 
     color-scheme: light;
   }

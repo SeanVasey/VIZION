@@ -110,7 +110,7 @@ export function PromptDetail({
     <div className="flex flex-col gap-6">
       <header>
         <h1 className="font-display text-2xl tracking-wide text-text">{prompt.title}</h1>
-        <p className="mono mt-1 text-xs text-silver">
+        <p className="font-body mt-1 text-xs text-silver">
           {versions.length} version{versions.length === 1 ? "" : "s"}
           {prompt.tags.length ? ` · ${prompt.tags.map((t) => `#${t}`).join(" ")}` : ""}
         </p>
@@ -126,14 +126,14 @@ export function PromptDetail({
               versions={versions}
               labelOf={labelOf}
             />
-            <span className="mono text-xs text-silver">→</span>
+            <span className="font-body text-xs text-silver">→</span>
             <VersionSelect
               value={bId}
               onChange={setBId}
               versions={versions}
               labelOf={labelOf}
             />
-            <span className="mono ml-auto text-xs text-laser">
+            <span className="font-body ml-auto text-xs text-accent">
               {countChanges(segments)} change{countChanges(segments) === 1 ? "" : "s"}
             </span>
           </div>
@@ -145,7 +145,7 @@ export function PromptDetail({
                     {seg.text}
                   </span>
                 ) : (
-                  <span key={i} className={seg.op === "added" ? "text-laser" : undefined}>
+                  <span key={i} className={seg.op === "added" ? "text-accent" : undefined}>
                     {seg.text}
                   </span>
                 ),
@@ -157,7 +157,7 @@ export function PromptDetail({
 
       {/* Version history. */}
       <section aria-label="Version history">
-        <h2 className="mono mb-2 text-xs uppercase tracking-wider text-silver">
+        <h2 className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
           History
         </h2>
         <ul className="glass flex flex-col divide-y divide-hair rounded-2xl">
@@ -167,10 +167,10 @@ export function PromptDetail({
                 <p className="font-body text-sm text-text">
                   v{labelOf.get(v.id)} · {v.mode}
                   {v.id === currentId ? (
-                    <span className="mono ml-2 text-xs text-laser">current</span>
+                    <span className="font-body ml-2 text-xs text-accent">current</span>
                   ) : null}
                 </p>
-                <p className="mono truncate text-xs text-silver">
+                <p className="font-body truncate text-xs text-silver">
                   {relativeTime(v.created_at)} · {v.model_used}
                 </p>
               </div>
@@ -179,7 +179,7 @@ export function PromptDetail({
                   type="button"
                   onClick={() => restore(v.id)}
                   disabled={pending}
-                  className="glass mono shrink-0 rounded-lg px-3 py-1.5 text-xs text-text disabled:opacity-60"
+                  className="glass font-body shrink-0 rounded-lg px-3 py-1.5 text-xs text-text disabled:opacity-60"
                 >
                   Restore
                 </button>
@@ -191,7 +191,7 @@ export function PromptDetail({
 
       {/* Revise → re-enhance → save as a new version. */}
       <section className="flex flex-col gap-3" aria-label="Revise">
-        <h2 className="mono text-xs uppercase tracking-wider text-silver">Revise</h2>
+        <h2 className="font-body text-xs uppercase tracking-wider text-silver">Revise</h2>
         <div className="-mx-1 flex flex-wrap gap-2 px-1">
           {MODES.map((m) => (
             <button
@@ -199,9 +199,9 @@ export function PromptDetail({
               type="button"
               onClick={() => setMode(m.id)}
               className={[
-                "mono rounded-full px-3 py-1.5 text-xs uppercase tracking-wider transition-colors",
+                "font-body rounded-full px-3 py-1.5 text-xs uppercase tracking-wider transition-colors",
                 mode === m.id
-                  ? "bg-laser text-void"
+                  ? "bg-laser text-on-laser"
                   : "glass text-silver hover:text-chalk",
               ].join(" ")}
             >
@@ -213,7 +213,7 @@ export function PromptDetail({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={5}
-          className="glass mono w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text focus:outline-none"
+          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text focus:outline-none"
         />
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -244,7 +244,7 @@ export function PromptDetail({
           </button>
         </div>
         {enhanceMutation.isError && (
-          <p className="mono text-sm text-flare" role="alert">
+          <p className="font-body text-sm text-flare" role="alert">
             {enhanceMutation.error.notConfigured
               ? "This model isn't configured yet — add its API key on the server."
               : enhanceMutation.error.message}
@@ -252,9 +252,10 @@ export function PromptDetail({
         )}
         {revised && (
           <div className="glass rounded-2xl p-4">
-            <p className="mono mb-2 text-xs uppercase tracking-wider text-silver">
+            <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
               Re-enhanced preview
             </p>
+            {/* OUTPUT REGION: re-enhanced result body in mono (JetBrains). */}
             <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
               {revised.output}
             </p>

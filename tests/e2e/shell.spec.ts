@@ -4,7 +4,9 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
   test("unauthenticated root redirects to the sign-in gate", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/sign-in$/);
-    await expect(page.getByRole("img", { name: "VIZ(IO)N" })).toBeVisible();
+    // R2.4: the wordmark reads plain "VIZION" (IO in accent); brackets/chevron
+    // moved to the brand mark/icon, so its accessible name is "VIZION".
+    await expect(page.getByRole("img", { name: "VIZION" })).toBeVisible();
     await expect(page.getByPlaceholder("you@example.com")).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Continue with GitHub/i }),

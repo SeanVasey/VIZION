@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
+import { bebasNeue, redditSans, jetBrainsMono } from "@/app/fonts";
 import { UI_STORE_KEY } from "@/lib/constants";
 import { QueryProvider } from "@/lib/query/provider";
 import { ThemeManager } from "@/components/ThemeManager";
+import { NeuralMeshBackground } from "@/components/NeuralMeshBackground";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
+
+const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.variable}`;
 
 export const metadata: Metadata = {
   applicationName: "VIZ(IO)N",
@@ -36,19 +40,25 @@ const NO_FLASH = `(function(){try{var r=localStorage.getItem("${UI_STORE_KEY}");
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="system" suppressHydrationWarning>
+    <html
+      lang="en"
+      data-theme="system"
+      className={fontVars}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
       </head>
       <body>
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[100] focus:rounded-lg focus:bg-laser focus:px-3 focus:py-2 focus:text-void"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[100] focus:rounded-lg focus:bg-laser focus:px-3 focus:py-2 focus:text-on-laser"
         >
           Skip to content
         </a>
         <QueryProvider>
           <ThemeManager />
+          <NeuralMeshBackground />
           <SafeAreaProvider>{children}</SafeAreaProvider>
           <BottomNav />
         </QueryProvider>

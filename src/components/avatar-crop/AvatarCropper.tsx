@@ -153,7 +153,7 @@ export function AvatarCropper({
             style={previewStyle}
           />
         ) : (
-          <div className="mono absolute inset-0 grid place-items-center text-xs text-silver">
+          <div className="font-body absolute inset-0 grid place-items-center text-xs text-silver">
             Loading…
           </div>
         )}
@@ -171,7 +171,7 @@ export function AvatarCropper({
 
       {/* Zoom slider. */}
       <div className="flex w-full max-w-[256px] items-center gap-3">
-        <span className="mono text-xs text-silver" aria-hidden="true">
+        <span className="font-body text-xs text-silver" aria-hidden="true">
           −
         </span>
         <input
@@ -185,7 +185,7 @@ export function AvatarCropper({
           onChange={(e) => setZoom(Number(e.target.value))}
           className="h-1 w-full cursor-pointer accent-laser disabled:opacity-50"
         />
-        <span className="mono text-xs text-silver" aria-hidden="true">
+        <span className="font-body text-xs text-silver" aria-hidden="true">
           +
         </span>
       </div>

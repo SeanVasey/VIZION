@@ -87,7 +87,7 @@ export function BottomNav() {
                 className={[
                   "flex min-h-[56px] flex-col items-center justify-center gap-1 py-2",
                   "text-xs transition-colors",
-                  active ? "text-laser" : "text-silver hover:text-chalk",
+                  active ? "text-accent" : "text-silver hover:text-chalk",
                 ].join(" ")}
               >
                 {tab.icon}
