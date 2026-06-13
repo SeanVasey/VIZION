@@ -31,7 +31,6 @@ export function MediaStudio() {
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<MediaKind | null>(null);
   const [attrs, setAttrs] = useState<MediaAttributes | null>(null);
-  const [refUrl, setRefUrl] = useState<string | undefined>(undefined);
   const [genTarget, setGenTarget] = useState<GenTargetId>("midjourney");
   const [basePrompt, setBasePrompt] = useState("");
   const [usedBytes, setUsedBytes] = useState(0);
@@ -54,8 +53,8 @@ export function MediaStudio() {
   const generated = useMemo(() => {
     if (!attrs) return "";
     const base = (basePrompt || editorDraft || "").trim();
-    return buildGenerationPrompt(base, attrs, genTarget, refUrl);
-  }, [attrs, basePrompt, editorDraft, genTarget, refUrl]);
+    return buildGenerationPrompt(base, attrs, genTarget);
+  }, [attrs, basePrompt, editorDraft, genTarget]);
 
   async function onFile(file: File) {
     setError(null);
@@ -103,11 +102,6 @@ export function MediaStudio() {
       setStatus("error");
       return;
     }
-
-    const { data: signed } = await supabase.storage
-      .from("media")
-      .createSignedUrl(path, 60 * 60 * 24 * 7);
-    setRefUrl(signed?.signedUrl);
 
     // Extract — proxy by default (image/video frame), on-device fallback/audio.
     setStatus("extracting");
