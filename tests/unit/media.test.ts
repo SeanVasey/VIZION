@@ -29,10 +29,10 @@ describe("buildGenerationPrompt", () => {
     expect(p).not.toContain("--iw"); // no ref url
   });
 
-  it("prepends the image ref and adds --iw when a ref URL is given", () => {
-    const p = buildGenerationPrompt("x", attrs, "midjourney", "https://img/ref.jpg");
-    expect(p.startsWith("https://img/ref.jpg ")).toBe(true);
-    expect(p).toContain("--iw 1");
+  it("never embeds a reference URL or image-weight flag", () => {
+    const p = buildGenerationPrompt("x", attrs, "midjourney");
+    expect(p).not.toContain("http");
+    expect(p).not.toContain("--iw");
   });
 
   it("formats motion engines with labeled fields", () => {

@@ -9,11 +9,10 @@ export function buildGenerationPrompt(
   base: string,
   attrs: MediaAttributes,
   target: GenTargetId,
-  refUrl?: string,
 ): string {
   switch (target) {
     case "midjourney":
-      return midjourney(base, attrs, refUrl);
+      return midjourney(base, attrs);
     case "audio":
       return audioSpec(base, attrs);
     case "runway":
@@ -23,8 +22,8 @@ export function buildGenerationPrompt(
   }
 }
 
-/** Midjourney image-reference syntax: `<ref> <desc> --ar … --v … [--iw 1]`. */
-function midjourney(base: string, a: MediaAttributes, refUrl?: string): string {
+/** Midjourney prompt syntax: `<desc> --ar … --v …`. */
+function midjourney(base: string, a: MediaAttributes): string {
   const parts = [
     base.trim(),
     a.subject,
@@ -35,12 +34,8 @@ function midjourney(base: string, a: MediaAttributes, refUrl?: string): string {
     a.palette?.length ? `palette ${a.palette.join(" ")}` : undefined,
   ].filter((p): p is string => Boolean(p && p.trim()));
 
-  let prompt = parts.join(", ");
+  const prompt = parts.join(", ");
   const params = ["--ar 16:9", "--v 6"];
-  if (refUrl) {
-    prompt = `${refUrl} ${prompt}`;
-    params.push("--iw 1");
-  }
   return `${prompt} ${params.join(" ")}`.trim();
 }
 

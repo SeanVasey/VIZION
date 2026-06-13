@@ -22,7 +22,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
 
   return (
     <footer
-      className={`footer-fade-in mt-14 flex flex-col items-center px-4 pt-8 text-center ${
+      className={`footer-fade-in mt-4 flex flex-col items-center px-4 pt-4 text-center ${
         inset ? "pb-6" : "pb-safe"
       }`}
     >
