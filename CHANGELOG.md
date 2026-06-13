@@ -6,6 +6,20 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — Brand icons
+
+- Replaced the placeholder aperture glyph across the full icon/splash matrix with
+  the master brand artwork. Two hand-authored SVGs now live in `public/brand/`:
+  `vizion-icon-token.svg` (the branded Void plate + glow border) and
+  `vizion-mark-token.svg` (the aperture mark on a transparent ground).
+- `scripts/generate-icons.mjs` now rasterizes those master SVGs instead of the
+  removed `scripts/lib/glyph.mjs` placeholder builder: the transparent "any"
+  matrix and iOS splashes use the mark; apple-touch, favicons, and the App
+  Router `icon.png`/`apple-icon.png` use the opaque plate; maskable tiles center
+  the mark in the safe zone on a full-bleed Void canvas.
+- Added `src/app/icon.svg` (the master tile) so modern browsers get a scalable
+  favicon, with `icon.png` as the raster fallback.
+
 ### Added — v1.0 Hardening (P6)
 
 - **Content-Security-Policy** + the full security-header set in `next.config.ts`

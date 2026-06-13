@@ -202,3 +202,22 @@ motion); the security/hardening + backup-restore runbooks.
 **v1.0 reached.** Definition of Done met: lint/typecheck/unit/e2e/build green every commit;
 RLS on every table; keys server-side; caps on model routes; PWA installable + offline
 fallback; a11y pass (Lighthouse to be run against a deployed preview).
+
+## Brand icons — placeholder swap
+
+- **Single source of truth for assets:** the icon/splash matrix is generated, not
+  hand-edited. Dropping the master SVGs into `public/brand/` and pointing
+  `generate-icons.mjs` at them means one `npm run generate:icons` re-derives all 32
+  outputs. Don't hand-edit the PNGs.
+- **`resize({background})` only letterboxes — it does NOT fill interior transparency.**
+  The brand tile has transparent corners outside its rounded plate; use
+  `.flatten({ background: VOID })` to make apple-touch/favicons opaque squares (iOS
+  expects a filled square and applies its own squircle mask).
+- **Maskable ≠ the full tile.** The plate's glow border sits near the edge and would be
+  clipped by the OS maskable crop. Composite the *mark* (no plate) at ~78% inside a
+  full-bleed Void canvas so the safe zone never clips.
+- **Keep the transparent "any" matrix transparent** (guardrail §6) — render the mark
+  alone; the maskable set provides the filled variant.
+- **e2e webserver needs `NEXT_PUBLIC_SUPABASE_*` at build time** (NEXT_PUBLIC_ vars are
+  inlined) or the middleware throws "URL and Key are required". The sandbox also can't
+  install WebKit system deps — Chromium e2e is the reliable local signal.
