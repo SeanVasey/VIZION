@@ -6,6 +6,23 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — v0.3 Enhance core (P3)
+
+- Provider adapter (`enhance(input, mode, target)`) fanning out to per-target
+  implementations: Anthropic/Opus (official SDK), OpenAI/GPT (SDK), Google/Gemini
+  (REST). Model strings are env-overridable config (D9); keys are server-side only.
+- Per-target idiomatic formatters (Opus XML/CoT · GPT roles/JSON · Gemini
+  parts/system-instruction) and the five modes (clarify · expand · condense ·
+  reformat · target).
+- `/api/enhance` route: auth-required, with a per-user **rate limit + daily cost
+  cap** enforced server-side before any model call (backed by a `usage_events`
+  ledger with RLS + a `usage_window` aggregate).
+- The **transformation diff** — input on the Void end, enhanced output on the
+  Chalk end, changed tokens lit in Laser, with a plain-language rationale —
+  plus copy / share / export (Markdown · JSON · text) and an Amber cap warning.
+- Tests: word-diff, formatters/parse, cost + exporters (unit); enhance-API 401
+  (e2e). Pure word-level LCS diff lives in `src/lib/enhance/diff.ts`.
+
 ### Added — v0.2 Auth & profile (P2)
 
 - Supabase Auth wired end-to-end: magic link + GitHub + Google on the sign-in gate, with

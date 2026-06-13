@@ -83,3 +83,35 @@ onboarding. Supabase project provisioned via MCP; migrations applied live.
 
 **Carry into P3:** model keys server-side only; rate limit + cost cap on the enhance route;
 the provider adapter reads model strings from server config (swap ≠ refactor).
+
+## Phase 3 — Enhance core
+
+**What we built:** the provider adapter (`enhance(input, mode, target)`) over Anthropic
+(official SDK, `claude-opus-4-8`), OpenAI (SDK), and Google (REST); five modes; per-target
+formatters; the `/api/enhance` route with a server-side rate limit + daily cost cap backed
+by a `usage_events` ledger; the transformation diff (pure LCS word-diff) + copy/share/export.
+
+**What to watch / decisions:**
+
+- **Provider neutrality of the contract.** Rather than couple to each SDK's structured-
+  output feature (which differ and drift), the JSON-only contract is enforced in the
+  _system prompt_ and validated on parse (`parseEnhancePayload`). One code path, three
+  providers; the Anthropic call still uses the official SDK per guidance.
+- **Keys are server-side only.** All provider modules import `server-only`; a missing key
+  throws `ProviderNotConfiguredError` → 503 with a friendly "add the key" message. Live
+  enhancement needs the user's `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_API_KEY`.
+- **Model strings are config (D9).** `MODEL_OPUS`/`MODEL_GPT`/`MODEL_GEMINI` + `PRICE_*`
+  envs; defaults `claude-opus-4-8` / `gpt-5.5` / `gemini-pro-3.1`. GPT/Gemini defaults are
+  named product targets — point them at a real deployed string via env.
+- **Caps are enforced before the model call.** `usage_window(p_rate_seconds)` (SECURITY
+  INVOKER, RLS-scoped) returns recent-count + today's cost in one round trip; the route
+  429s on either limit, then logs a `usage_events` row after a successful call.
+- **API routes must 401, not redirect.** Middleware now returns JSON 401 for unauth
+  `/api/*` instead of bouncing to `/sign-in` (asserted in e2e — no session needed).
+- **Live multi-provider calls aren't covered by automated tests** (no keys + can't seed
+  users). Pure logic — diff, formatters, cost, exporters — is unit-tested; the route's
+  auth gate is e2e-tested; the provider calls are typed + built. Exercise live enhancement
+  on the preview once keys are set.
+
+**Carry into P4:** save → `Prompt` + immutable `PromptVersion`; reuse the word-diff for
+diff-any-two-versions; activity feed logs every event type; tags + search + model filter.

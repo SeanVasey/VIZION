@@ -52,14 +52,14 @@ See [`docs/architecture.md`](./docs/architecture.md) and the locked decision log
 
 ## Status
 
-| Phase                 | Scope                                                     | State          |
-| --------------------- | --------------------------------------------------------- | -------------- |
-| **v0.1 — Shell**      | Tokens · manifest · Workbox SW · safe-area · nav · themes | 🟢 done        |
-| **v0.2 — Auth & profile** | Supabase Auth · RLS · avatar crop · onboarding        | 🟢 in progress |
-| v0.3 — Enhance core   | Provider adapter · 5 modes · transformation diff          | ⚪ planned     |
-| v0.4 — Library        | Save · immutable versions · diff/restore · activity feed  | ⚪ planned     |
-| v0.5 — Media prompts  | Attach media · extraction · generation-syntax formatters  | ⚪ planned     |
-| v1.0 — Hardening      | Rate limits · eviction recovery · WCAG AA                 | ⚪ planned     |
+| Phase                     | Scope                                                     | State          |
+| ------------------------- | --------------------------------------------------------- | -------------- |
+| **v0.1 — Shell**          | Tokens · manifest · Workbox SW · safe-area · nav · themes | 🟢 done        |
+| **v0.2 — Auth & profile** | Supabase Auth · RLS · avatar crop · onboarding            | 🟢 done        |
+| **v0.3 — Enhance core**   | Provider adapter · 5 modes · transformation diff · caps   | 🟢 in progress |
+| v0.4 — Library            | Save · immutable versions · diff/restore · activity feed  | ⚪ planned     |
+| v0.5 — Media prompts      | Attach media · extraction · generation-syntax formatters  | ⚪ planned     |
+| v1.0 — Hardening          | Rate limits · eviction recovery · WCAG AA                 | ⚪ planned     |
 
 ## Getting started
 

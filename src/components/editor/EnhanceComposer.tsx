@@ -2,6 +2,8 @@
 
 import { useUIStore } from "@/stores/ui";
 import { MODES, TARGET_MODELS } from "@/lib/constants";
+import { useEnhance } from "@/lib/enhance/use-enhance";
+import { TransformationDiff } from "@/components/diff/TransformationDiff";
 
 /**
  * Enhance composer (P1 shell).  Wires the mode chips, mono editor, and target
@@ -15,6 +17,9 @@ export function EnhanceComposer() {
   const setTargetModel = useUIStore((s) => s.setTargetModel);
   const editorDraft = useUIStore((s) => s.editorDraft);
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
+
+  const enhanceMutation = useEnhance();
+  const result = enhanceMutation.data;
 
   // Cheap, deterministic token estimate (~4 chars/token) for the readout.
   const approxTokens = editorDraft.trim()
@@ -104,15 +109,49 @@ export function EnhanceComposer() {
       {/* Primary CTA — Void text on a Laser fill, never the reverse. */}
       <button
         type="button"
-        disabled
+        onClick={() =>
+          enhanceMutation.mutate({
+            input: editorDraft.trim(),
+            mode: activeMode,
+            target: targetModel,
+          })
+        }
+        disabled={enhanceMutation.isPending || editorDraft.trim() === ""}
         className="btn-laser flex min-h-[52px] items-center justify-center gap-2 rounded-xl px-6 text-base disabled:opacity-60"
-        title="The enhancement engine arrives in P3"
       >
-        ► ENHANCE
+        {enhanceMutation.isPending ? "Enhancing…" : "► ENHANCE"}
       </button>
-      <p className="mono text-center text-xs text-silver">
-        Engine wiring lands in P3 · this is the P1 shell
-      </p>
+
+      {/* Errors — provider-not-configured and cap messages get a friendly note. */}
+      {enhanceMutation.isError && (
+        <p
+          className={`mono text-center text-sm ${
+            enhanceMutation.error.capReached ? "text-amber" : "text-flare"
+          }`}
+          role="alert"
+        >
+          {enhanceMutation.error.notConfigured
+            ? "This model isn't configured yet — add its API key on the server to enable it."
+            : enhanceMutation.error.message}
+        </p>
+      )}
+
+      {/* Amber storage/quota-style warning as the daily cap approaches. */}
+      {result && result.usage.todayCost >= result.usage.capUsd * 0.8 && (
+        <p className="mono text-center text-xs text-amber" role="status">
+          ⚠ ${result.usage.todayCost.toFixed(2)} of ${result.usage.capUsd.toFixed(2)}{" "}
+          daily cap used
+        </p>
+      )}
+
+      {result && (
+        <TransformationDiff
+          input={editorDraft.trim()}
+          mode={activeMode}
+          target={targetModel}
+          result={result}
+        />
+      )}
     </section>
   );
 }

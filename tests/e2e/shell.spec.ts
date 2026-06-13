@@ -37,6 +37,15 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     expect(purposes.has("maskable")).toBeTruthy();
   });
 
+  test("the enhance API rejects unauthenticated requests with 401", async ({
+    request,
+  }) => {
+    const res = await request.post("/api/enhance", {
+      data: { input: "write a summary", mode: "clarify", target: "opus_4_8" },
+    });
+    expect(res.status()).toBe(401);
+  });
+
   test("the service worker is served with a no-store cache policy", async ({
     request,
   }) => {

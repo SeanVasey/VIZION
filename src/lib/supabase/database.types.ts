@@ -17,6 +17,42 @@ export type Database = {
   };
   public: {
     Tables: {
+      usage_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          target: Database["public"]["Enums"]["model_target"];
+          mode: string;
+          model_used: string;
+          token_in: number;
+          token_out: number;
+          cost_usd: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          target: Database["public"]["Enums"]["model_target"];
+          mode: string;
+          model_used: string;
+          token_in?: number;
+          token_out?: number;
+          cost_usd?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          target?: Database["public"]["Enums"]["model_target"];
+          mode?: string;
+          model_used?: string;
+          token_in?: number;
+          token_out?: number;
+          cost_usd?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       oauth_identities: {
         Row: {
           id: string;
@@ -91,7 +127,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      usage_window: {
+        Args: { p_rate_seconds: number };
+        Returns: { recent_count: number; today_cost: number }[];
+      };
     };
     Enums: {
       auth_method: "magic_link" | "github" | "google";

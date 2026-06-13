@@ -46,6 +46,11 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Unauthenticated API calls get a 401 JSON, not an HTML redirect.
+  if (!user && pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
   // Unauthenticated → bounce everything except public routes to the gate.
   if (!user && !isPublic(pathname)) {
     const url = request.nextUrl.clone();
