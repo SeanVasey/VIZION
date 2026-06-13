@@ -75,7 +75,7 @@ export function BottomNav() {
   }
 
   return (
-    <nav aria-label="Primary" className="glass-chrome fixed inset-x-0 bottom-0 z-50 pb-safe">
+    <nav aria-label="Primary" className="glass-nav fixed inset-x-0 bottom-0 z-50 pb-safe">
       <ul className="mx-auto flex max-w-screen-sm items-stretch justify-around">
         {TABS.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);

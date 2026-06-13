@@ -3,6 +3,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/server";
 import { LibraryBrowser, type PromptCard } from "@/components/library/LibraryBrowser";
 import { ActivityFeed } from "@/components/library/ActivityFeed";
+import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = { title: "Library" };
 
@@ -51,6 +52,7 @@ export default async function LibraryPage() {
       <div className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5">
         <LibraryBrowser prompts={cards} />
         <ActivityFeed events={activity ?? []} />
+        <Footer inset />
       </div>
     </>
   );

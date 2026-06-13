@@ -25,12 +25,3 @@ export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
 /** localStorage key for the UI store. Local cache is convenience only —
  *  the server is the source of truth for anything that matters. */
 export const UI_STORE_KEY = "vizion.ui.v1";
-
-/**
- * Footer monograms (R7).  Sean's real VM + V/AI monogram files are not yet in
- * the repo (only the VIZION mark/icon tokens are).  Until vm-monogram.svg and
- * vai-monogram.svg land in /public/brand, the footer shows a typographic
- * fallback.  Flip this to true once the real files exist — no code change
- * needed elsewhere.  Never redraw or approximate the monograms.
- */
-export const BRAND_MONOGRAMS_READY = false;
