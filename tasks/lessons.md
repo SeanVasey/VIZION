@@ -289,3 +289,21 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   it — size by one axis (`w-[260px] h-auto`) to preserve aspect. The generator's
   `fit: "contain"` already handles the square PNG matrix (it letterboxes), so only
   the hand-placed hero needed the fix.
+- **Aspect-correct ≠ balanced — re-check rendered scale after an art swap.** The new
+  mark fills its viewBox far more tightly than the old 1024² square (almost no
+  internal padding), so matching the *old* visual height (≈150px tall → 260px wide
+  at the new aspect) made the hero glyph read as oversized and out of proportion on
+  the sign-in screen. Dropping it to `w-[176px]` (≈102px tall) restores balance with
+  the wordmark and tagline. Lesson: when the source art's "ink coverage" within the
+  viewBox changes, the previous pixel dimensions no longer translate — eyeball the
+  rendered result, don't just preserve the aspect ratio.
+
+## Chrome corners — make the header a floating sheet, not a bordered strip
+
+- **Match the header chrome to the bottom nav, mirrored.** `.glass-chrome` (top
+  header) still carried a `1px solid var(--hair)` hairline and sharp corners, so on
+  device it read as a bordered card with a bright top edge, clashing with the
+  borderless, soft-cornered `.glass-nav` below. Fix: drop the border, round the
+  *bottom* corners (`border-bottom-{left,right}-radius: 20px`) and cast the shadow
+  *downward* (`0 8px 28px`) — the vertical mirror of the bottom nav's top-rounded,
+  upward-shadow treatment — so both bars read as the same floating frosted sheet.

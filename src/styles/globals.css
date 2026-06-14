@@ -66,14 +66,20 @@
     border: 1px solid var(--hair);
   }
 
-  /* Translucent chrome — the top header and bottom nav. Thinner fill + a touch
-     of saturation so the ambient aurora glow blooms through the bar (the glass
-     panels stay on the denser --glass tier). */
+  /* Translucent chrome — the top header. Thinner fill + a touch of saturation
+     so the ambient aurora glow blooms through the bar (the glass panels stay on
+     the denser --glass tier).  Mirrors the bottom nav: no hard hairline edge,
+     softly rounded at the bottom, with a gentle downward shadow that lifts the
+     bar off the canvas so it reads as a floating sheet rather than a bordered
+     strip. */
   .glass-chrome {
     background: var(--chrome);
     backdrop-filter: blur(18px) saturate(1.4);
     -webkit-backdrop-filter: blur(18px) saturate(1.4);
-    border: 1px solid var(--hair);
+    border: none;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
   }
 
   /* Bottom-nav chrome — same frosted glass as the header, but softly rounded at
