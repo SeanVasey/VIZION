@@ -10,14 +10,16 @@ import { BrandPills } from "@/components/BrandPills";
 export function AuthHero() {
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      {/* Decorative: the Wordmark below carries the accessible brand name. */}
+      {/* Decorative: the Wordmark below carries the accessible brand name.
+          The aperture glyph is wide (1872×1084), so size by width to keep
+          its native aspect ratio. */}
       <Image
         src="/brand/vizion-mark-token.svg"
         alt=""
-        width={150}
-        height={150}
+        width={260}
+        height={151}
         priority
-        className="h-[150px] w-[150px]"
+        className="h-auto w-[260px]"
       />
       <Wordmark className="text-3xl" />
       <p className="font-body max-w-[280px] text-sm text-muted">

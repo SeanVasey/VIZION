@@ -86,6 +86,20 @@ Inngest (async, P5+) · Vercel.
 
 VIZ(IO)N is a **VASEY/AI** product. No association with VASEY.AUDIO.
 
+The identity is the **aperture glyph** — a neon-lime bar, chevron and split ring
+framed by two chrome parentheses — shown two ways:
+
+- **App icon** (`public/brand/vizion-icon-token.svg`) — the glyph on a glossy black
+  squircle with a lime-green glowing border. Drives the opaque surfaces: the iOS
+  Add-to-Home-Screen tile (`apple-touch-icon`), the favicons, and the App Router
+  `icon`/`apple-icon`.
+- **Glyph** (`public/brand/vizion-mark-token.svg`) — the same mark alone on a
+  transparent ground. Drives the transparent `any` PWA icon matrix, the maskable
+  safe-zone tiles, and the iOS splash glyph.
+
+These two SVGs are the single source of truth; `npm run generate:icons` re-derives the
+entire 32-file icon + splash matrix from them via `sharp`. Don't hand-edit the PNGs.
+
 ## License
 
 [MIT](./LICENSE) © VASEY/AI
