@@ -1,12 +1,24 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { showsBottomNav } from "./visibility";
 
 /**
  * Structural shell that reserves the iOS safe areas generically (the v2
  * luminance-polarity template handles the *tint*; this handles the *layout*).
- * The scroll region is padded for the fixed bottom nav + home indicator so
- * content is never trapped under the chrome.
+ *
+ * When the fixed bottom nav is present (the authed app surfaces), the scroll
+ * region reserves exactly the nav's height (shared `--bottom-nav-h` var) plus
+ * the home-indicator inset and a comfortable buffer, so the footer/last
+ * controls always clear it. On the auth gate / onboarding screens the nav is
+ * hidden, so we drop that reservation — keyed off the same `showsBottomNav`
+ * predicate the nav itself uses — and let those full-height pages own their own
+ * bottom inset, instead of stranding ~64px of empty space under the footer.
  */
 export function SafeAreaProvider({ children }: { children: ReactNode }) {
+  const reserveNav = showsBottomNav(usePathname());
+
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-bg text-text">
       <main
@@ -15,11 +27,14 @@ export function SafeAreaProvider({ children }: { children: ReactNode }) {
         // No pt-safe here: each screen's sticky header (or full-bleed gate)
         // owns its own top inset, so adding it here would double the padding.
         className="flex-1 pl-safe pr-safe focus:outline-none"
-        // Reserve space for the ~60px nav bar (+ comfortable buffer) and the
-        // home-indicator inset, so the footer/last controls never sit under it.
-        style={{
-          paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
-        }}
+        style={
+          reserveNav
+            ? {
+                paddingBottom:
+                  "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 1.5rem)",
+              }
+            : undefined
+        }
       >
         {children}
       </main>

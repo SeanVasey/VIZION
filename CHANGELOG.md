@@ -6,6 +6,27 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — footer no longer collides with the fixed bottom nav
+
+- **Footer is now guaranteed to clear the bottom nav.** The branded footer lives in
+  normal scroll flow at the end of each page while the nav is `position: fixed` at the
+  viewport bottom, so the nav floated *over* the footer — trapping the VM / V·AI
+  monograms behind it and pushing the copyright lines out below it. Prior patches
+  reserved a hardcoded `80px` of bottom padding that wasn't tied to the nav's real
+  rendered height (`min-h-[56px]` + `py-2` + `pb-safe`), so the reserve could
+  under-shoot the nav and let the footer slip under it.
+- **Single source of truth for the nav height.** Introduced `--bottom-nav-h` (`4rem`,
+  == 64px at the default root size, in rem so the bar scales with the user's font
+  setting alongside its rem-sized icons and labels). The nav sizes its tap targets to
+  it (`min-h-[var(--bottom-nav-h)]`) and the scroll region reserves
+  `calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 1.5rem)`, so the reserved
+  clearance always tracks the nav by construction — the two can never drift out of
+  sync the way the fixed guess could.
+- **Reservation is scoped to where the nav actually renders.** A shared
+  `showsBottomNav(pathname)` predicate now drives both the nav's visibility and the
+  scroll reservation, so the auth gate / onboarding screens (which hide the nav) no
+  longer strand ~64px of empty space beneath the footer.
+
 ### Changed — nav chrome & glyph balance
 
 - **Top header now reads as a floating sheet.** `.glass-chrome` drops its hairline
