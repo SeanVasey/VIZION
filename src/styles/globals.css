@@ -22,8 +22,10 @@
     /* Single source of truth for the fixed bottom-nav's content height. The nav
        sizes itself to this, and the scroll region reserves this (+ safe-area +
        buffer) below its content, so the footer is *guaranteed* to clear the nav
-       — the two can never drift apart the way a hardcoded guess did. */
-    --bottom-nav-h: 64px;
+       — the two can never drift apart the way a hardcoded guess did. In rem so
+       the bar grows with the user's font scale, matching its rem-sized icons
+       (h-6) and labels (text-xs); 4rem == 64px at the default 16px root. */
+    --bottom-nav-h: 4rem;
   }
 
   body {

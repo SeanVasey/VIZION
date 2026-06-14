@@ -15,11 +15,17 @@ All notable changes to VIZ(IO)N are documented here. The format follows
   reserved a hardcoded `80px` of bottom padding that wasn't tied to the nav's real
   rendered height (`min-h-[56px]` + `py-2` + `pb-safe`), so the reserve could
   under-shoot the nav and let the footer slip under it.
-- **Single source of truth for the nav height.** Introduced `--bottom-nav-h` (64px).
-  The nav sizes its tap targets to it (`min-h-[var(--bottom-nav-h)]`) and the scroll
-  region reserves `calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 1.5rem)`,
-  so the reserved clearance always tracks the nav by construction — the two can never
-  drift out of sync the way the fixed guess could.
+- **Single source of truth for the nav height.** Introduced `--bottom-nav-h` (`4rem`,
+  == 64px at the default root size, in rem so the bar scales with the user's font
+  setting alongside its rem-sized icons and labels). The nav sizes its tap targets to
+  it (`min-h-[var(--bottom-nav-h)]`) and the scroll region reserves
+  `calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 1.5rem)`, so the reserved
+  clearance always tracks the nav by construction — the two can never drift out of
+  sync the way the fixed guess could.
+- **Reservation is scoped to where the nav actually renders.** A shared
+  `showsBottomNav(pathname)` predicate now drives both the nav's visibility and the
+  scroll reservation, so the auth gate / onboarding screens (which hide the nav) no
+  longer strand ~64px of empty space beneath the footer.
 
 ### Changed — nav chrome & glyph balance
 

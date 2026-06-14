@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { showsBottomNav } from "./visibility";
 
 interface Tab {
   href: string;
@@ -64,13 +65,9 @@ const TABS: Tab[] = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  // The auth gate + onboarding screens show only the brand — no nav.
-  // `usePathname` can momentarily be null during transitions; guard it.
-  if (
-    !pathname ||
-    pathname.startsWith("/sign-in") ||
-    pathname.startsWith("/set-password")
-  ) {
+  // The auth gate + onboarding screens show only the brand — no nav. Keyed off
+  // the shared predicate so the scroll region's reservation stays in agreement.
+  if (!showsBottomNav(pathname)) {
     return null;
   }
 
