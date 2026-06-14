@@ -11,15 +11,16 @@ export function AuthHero() {
   return (
     <div className="flex flex-col items-center gap-4 text-center">
       {/* Decorative: the Wordmark below carries the accessible brand name.
-          The aperture glyph is wide (1872×1084), so size by width to keep
-          its native aspect ratio. */}
+          The aperture glyph is wide (1872×1084) and fills its viewBox tightly,
+          so size by width (keeping native aspect) and keep it modest so it
+          stays in balance with the wordmark and the rest of the page. */}
       <Image
         src="/brand/vizion-mark-token.svg"
         alt=""
-        width={260}
-        height={151}
+        width={176}
+        height={102}
         priority
-        className="h-auto w-[260px]"
+        className="h-auto w-[176px]"
       />
       <Wordmark className="text-3xl" />
       <p className="font-body max-w-[280px] text-sm text-muted">

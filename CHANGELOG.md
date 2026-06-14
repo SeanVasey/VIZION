@@ -6,6 +6,18 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — nav chrome & glyph balance
+
+- **Top header now reads as a floating sheet.** `.glass-chrome` drops its hairline
+  border and sharp corners in favour of softly rounded *bottom* corners (20px) and a
+  gentle downward shadow — the vertical mirror of the bottom nav, so both bars share
+  the same borderless frosted-glass treatment instead of the header showing a bright
+  contrasting edge.
+- **Hero glyph rescaled for balance.** The refreshed mark fills its viewBox far more
+  tightly than the old square art, so the sign-in hero glyph rendered oversized at
+  `w-[260px]`. Reduced to `w-[176px]` (native aspect preserved) so it sits in
+  proportion with the wordmark and the rest of the page.
+
 ### Changed — refreshed app icon & glyph
 
 - **New master brand artwork.** Replaced both source SVGs in `public/brand/` with
