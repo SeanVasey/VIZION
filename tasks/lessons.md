@@ -307,3 +307,18 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   *bottom* corners (`border-bottom-{left,right}-radius: 20px`) and cast the shadow
   *downward* (`0 8px 28px`) — the vertical mirror of the bottom nav's top-rounded,
   upward-shadow treatment — so both bars read as the same floating frosted sheet.
+
+## Footer/fixed-nav clearance — tie the reserve to the nav, don't guess it
+
+- **A fixed bottom nav over an in-flow footer needs the scroll region to reserve
+  *exactly* the nav's height — a hardcoded guess rots.** The footer collided with the
+  nav (monograms trapped behind it, copyright spilling below) because the reserved
+  bottom padding was a literal `80px` while the nav's true height was
+  `min-h-[56px]` + `py-2` + `pb-safe` — a different number that grows with the
+  home-indicator inset. Once the real nav exceeds the guess, the footer slips under.
+- **Fix: one CSS variable drives both sides.** `--bottom-nav-h` sets the nav's tap
+  height *and* feeds the scroll reserve
+  (`calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + buffer)`), so clearance
+  tracks the nav by construction. Lesson: when element A must clear fixed element B,
+  derive A's spacing from B's size via a shared token — never re-type B's height as a
+  magic number in A.

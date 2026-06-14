@@ -15,10 +15,12 @@ export function SafeAreaProvider({ children }: { children: ReactNode }) {
         // No pt-safe here: each screen's sticky header (or full-bleed gate)
         // owns its own top inset, so adding it here would double the padding.
         className="flex-1 pl-safe pr-safe focus:outline-none"
-        // Reserve space for the ~60px nav bar (+ comfortable buffer) and the
-        // home-indicator inset, so the footer/last controls never sit under it.
+        // Reserve exactly the fixed nav's height (shared --bottom-nav-h var) plus
+        // the home-indicator inset and a comfortable buffer, so the footer/last
+        // controls always clear the nav — the reserve tracks the nav by design.
         style={{
-          paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
+          paddingBottom:
+            "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 1.5rem)",
         }}
       >
         {children}

@@ -18,6 +18,14 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  :root {
+    /* Single source of truth for the fixed bottom-nav's content height. The nav
+       sizes itself to this, and the scroll region reserves this (+ safe-area +
+       buffer) below its content, so the footer is *guaranteed* to clear the nav
+       — the two can never drift apart the way a hardcoded guess did. */
+    --bottom-nav-h: 64px;
+  }
+
   body {
     background: linear-gradient(180deg, var(--void) 0%, var(--lift) 100%) fixed;
     color: var(--text);
