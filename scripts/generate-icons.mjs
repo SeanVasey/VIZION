@@ -5,12 +5,14 @@
 // SVGs using sharp. Run with: node scripts/generate-icons.mjs
 //
 // Sources (master, hand-authored artwork — see public/brand/):
-//   • vizion-icon-token.svg — the full branded tile (rounded Void plate, glow
-//     border, aperture mark). Used for opaque surfaces: apple-touch-icon,
-//     favicons, and the App Router icon/apple-icon.
-//   • vizion-mark-token.svg — the aperture mark ALONE on a transparent ground.
-//     Used for the transparent "any" PWA matrix, the maskable safe zone, and
-//     the iOS splash glyph.
+//   • vizion-icon-token.svg — the full app icon: a glossy black squircle with a
+//     lime-green glowing border framing the aperture glyph (neon bar, chevron and
+//     split ring between two chrome parentheses). Used for opaque surfaces:
+//     apple-touch-icon, favicons, and the App Router icon/apple-icon.
+//   • vizion-mark-token.svg — the aperture glyph ALONE (chrome parentheses, neon
+//     bar/chevron/split-ring, dot accents and lens flares) on a transparent
+//     ground. Used for the transparent "any" PWA matrix, the maskable safe zone,
+//     and the iOS splash glyph.
 //
 // Idempotent: every output is overwritten on each run.
 

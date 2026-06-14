@@ -6,6 +6,21 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — refreshed app icon & glyph
+
+- **New master brand artwork.** Replaced both source SVGs in `public/brand/` with
+  improved designs: `vizion-icon-token.svg` is now a glossy black squircle with a
+  lime-green glowing border framing the aperture glyph, and `vizion-mark-token.svg`
+  is the refined glyph alone (chrome parentheses around a neon bar, chevron and
+  split ring, with dot accents and lens flares) on a transparent ground.
+- **Whole matrix re-derived.** Ran `npm run generate:icons` so all 32 outputs —
+  the transparent `any` PWA icons, maskable tiles, `apple-touch-icon`, favicons,
+  iOS splashes, and the App Router `icon.svg`/`icon.png`/`apple-icon.png` — now
+  reflect the new design. The iOS Add-to-Home-Screen tile and PWA install icon
+  pick up the new look with no further changes.
+- **Login hero sized to the glyph.** `AuthHero` now renders the wide glyph
+  (1872×1084) at its native aspect ratio instead of forcing a 150×150 square.
+
 ### Fixed — avatar, composer & ambient polish
 
 - **Profile avatar now renders.** Root cause was the Tailwind config defining

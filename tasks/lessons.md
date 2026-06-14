@@ -274,3 +274,18 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   (lighter alpha) + `.glass-chrome` lets the header/bottom-nav reveal the ambient
   aurora glow through the bar while the floating panels stay on the denser
   `--glass` tier.
+
+## Brand icon refresh — swap art, regenerate, keep names
+
+- **Swap the source content, not the filenames.** The pipeline + components key off
+  `public/brand/vizion-icon-token.svg` and `vizion-mark-token.svg`. Dropping the new
+  artwork *into those existing files* (rather than renaming to the uploaded
+  `vizion-icon.svg`/`vizion-glyph.svg`) means `generate-icons.mjs`, `ScreenHeader`,
+  and `AuthHero` keep working with zero ref churn — one `npm run generate:icons`
+  re-derives all 32 outputs. The root-level uploads were just the delivery vehicle;
+  delete them so the single source of truth stays in `public/brand/`.
+- **A non-square glyph breaks fixed square sizing.** The new glyph is 1872×1084, not
+  the old 1024² square. `next/image` with `width={150} height={150}` would distort
+  it — size by one axis (`w-[260px] h-auto`) to preserve aspect. The generator's
+  `fit: "contain"` already handles the square PNG matrix (it letterboxes), so only
+  the hand-placed hero needed the fix.
