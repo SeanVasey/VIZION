@@ -6,6 +6,26 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — Polish mode (corrections-only enhancement)
+
+- **New sixth enhancement mode, `polish`.** It keeps the input as close to the original
+  as possible while fixing spelling, grammar, and punctuation and making only the
+  smallest wording / word-order changes needed for the prompt to read clearly. It never
+  adds, removes, reorders, or elaborates on ideas, and never restructures prose into
+  lists or sections. Sits next to Clarify in the mode rig (now six equal cells).
+- **DB:** requires the `polish` value on the `enhance_mode` enum — see
+  `supabase/migrations/20260701000000_add_polish_enhance_mode.sql`. Apply before deploy.
+
+### Fixed — Clarify no longer reshapes prose into bullet lists / markdown
+
+- **Shape-preserving modes now keep the author's format.** `buildSystemPrompt` was
+  injecting the target engine's structural idioms (Opus → XML-tagged sections, GPT →
+  JSON / structured-output, Gemini → multimodal "parts") for *every* mode. For Clarify
+  — whose job is to sharpen intent, not restructure — this pushed the model to rebuild a
+  plain prose prompt into headings and bullet points. Clarify and Polish now receive an
+  explicit format-preservation directive instead of the target idioms, so prose stays
+  prose unless the input was already structured.
+
 ### Fixed — footer no longer collides with the fixed bottom nav
 
 - **Footer is now guaranteed to clear the bottom nav.** The branded footer lives in

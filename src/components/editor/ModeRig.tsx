@@ -4,8 +4,8 @@ import { memo } from "react";
 import { MODES, type ModeId } from "@/lib/constants";
 
 /**
- * Mode instrument (remediation R5.1).  ONE glass chassis with five equal cells
- * (grid repeat(5,1fr)), icon-over-label, and a sliding Laser "lens-lock"
+ * Mode instrument (remediation R5.1).  ONE glass chassis with six equal cells
+ * (grid repeat(6,1fr)), icon-over-label, and a sliding Laser "lens-lock"
  * indicator behind the active cell — the same aperture motion as the brand
  * mark.  Active cell text/icon = --on-laser.  Symmetric at 360/390/430px.
  */
@@ -25,14 +25,14 @@ export const ModeRig = memo(function ModeRig({
     <div
       role="tablist"
       aria-label="Enhancement mode"
-      className="glass relative grid grid-cols-5 gap-0 rounded-2xl p-1"
+      className="glass relative grid grid-cols-6 gap-0 rounded-2xl p-1"
     >
-      {/* Sliding lens-lock indicator — one fifth wide, translates to the cell. */}
+      {/* Sliding lens-lock indicator — one sixth wide, translates to the cell. */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-y-1 left-1 rounded-xl bg-laser transition-transform duration-300 ease-out"
         style={{
-          width: "calc((100% - 0.5rem) / 5)",
+          width: "calc((100% - 0.5rem) / 6)",
           transform: `translateX(calc(${activeIndex} * 100%))`,
         }}
       />
@@ -79,6 +79,13 @@ function ModeIcon({ id }: { id: ModeId }) {
         <svg {...common}>
           <circle cx="11" cy="11" r="6" {...stroke} />
           <path d="m20 20-3.5-3.5" {...stroke} />
+        </svg>
+      );
+    case "polish": // pencil / light correction
+      return (
+        <svg {...common}>
+          <path d="M4 20h4L18 10l-4-4L4 16v4z" {...stroke} />
+          <path d="m13 7 4 4" {...stroke} />
         </svg>
       );
     case "expand": // arrows out

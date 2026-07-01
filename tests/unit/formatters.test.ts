@@ -17,6 +17,22 @@ describe("buildSystemPrompt", () => {
   it("targets Gemini idioms for the Gemini target", () => {
     expect(buildSystemPrompt("target", "gemini_pro_3_1")).toContain("Gemini");
   });
+
+  it("polish preserves the input's shape and skips target restructuring idioms", () => {
+    const p = buildSystemPrompt("polish", "opus_4_8");
+    expect(p).toContain("POLISH");
+    // No XML/structured idioms leak in for a shape-preserving mode.
+    expect(p).not.toContain("XML-tagged");
+    expect(p).not.toContain("Claude Opus");
+    expect(p).toMatch(/preserve the input's existing format/i);
+    expect(p).toMatch(/bullet points/i);
+  });
+
+  it("clarify no longer injects the target's structured-output idioms", () => {
+    const p = buildSystemPrompt("clarify", "gpt_5_5");
+    expect(p).not.toContain("JSON-mode");
+    expect(p).toMatch(/preserve the input's existing format/i);
+  });
 });
 
 describe("parseEnhancePayload", () => {
