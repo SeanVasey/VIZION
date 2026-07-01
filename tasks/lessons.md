@@ -322,3 +322,24 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   tracks the nav by construction. Lesson: when element A must clear fixed element B,
   derive A's spacing from B's size via a shared token — never re-type B's height as a
   magic number in A.
+
+## Enhance modes — the target idioms were reshaping shape-preserving modes
+
+- **`buildSystemPrompt` injected the target engine's structural conventions for every
+  mode.** Clarify's job is to sharpen intent, not restructure, but it still received
+  "Favor XML-tagged sections" (Opus) / "JSON-mode / structured-output" (GPT) /
+  "multimodal parts" (Gemini). Combined with clarify's own "make implicit assumptions
+  explicit," the model rebuilt plain prose prompts into headings and bullet lists —
+  exactly the "poorly formatted markdown" the user reported.
+- **Fix: gate the conventions by mode.** A `SHAPE_PRESERVING` set (`clarify`, `polish`)
+  now receives an explicit `FORMAT_PRESERVATION` directive ("keep the input's format,
+  voice, and length; no bullets/headings/XML/JSON the author didn't use") instead of the
+  target idioms. Reformat/target/expand/condense keep the idioms — restructuring is
+  their point. Lesson: a shared prompt suffix applied to *all* modes will fight the
+  modes whose contract is "change as little as possible." Scope the suffix to intent.
+- **New enum values need a DB migration.** Adding the `polish` mode meant the
+  `enhance_mode` Postgres enum had to gain the value or every save of a polished prompt
+  is rejected. The repo tracks no in-repo SQL (types are generated), so the schema
+  change is easy to forget — added `supabase/migrations/…_add_polish_enhance_mode.sql`
+  and called it out as a required pre-deploy step. Watch: `ALTER TYPE … ADD VALUE`
+  can't run inside a transaction block, so keep it in its own migration.

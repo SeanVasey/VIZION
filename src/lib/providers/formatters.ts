@@ -23,17 +23,32 @@ export const TARGET_LABEL: Record<TargetModelId, string> = {
 };
 
 /**
+ * Modes whose whole point is to stay close to the author's original wording and
+ * shape. For these we must NOT apply the target engine's structural idioms
+ * (XML sections, JSON specs, "parts" framing) — doing so is what turned a plain
+ * prose prompt into a bulleted / heading-laden markdown document. Instead we
+ * inject an explicit format-preservation rule.
+ */
+const SHAPE_PRESERVING = new Set<ModeId>(["polish", "clarify"]);
+
+const FORMAT_PRESERVATION =
+  "OUTPUT SHAPE — CRITICAL: Preserve the input's existing format, voice, and length. If the input is a single sentence or a plain paragraph, return a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use, and do NOT expand a short prose prompt into a structured document. The result will still be pasted into the target engine — keep it clean, plain text unless the original was already structured.";
+
+/**
  * Build the system prompt that instructs the model to transform the user's
  * prompt for the given mode + target. Pure and deterministic so it can be
  * unit-tested and so the prompt prefix stays cache-friendly.
  */
 export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
+  const conventions = SHAPE_PRESERVING.has(mode)
+    ? FORMAT_PRESERVATION
+    : TARGET_CONVENTIONS[target];
   return [
     "You are VIZ(IO)N, a precise prompt engineer. You transform a user's prompt; you never answer or execute it.",
     "",
     MODE_INSTRUCTIONS[mode],
     "",
-    TARGET_CONVENTIONS[target],
+    conventions,
     "",
     "Return ONLY a JSON object with two string fields:",
     '- "output": the transformed prompt, ready to paste into the target engine.',

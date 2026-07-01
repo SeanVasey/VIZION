@@ -3,9 +3,12 @@
 export const THEMES = ["dark", "light", "system"] as const;
 export type Theme = (typeof THEMES)[number];
 
-/** The five enhancement modes (product-spec §4.1). */
+/** The enhancement modes (product-spec §4.1). `polish` is the lightest touch —
+ *  corrections only — and sits next to `clarify` because both stay close to the
+ *  author's original wording and shape. */
 export const MODES = [
   { id: "clarify", label: "Clarify" },
+  { id: "polish", label: "Polish" },
   { id: "expand", label: "Expand" },
   { id: "condense", label: "Condense" },
   { id: "reformat", label: "Reformat" },

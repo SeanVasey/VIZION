@@ -276,7 +276,7 @@ export type Database = {
         | "restored"
         | "profile_updated";
       auth_method: "magic_link" | "github" | "google";
-      enhance_mode: "clarify" | "expand" | "condense" | "reformat" | "target";
+      enhance_mode: "clarify" | "polish" | "expand" | "condense" | "reformat" | "target";
       media_kind: "image" | "video" | "audio";
       model_target: "opus_4_8" | "gpt_5_5" | "gemini_pro_3_1";
       oauth_provider: "github" | "google";
