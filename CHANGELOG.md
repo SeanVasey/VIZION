@@ -6,6 +6,20 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — docs, release version, and a real README preview
+
+- **App version bumped to `0.2.0`.** Surfaced automatically wherever the build injects
+  `NEXT_PUBLIC_APP_VERSION` (`pkg.version` in `next.config.ts`) — the sign-in gate's
+  version pill and the footer now read `v0.2.0`.
+- **README hero is now a real capture, not a placeholder.** Replaced the placeholder SVG
+  with `docs/preview.png` — a production-build screenshot of the shipped sign-in gate
+  (aperture glyph, wordmark, VASEY/AI + version pills, the three Supabase auth methods,
+  branded footer) — and removed the now-unused `docs/hero-placeholder.svg`.
+- **README + docs reflect six modes.** Updated the mode list, the "six enhancement
+  modes" copy, and the v0.3 status row (`5 modes` → `6 modes`); added a **Modes** section
+  to `docs/runbooks/providers.md` documenting all six and the `SHAPE_PRESERVING`
+  (Clarify / Polish) format-preservation behavior.
+
 ### Added — Polish mode (corrections-only enhancement)
 
 - **New sixth enhancement mode, `polish`.** It keeps the input as close to the original

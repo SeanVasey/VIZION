@@ -40,6 +40,28 @@ Both limits are enforced **before** any model call via the `usage_window` aggreg
 (RLS-scoped to the caller). Every successful enhance writes a `usage_events` row
 (tokens + cost) — the ledger backs both the rate window and the daily cost sum.
 
+## Modes (`src/lib/enhance/modes.ts`)
+
+Six enhancement modes drive the transformation. `MODE_INSTRUCTIONS` carries the per-mode
+instruction; `buildSystemPrompt` wraps it with the target's idioms:
+
+| Mode         | Intent                                                              |
+| ------------ | ------------------------------------------------------------------ |
+| **Clarify**  | Resolve ambiguity, sharpen the existing ask — no new requirements.  |
+| **Polish**   | Corrections only — spelling/grammar/word-order, stay near original. |
+| **Expand**   | Add structure, constraints, examples, acceptance criteria.          |
+| **Condense** | Strip to the minimum viable prompt; keep every load-bearing part.   |
+| **Reformat** | Restructure the same intent into a cleaner shape.                   |
+| **Target**   | Re-render into the target engine's idiomatic syntax.                |
+
+**Shape-preserving modes.** `Clarify` and `Polish` are in a `SHAPE_PRESERVING` set
+(`src/lib/providers/formatters.ts`). For these, `buildSystemPrompt` swaps the target's
+structural idioms (Opus XML sections, GPT JSON specs, Gemini "parts") for a
+format-preservation directive scoped to the transformed prompt — so prose stays prose
+instead of being rebuilt into bullet lists / markdown, while the JSON response envelope
+is explicitly exempt. The other four modes keep the target idioms — restructuring is
+their point.
+
 ## How a request flows
 
 `POST /api/enhance { input, mode, target }` → auth (401 if signed out) → cap check (429 if

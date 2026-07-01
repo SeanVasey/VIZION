@@ -6,7 +6,7 @@
 
 **A VASEY/AI prompt-engineering studio — mobile-first PWA.**
 
-_Clarify · Expand · Condense · Reformat · Re-target — the same idea, fitted to the engine that's about to receive it._
+_Clarify · Polish · Expand · Condense · Reformat · Re-target — the same idea, fitted to the engine that's about to receive it._
 
 [![CI](https://img.shields.io/github/actions/workflow/status/SeanVasey/vizion/ci.yml?branch=main&label=CI)](https://github.com/SeanVasey/vizion/actions)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs)](https://nextjs.org)
@@ -19,13 +19,13 @@ _Clarify · Expand · Condense · Reformat · Re-target — the same idea, fitte
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZ(IO)N
 > _transforms_ it — across three target models (Opus 4.8 · GPT-5.5 · Gemini Pro 3.1),
-> five enhancement modes, and media-aware prompt construction, with accounts and a
+> six enhancement modes, and media-aware prompt construction, with accounts and a
 > versioned prompt library.
 
 <div align="center">
 
-<!-- Hero screenshot placeholder — replace with a real capture once P1 ships to preview. -->
-<img src="./docs/hero-placeholder.svg" alt="VIZ(IO)N hero (placeholder)" width="320" />
+<!-- Live capture of the shipped sign-in gate (v0.2.0), rendered from the production build. -->
+<img src="./docs/preview.png" alt="VIZ(IO)N sign-in gate — the aperture glyph, wordmark, VASEY/AI + version pills, and the three Supabase auth methods" width="300" />
 
 </div>
 
@@ -56,7 +56,7 @@ See [`docs/architecture.md`](./docs/architecture.md) and the locked decision log
 | ------------------------- | --------------------------------------------------------- | -------------- |
 | **v0.1 — Shell**          | Tokens · manifest · Workbox SW · safe-area · nav · themes | 🟢 done        |
 | **v0.2 — Auth & profile** | Supabase Auth · RLS · avatar crop · onboarding            | 🟢 done        |
-| **v0.3 — Enhance core**   | Provider adapter · 5 modes · transformation diff · caps   | 🟢 done        |
+| **v0.3 — Enhance core**   | Provider adapter · 6 modes · transformation diff · caps   | 🟢 done        |
 | **v0.4 — Library**        | Save · immutable versions · diff/restore · activity feed  | 🟢 done        |
 | **v0.5 — Media prompts**  | Attach media · extraction · generation-syntax formatters  | 🟢 done        |
 | **v1.0 — Hardening**      | CSP · rate limits · eviction outbox · a11y · checklist    | 🟢 in progress |
