@@ -32,7 +32,7 @@ export const TARGET_LABEL: Record<TargetModelId, string> = {
 const SHAPE_PRESERVING = new Set<ModeId>(["polish", "clarify"]);
 
 const FORMAT_PRESERVATION =
-  "OUTPUT SHAPE — CRITICAL: Preserve the input's existing format, voice, and length. If the input is a single sentence or a plain paragraph, return a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use, and do NOT expand a short prose prompt into a structured document. The result will still be pasted into the target engine — keep it clean, plain text unless the original was already structured.";
+  'OUTPUT SHAPE — CRITICAL: This governs the transformed prompt only (the "output" field), not the JSON envelope you must return. Preserve the input\'s existing format, voice, and length. If the input is a single sentence or a plain paragraph, keep the output a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use into the transformed prompt, and do NOT expand a short prose prompt into a structured document. The output will be pasted into the target engine — keep it clean, plain text unless the original was already structured.';
 
 /**
  * Build the system prompt that instructs the model to transform the user's
