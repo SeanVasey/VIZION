@@ -343,3 +343,20 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   change is easy to forget — added `supabase/migrations/…_add_polish_enhance_mode.sql`
   and called it out as a required pre-deploy step. Watch: `ALTER TYPE … ADD VALUE`
   can't run inside a transaction block, so keep it in its own migration.
+
+## Docs — capture a real preview from the production build, don't ship placeholders
+
+- **The README hero was a placeholder SVG "until P1 ships to preview."** It has shipped,
+  so the honest artifact is a real screenshot. Captured `docs/preview.png` from a local
+  `next start` of the production build via Playwright (mobile viewport, dark scheme),
+  pointed at the only public surface — the `/sign-in` gate. Bonus: the shot doubles as
+  proof the version bump is live (the pill and footer read `v0.2.0`).
+- **Gotchas that cost a minute each:** (1) a screenshot script in the scratchpad can't
+  resolve `@playwright/test` — run it from the repo root so Node resolves `node_modules`.
+  (2) The project pins a Playwright version whose browser build (1223) isn't in the image
+  (1194 is) — launch with `executablePath` at the installed chromium instead of
+  `playwright install`. (3) `pkill -f "next start"` misses the actual `next-server`
+  process — find it by name (`pgrep -f next-server`) or by port and kill that PID.
+- **Version is single-sourced from `package.json`.** `next.config.ts` injects
+  `NEXT_PUBLIC_APP_VERSION: pkg.version`; `src/lib/version.ts` reads it. Bump one number
+  and the footer + sign-in pill follow — never hardcode the version in a component.
