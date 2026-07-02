@@ -54,6 +54,16 @@ instruction; `buildSystemPrompt` wraps it with the target's idioms:
 | **Reformat** | Restructure the same intent into a cleaner shape.                   |
 | **Target**   | Re-render into the target engine's idiomatic syntax.                |
 
+**The output is the prompt itself.** Every mode × target prompt carries an
+`OUTPUT_CONTRACT` (`src/lib/providers/formatters.ts`): the `output` field must be
+the improved prompt — the single message the user pastes into the target engine's
+message box, in the author's voice. The model must never emit role labels
+(`System:` / `User:` / `Assistant:` / `Developer:`), never write a system prompt or
+persona spec for a hypothetical assistant, and never embed the input as a "message
+to respond to". Without this, the target idioms read as an instruction to script
+roles, and Expand/Reformat/Target returned a role-labelled system prompt instead of
+the transformed prompt.
+
 **Shape-preserving modes.** `Clarify` and `Polish` are in a `SHAPE_PRESERVING` set
 (`src/lib/providers/formatters.ts`). For these, `buildSystemPrompt` swaps the target's
 structural idioms (Opus XML sections, GPT JSON specs, Gemini "parts") for a

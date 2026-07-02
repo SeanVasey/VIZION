@@ -1,7 +1,7 @@
 import type { ModeId } from "@/lib/constants";
 
 /**
- * The five enhancement modes (product-spec §4.1). Each carries the instruction
+ * The six enhancement modes (product-spec §4.1). Each carries the instruction
  * VIZ(IO)N gives the model about *what* transformation to apply to the input
  * prompt. The per-target formatter (providers/formatters.ts) wraps this with the
  * idiomatic conventions of the chosen engine.

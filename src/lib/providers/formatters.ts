@@ -8,11 +8,11 @@ import { MODE_INSTRUCTIONS } from "@/lib/enhance/modes";
  */
 const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
   opus_4_8:
-    "Target engine: Claude Opus. Favor XML-tagged sections (e.g. <task>, <context>, <constraints>, <examples>), an explicit system/user separation, and chain-of-thought scaffolds where reasoning helps. Structure for long context.",
+    "Target engine: Claude Opus. Favor XML-tagged sections (e.g. <task>, <context>, <constraints>, <examples>) and chain-of-thought scaffolds where reasoning helps, all inside the one prompt. Structure for long context.",
   gpt_5_5:
-    "Target engine: GPT. Favor developer/system/user role framing, JSON-mode or structured-output specs where a machine-readable result is wanted, explicit tool/function schemas, and terse, directive system instructions.",
+    "Target engine: GPT. Favor terse, directive instructions; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
   gemini_pro_3_1:
-    "Target engine: Gemini. Favor multimodal 'parts' structuring, a clear system-instruction block, and explicit grounding/safety framing. Keep instructions concrete and well-scoped.",
+    "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt.",
 };
 
 /** Display labels (kept in sync with constants TARGET_MODELS). */
@@ -35,6 +35,17 @@ const FORMAT_PRESERVATION =
   'OUTPUT SHAPE — CRITICAL: This governs the transformed prompt only (the "output" field), not the JSON envelope you must return. Preserve the input\'s existing format, voice, and length. If the input is a single sentence or a plain paragraph, keep the output a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use into the transformed prompt, and do NOT expand a short prose prompt into a structured document. The output will be pasted into the target engine — keep it clean, plain text unless the original was already structured.';
 
 /**
+ * The contract every mode's output must satisfy: the "output" field IS the
+ * improved prompt — the single message the user pastes into the target
+ * engine's message box. Without this, the target idioms above read as an
+ * instruction to *script roles*, and the model returns a role-labelled system
+ * prompt ("System: … / User message to respond to: …") instead of the
+ * transformed prompt itself.
+ */
+const OUTPUT_CONTRACT =
+  'THE OUTPUT IS THE PROMPT ITSELF: The "output" field must contain the improved prompt, written in the author\'s voice as the single message the user will paste into the target engine\'s message box. Never produce role labels or a role-scripted transcript (no "System:", "User:", "Assistant:", "Developer:" lines). Never write a system prompt, persona, or behavior spec for a hypothetical assistant. Never quote or embed the original input as a message to be responded to — transform the input itself. Sections, tags, or lists are fine inside that one prompt when the mode calls for structure.';
+
+/**
  * Build the system prompt that instructs the model to transform the user's
  * prompt for the given mode + target. Pure and deterministic so it can be
  * unit-tested and so the prompt prefix stays cache-friendly.
@@ -49,6 +60,8 @@ export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
     MODE_INSTRUCTIONS[mode],
     "",
     conventions,
+    "",
+    OUTPUT_CONTRACT,
     "",
     "Return ONLY a JSON object with two string fields:",
     '- "output": the transformed prompt, ready to paste into the target engine.',
