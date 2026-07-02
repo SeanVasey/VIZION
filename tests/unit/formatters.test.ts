@@ -24,6 +24,23 @@ describe("buildSystemPrompt", () => {
     }
   });
 
+  it("scopes the structure permission away from shape-preserving modes", () => {
+    for (const target of TARGET_MODELS) {
+      for (const mode of MODES) {
+        const p = buildSystemPrompt(mode.id, target.id);
+        const preserving = mode.id === "polish" || mode.id === "clarify";
+        if (preserving) {
+          // The permissive clause must not undercut FORMAT_PRESERVATION.
+          expect(p).not.toContain("are fine inside that one prompt");
+          expect(p).toContain("do not introduce sections, tags, or lists");
+        } else {
+          expect(p).toContain("are fine inside that one prompt");
+          expect(p).not.toContain("do not introduce sections, tags, or lists");
+        }
+      }
+    }
+  });
+
   it("never instructs role framing that turns the output into a system prompt", () => {
     for (const mode of MODES) {
       for (const target of TARGET_MODELS) {

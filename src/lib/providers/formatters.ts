@@ -40,10 +40,18 @@ const FORMAT_PRESERVATION =
  * engine's message box. Without this, the target idioms above read as an
  * instruction to *script roles*, and the model returns a role-labelled system
  * prompt ("System: … / User message to respond to: …") instead of the
- * transformed prompt itself.
+ * transformed prompt itself. The closing structure clause is chosen per mode
+ * so the permissive wording never undercuts FORMAT_PRESERVATION for the
+ * shape-preserving modes.
  */
-const OUTPUT_CONTRACT =
-  'THE OUTPUT IS THE PROMPT ITSELF: The "output" field must contain the improved prompt, written in the author\'s voice as the single message the user will paste into the target engine\'s message box. Never produce role labels or a role-scripted transcript (no "System:", "User:", "Assistant:", "Developer:" lines). Never write a system prompt, persona, or behavior spec for a hypothetical assistant. Never quote or embed the original input as a message to be responded to — transform the input itself. Sections, tags, or lists are fine inside that one prompt when the mode calls for structure.';
+const OUTPUT_CONTRACT_BASE =
+  'THE OUTPUT IS THE PROMPT ITSELF: The "output" field must contain the improved prompt, written in the author\'s voice as the single message the user will paste into the target engine\'s message box. Never produce role labels or a role-scripted transcript (no "System:", "User:", "Assistant:", "Developer:" lines). Never write a system prompt, persona, or behavior spec for a hypothetical assistant. Never quote or embed the original input as a message to be responded to — transform the input itself.';
+
+const OUTPUT_STRUCTURE_ALLOWED =
+  "Sections, tags, or lists are fine inside that one prompt when the mode calls for structure.";
+
+const OUTPUT_STRUCTURE_FORBIDDEN =
+  "This mode preserves the input's shape — the OUTPUT SHAPE rule above stands: do not introduce sections, tags, or lists the author did not already use.";
 
 /**
  * Build the system prompt that instructs the model to transform the user's
@@ -51,9 +59,11 @@ const OUTPUT_CONTRACT =
  * unit-tested and so the prompt prefix stays cache-friendly.
  */
 export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
-  const conventions = SHAPE_PRESERVING.has(mode)
-    ? FORMAT_PRESERVATION
-    : TARGET_CONVENTIONS[target];
+  const shapePreserving = SHAPE_PRESERVING.has(mode);
+  const conventions = shapePreserving ? FORMAT_PRESERVATION : TARGET_CONVENTIONS[target];
+  const outputContract = `${OUTPUT_CONTRACT_BASE} ${
+    shapePreserving ? OUTPUT_STRUCTURE_FORBIDDEN : OUTPUT_STRUCTURE_ALLOWED
+  }`;
   return [
     "You are VIZ(IO)N, a precise prompt engineer. You transform a user's prompt; you never answer or execute it.",
     "",
@@ -61,7 +71,7 @@ export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
     "",
     conventions,
     "",
-    OUTPUT_CONTRACT,
+    outputContract,
     "",
     "Return ONLY a JSON object with two string fields:",
     '- "output": the transformed prompt, ready to paste into the target engine.',
