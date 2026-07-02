@@ -124,9 +124,51 @@ export function TransformationDiff({
           <p className="font-body text-xs uppercase tracking-wider text-silver">
             Enhanced
           </p>
-          <p className="font-body text-xs text-accent">
-            {changes} change{changes === 1 ? "" : "s"}
-          </p>
+          <div className="flex items-center gap-2.5">
+            <p className="font-body text-xs text-accent">
+              {changes} change{changes === 1 ? "" : "s"}
+            </p>
+            {/* Quick copy — a 44px tap target that doesn't inflate the header row. */}
+            <button
+              type="button"
+              onClick={copyOutput}
+              aria-label={copied ? "Copied" : "Copy enhanced prompt"}
+              className="-my-2 -mr-1.5 flex h-11 w-11 items-center justify-center rounded-full text-silver transition-colors hover:text-chalk focus-visible:text-chalk"
+            >
+              {copied ? (
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-accent">
+                  <path
+                    d="M20 6L9 17l-5-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : (
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
+                  <rect
+                    x="9"
+                    y="9"
+                    width="12"
+                    height="12"
+                    rx="2.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                  />
+                  <path
+                    d="M5.5 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
         {/* OUTPUT REGION: result text + diff tokens render in mono (JetBrains). */}
         <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">

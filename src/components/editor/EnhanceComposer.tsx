@@ -124,7 +124,7 @@ export function EnhanceComposer() {
               type="button"
               onClick={resetComposer}
               disabled={enhanceMutation.isPending || (isEmpty && !result)}
-              className="btn-secondary pill flex h-9 items-center gap-1.5 px-4 text-sm disabled:opacity-40"
+              className="btn-laser pill flex h-9 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
             >
               <span aria-hidden="true">↺</span> RESET
             </button>
