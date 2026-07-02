@@ -6,6 +6,28 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — enhanced output no longer renders as a role-scripted system prompt
+
+- **The `output` field is now contractually the prompt itself.** For the
+  restructuring modes (Expand / Condense / Reformat / Target), the target idioms in
+  `buildSystemPrompt` — "explicit system/user separation" (Opus), "developer/system/
+  user role framing" (GPT) — read as an instruction to *script roles*, so the model
+  returned a role-labelled system prompt (`System: … / User message to respond to:
+  "…" / Task: …`) instead of an improved version of the user's prompt. Every mode ×
+  target now carries an explicit `OUTPUT_CONTRACT` (the output is the single,
+  paste-ready message in the author's voice — never role labels, never a persona
+  spec, never the input quoted as a message to answer), and the target conventions
+  were reworded to keep their structural idioms (XML sections, output-format specs)
+  without the role-framing triggers. Unit-tested across all six modes and all three
+  targets.
+
+### Changed — Reset is a labeled secondary pill, not an icon
+
+- **The composer's reset control now matches the ENHANCE button's form factor** —
+  same pill shape, height, and typography (`↺ RESET`), on the secondary
+  surface-fill/hairline treatment so ENHANCE remains the single Laser-fill CTA
+  (guardrail §6). Replaces the 36px icon-only circle.
+
 ### Changed — docs, release version, and a real README preview
 
 - **App version bumped to `0.2.0`.** Surfaced automatically wherever the build injects

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt, parseEnhancePayload } from "@/lib/providers/formatters";
+import { MODES, TARGET_MODELS } from "@/lib/constants";
 
 describe("buildSystemPrompt", () => {
   it("includes the mode instruction and target conventions", () => {
@@ -8,6 +9,47 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain("Claude Opus");
     expect(p).toContain('"output"');
     expect(p).toContain('"rationale"');
+  });
+
+  it("states the output-is-the-prompt contract for every mode × target", () => {
+    for (const mode of MODES) {
+      for (const target of TARGET_MODELS) {
+        const p = buildSystemPrompt(mode.id, target.id);
+        expect(p).toContain("THE OUTPUT IS THE PROMPT ITSELF");
+        expect(p).toContain("Never produce role labels");
+        expect(p).toContain(
+          "Never write a system prompt, persona, or behavior spec",
+        );
+      }
+    }
+  });
+
+  it("scopes the structure permission away from shape-preserving modes", () => {
+    for (const target of TARGET_MODELS) {
+      for (const mode of MODES) {
+        const p = buildSystemPrompt(mode.id, target.id);
+        const preserving = mode.id === "polish" || mode.id === "clarify";
+        if (preserving) {
+          // The permissive clause must not undercut FORMAT_PRESERVATION.
+          expect(p).not.toContain("are fine inside that one prompt");
+          expect(p).toContain("do not introduce sections, tags, or lists");
+        } else {
+          expect(p).toContain("are fine inside that one prompt");
+          expect(p).not.toContain("do not introduce sections, tags, or lists");
+        }
+      }
+    }
+  });
+
+  it("never instructs role framing that turns the output into a system prompt", () => {
+    for (const mode of MODES) {
+      for (const target of TARGET_MODELS) {
+        const p = buildSystemPrompt(mode.id, target.id);
+        expect(p).not.toContain("system/user separation");
+        expect(p).not.toContain("developer/system/user role framing");
+        expect(p).not.toContain("system-instruction block");
+      }
+    }
   });
 
   it("targets GPT idioms for the GPT target", () => {
