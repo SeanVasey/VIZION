@@ -124,11 +124,9 @@ export function EnhanceComposer() {
               type="button"
               onClick={resetComposer}
               disabled={enhanceMutation.isPending || (isEmpty && !result)}
-              aria-label="Clear prompt"
-              title="Clear prompt"
-              className="glass flex h-9 w-9 items-center justify-center rounded-full text-base text-silver transition-colors hover:text-chalk disabled:opacity-40"
+              className="btn-secondary pill flex h-9 items-center gap-1.5 px-4 text-sm disabled:opacity-40"
             >
-              <span aria-hidden="true">↺</span>
+              <span aria-hidden="true">↺</span> RESET
             </button>
             <button
               type="button"
