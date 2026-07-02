@@ -392,9 +392,14 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 - **Automate the ritual or it lapses again.** `release.yml` triggers on pushes to
   `main` that touch `package.json`, is idempotent (existing tag → no-op, so
   dependency-bump merges are safe), and **fails loudly when the changelog section
-  for the new version is missing** — a bump can't ship undocumented. Backfilled
-  `v0.1.0`/`v0.2.0` tags on the historical bump commits so the compare links
-  resolve across the whole history.
+  for the new version is missing** — a bump can't ship undocumented.
+- **Remote-session git proxies allow only the designated branch — tag pushes
+  hang up.** Backfilling `v0.1.0`/`v0.2.0` directly (`git push origin v0.1.0`)
+  died with "unexpected disconnect while reading sideband packet" every retry.
+  The workaround that also improves the product: give `release.yml` a
+  `workflow_dispatch` with `version`/`target` inputs, so backfills and re-cuts
+  run with GitHub's own token instead of needing local tag-push rights
+  (dispatch table in `docs/runbooks/release.md`).
 - **Owner direction beats an earlier style rationale.** The reset control had
   deliberately been made a *secondary* pill to keep the Laser fill unique to
   ENHANCE — but the owner asked again for it "in the style of the submit

@@ -55,9 +55,17 @@ All in **one PR**, so `main` is never in a half-released state:
 No secrets are involved: the workflow uses the repo-scoped `github.token` with
 `contents: write`.
 
-## History / backfill
+## Manual dispatch / backfill
 
-Tags `v0.1.0` (scaffold + P1 shell, 2026-06-13) and `v0.2.0` (2026-07-01) were
-created retroactively on the commits that bumped those versions, so the
-changelog's compare links resolve for the whole history. Releases from `0.2.1`
-onward are produced by the workflow.
+The workflow also accepts a `workflow_dispatch` with optional `version` and
+`target` inputs — for re-cutting a release, or for backfilling a historical one
+by naming the version and the commit that shipped it. To make the changelog's
+compare links resolve across the whole history, backfill the two pre-workflow
+releases once (Actions → Release → Run workflow):
+
+| `version` | `target` (the commit that bumped it)              |
+| --------- | ------------------------------------------------- |
+| `0.1.0`   | `dc16495` — scaffold + P1 shell (2026-06-13)      |
+| `0.2.0`   | `9c4ac95` — v0.2.0 docs/version bump (2026-07-01) |
+
+Releases from `0.2.1` onward are produced automatically by the push trigger.

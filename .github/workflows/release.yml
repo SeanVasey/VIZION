@@ -12,6 +12,16 @@ on:
   push:
     branches: [main]
     paths: [package.json]
+  # Manual dispatch re-cuts a release, or backfills a historical one by naming
+  # the version + the commit it shipped from (see docs/runbooks/release.md).
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (defaults to package.json)"
+        required: false
+      target:
+        description: "Commit SHA / ref to tag (defaults to the workflow ref)"
+        required: false
 
 permissions:
   contents: write
@@ -30,9 +40,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Read version from package.json
+      - name: Resolve version + target commit
         id: pkg
-        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          [ -n "$VERSION" ] || VERSION="$(node -p "require('./package.json').version")"
+          TARGET="${{ github.event.inputs.target }}"
+          [ -n "$TARGET" ] || TARGET="${{ github.sha }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "target=$(git rev-parse --verify "$TARGET^{commit}")" >> "$GITHUB_OUTPUT"
 
       - name: Check whether v${{ steps.pkg.outputs.version }} is already tagged
         id: tag
@@ -64,6 +80,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "v${{ steps.pkg.outputs.version }}" \
-            --target "${{ github.sha }}" \
+            --target "${{ steps.pkg.outputs.target }}" \
             --title "VIZ(IO)N v${{ steps.pkg.outputs.version }}" \
             --notes-file release-notes.md
