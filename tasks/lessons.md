@@ -360,3 +360,24 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 - **Version is single-sourced from `package.json`.** `next.config.ts` injects
   `NEXT_PUBLIC_APP_VERSION: pkg.version`; `src/lib/version.ts` reads it. Bump one number
   and the footer + sign-in pill follow — never hardcode the version in a component.
+
+## Enhance output — target idioms phrased as role framing script roles into the output
+
+- **"Explicit system/user separation" in a target convention is an instruction the
+  model will obey literally.** The Opus/GPT conventions told the rewriter to favor
+  role framing, so for the restructuring modes it wrote the transformed prompt AS a
+  role-labelled system prompt (`System: … / User message to respond to: "…"`) —
+  the user saw "the system prompt outputting" instead of their expanded prompt. The
+  wiring (mode → instruction → provider) was correct end-to-end; the defect was
+  purely in the prompt contract. Debug the *contract text* before the plumbing.
+- **State the output contract explicitly, for every mode.** A shared
+  `OUTPUT_CONTRACT` now pins what the `output` field IS (the single paste-ready
+  prompt in the author's voice; no role labels, no persona specs, no quoting the
+  input as a message to answer). Conventions describe *structure inside the one
+  prompt*; anything that reads as "produce multiple roles" gets rewritten. The
+  contract is unit-tested across every mode × target so a future convention edit
+  can't silently reintroduce role framing (asserted by negative substring checks).
+- **When mirroring a CTA's form factor for a sibling action, reuse the existing
+  button classes** — the reset control became `btn-secondary pill` at ENHANCE's
+  exact size/typography instead of new CSS, keeping the Laser fill unique to the
+  primary CTA (guardrail §6).
