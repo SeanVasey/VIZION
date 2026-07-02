@@ -6,6 +6,40 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.2.1] - 2026-07-02
+
+### Added — one-tap copy on the Enhanced output card
+
+- **A copy icon now sits directly on the "Enhanced" card header**, next to the
+  change count, so the enhanced prompt can be copied the moment it renders —
+  no scrolling to the action row. It's a 44px tap target that flips to a Laser
+  check while the copy is confirmed, and it shares the confirmation state with
+  the action-row **Copy** button (which remains for discoverability).
+
+### Changed — Reset now mirrors the ENHANCE button
+
+- **The composer's reset control is now styled identically to the submit
+  button** — the same Laser-fill pill, height, and typography as **► ENHANCE**
+  (`↺ RESET`), per product direction. This supersedes the interim icon-only
+  circle and the secondary surface-fill pill it briefly became.
+
+### Added — versioning is now released, tagged, and automated
+
+- **The changelog is now actually versioned.** Everything previously piled under
+  `[Unreleased]` has been cut into real releases (`0.1.0`, `0.2.0`, and this
+  `0.2.1`) with dates and compare links, matching the `package.json` bumps that
+  shipped them.
+- **New Release workflow** (`.github/workflows/release.yml`): on every push to
+  `main` that changes `package.json`, it reads the version and — if the
+  `v<version>` tag doesn't exist yet — creates the tag and publishes a GitHub
+  Release whose notes are extracted from this changelog's matching section.
+- **Versioning runbook** (`docs/runbooks/release.md`): the semver policy, the
+  single-source version wiring (`package.json` → `NEXT_PUBLIC_APP_VERSION` →
+  UI pills/footer), and the release checklist (bump + changelog cut in one PR;
+  the workflow tags and publishes on merge).
+
 ### Fixed — enhanced output no longer renders as a role-scripted system prompt
 
 - **The `output` field is now contractually the prompt itself.** For the
@@ -21,12 +55,7 @@ All notable changes to VIZ(IO)N are documented here. The format follows
   without the role-framing triggers. Unit-tested across all six modes and all three
   targets.
 
-### Changed — Reset is a labeled secondary pill, not an icon
-
-- **The composer's reset control now matches the ENHANCE button's form factor** —
-  same pill shape, height, and typography (`↺ RESET`), on the secondary
-  surface-fill/hairline treatment so ENHANCE remains the single Laser-fill CTA
-  (guardrail §6). Replaces the 36px icon-only circle.
+## [0.2.0] - 2026-07-01
 
 ### Changed — docs, release version, and a real README preview
 
@@ -269,6 +298,8 @@ All notable changes to VIZ(IO)N are documented here. The format follows
   auth (static `offline.html` fallback). Tests: onboarding gate (unit), auth-gate +
   PWA/offline (e2e). Docs: `docs/runbooks/auth-setup.md`.
 
+## [0.1.0] - 2026-06-13
+
 ### Added — v0.1 Shell (Phase 0 + P1)
 
 - Repo scaffold: Standard `CLAUDE.md` v2.0, configs (TypeScript strict, Tailwind +
@@ -288,4 +319,7 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 - Tests: Vitest unit (safe-area math, contrast guardrails, UI store) and Playwright
   e2e (shell render, nav, theme, manifest, SW, offline shell).
 
-[Unreleased]: https://github.com/SeanVasey/vizion/commits/main
+[Unreleased]: https://github.com/SeanVasey/vizion/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/SeanVasey/vizion/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/SeanVasey/vizion/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/SeanVasey/vizion/releases/tag/v0.1.0

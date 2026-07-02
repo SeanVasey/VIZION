@@ -43,6 +43,9 @@ If any step is red, fix it before committing. **No red commits.** `npm audit` ru
 
 `.github/workflows/ci.yml` runs on PR + push to `main`:
 `lint · typecheck · test · build · npm audit`. Preview deploy per PR on Vercel.
+`.github/workflows/release.yml` tags `v<version>` + publishes a GitHub Release
+(notes from `CHANGELOG.md`) when a `package.json` version bump lands on `main` —
+procedure in `docs/runbooks/release.md`.
 
 ## 5. Required files
 

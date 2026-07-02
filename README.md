@@ -76,6 +76,15 @@ npm run dev                     # http://localhost:3000
 npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run build
 ```
 
+## Versioning & releases
+
+Semantic Versioning, single-sourced from `package.json` (surfaced in the UI via
+`NEXT_PUBLIC_APP_VERSION`) and documented in [`CHANGELOG.md`](./CHANGELOG.md)
+(Keep a Changelog). Merging a version bump to `main` makes
+[`release.yml`](./.github/workflows/release.yml) tag `v<version>` and publish a
+GitHub Release with the matching changelog section as notes. Full procedure:
+[`docs/runbooks/release.md`](./docs/runbooks/release.md).
+
 ## Tech stack
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind + CSS-var tokens ·

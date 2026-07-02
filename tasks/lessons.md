@@ -381,3 +381,28 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   button classes** — the reset control became `btn-secondary pill` at ENHANCE's
   exact size/typography instead of new CSS, keeping the Laser fill unique to the
   primary CTA (guardrail §6).
+
+## Versioning — a changelog with no cut releases isn't versioning
+
+- **Everything sat under `[Unreleased]` while `package.json` read `0.2.0`.** The
+  honest fix was archaeology first: `git log -L '/"version"/,+1:package.json'`
+  finds exactly which commits bumped the version and when, and the release
+  sections were cut to match those boundaries (`0.1.0` = the scaffold commit,
+  `0.2.0` = the 2026-07-01 bump, post-bump merges → `0.2.1`).
+- **Automate the ritual or it lapses again.** `release.yml` triggers on pushes to
+  `main` that touch `package.json`, is idempotent (existing tag → no-op, so
+  dependency-bump merges are safe), and **fails loudly when the changelog section
+  for the new version is missing** — a bump can't ship undocumented. Backfilled
+  `v0.1.0`/`v0.2.0` tags on the historical bump commits so the compare links
+  resolve across the whole history.
+- **Owner direction beats an earlier style rationale.** The reset control had
+  deliberately been made a *secondary* pill to keep the Laser fill unique to
+  ENHANCE — but the owner asked again for it "in the style of the submit
+  button", so it now mirrors `btn-laser` exactly. When a style guardrail
+  (§6 forbids Laser *text on light*, not a second Laser fill) doesn't actually
+  block the request, follow the request; note the supersession in the changelog.
+- **Put quick actions where the eyes are.** Copy lived only in the action row
+  below the fold of the result; the fix is an icon on the output card header
+  itself. Reuse the existing handler/state so the two affordances confirm in
+  sync; keep the 44px tap target without inflating a text-height header row via
+  negative margins.
