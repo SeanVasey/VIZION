@@ -18,9 +18,9 @@ _Clarify · Polish · Expand · Condense · Reformat · Re-target — the same i
 </div>
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZ(IO)N
-> _transforms_ it — across three target models (Opus 4.8 · GPT-5.5 · Gemini Pro 3.1),
-> six enhancement modes, and media-aware prompt construction, with accounts and a
-> versioned prompt library.
+> _transforms_ it — across five target models (Opus 4.8 · GPT-5.6 Sol · Fable 5 ·
+> Gemini 3.5 Thinking · Grok 4.5), six enhancement modes, and media-aware prompt
+> construction, with accounts and a versioned prompt library.
 
 <div align="center">
 
@@ -38,10 +38,10 @@ Client (PWA, Next.js 15 · React 19)
   └─ Service worker: SWR(shell) · network-first(enhance, auth) · cache-fallback(library)
         │  HTTPS — no model keys client-side
         ▼
-Next Route Handlers (Edge) ── Provider Adapter ──┬─ Anthropic (opus_4_8)
-  ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI    (gpt_5_5)
-  ├─ /api/media     (extract → attributes)        └─ Google    (gemini_pro_3_1)
-  └─ per-user rate limit + cost cap + audit log
+Next Route Handlers (Edge) ── Provider Adapter ──┬─ Anthropic (opus_4_8 · fable_5)
+  ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI    (gpt_5_6_sol)
+  ├─ /api/media     (extract → attributes)        ├─ Google    (gemini_3_5_thinking)
+  └─ per-user rate limit + cost cap + audit log   └─ xAI       (grok_4_5)
         │
         ▼
 Supabase ── Postgres (RLS) · Auth (magic link · GitHub · Google) · Storage (avatars, media)

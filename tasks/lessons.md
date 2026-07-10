@@ -411,3 +411,29 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   itself. Reuse the existing handler/state so the two affordances confirm in
   sync; keep the 44px tap target without inflating a text-height header row via
   negative margins.
+
+## Guidance UI + five-model roster — renames ripple through enum, store, and env
+
+- **A model rename is never just a label.** `TargetModelId` flows into the DB
+  `model_target` enum, the persisted Zustand store, `TARGETS`, formatters, and
+  four test files. Making the ID list the single `as const` source meant the
+  compiler enumerated every touchpoint — change `TARGET_MODELS` first and chase
+  the red. Two pieces the compiler can't see: the Postgres enum (migration with
+  `RENAME VALUE`, which relabels existing rows for free) and stale localStorage
+  (zustand `version`+`migrate`, else a stale ID 400s on `/api/enhance`).
+- **`RENAME VALUE` makes deploy order matter.** Old code writes the old enum
+  value, new code the new one; whichever side of the migration you're on, one
+  of them 500s. Apply the migration immediately before the deploy and say so in
+  the migration header.
+- **xAI is OpenAI-compatible** — the adapter is `openai.ts` with a `baseURL`;
+  no new dependency, no raw-fetch client. Mirror, don't invent.
+- **A shared tooltip beats per-cell tooltips in a six-up grid.** Cells are
+  ~55px at 360px wide; one pill under the rig whose caret reuses the lens-lock
+  sixth-width math needs no positioning library and gives a stable read
+  position. `MODE_BLURB` already existed (unused) — repurposing beat adding a
+  parallel record.
+- **This sandbox's Playwright browsers can lag the pinned version.** 1.60.0
+  wanted chromium-1223/webkit-2287; /opt/pw-browsers had chromium-1194 and no
+  webkit. Symlinking the chromium revision dirs + apt-installing webkit's
+  system libs got the full matrix green locally — don't skip the e2e gate just
+  because the runner image is stale.
