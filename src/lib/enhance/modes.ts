@@ -21,12 +21,14 @@ export const MODE_INSTRUCTIONS: Record<ModeId, string> = {
     "MODEL-TARGETED ADAPTATION: Re-render the prompt into the target engine's idiomatic syntax and conventions. Same composition, fitted to the instrument that will receive it. Preserve intent exactly while adopting the target's native structure.",
 };
 
-/** Human-facing one-line description used in the UI and rationale. */
+/** Human-facing one-line description per mode — shown in the ModeRig help
+ *  pill on hover/focus/selection. Plain language: each line says what the
+ *  mode does to the user's prompt. */
 export const MODE_BLURB: Record<ModeId, string> = {
-  polish: "Corrected, not rewritten.",
-  clarify: "Editing for sense before flourish.",
-  expand: "More precision packed per line, not more padding.",
-  condense: "The minimum viable prompt.",
-  reformat: "Re-orchestration of the same motif.",
-  target: "Same composition, different instrument.",
+  polish: "Fixes spelling and grammar only; your wording stays intact.",
+  clarify: "Sharpens what you're asking for — same request, no ambiguity.",
+  expand: "Adds the detail, structure, and constraints your prompt is missing.",
+  condense: "Trims your prompt to the essentials without losing instructions.",
+  reformat: "Restructures your prompt into a cleaner, better-organized shape.",
+  target: "Rewrites your prompt in the target model's preferred style.",
 };
