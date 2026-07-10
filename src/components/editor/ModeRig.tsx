@@ -108,17 +108,19 @@ export const ModeRig = memo(function ModeRig({
           It must sit above, not below: the composer beneath is a .glass surface
           whose backdrop-filter forms its own stacking context and paints over a
           sibling's children regardless of their z-index — below the rig the
-          pill is obscured (seen on mobile). Above, it only overlays the
-          transient guidance strip. pointer-events-none keeps it inert. */}
+          pill is obscured (seen on mobile). The fill is OPAQUE --onyx, not
+          .glass: a translucent pill over the guidance strip blends both texts
+          into an unreadable smear — the pill must cleanly cover what's behind
+          it. pointer-events-none keeps it inert. */}
       {helpFor !== null && (
         <div
           id="mode-help-pill"
           role="tooltip"
-          className="glass pill pointer-events-none absolute inset-x-1 bottom-full z-30 mb-2 px-4 py-2 text-center text-xs text-chalk"
+          className="pill pointer-events-none absolute inset-x-1 bottom-full z-30 mb-2 border border-hair bg-onyx px-4 py-2 text-center text-xs text-chalk"
         >
           <span
             aria-hidden="true"
-            className="glass absolute -bottom-1 h-2 w-2 rotate-45 border-hair"
+            className="absolute -bottom-1 h-2 w-2 rotate-45 border border-hair bg-onyx"
             style={{
               left: `calc(${helpIndex + 0.5} * (100% / 6))`,
               marginLeft: "-4px",
