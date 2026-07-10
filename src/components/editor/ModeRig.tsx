@@ -120,7 +120,7 @@ export const ModeRig = memo(function ModeRig({
         >
           <span
             aria-hidden="true"
-            className="absolute -bottom-1 h-2 w-2 rotate-45 border border-hair bg-onyx"
+            className="absolute -bottom-1 h-2 w-2 rotate-45 border-b border-r border-hair bg-onyx"
             style={{
               left: `calc(${helpIndex + 0.5} * (100% / 6))`,
               marginLeft: "-4px",
