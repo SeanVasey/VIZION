@@ -29,7 +29,7 @@ describe("parseTags", () => {
 describe("filterPrompts", () => {
   const prompts = [
     { title: "Launch email", tags: ["marketing"], target_model: "opus_4_8" },
-    { title: "JSON spec", tags: ["code"], target_model: "gpt_5_5" },
+    { title: "JSON spec", tags: ["code"], target_model: "gpt_5_6_sol" },
   ];
   it("filters by query against title and tags", () => {
     expect(

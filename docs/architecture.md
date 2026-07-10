@@ -47,8 +47,10 @@ on every theme change; CSS `env(safe-area-inset-*)` utilities handle layout inse
 A single `enhance(input, mode, target)` interface fans out to model-specific formatters:
 
 - **Opus 4.8** — XML-tagged sections, explicit system/user separation, CoT scaffolds.
-- **GPT-5.5** — developer/system/user roles, JSON-mode / structured-output, tool schemas.
-- **Gemini Pro 3.1** — multimodal "parts", system-instruction conventions, grounding.
+- **GPT-5.6 Sol** — developer/system/user roles, JSON-mode / structured-output, tool schemas.
+- **Fable 5** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
+- **Gemini 3.5 Thinking** — multimodal "parts", system-instruction conventions, grounding.
+- **Grok 4.5** — direct plain-spoken instructions, inline context, explicit output format. (xAI — new provider; needs `XAI_API_KEY`.)
 
 Model strings live in server config so swaps are a config change, not a refactor.
 

@@ -9,7 +9,7 @@ describe("computeCost", () => {
   });
 
   it("is zero for zero tokens", () => {
-    expect(computeCost("gpt_5_5", 0, 0)).toBe(0);
+    expect(computeCost("gpt_5_6_sol", 0, 0)).toBe(0);
   });
 
   it("rounds to 6 decimal places", () => {

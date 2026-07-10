@@ -1,13 +1,18 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { MODES, type ModeId } from "@/lib/constants";
+import { MODE_BLURB } from "@/lib/enhance/modes";
 
 /**
  * Mode instrument (remediation R5.1).  ONE glass chassis with six equal cells
  * (grid repeat(6,1fr)), icon-over-label, and a sliding Laser "lens-lock"
  * indicator behind the active cell — the same aperture motion as the brand
  * mark.  Active cell text/icon = --on-laser.  Symmetric at 360/390/430px.
+ *
+ * A single shared help pill sits below the rig: it appears on hover/focus of a
+ * cell (and briefly on tap-selection for touch), its caret tracking the cell
+ * with the same sixth-width math as the lens-lock. Escape/leave/blur hides it.
  */
 export const ModeRig = memo(function ModeRig({
   activeMode,
@@ -21,11 +26,46 @@ export const ModeRig = memo(function ModeRig({
     MODES.findIndex((m) => m.id === activeMode),
   );
 
+  const [helpFor, setHelpFor] = useState<ModeId | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHideTimer = () => {
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  };
+  useEffect(() => clearHideTimer, []);
+
+  const showHelp = (id: ModeId) => {
+    clearHideTimer();
+    setHelpFor(id);
+  };
+  const hideHelp = () => {
+    clearHideTimer();
+    setHelpFor(null);
+  };
+  /** Tap/click: no hover to end the pill, so it hides itself after a beat. */
+  const flashHelp = (id: ModeId) => {
+    showHelp(id);
+    hideTimer.current = setTimeout(() => setHelpFor(null), 2500);
+  };
+
+  const helpIndex = helpFor
+    ? Math.max(
+        0,
+        MODES.findIndex((m) => m.id === helpFor),
+      )
+    : 0;
+
   return (
     <div
       role="tablist"
       aria-label="Enhancement mode"
       className="glass relative grid grid-cols-6 gap-0 rounded-2xl p-1"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") hideHelp();
+      }}
     >
       {/* Sliding lens-lock indicator — one sixth wide, translates to the cell. */}
       <span
@@ -44,7 +84,15 @@ export const ModeRig = memo(function ModeRig({
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => onSelect(mode.id)}
+            aria-describedby={helpFor === mode.id ? "mode-help-pill" : undefined}
+            onClick={() => {
+              onSelect(mode.id);
+              flashHelp(mode.id);
+            }}
+            onMouseEnter={() => showHelp(mode.id)}
+            onMouseLeave={hideHelp}
+            onFocus={() => showHelp(mode.id)}
+            onBlur={hideHelp}
             className={[
               "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-colors",
               active ? "text-on-laser" : "text-silver hover:text-chalk",
@@ -55,6 +103,26 @@ export const ModeRig = memo(function ModeRig({
           </button>
         );
       })}
+      {/* Shared help pill — one floating description under the rig, its caret
+          aligned to the described cell (same sixth-width math as the lens-lock).
+          pointer-events-none so it never blocks the composer's top rail. */}
+      {helpFor !== null && (
+        <div
+          id="mode-help-pill"
+          role="tooltip"
+          className="glass pill pointer-events-none absolute inset-x-1 top-full z-30 mt-2 px-4 py-2 text-center text-xs text-chalk"
+        >
+          <span
+            aria-hidden="true"
+            className="glass absolute -top-1 h-2 w-2 rotate-45 border-hair"
+            style={{
+              left: `calc(${helpIndex + 0.5} * (100% / 6))`,
+              marginLeft: "-4px",
+            }}
+          />
+          {MODE_BLURB[helpFor]}
+        </div>
+      )}
     </div>
   );
 });

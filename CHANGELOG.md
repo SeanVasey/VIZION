@@ -6,7 +6,27 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added — guidance strip + mode help pill
+
+- **A two-line guidance strip now sits directly below the header** on the
+  Enhance screen, explaining what the app does and pointing at the six modes.
+- **Hovering, focusing, or tapping a mode shows a help pill** under the mode
+  rig — one shared `role="tooltip"` glass pill whose caret tracks the described
+  cell; it hides on leave/blur/Escape (and auto-hides after a beat on tap).
+  The previously unused `MODE_BLURB` copy was rewritten in plain language and
+  wired to the pill via `aria-describedby`.
+
+### Changed — five target models
+
+- **The roster grows from three to five:** Opus 4.8 · **GPT-5.6 Sol** (renamed
+  from GPT-5.5) · **Fable 5** (new, Anthropic) · **Gemini 3.5 Thinking**
+  (renamed from Gemini Pro 3.1) · **Grok 4.5** (new — xAI, a new provider).
+  The `model_target` enum migration renames values in place, so existing
+  library entries relabel automatically; stale localStorage IDs migrate on
+  first load.
+- **Deploy note:** the Grok 4.5 target needs `XAI_API_KEY` in the Vercel
+  project env; until set it returns 503 "not configured" while the other four
+  targets keep working.
 
 ## [0.2.1] - 2026-07-02
 

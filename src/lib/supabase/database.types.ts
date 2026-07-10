@@ -278,7 +278,12 @@ export type Database = {
       auth_method: "magic_link" | "github" | "google";
       enhance_mode: "clarify" | "polish" | "expand" | "condense" | "reformat" | "target";
       media_kind: "image" | "video" | "audio";
-      model_target: "opus_4_8" | "gpt_5_5" | "gemini_pro_3_1";
+      model_target:
+        | "opus_4_8"
+        | "gpt_5_6_sol"
+        | "fable_5"
+        | "gemini_3_5_thinking"
+        | "grok_4_5";
       oauth_provider: "github" | "google";
       theme: "dark" | "light" | "system";
     };
