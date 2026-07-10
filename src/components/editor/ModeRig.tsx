@@ -103,18 +103,22 @@ export const ModeRig = memo(function ModeRig({
           </button>
         );
       })}
-      {/* Shared help pill — one floating description under the rig, its caret
+      {/* Shared help pill — one floating description ABOVE the rig, its caret
           aligned to the described cell (same sixth-width math as the lens-lock).
-          pointer-events-none so it never blocks the composer's top rail. */}
+          It must sit above, not below: the composer beneath is a .glass surface
+          whose backdrop-filter forms its own stacking context and paints over a
+          sibling's children regardless of their z-index — below the rig the
+          pill is obscured (seen on mobile). Above, it only overlays the
+          transient guidance strip. pointer-events-none keeps it inert. */}
       {helpFor !== null && (
         <div
           id="mode-help-pill"
           role="tooltip"
-          className="glass pill pointer-events-none absolute inset-x-1 top-full z-30 mt-2 px-4 py-2 text-center text-xs text-chalk"
+          className="glass pill pointer-events-none absolute inset-x-1 bottom-full z-30 mb-2 px-4 py-2 text-center text-xs text-chalk"
         >
           <span
             aria-hidden="true"
-            className="glass absolute -top-1 h-2 w-2 rotate-45 border-hair"
+            className="glass absolute -bottom-1 h-2 w-2 rotate-45 border-hair"
             style={{
               left: `calc(${helpIndex + 0.5} * (100% / 6))`,
               marginLeft: "-4px",
