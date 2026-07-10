@@ -9,17 +9,23 @@ import { MODE_INSTRUCTIONS } from "@/lib/enhance/modes";
 const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
   opus_4_8:
     "Target engine: Claude Opus. Favor XML-tagged sections (e.g. <task>, <context>, <constraints>, <examples>) and chain-of-thought scaffolds where reasoning helps, all inside the one prompt. Structure for long context.",
-  gpt_5_5:
+  gpt_5_6_sol:
     "Target engine: GPT. Favor terse, directive instructions; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
-  gemini_pro_3_1:
-    "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt.",
+  fable_5:
+    "Target engine: Claude Fable. State the goal, constraints, and what a finished answer looks like, and avoid over-prescriptive step-by-step scaffolding — this engine plans best from a clear brief. XML-tagged sections are welcome for long or layered context.",
+  gemini_3_5_thinking:
+    "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. Give the reasoning variants a clearly separated goal and constraints.",
+  grok_4_5:
+    "Target engine: Grok. Favor direct, plain-spoken instructions with the needed context stated inline; spell out the desired output format and any tone constraints inside the prompt.",
 };
 
 /** Display labels (kept in sync with constants TARGET_MODELS). */
 export const TARGET_LABEL: Record<TargetModelId, string> = {
   opus_4_8: "Opus 4.8",
-  gpt_5_5: "GPT-5.5",
-  gemini_pro_3_1: "Gemini Pro 3.1",
+  gpt_5_6_sol: "GPT-5.6 Sol",
+  fable_5: "Fable 5",
+  gemini_3_5_thinking: "Gemini 3.5 Thinking",
+  grok_4_5: "Grok 4.5",
 };
 
 /**

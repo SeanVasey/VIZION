@@ -5,6 +5,7 @@ import { buildSystemPrompt } from "@/lib/providers/formatters";
 import { callAnthropic } from "@/lib/providers/anthropic";
 import { callOpenAI } from "@/lib/providers/openai";
 import { callGoogle } from "@/lib/providers/google";
+import { callXAI } from "@/lib/providers/xai";
 
 export interface EnhanceArgs {
   input: string;
@@ -34,12 +35,13 @@ export async function enhance({
   const cfg = TARGETS[target];
   const system = buildSystemPrompt(mode, target);
 
-  const result =
-    cfg.provider === "anthropic"
-      ? await callAnthropic(system, input, cfg.model)
-      : cfg.provider === "openai"
-        ? await callOpenAI(system, input, cfg.model)
-        : await callGoogle(system, input, cfg.model);
+  const calls = {
+    anthropic: callAnthropic,
+    openai: callOpenAI,
+    google: callGoogle,
+    xai: callXAI,
+  } as const;
+  const result = await calls[cfg.provider](system, input, cfg.model);
 
   return {
     ...result,

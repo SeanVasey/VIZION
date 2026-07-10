@@ -1,6 +1,6 @@
 import type { TargetModelId } from "@/lib/constants";
 
-export type Provider = "anthropic" | "openai" | "google";
+export type Provider = "anthropic" | "openai" | "google" | "xai";
 
 interface TargetConfig {
   provider: Provider;
@@ -14,8 +14,9 @@ interface TargetConfig {
 /**
  * Target → provider + model-string mapping. Model strings live here (env-
  * overridable) so swapping a model is config, not a refactor (FINAL_PLAN D9).
- * Defaults: Opus uses the authoritative `claude-opus-4-8`; GPT/Gemini default to
- * the named product targets and can be pointed at any deployed string via env.
+ * Defaults: Opus/Fable use the authoritative Anthropic strings; GPT, Gemini,
+ * and Grok default to the named product targets and can be pointed at any
+ * deployed string via env.
  */
 export const TARGETS: Record<TargetModelId, TargetConfig> = {
   opus_4_8: {
@@ -24,17 +25,29 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_OPUS_IN", 5),
     priceOut: numEnv("PRICE_OPUS_OUT", 25),
   },
-  gpt_5_5: {
+  gpt_5_6_sol: {
     provider: "openai",
-    model: process.env.MODEL_GPT ?? "gpt-5.5",
+    model: process.env.MODEL_GPT ?? "gpt-5.6-sol",
     priceIn: numEnv("PRICE_GPT_IN", 5),
     priceOut: numEnv("PRICE_GPT_OUT", 15),
   },
-  gemini_pro_3_1: {
+  fable_5: {
+    provider: "anthropic",
+    model: process.env.MODEL_FABLE ?? "claude-fable-5",
+    priceIn: numEnv("PRICE_FABLE_IN", 10),
+    priceOut: numEnv("PRICE_FABLE_OUT", 50),
+  },
+  gemini_3_5_thinking: {
     provider: "google",
-    model: process.env.MODEL_GEMINI ?? "gemini-pro-3.1",
+    model: process.env.MODEL_GEMINI ?? "gemini-3.5-thinking",
     priceIn: numEnv("PRICE_GEMINI_IN", 2),
     priceOut: numEnv("PRICE_GEMINI_OUT", 10),
+  },
+  grok_4_5: {
+    provider: "xai",
+    model: process.env.MODEL_GROK ?? "grok-4.5",
+    priceIn: numEnv("PRICE_GROK_IN", 3),
+    priceOut: numEnv("PRICE_GROK_OUT", 15),
   },
 };
 

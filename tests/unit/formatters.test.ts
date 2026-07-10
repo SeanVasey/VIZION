@@ -53,11 +53,19 @@ describe("buildSystemPrompt", () => {
   });
 
   it("targets GPT idioms for the GPT target", () => {
-    expect(buildSystemPrompt("reformat", "gpt_5_5")).toContain("GPT");
+    expect(buildSystemPrompt("reformat", "gpt_5_6_sol")).toContain("GPT");
   });
 
   it("targets Gemini idioms for the Gemini target", () => {
-    expect(buildSystemPrompt("target", "gemini_pro_3_1")).toContain("Gemini");
+    expect(buildSystemPrompt("target", "gemini_3_5_thinking")).toContain("Gemini");
+  });
+
+  it("targets Fable idioms for the Fable target", () => {
+    expect(buildSystemPrompt("expand", "fable_5")).toContain("Claude Fable");
+  });
+
+  it("targets Grok idioms for the Grok target", () => {
+    expect(buildSystemPrompt("reformat", "grok_4_5")).toContain("Grok");
   });
 
   it("polish preserves the input's shape and skips target restructuring idioms", () => {
@@ -71,7 +79,7 @@ describe("buildSystemPrompt", () => {
   });
 
   it("clarify no longer injects the target's structured-output idioms", () => {
-    const p = buildSystemPrompt("clarify", "gpt_5_5");
+    const p = buildSystemPrompt("clarify", "gpt_5_6_sol");
     expect(p).not.toContain("JSON-mode");
     expect(p).toMatch(/preserve the input's existing format/i);
   });

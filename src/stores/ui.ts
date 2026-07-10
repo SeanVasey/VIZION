@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import {
+  TARGET_MODELS,
   UI_STORE_KEY,
   type ModeId,
   type TargetModelId,
@@ -97,6 +98,26 @@ export const useUIStore = create<UIState>()(
     {
       name: UI_STORE_KEY,
       storage: createJSONStorage(() => debouncedLocalStorage()),
+      // v1: the 2026-07 model-roster rename (gpt_5_5 → gpt_5_6_sol,
+      // gemini_pro_3_1 → gemini_3_5_thinking). A stale persisted ID would
+      // 400 on /api/enhance, so map legacy values and fall back to the default.
+      version: 1,
+      migrate: (persisted) => {
+        const s = (persisted ?? {}) as Partial<UIState>;
+        const legacy: Record<string, TargetModelId> = {
+          gpt_5_5: "gpt_5_6_sol",
+          gemini_pro_3_1: "gemini_3_5_thinking",
+        };
+        const valid = new Set<string>(TARGET_MODELS.map((m) => m.id));
+        const t = s.targetModel as string | undefined;
+        return {
+          ...s,
+          targetModel:
+            t && valid.has(t)
+              ? (t as TargetModelId)
+              : ((t && legacy[t]) ?? "opus_4_8"),
+        };
+      },
       // Draft is intentionally NOT persisted as the only copy — it is a
       // convenience cache; the editor also re-hydrates from the server in P2+.
       partialize: (state) => ({

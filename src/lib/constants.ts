@@ -16,12 +16,16 @@ export const MODES = [
 ] as const;
 export type ModeId = (typeof MODES)[number]["id"];
 
-/** The three target models (product-spec §4.3). Strings are display labels;
- *  provider model strings live server-side so they can be swapped freely. */
+/** The five target models (product-spec §4.3, extended). Strings are display
+ *  labels; provider model strings live server-side so they can be swapped
+ *  freely. IDs are also the DB `model_target` enum values — renaming one
+ *  requires a migration (see supabase/migrations). */
 export const TARGET_MODELS = [
   { id: "opus_4_8", label: "Opus 4.8" },
-  { id: "gpt_5_5", label: "GPT-5.5" },
-  { id: "gemini_pro_3_1", label: "Gemini Pro 3.1" },
+  { id: "gpt_5_6_sol", label: "GPT-5.6 Sol" },
+  { id: "fable_5", label: "Fable 5" },
+  { id: "gemini_3_5_thinking", label: "Gemini 3.5 Thinking" },
+  { id: "grok_4_5", label: "Grok 4.5" },
 ] as const;
 export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
 
