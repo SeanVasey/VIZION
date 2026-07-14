@@ -15,6 +15,21 @@ All notable changes to VIZ(IO)N are documented here. The format follows
   Profile default-model picker (left edge of the select), on the Library
   model-filter chips, and beside the usage readout on each result.
 
+### Added — live streaming enhancement
+
+- **Enhanced text now streams token-by-token into the result surface** — the
+  `/api/enhance` route returns a Server-Sent-Events stream (status ladder →
+  deltas → usage → done) instead of one buffered JSON blob, while the
+  `{output, rationale}` model contract and every auth/rate/cost gate stay
+  exactly as they were (gate failures remain plain JSON with real statuses).
+- **A Laser progress bar with the current processing step** (Queued → Reaching
+  the model… → Generating… → Building the diff…) and a **live usage quick
+  view** (tokens in→out and running cost, authoritative from each provider's
+  stream usage reporting) sits above the streaming output. Honors
+  `prefers-reduced-motion` with a static pulse.
+- **RESET now cancels an in-flight run** (the stream aborts server-side and
+  whatever usage accrued still reaches the cost ledger — even on disconnect).
+
 ### Added — Mistral Large 3 target
 
 - **The roster grows to six with Mistral Large 3** (Mistral's current flagship,

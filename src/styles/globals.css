@@ -285,4 +285,53 @@
     );
     opacity: 0.6;
   }
+
+  /* Live-stream progress bar: a Laser sweep gliding along a Hair track.
+     Reduced motion swaps the sweep for a static Laser segment with a slow
+     opacity pulse (and none at all if even that is too much). */
+  .stream-progress-track {
+    position: relative;
+    overflow: hidden;
+    height: 3px;
+    border-radius: 9999px;
+    background: var(--hair);
+  }
+  .stream-progress-sweep {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--laser) 45%,
+      var(--laser) 55%,
+      transparent 100%
+    );
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    animation: stream-sweep 1.4s ease-in-out infinite;
+    box-shadow: 0 0 12px var(--laser-glow, rgba(183, 255, 60, 0.25));
+  }
+  @keyframes stream-sweep {
+    from {
+      background-position-x: -60%;
+    }
+    to {
+      background-position-x: 160%;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stream-progress-sweep {
+      animation: stream-pulse 2.4s ease-in-out infinite;
+      background-position-x: 30%;
+    }
+    @keyframes stream-pulse {
+      0%,
+      100% {
+        opacity: 0.45;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+  }
 }
