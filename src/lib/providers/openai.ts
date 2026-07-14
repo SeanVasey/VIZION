@@ -1,39 +1,50 @@
 import "server-only";
 import OpenAI from "openai";
-import { parseEnhancePayload } from "@/lib/providers/formatters";
 import {
   ProviderError,
   ProviderNotConfiguredError,
-  type ProviderResult,
+  type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 
-/** OpenAI (GPT) adapter. Server-side only; key never reaches the client. */
-export async function callOpenAI(
+/**
+ * Streaming OpenAI (GPT) call: yields raw response-text deltas, then one
+ * cumulative usage snapshot from the final chunk (stream_options.include_usage).
+ * Server-side only; key never reaches the client. The JSON envelope is decoded
+ * centrally in the adapter.
+ */
+export async function* streamOpenAI(
   system: string,
   input: string,
   model: string,
-): Promise<ProviderResult> {
+): AsyncGenerator<ProviderStreamChunk> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("openai");
 
   const client = new OpenAI({ apiKey });
 
   try {
-    const response = await client.chat.completions.create({
+    const stream = await client.chat.completions.create({
       model,
       messages: [
         { role: "system", content: system },
         { role: "user", content: input },
       ],
       response_format: { type: "json_object" },
+      stream: true,
+      stream_options: { include_usage: true },
     });
-
-    const text = response.choices[0]?.message?.content ?? "";
-    return {
-      ...parseEnhancePayload(text),
-      tokenIn: response.usage?.prompt_tokens ?? 0,
-      tokenOut: response.usage?.completion_tokens ?? 0,
-    };
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content;
+      if (text) yield { text };
+      if (chunk.usage) {
+        yield {
+          usage: {
+            tokenIn: chunk.usage.prompt_tokens,
+            tokenOut: chunk.usage.completion_tokens,
+          },
+        };
+      }
+    }
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
     if (error instanceof OpenAI.APIError) {

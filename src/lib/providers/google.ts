@@ -1,9 +1,8 @@
 import "server-only";
-import { parseEnhancePayload } from "@/lib/providers/formatters";
 import {
   ProviderError,
   ProviderNotConfiguredError,
-  type ProviderResult,
+  type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 
 interface GeminiResponse {
@@ -13,21 +12,22 @@ interface GeminiResponse {
 }
 
 /**
- * Google (Gemini) adapter via the stable generateContent REST endpoint. Server-
- * side only; key never reaches the client. Uses the system-instruction + parts
- * structuring Gemini favors, with a JSON response MIME type.
+ * Streaming Google (Gemini) call via the streamGenerateContent REST endpoint
+ * (alt=sse): each SSE frame is a GenerateContentResponse whose parts carry
+ * text deltas; usageMetadata rides the trailing frames. Server-side only; key
+ * never reaches the client.
  */
-export async function callGoogle(
+export async function* streamGoogle(
   system: string,
   input: string,
   model: string,
-): Promise<ProviderResult> {
+): AsyncGenerator<ProviderStreamChunk> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("google");
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     model,
-  )}:generateContent`;
+  )}:streamGenerateContent?alt=sse`;
 
   try {
     const res = await fetch(url, {
@@ -40,23 +40,48 @@ export async function callGoogle(
       }),
     });
 
-    const data = (await res.json()) as GeminiResponse;
-    if (!res.ok) {
+    if (!res.ok || !res.body) {
+      const data = (await res.json().catch(() => ({}))) as GeminiResponse;
       throw new ProviderError(
         "google",
         `Gemini request failed: ${data.error?.message ?? res.statusText}`,
       );
     }
 
-    const text = (data.candidates?.[0]?.content?.parts ?? [])
-      .map((p) => p.text ?? "")
-      .join("");
-
-    return {
-      ...parseEnhancePayload(text),
-      tokenIn: data.usageMetadata?.promptTokenCount ?? 0,
-      tokenOut: data.usageMetadata?.candidatesTokenCount ?? 0,
-    };
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let sep: number;
+      while ((sep = buf.indexOf("\n\n")) !== -1) {
+        const frame = buf.slice(0, sep);
+        buf = buf.slice(sep + 2);
+        for (const line of frame.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          let data: GeminiResponse;
+          try {
+            data = JSON.parse(line.slice(5).trim()) as GeminiResponse;
+          } catch {
+            continue;
+          }
+          const text = (data.candidates?.[0]?.content?.parts ?? [])
+            .map((p) => p.text ?? "")
+            .join("");
+          if (text) yield { text };
+          if (data.usageMetadata) {
+            yield {
+              usage: {
+                tokenIn: data.usageMetadata.promptTokenCount ?? 0,
+                tokenOut: data.usageMetadata.candidatesTokenCount ?? 0,
+              },
+            };
+          }
+        }
+      }
+    }
   } catch (error) {
     if (error instanceof ProviderError || error instanceof ProviderNotConfiguredError) {
       throw error;

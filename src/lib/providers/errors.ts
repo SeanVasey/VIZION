@@ -26,3 +26,11 @@ export interface ProviderResult {
   tokenIn: number;
   tokenOut: number;
 }
+
+/** One raw chunk from a provider's token stream: undecoded response text
+ *  and/or a cumulative usage snapshot. The adapter's envelope scanner turns
+ *  the raw text into output-field deltas in one shared place. */
+export interface ProviderStreamChunk {
+  text?: string;
+  usage?: { tokenIn: number; tokenOut: number };
+}
