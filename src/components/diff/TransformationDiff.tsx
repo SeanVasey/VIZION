@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import type { ModeId, TargetModelId } from "@/lib/constants";
+import { TARGET_DEVELOPER, type ModeId, type TargetModelId } from "@/lib/constants";
 import type { EnhanceResponse } from "@/lib/enhance/use-enhance";
+import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { countChanges } from "@/lib/enhance/diff";
 import { EXPORTERS, type ExportData, type ExportFormat } from "@/lib/enhance/export";
 import { savePromptAction } from "@/lib/library/actions";
@@ -188,7 +189,11 @@ export function TransformationDiff({
           What changed
         </p>
         <p className="font-body text-sm text-text">{result.rationale}</p>
-        <p className="font-body mt-3 text-xs text-silver">
+        <p className="font-body mt-3 flex items-center gap-1.5 text-xs text-silver">
+          <DeveloperIcon
+            developer={TARGET_DEVELOPER[target]}
+            className="h-3.5 w-3.5 shrink-0 text-accent"
+          />
           {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok · $
           {result.costUsd.toFixed(4)}
         </p>

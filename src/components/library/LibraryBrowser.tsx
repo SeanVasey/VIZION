@@ -4,6 +4,7 @@ import { memo, useMemo, useState } from "react";
 import Link from "next/link";
 import { TARGET_MODELS } from "@/lib/constants";
 import { filterPrompts, relativeTime } from "@/lib/library/util";
+import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 
 export interface PromptCard {
   id: string;
@@ -64,6 +65,10 @@ export function LibraryBrowser({ prompts }: { prompts: PromptCard[] }) {
             active={model === m.id}
             onClick={() => setModel(model === m.id ? null : m.id)}
           >
+            <DeveloperIcon
+              developer={m.developer}
+              className={`h-3.5 w-3.5 shrink-0 ${model === m.id ? "" : "text-accent"}`}
+            />
             {m.label}
           </FilterChip>
         ))}
@@ -138,7 +143,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={[
-        "font-body rounded-full px-3 py-1.5 text-xs transition-colors",
+        "font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
         active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
       ].join(" ")}
     >

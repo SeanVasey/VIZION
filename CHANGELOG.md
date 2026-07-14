@@ -6,6 +6,22 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — developer marks on the model roster
+
+- **Every target model now shows its developer's mark** — monochrome SVGs
+  sourced from thesvg.org (open source) and optimized with SVGO, drawn with
+  `currentColor` in the theme-aware accent ink (Laser in dark, deep green in
+  light, AA in both). The mark appears on the Enhance target picker and the
+  Profile default-model picker (left edge of the select), on the Library
+  model-filter chips, and beside the usage readout on each result.
+
+### Changed — roster ordered by developer
+
+- **Models are grouped by developer, best model first within each group**:
+  Anthropic (Fable 5, Opus 4.8) and OpenAI (GPT-5.6 Sol) always lead, then the
+  remaining developers alphabetically — Google (Gemini 3.5 Thinking), xAI
+  (Grok 4.5). The order is locked by a unit test against `DEVELOPER_ORDER`.
+
 ### Added — guidance strip + mode help pill
 
 - **A two-line guidance strip now sits directly below the header** on the

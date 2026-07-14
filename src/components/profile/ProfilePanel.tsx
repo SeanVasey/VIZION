@@ -11,7 +11,8 @@ import { Footer } from "@/components/Footer";
 import { AvatarCropper } from "@/components/avatar-crop/AvatarCropper";
 import { updateProfileAction, updateEmailAction } from "@/lib/profile/actions";
 import { setPasswordAction } from "@/app/(auth)/actions";
-import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
+import { TARGET_MODELS, TARGET_DEVELOPER, type TargetModelId } from "@/lib/constants";
+import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import type { Profile } from "@/lib/supabase/database.types";
 
 const AUTH_LABEL: Record<string, string> = {
@@ -49,6 +50,10 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
   const [fullName, setFullName] = useState(profile.full_name ?? "");
   const [displayName, setDisplayName] = useState(profile.display_name ?? "");
   const [emailField, setEmailField] = useState(email);
+  // Controlled so the developer mark beside the select tracks the selection.
+  const [defaultModel, setDefaultModel] = useState<TargetModelId>(
+    profile.default_model as TargetModelId,
+  );
 
   // A freshly saved avatar (new URL) should get another load attempt.
   useEffect(() => setAvatarError(false), [profile.avatar_url]);
@@ -102,6 +107,7 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
   }
 
   function changeDefaultModel(model: TargetModelId) {
+    setDefaultModel(model);
     setTargetModel(model);
     startTransition(async () => {
       const res = await updateProfileAction({ default_model: model });
@@ -199,15 +205,22 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
       {/* Preferences */}
       <div className="glass flex flex-col gap-5 rounded-2xl p-5">
         <Field label="Default model">
-          <div className="glass rounded-xl">
+          <div className="glass relative flex items-center rounded-xl">
             <label htmlFor="default-model" className="sr-only">
               Default model
             </label>
+            {/* Selected model's developer mark (a stale/legacy id gets no mark). */}
+            {TARGET_DEVELOPER[defaultModel] && (
+              <DeveloperIcon
+                developer={TARGET_DEVELOPER[defaultModel]}
+                className="pointer-events-none absolute left-3 h-4 w-4 text-accent"
+              />
+            )}
             <select
               id="default-model"
-              defaultValue={profile.default_model}
+              value={defaultModel}
               onChange={(e) => changeDefaultModel(e.target.value as TargetModelId)}
-              className="font-body rounded-xl bg-transparent px-3 py-2 text-sm text-text focus:outline-none"
+              className="font-body w-full rounded-xl bg-transparent py-2 pl-9 pr-3 text-sm text-text focus:outline-none"
             >
               {TARGET_MODELS.map((m) => (
                 <option key={m.id} value={m.id} className="bg-onyx text-chalk">
