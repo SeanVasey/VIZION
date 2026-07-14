@@ -261,9 +261,11 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
 
       <Footer inset />
 
-      {/* Avatar crop modal */}
+      {/* Avatar crop modal. The scrim mixes its alpha explicitly — slash
+          opacity (bg-void/80) can't apply to the var()-based tokens and
+          compiled to nothing, leaving the backdrop fully transparent. */}
       {pickedFile && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-void/80 p-6">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[color-mix(in_srgb,var(--void)_80%,transparent)] p-6">
           <AvatarCropper
             file={pickedFile}
             busy={avatarBusy}

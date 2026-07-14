@@ -445,7 +445,7 @@ export function MediaStudio() {
                 .filter(([, v]) => v)
                 .map(([k, v]) => (
                   <div key={k} className="contents">
-                    <dt className="text-silver/70">{k}</dt>
+                    <dt className="text-silver opacity-70">{k}</dt>
                     <dd className="text-chalk">{v}</dd>
                   </div>
                 ))}

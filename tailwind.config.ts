@@ -23,6 +23,10 @@ const config: Config = {
       chalk: "var(--chalk)",
       laser: "var(--laser)",
       "on-laser": "var(--on-laser)",
+      // In theme.colors (not just extend.borderColor) so bg-hair/divide-hair
+      // exist — without this, `bg-hair` silently generates NO utility and the
+      // hairline dividers render invisible.
+      hair: "var(--hair)",
       accent: "var(--accent-ink)",
       pulse: "var(--pulse)",
       flare: "var(--flare)",
