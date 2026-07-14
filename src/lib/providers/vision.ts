@@ -131,7 +131,14 @@ async function describeGoogle(
       generationConfig: { responseMimeType: "application/json" },
     }),
   });
-  const data = (await res.json()) as GeminiVisionResponse;
+  // Parse defensively — a gateway can answer 401/403/404 with a non-JSON body,
+  // and a parse throw here would lose the status the fallback keys off.
+  let data: GeminiVisionResponse = {};
+  try {
+    data = (await res.json()) as GeminiVisionResponse;
+  } catch {
+    /* non-JSON body — fall through to the status check */
+  }
   if (!res.ok) {
     throw new ProviderError(
       "google",

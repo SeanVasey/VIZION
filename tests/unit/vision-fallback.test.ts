@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { isVisionConfigError, visionFallbackTarget } from "@/lib/providers/vision";
+import {
+  describeImage,
+  isVisionConfigError,
+  visionFallbackTarget,
+} from "@/lib/providers/vision";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 
 const KEY_ENVS = [
@@ -69,5 +73,36 @@ describe("visionFallbackTarget", () => {
 
   it("returns null when nothing is configured", () => {
     expect(visionFallbackTarget("gpt_5_6_sol")).toBeNull();
+  });
+});
+
+describe("describeImage — Gemini error bodies", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("keeps the HTTP status when the error body isn't JSON (gateway HTML page)", async () => {
+    vi.stubEnv("GOOGLE_API_KEY", "g-test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        json: () => Promise.reject(new SyntaxError("Unexpected token '<'")),
+      }),
+    );
+
+    let caught: unknown;
+    try {
+      await describeImage("AAAA", "image/png", "gemini_3_5_thinking");
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ProviderError);
+    expect((caught as ProviderError).status).toBe(401);
+    // The whole point: the fallback classifier must still see it as config-shaped.
+    expect(isVisionConfigError(caught)).toBe(true);
   });
 });
