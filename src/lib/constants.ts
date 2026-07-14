@@ -41,6 +41,7 @@ export const TARGET_MODELS = [
   { id: "opus_4_8", label: "Opus 4.8", developer: "anthropic" },
   { id: "gpt_5_6_sol", label: "GPT-5.6 Sol", developer: "openai" },
   { id: "gemini_3_5_thinking", label: "Gemini 3.5 Thinking", developer: "google" },
+  { id: "mistral_large_3", label: "Mistral Large 3", developer: "mistral" },
   { id: "grok_4_5", label: "Grok 4.5", developer: "xai" },
 ] as const satisfies readonly { id: string; label: string; developer: Developer }[];
 export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];

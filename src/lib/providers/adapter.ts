@@ -5,6 +5,7 @@ import { buildSystemPrompt } from "@/lib/providers/formatters";
 import { callAnthropic } from "@/lib/providers/anthropic";
 import { callOpenAI } from "@/lib/providers/openai";
 import { callGoogle } from "@/lib/providers/google";
+import { callMistral } from "@/lib/providers/mistral";
 import { callXAI } from "@/lib/providers/xai";
 
 export interface EnhanceArgs {
@@ -39,6 +40,7 @@ export async function enhance({
     anthropic: callAnthropic,
     openai: callOpenAI,
     google: callGoogle,
+    mistral: callMistral,
     xai: callXAI,
   } as const;
   const result = await calls[cfg.provider](system, input, cfg.model);

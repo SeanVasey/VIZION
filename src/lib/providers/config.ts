@@ -1,6 +1,6 @@
 import type { TargetModelId } from "@/lib/constants";
 
-export type Provider = "anthropic" | "openai" | "google" | "xai";
+export type Provider = "anthropic" | "openai" | "google" | "mistral" | "xai";
 
 interface TargetConfig {
   provider: Provider;
@@ -42,6 +42,14 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     model: process.env.MODEL_GEMINI ?? "gemini-3.5-thinking",
     priceIn: numEnv("PRICE_GEMINI_IN", 2),
     priceOut: numEnv("PRICE_GEMINI_OUT", 10),
+  },
+  mistral_large_3: {
+    provider: "mistral",
+    // `mistral-large-latest` tracks the current Large release (Large 3 as of
+    // 2025-12); pin an exact string via env if drift ever matters.
+    model: process.env.MODEL_MISTRAL ?? "mistral-large-latest",
+    priceIn: numEnv("PRICE_MISTRAL_IN", 2),
+    priceOut: numEnv("PRICE_MISTRAL_OUT", 6),
   },
   grok_4_5: {
     provider: "xai",

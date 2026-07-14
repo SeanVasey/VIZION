@@ -15,6 +15,17 @@ All notable changes to VIZ(IO)N are documented here. The format follows
   Profile default-model picker (left edge of the select), on the Library
   model-filter chips, and beside the usage readout on each result.
 
+### Added — Mistral Large 3 target
+
+- **The roster grows to six with Mistral Large 3** (Mistral's current flagship,
+  `mistral-large-latest`, $2/$6 per MTok defaults — both env-overridable via
+  `MODEL_MISTRAL` / `PRICE_MISTRAL_*`). Mistral's API is OpenAI-compatible, so
+  the adapter mirrors the Grok pattern with no new dependency.
+- **Deploy notes:** apply the `add_mistral_large_3` enum migration *before*
+  deploying (safe direction — old code never writes the value), and add
+  `MISTRAL_API_KEY` to the Vercel project env; until set, the target returns
+  503 "not configured" while the other five keep working.
+
 ### Changed — roster ordered by developer
 
 - **Models are grouped by developer, best model first within each group**:

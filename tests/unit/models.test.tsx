@@ -8,6 +8,7 @@ import {
   type Developer,
 } from "@/lib/constants";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
+import { TARGETS } from "@/lib/providers/config";
 
 describe("model roster ordering", () => {
   it("groups models by developer in the locked order (Anthropic, OpenAI, then alphabetical)", () => {
@@ -35,6 +36,17 @@ describe("model roster ordering", () => {
     for (const m of TARGET_MODELS) {
       expect(TARGET_DEVELOPER[m.id]).toBe(m.developer);
       expect(DEVELOPER_LABEL[m.developer]).toBeTruthy();
+    }
+  });
+
+  it("keeps the client-safe developer field in sync with the server provider config", () => {
+    // TARGETS (server) and TARGET_MODELS.developer (client) are separate
+    // records by design — this pins them together so they can't drift.
+    for (const m of TARGET_MODELS) {
+      expect(TARGETS[m.id].provider).toBe(m.developer);
+      expect(TARGETS[m.id].model).toBeTruthy();
+      expect(TARGETS[m.id].priceIn).toBeGreaterThan(0);
+      expect(TARGETS[m.id].priceOut).toBeGreaterThan(0);
     }
   });
 });
