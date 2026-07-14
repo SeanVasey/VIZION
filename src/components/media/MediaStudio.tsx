@@ -14,7 +14,19 @@ import {
   type MediaKind,
 } from "@/lib/media/types";
 import { savePromptAction } from "@/lib/library/actions";
+import { TARGET_MODELS, TARGET_DEVELOPER, type TargetModelId } from "@/lib/constants";
+import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import type { Json } from "@/lib/supabase/database.types";
+
+const MODEL_LABEL = new Map<string, string>(TARGET_MODELS.map((m) => [m.id, m.label]));
+
+/** Usage returned by /api/media for the per-analysis quick view. */
+interface AnalysisUsage {
+  tokenIn: number;
+  tokenOut: number;
+  costUsd: number;
+  target: TargetModelId;
+}
 
 /** Extraction pipeline flag (locked default: proxy, with on-device fallback). */
 const EXTRACTION =
@@ -25,12 +37,16 @@ type Status = "idle" | "uploading" | "extracting" | "ready" | "error";
 export function MediaStudio() {
   const targetModel = useUIStore((s) => s.targetModel);
   const editorDraft = useUIStore((s) => s.editorDraft);
+  const setEditorDraft = useUIStore((s) => s.setEditorDraft);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<MediaKind | null>(null);
   const [attrs, setAttrs] = useState<MediaAttributes | null>(null);
+  const [description, setDescription] = useState<string | null>(null);
+  const [usage, setUsage] = useState<AnalysisUsage | null>(null);
+  const [inserted, setInserted] = useState(false);
   const [genTarget, setGenTarget] = useState<GenTargetId>("midjourney");
   const [basePrompt, setBasePrompt] = useState("");
   const [usedBytes, setUsedBytes] = useState(0);
@@ -59,6 +75,9 @@ export function MediaStudio() {
   async function onFile(file: File) {
     setError(null);
     setSavedId(null);
+    setDescription(null);
+    setUsage(null);
+    setInserted(false);
     const k = kindForMime(file.type);
     if (!k) {
       setError("Unsupported file type.");
@@ -112,16 +131,35 @@ export function MediaStudio() {
       const dataUrl = await captureFrameDataUrl(file, k);
       if (dataUrl) {
         try {
+          // Analysis runs on the model selected in the composer above.
           const res = await fetch("/api/media", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ dataUrl }),
+            body: JSON.stringify({ dataUrl, target: targetModel }),
           });
           const data = await res.json().catch(() => ({}));
           if (res.ok && data.attributes) {
-            merged = { ...onDevice, ...data.attributes, source: "proxy" };
+            merged = {
+              ...onDevice,
+              ...data.attributes,
+              description: data.description ?? undefined,
+              source: "proxy",
+            };
+            if (typeof data.description === "string") setDescription(data.description);
+            if (data.usage) {
+              setUsage({
+                tokenIn: data.usage.tokenIn ?? 0,
+                tokenOut: data.usage.tokenOut ?? 0,
+                costUsd: data.usage.costUsd ?? 0,
+                target: targetModel,
+              });
+            }
           } else if (data.notConfigured) {
-            setError("Vision extraction isn't configured — used on-device analysis.");
+            setError(
+              `${MODEL_LABEL.get(targetModel) ?? "This model"} isn't configured for vision — used on-device analysis.`,
+            );
+          } else if (!res.ok && data.error) {
+            setError(`${data.error} Used on-device analysis instead.`);
           }
         } catch {
           /* network — keep the on-device result */
@@ -243,6 +281,64 @@ export function MediaStudio() {
                 ))}
             </dl>
           </div>
+
+          {/* Visual description — the model's prose read of the photo, with a
+              path straight back into the prompt box above. */}
+          {description && (
+            <div className="glass flex flex-col gap-3 rounded-2xl p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-body text-xs uppercase tracking-wider text-silver">
+                  Visual description
+                </p>
+                {usage && (
+                  <span className="font-body flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-silver">
+                    <DeveloperIcon
+                      developer={TARGET_DEVELOPER[usage.target]}
+                      className="h-3.5 w-3.5 shrink-0 text-accent"
+                    />
+                    {MODEL_LABEL.get(usage.target)} · {usage.tokenIn}→{usage.tokenOut}{" "}
+                    tok · ${usage.costUsd.toFixed(4)}
+                  </span>
+                )}
+              </div>
+              {/* OUTPUT REGION: model-written description renders in mono. */}
+              <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
+                {description}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {inserted ? (
+                  <span className="font-body inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-4 text-sm text-accent">
+                    ✓ In prompt
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditorDraft(
+                        editorDraft.trim()
+                          ? `${editorDraft.trimEnd()}\n\n${description}`
+                          : description,
+                      );
+                      setInserted(true);
+                      document
+                        .getElementById("prompt-input")
+                        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    className="btn-laser min-h-[44px] rounded-xl px-4 text-sm"
+                  >
+                    ↑ Insert into prompt
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard?.writeText(description)}
+                  className="glass min-h-[44px] rounded-xl px-4 text-sm text-text"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Generation target + base prompt. */}
           <div className="flex flex-wrap gap-2">

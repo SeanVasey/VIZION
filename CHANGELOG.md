@@ -15,6 +15,19 @@ All notable changes to VIZ(IO)N are documented here. The format follows
   Profile default-model picker (left edge of the select), on the Library
   model-filter chips, and beside the usage readout on each result.
 
+### Added — photo analysis by the selected model, with a description box
+
+- **Media analysis now runs on the model selected in the composer** (all six
+  targets, dispatched per provider) instead of always Opus, and the model
+  returns a required prose **visual description** alongside the detected
+  attributes. A new "Visual description" content box shows it with a
+  per-analysis usage quick view (developer mark, model, tokens in→out, cost —
+  the media route now returns usage to the client and logs the actual target).
+- **"Insert into prompt"** drops the description straight into the prompt box
+  above (appended after a blank line when a draft exists) and confirms with a
+  ✓ state; Copy remains for external use. If the selected model can't analyze
+  images, the on-device fallback degrades gracefully with a note.
+
 ### Added — live streaming enhancement
 
 - **Enhanced text now streams token-by-token into the result surface** — the

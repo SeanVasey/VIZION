@@ -2,7 +2,9 @@ import type { MediaAttributes } from "@/lib/media/types";
 
 export const MEDIA_EXTRACT_SYSTEM = [
   "You are VIZ(IO)N's media analyst. Read the attached reference and describe what it actually contains.",
-  "Return ONLY a JSON object with these optional fields (omit any you can't determine):",
+  "Return ONLY a JSON object with these fields:",
+  '- "description" (required): a 2-4 sentence prose visual description of the image, written so it can be pasted straight into a generation prompt — concrete nouns, spatial layout, notable detail; no preamble like "This image shows".',
+  "And these optional fields (omit any you can't determine):",
   '- "subject": the main subject (string)',
   '- "composition": framing / camera angle / layout (string)',
   '- "palette": dominant colors as an array of hex strings',
@@ -36,6 +38,7 @@ export function parseMediaAttributes(raw: string): Partial<MediaAttributes> {
     lighting: str("lighting"),
     style: str("style"),
     mood: str("mood"),
+    description: str("description"),
     tempo: str("tempo"),
     timbre: str("timbre"),
     palette: palette && palette.length ? palette : undefined,
