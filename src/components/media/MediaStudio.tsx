@@ -206,8 +206,8 @@ export function MediaStudio() {
             }
           } else if (data.notConfigured) {
             analysisNote = `${MODEL_LABEL.get(targetModel) ?? "This model"} isn't configured for vision — used on-device analysis.`;
-          } else if (!res.ok && data.error) {
-            analysisNote = `${data.error} Used on-device analysis instead.`;
+          } else if (!res.ok) {
+            analysisNote = `${data.error ?? "Proxy analysis failed."} Used on-device analysis instead.`;
           }
         } catch {
           /* network — keep the on-device result */

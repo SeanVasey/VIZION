@@ -93,8 +93,17 @@ export function useEnhance() {
 
   useEffect(
     () => () => {
-      // Unmount aborts any in-flight run.
+      // Unmount aborts any in-flight run and cancels a scheduled flush so the
+      // batched callback can't setState on an unmounted component.
       abortRef.current?.abort();
+      if (flushHandle.current !== null) {
+        if (typeof cancelAnimationFrame === "function") {
+          cancelAnimationFrame(flushHandle.current);
+        } else {
+          clearTimeout(flushHandle.current);
+        }
+        flushHandle.current = null;
+      }
     },
     [],
   );

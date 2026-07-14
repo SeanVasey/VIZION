@@ -220,7 +220,9 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
               id="default-model"
               value={defaultModel}
               onChange={(e) => changeDefaultModel(e.target.value as TargetModelId)}
-              className="font-body w-full rounded-xl bg-transparent py-2 pl-9 pr-3 text-sm text-text focus:outline-none"
+              className={`font-body w-full rounded-xl bg-transparent py-2 pr-3 text-sm text-text focus:outline-none ${
+                TARGET_DEVELOPER[defaultModel] ? "pl-9" : "pl-3"
+              }`}
             >
               {TARGET_MODELS.map((m) => (
                 <option key={m.id} value={m.id} className="bg-onyx text-chalk">

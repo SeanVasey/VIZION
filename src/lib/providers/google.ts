@@ -49,38 +49,45 @@ export async function* streamGoogle(
     }
 
     const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let sep: number;
-      while ((sep = buf.indexOf("\n\n")) !== -1) {
-        const frame = buf.slice(0, sep);
-        buf = buf.slice(sep + 2);
-        for (const line of frame.split("\n")) {
-          if (!line.startsWith("data:")) continue;
-          let data: GeminiResponse;
-          try {
-            data = JSON.parse(line.slice(5).trim()) as GeminiResponse;
-          } catch {
-            continue;
-          }
-          const text = (data.candidates?.[0]?.content?.parts ?? [])
-            .map((p) => p.text ?? "")
-            .join("");
-          if (text) yield { text };
-          if (data.usageMetadata) {
-            yield {
-              usage: {
-                tokenIn: data.usageMetadata.promptTokenCount ?? 0,
-                tokenOut: data.usageMetadata.candidatesTokenCount ?? 0,
-              },
-            };
+    try {
+      const decoder = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let sep: number;
+        while ((sep = buf.indexOf("\n\n")) !== -1) {
+          const frame = buf.slice(0, sep);
+          buf = buf.slice(sep + 2);
+          for (const line of frame.split("\n")) {
+            if (!line.startsWith("data:")) continue;
+            let data: GeminiResponse;
+            try {
+              data = JSON.parse(line.slice(5).trim()) as GeminiResponse;
+            } catch {
+              continue;
+            }
+            const text = (data.candidates?.[0]?.content?.parts ?? [])
+              .map((p) => p.text ?? "")
+              .join("");
+            if (text) yield { text };
+            if (data.usageMetadata) {
+              yield {
+                usage: {
+                  tokenIn: data.usageMetadata.promptTokenCount ?? 0,
+                  tokenOut: data.usageMetadata.candidatesTokenCount ?? 0,
+                },
+              };
+            }
           }
         }
       }
+    } finally {
+      // Runs on errors AND early generator return (consumer aborted) — cancel
+      // actually closes the upstream connection, then the lock is released.
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
     }
   } catch (error) {
     if (error instanceof ProviderError || error instanceof ProviderNotConfiguredError) {
