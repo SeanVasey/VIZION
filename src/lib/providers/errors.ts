@@ -14,6 +14,8 @@ export class ProviderError extends Error {
   constructor(
     public provider: Provider,
     message: string,
+    /** Upstream HTTP status, when the provider returned one (401, 404, …). */
+    public status?: number,
   ) {
     super(message);
     this.name = "ProviderError";

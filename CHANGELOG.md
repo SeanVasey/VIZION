@@ -6,7 +6,22 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
-### Fixed — Tailwind utilities that silently compiled to nothing
+### Fixed — a rejected provider key no longer kills photo analysis
+
+- **Media analysis now survives a provider key the vendor rejects.** Uploading
+  a photo could fail with `Vision request failed: 401 You have insufficient
+  permissions for this operation.` when the selected model's server-side API
+  key lacked access to the vision endpoint — the raw provider error was shown
+  and analysis dropped all the way to on-device palette detection. `/api/media`
+  now treats config-shaped failures (missing key, 401/403 key permissions,
+  404 unknown model string) as retryable and runs the vision pass once on the
+  first *other* configured provider (Opus first) before degrading. Usage is
+  logged and the chip credited against the model that actually analyzed, and
+  the card notes the substitution ("Fable 5 couldn't analyze this image — used
+  Opus 4.8 instead."). When no provider can run vision, the surfaced error now
+  names the fix (check the key's permissions) instead of only echoing the
+  provider. Runbooks document the key-permission requirement and
+  troubleshooting.
 
 - **`bg-hair` now exists.** The `hair` token lived only under
   `extend.borderColor`/`boxShadow`, so `bg-hair` generated no CSS and every

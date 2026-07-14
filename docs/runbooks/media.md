@@ -11,13 +11,32 @@ NEXT_PUBLIC_MEDIA_EXTRACTION=proxy   # default — vision via the model proxy
 ```
 
 - **proxy** (default): the client captures a downscaled frame and posts it to
-  `/api/media`, which runs a vision pass (Anthropic, `claude-opus-4-8`) and returns
-  attributes (subject, composition, palette, lighting, style, mood). Needs
-  `ANTHROPIC_API_KEY`. `/api/media` is a model route — same auth + rate limit + daily
-  cost cap + usage logging as `/api/enhance`.
+  `/api/media`, which runs a vision pass on the **selected target model** and returns
+  attributes (subject, composition, palette, lighting, style, mood) plus the prose
+  description. Needs that provider's key. `/api/media` is a model route — same auth +
+  rate limit + daily cost cap + usage logging as `/api/enhance`.
+- **provider fallback**: when the selected model fails for a _config-shaped_ reason —
+  missing key, a key the provider rejects (401/403), or an unknown model string
+  (404) — the route retries once on the first _other_ configured provider
+  (Opus 4.8 first, then GPT-5.6 Sol · Gemini 3.5 Thinking · Mistral Large 3 ·
+  Grok 4.5). The response carries
+  `fallbackFrom` + the real `usage.target`; usage is logged (and the chip credited)
+  against the model that actually analyzed, and the card shows a soft note.
 - **on-device fallback** (also used for audio, when the flag is `ondevice`, or when the
   proxy is unconfigured/unreachable): canvas palette + dimensions for image/video, and
   duration for audio. No key, no network.
+
+## Troubleshooting
+
+- **"Vision request failed: 401 You have insufficient permissions for this
+  operation."** — the _provider_ rejected the server's API key for the vision call
+  (our own 401 is "Sign in to analyze media."). Typical causes: a restricted /
+  project-scoped key without access to the inference endpoint, or a workspace key
+  whose org can't use that model. Fix the key in the provider console (then in the
+  Vercel project env); until then the route analyzes on the first other configured
+  provider and only degrades to on-device when no provider works.
+- **404 model errors** — the `MODEL_*` env override points at a string that account
+  doesn't serve; see `docs/runbooks/providers.md`.
 
 ## Storage
 
