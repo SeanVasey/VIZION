@@ -77,9 +77,6 @@ const config: Config = {
         focus: "0 0 0 1px var(--laser), 0 0 24px rgba(183, 255, 60, 0.25)",
         hair: "inset 0 0 0 1px var(--hair)",
       },
-      borderColor: {
-        hair: "var(--hair)",
-      },
       backgroundColor: {
         glass: "var(--glass)",
       },
