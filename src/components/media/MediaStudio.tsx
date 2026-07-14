@@ -21,7 +21,7 @@ import {
   type MediaKind,
 } from "@/lib/media/types";
 import { savePromptAction } from "@/lib/library/actions";
-import { TARGET_MODELS, TARGET_DEVELOPER } from "@/lib/constants";
+import { TARGET_MODELS, TARGET_DEVELOPER, type TargetModelId } from "@/lib/constants";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { StreamProgress } from "@/components/feedback/StreamProgress";
 import type { Json } from "@/lib/supabase/database.types";
@@ -194,15 +194,24 @@ export function MediaStudio() {
           });
           const data = await res.json().catch(() => ({}));
           if (res.ok && data.attributes) {
-            description = typeof data.description === "string" ? data.description : undefined;
+            description =
+              typeof data.description === "string" ? data.description : undefined;
             merged = { ...onDevice, ...data.attributes, description, source: "proxy" };
+            // The server may have analyzed on a fallback model (e.g. the
+            // selected model's key lacks vision access) — credit that one.
+            const analyzedWith: TargetModelId = MODEL_LABEL.has(data.usage?.target)
+              ? (data.usage.target as TargetModelId)
+              : targetModel;
             if (data.usage) {
               usage = {
                 tokenIn: data.usage.tokenIn ?? 0,
                 tokenOut: data.usage.tokenOut ?? 0,
                 costUsd: data.usage.costUsd ?? 0,
-                target: targetModel,
+                target: analyzedWith,
               };
+            }
+            if (data.fallbackFrom) {
+              analysisNote = `${MODEL_LABEL.get(targetModel) ?? "The selected model"} couldn't analyze this image — used ${MODEL_LABEL.get(analyzedWith) ?? "another model"} instead.`;
             }
           } else if (data.notConfigured) {
             analysisNote = `${MODEL_LABEL.get(targetModel) ?? "This model"} isn't configured for vision — used on-device analysis.`;

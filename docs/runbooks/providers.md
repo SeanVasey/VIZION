@@ -15,6 +15,14 @@ XAI_API_KEY=         # Grok 4.5 target — NEW with the five-model roster
 A target whose key is absent returns **503** with a "not configured" message; the other
 targets keep working. Magic-link/profile features don't need these.
 
+Keys must be able to call the provider's standard inference endpoint (Anthropic
+Messages, OpenAI-compatible Chat Completions, Gemini `generateContent`). A
+restricted / project-scoped key without that permission passes the "configured"
+check but the provider rejects the call with **401/403 "insufficient
+permissions"** — use an unrestricted key or grant the inference scope.
+`/api/media` retries such failures on another configured provider
+(see `docs/runbooks/media.md`); `/api/enhance` surfaces them directly.
+
 > **Deploy note:** the Grok 4.5 target needs `XAI_API_KEY` added to the Vercel
 > project env (Vercel → vizion → Settings → Environment Variables). Until it is
 > set, Grok 4.5 returns 503 "not configured" while the other four targets keep

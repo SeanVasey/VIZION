@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
-import { describeImage } from "@/lib/providers/vision";
+import {
+  describeImage,
+  isVisionConfigError,
+  visionFallbackTarget,
+} from "@/lib/providers/vision";
 import { parseDataUrl } from "@/lib/media/extract";
 import {
   TARGETS,
@@ -17,6 +21,23 @@ const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 
 function err(status: number, error: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
+}
+
+/** Map a vision failure to a response the client can act on. */
+function visionError(e: unknown) {
+  if (e instanceof ProviderNotConfiguredError) {
+    return err(503, e.message, { notConfigured: true });
+  }
+  if (e instanceof ProviderError) {
+    // A key the provider rejects reads like gibberish on its own — point at
+    // the actual fix (the server key), since the image isn't the problem.
+    const hint =
+      e.status === 401 || e.status === 403
+        ? ` The server's ${e.provider} API key was rejected — check its permissions.`
+        : "";
+    return err(502, `${e.message}${hint}`);
+  }
+  return err(502, e instanceof Error ? e.message : "Extraction failed.");
 }
 
 /**
@@ -73,22 +94,33 @@ export async function POST(request: NextRequest) {
     return err(429, "You've reached today's usage cap.", { capReached: true });
   }
 
-  const cfg = TARGETS[typedTarget];
+  // Vision runs on the selected model. A config-shaped failure (missing key,
+  // key without permission, unknown model string) retries once on the first
+  // other configured provider — a bad key for one provider shouldn't cost the
+  // user the whole feature. Anything else surfaces as-is.
+  let usedTarget = typedTarget;
   let extracted;
   try {
     extracted = await describeImage(parsed.base64, parsed.mediaType, typedTarget);
   } catch (e) {
-    if (e instanceof ProviderNotConfiguredError) {
-      return err(503, e.message, { notConfigured: true });
+    const fallback = isVisionConfigError(e) ? visionFallbackTarget(typedTarget) : null;
+    if (!fallback) return visionError(e);
+    console.error(
+      `[media] vision on ${typedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
+    );
+    try {
+      extracted = await describeImage(parsed.base64, parsed.mediaType, fallback);
+      usedTarget = fallback;
+    } catch (e2) {
+      return visionError(e2);
     }
-    if (e instanceof ProviderError) return err(502, e.message);
-    return err(502, e instanceof Error ? e.message : "Extraction failed.");
   }
 
-  const costUsd = computeCost(typedTarget, extracted.tokenIn, extracted.tokenOut);
+  const cfg = TARGETS[usedTarget];
+  const costUsd = computeCost(usedTarget, extracted.tokenIn, extracted.tokenOut);
   await supabase.from("usage_events").insert({
     user_id: user.id,
-    target: typedTarget,
+    target: usedTarget,
     mode: "extract",
     model_used: cfg.model,
     token_in: extracted.tokenIn,
@@ -101,7 +133,9 @@ export async function POST(request: NextRequest) {
     attributes: { ...attrs, source: "proxy" },
     description: description ?? null,
     modelUsed: cfg.model,
+    ...(usedTarget !== typedTarget ? { fallbackFrom: typedTarget } : {}),
     usage: {
+      target: usedTarget,
       tokenIn: extracted.tokenIn,
       tokenOut: extracted.tokenOut,
       costUsd,

@@ -480,3 +480,18 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   webkit. Symlinking the chromium revision dirs + apt-installing webkit's
   system libs got the full matrix green locally — don't skip the e2e gate just
   because the runner image is stale.
+
+## Media vision — a "configured" key can still be rejected by the provider
+
+- **Key present ≠ key permitted.** The vision path checked only that the env
+  key existed; a restricted/project-scoped key passes that check and then the
+  provider 401s ("insufficient permissions"), which surfaced raw and dumped
+  the user to on-device analysis. Classify upstream failures by status —
+  401/403/404 are _deployment_-shaped (key permissions / unknown model), not
+  image-shaped — and retry once on another configured provider before
+  degrading. Keep the status on `ProviderError` so callers can tell.
+- **When a fallback answers, credit the model that actually ran.** Usage
+  logging, the cost cap, and the UI chip must follow the substituted target
+  (`usage.target` from the server), or the ledger lies and the chip
+  misattributes spend. A soft amber note on the ready card beats failing the
+  item.

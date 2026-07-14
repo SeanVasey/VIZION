@@ -2,11 +2,8 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { TargetModelId } from "@/lib/constants";
-import { TARGETS } from "@/lib/providers/config";
-import {
-  ProviderError,
-  ProviderNotConfiguredError,
-} from "@/lib/providers/errors";
+import { TARGETS, type Provider } from "@/lib/providers/config";
+import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { MEDIA_EXTRACT_SYSTEM, parseMediaAttributes } from "@/lib/media/extract";
 import type { MediaAttributes } from "@/lib/media/types";
 
@@ -139,6 +136,7 @@ async function describeGoogle(
     throw new ProviderError(
       "google",
       `Gemini vision request failed: ${data.error?.message ?? res.statusText}`,
+      res.status,
     );
   }
   const text = (data.candidates?.[0]?.content?.parts ?? [])
@@ -149,6 +147,50 @@ async function describeGoogle(
     tokenIn: data.usageMetadata?.promptTokenCount ?? 0,
     tokenOut: data.usageMetadata?.candidatesTokenCount ?? 0,
   };
+}
+
+const PROVIDER_KEY_ENV: Record<Provider, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+  google: "GOOGLE_API_KEY",
+  mistral: "MISTRAL_API_KEY",
+  xai: "XAI_API_KEY",
+};
+
+/** Fallback priority when the selected model can't run vision — the original
+ *  design analyzed on Opus, so Anthropic stays first. */
+const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
+  "opus_4_8",
+  "gpt_5_6_sol",
+  "gemini_3_5_thinking",
+  "mistral_large_3",
+  "grok_4_5",
+];
+
+/**
+ * A failure the deployment (not the image) caused: missing key, a key the
+ * provider rejects (401/403 — e.g. a restricted key without model access), or
+ * an unknown model string (404). These are worth retrying on another provider;
+ * 4xx about the request itself or 5xx transients are not.
+ */
+export function isVisionConfigError(error: unknown): boolean {
+  if (error instanceof ProviderNotConfiguredError) return true;
+  return (
+    error instanceof ProviderError &&
+    (error.status === 401 || error.status === 403 || error.status === 404)
+  );
+}
+
+/** First fallback target on a *different* provider that has a key configured,
+ *  or null when the failed provider is the only one available. */
+export function visionFallbackTarget(failed: TargetModelId): TargetModelId | null {
+  const failedProvider = TARGETS[failed].provider;
+  for (const target of VISION_FALLBACK_ORDER) {
+    const provider = TARGETS[target].provider;
+    if (provider === failedProvider) continue;
+    if (process.env[PROVIDER_KEY_ENV[provider]]) return target;
+  }
+  return null;
 }
 
 /** Analyze an image with the given target model's provider. */
@@ -196,14 +238,15 @@ export async function describeImage(
         return await describeGoogle(base64, mediaType, cfg.model);
     }
   } catch (error) {
-    if (
-      error instanceof ProviderNotConfiguredError ||
-      error instanceof ProviderError
-    ) {
+    if (error instanceof ProviderNotConfiguredError || error instanceof ProviderError) {
       throw error;
     }
     if (error instanceof Anthropic.APIError || error instanceof OpenAI.APIError) {
-      throw new ProviderError(cfg.provider, `Vision request failed: ${error.message}`);
+      throw new ProviderError(
+        cfg.provider,
+        `Vision request failed: ${error.message}`,
+        error.status,
+      );
     }
     throw new ProviderError(
       cfg.provider,
