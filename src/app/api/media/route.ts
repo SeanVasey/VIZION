@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { extractImageAttributes } from "@/lib/providers/anthropic";
+import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
+import { describeImage } from "@/lib/providers/vision";
 import { parseDataUrl } from "@/lib/media/extract";
 import {
   TARGETS,
@@ -12,6 +13,7 @@ import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/error
 import { rateLimit } from "@/lib/security/rate-limit";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
+const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 
 function err(status: number, error: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
@@ -40,8 +42,14 @@ export async function POST(request: NextRequest) {
   } catch {
     return err(400, "Invalid JSON body.");
   }
-  const { dataUrl } = (body ?? {}) as { dataUrl?: unknown };
+  const { dataUrl, target } = (body ?? {}) as { dataUrl?: unknown; target?: unknown };
   if (typeof dataUrl !== "string") return err(400, "Missing image data.");
+  // Analysis runs on the user's selected target model; older clients that
+  // send no target keep the original Opus behavior.
+  if (target !== undefined && (typeof target !== "string" || !TARGET_IDS.has(target))) {
+    return err(400, "Unknown target model.");
+  }
+  const typedTarget = (target as TargetModelId | undefined) ?? "opus_4_8";
 
   const parsed = parseDataUrl(dataUrl);
   if (!parsed || !parsed.mediaType.startsWith("image/")) {
@@ -65,10 +73,10 @@ export async function POST(request: NextRequest) {
     return err(429, "You've reached today's usage cap.", { capReached: true });
   }
 
-  const cfg = TARGETS.opus_4_8;
+  const cfg = TARGETS[typedTarget];
   let extracted;
   try {
-    extracted = await extractImageAttributes(parsed.base64, parsed.mediaType, cfg.model);
+    extracted = await describeImage(parsed.base64, parsed.mediaType, typedTarget);
   } catch (e) {
     if (e instanceof ProviderNotConfiguredError) {
       return err(503, e.message, { notConfigured: true });
@@ -77,10 +85,10 @@ export async function POST(request: NextRequest) {
     return err(502, e instanceof Error ? e.message : "Extraction failed.");
   }
 
-  const costUsd = computeCost("opus_4_8", extracted.tokenIn, extracted.tokenOut);
+  const costUsd = computeCost(typedTarget, extracted.tokenIn, extracted.tokenOut);
   await supabase.from("usage_events").insert({
     user_id: user.id,
-    target: "opus_4_8",
+    target: typedTarget,
     mode: "extract",
     model_used: cfg.model,
     token_in: extracted.tokenIn,
@@ -88,5 +96,17 @@ export async function POST(request: NextRequest) {
     cost_usd: costUsd,
   });
 
-  return NextResponse.json({ attributes: { ...extracted.attrs, source: "proxy" } });
+  const { description, ...attrs } = extracted.attrs;
+  return NextResponse.json({
+    attributes: { ...attrs, source: "proxy" },
+    description: description ?? null,
+    modelUsed: cfg.model,
+    usage: {
+      tokenIn: extracted.tokenIn,
+      tokenOut: extracted.tokenOut,
+      costUsd,
+      todayCost: Number(win.today_cost) + costUsd,
+      capUsd: COST_CAP_USD_PER_DAY,
+    },
+  });
 }

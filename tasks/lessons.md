@@ -412,6 +412,49 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   sync; keep the 44px tap target without inflating a text-height header row via
   negative margins.
 
+## Streaming + media analysis + six-model roster (icons · Mistral · SSE · multi-photo)
+
+- **Stream inside the contract, don't replace it.** Token streaming looked like
+  it required abandoning the `{output, rationale}` JSON envelope — it didn't.
+  A ~90-line pure scanner that incrementally decodes just the `output` string
+  (escapes split across chunks included) streams the text while the unchanged
+  `parseEnhancePayload` stays authoritative at the end (ADR 0002). The
+  lesson-hardened contract, the `json_object` enforcement, and every formatter
+  guard test survived untouched. When a contract is battle-scarred, engineer
+  *around* it before engineering *away* from it.
+- **Make the buffered path a drain of the streaming path.** `enhance()` is now
+  `for await … if done return` over `enhanceStream()` — one code path, so the
+  pre-existing route/tests exercised the new stream machinery from day one.
+- **Gate failures must stay plain HTTP.** Returning SSE for *everything* would
+  have broken the e2e 401 contract and made error handling client-side
+  guesswork. Pre-stream failures keep real statuses + JSON; only post-header
+  failures ride the stream as `error` events. The client branches on
+  `content-type`, not hope.
+- **Write the cost ledger in `finally`, keyed off accrued usage.** A client
+  disconnect mid-stream throws on `enqueue`; without the finally-scoped
+  `usage_events` insert the daily cap would leak. Track the latest usage
+  snapshot outside the loop; estimate ~4 chars/token if a provider reports
+  nothing (Mistral's stream usage isn't guaranteed) — the cap must never see 0.
+- **A flush scheduled on rAF can lose the tail.** The mutation's `finally` ran
+  before the last animation-frame flush, so the final deltas vanished from the
+  stream state (the hook test caught it). Drain pending buffers synchronously
+  at settle time; discard them only when the run was deliberately aborted.
+- **Mistral rejects unknown request fields (422)** — unlike OpenAI/xAI, don't
+  send `stream_options`; its final chunk carries usage anyway. "OpenAI-
+  compatible" means the happy path, not the whole surface.
+- **thesvg.org icons live on jsDelivr** (`glincker/thesvg` on GitHub) with
+  `mono`/`default` variants per icon — fetch `…/icons/<slug>/mono.svg`, SVGO,
+  strip fills to `currentColor`. When only a multicolour `default` exists
+  (Gemini), the alpha *mask path* is usually the clean monochrome glyph.
+- **The `server-only` poison-pill blocks vitest.** Alias it to an empty stub in
+  vitest.config so adapter/provider modules unit-test in plain Node; Next
+  builds still enforce the real package.
+- **Playwright browser lag, part 2:** symlinking an old chromium revision dir
+  fails when the inner layout changed between revisions
+  (`chrome-linux/headless_shell` vs `chrome-headless-shell-linux64/…`) — if
+  the CDN is reachable, `npx playwright install chromium` beats shimming.
+  WebKit needed `install-deps` after download to pass host validation.
+
 ## Guidance UI + five-model roster — renames ripple through enum, store, and env
 
 - **A model rename is never just a label.** `TargetModelId` flows into the DB

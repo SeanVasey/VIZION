@@ -6,6 +6,74 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — developer marks on the model roster
+
+- **Every target model now shows its developer's mark** — monochrome SVGs
+  sourced from thesvg.org (open source) and optimized with SVGO, drawn with
+  `currentColor` in the theme-aware accent ink (Laser in dark, deep green in
+  light, AA in both). The mark appears on the Enhance target picker and the
+  Profile default-model picker (left edge of the select), on the Library
+  model-filter chips, and beside the usage readout on each result.
+
+### Added — multi-photo queue, integrated into the composer column
+
+- **Attach several files at once** — each gets its own card (thumbnail, name,
+  size) with a staged Laser progress bar ("Uploading… / Analyzing with
+  {model}…"), then its visual description, usage chip, and Insert/Copy
+  actions. Files process sequentially (kinder to the rate limiter, cost cap,
+  and mobile radio); the 50 MB quota is enforced across the whole selection
+  before anything uploads.
+- **The media studio now reads as part of the composer column** — the hard
+  hairline divider is gone, a hint line ties it to the prompt box above, and
+  the attach control is a dashed glass tile. The generation studio (engine
+  chips · base prompt · save) tracks the most recently analyzed reference.
+
+### Added — photo analysis by the selected model, with a description box
+
+- **Media analysis now runs on the model selected in the composer** (all six
+  targets, dispatched per provider) instead of always Opus, and the model
+  returns a required prose **visual description** alongside the detected
+  attributes. A new "Visual description" content box shows it with a
+  per-analysis usage quick view (developer mark, model, tokens in→out, cost —
+  the media route now returns usage to the client and logs the actual target).
+- **"Insert into prompt"** drops the description straight into the prompt box
+  above (appended after a blank line when a draft exists) and confirms with a
+  ✓ state; Copy remains for external use. If the selected model can't analyze
+  images, the on-device fallback degrades gracefully with a note.
+
+### Added — live streaming enhancement
+
+- **Enhanced text now streams token-by-token into the result surface** — the
+  `/api/enhance` route returns a Server-Sent-Events stream (status ladder →
+  deltas → usage → done) instead of one buffered JSON blob, while the
+  `{output, rationale}` model contract and every auth/rate/cost gate stay
+  exactly as they were (gate failures remain plain JSON with real statuses).
+- **A Laser progress bar with the current processing step** (Queued → Reaching
+  the model… → Generating… → Building the diff…) and a **live usage quick
+  view** (tokens in→out and running cost, authoritative from each provider's
+  stream usage reporting) sits above the streaming output. Honors
+  `prefers-reduced-motion` with a static pulse.
+- **RESET now cancels an in-flight run** (the stream aborts server-side and
+  whatever usage accrued still reaches the cost ledger — even on disconnect).
+
+### Added — Mistral Large 3 target
+
+- **The roster grows to six with Mistral Large 3** (Mistral's current flagship,
+  `mistral-large-latest`, $2/$6 per MTok defaults — both env-overridable via
+  `MODEL_MISTRAL` / `PRICE_MISTRAL_*`). Mistral's API is OpenAI-compatible, so
+  the adapter mirrors the Grok pattern with no new dependency.
+- **Deploy notes:** apply the `add_mistral_large_3` enum migration *before*
+  deploying (safe direction — old code never writes the value), and add
+  `MISTRAL_API_KEY` to the Vercel project env; until set, the target returns
+  503 "not configured" while the other five keep working.
+
+### Changed — roster ordered by developer
+
+- **Models are grouped by developer, best model first within each group**:
+  Anthropic (Fable 5, Opus 4.8) and OpenAI (GPT-5.6 Sol) always lead, then the
+  remaining developers alphabetically — Google (Gemini 3.5 Thinking), xAI
+  (Grok 4.5). The order is locked by a unit test against `DEVELOPER_ORDER`.
+
 ### Added — guidance strip + mode help pill
 
 - **A two-line guidance strip now sits directly below the header** on the

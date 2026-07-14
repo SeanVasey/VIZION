@@ -8,6 +8,8 @@ export interface MediaAttributes {
   lighting?: string;
   style?: string;
   mood?: string;
+  /** Prose visual description (2–4 sentences), paste-ready for a prompt. */
+  description?: string;
   // audio
   tempo?: string;
   timbre?: string;

@@ -17,6 +17,8 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
     "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. Give the reasoning variants a clearly separated goal and constraints.",
   grok_4_5:
     "Target engine: Grok. Favor direct, plain-spoken instructions with the needed context stated inline; spell out the desired output format and any tone constraints inside the prompt.",
+  mistral_large_3:
+    "Target engine: Mistral. Favor concise, explicit instructions with the context front-loaded and the expected output format stated inline; keep the prompt tight — this engine rewards economy over elaborate scaffolding.",
 };
 
 /** Display labels (kept in sync with constants TARGET_MODELS). */
@@ -25,6 +27,7 @@ export const TARGET_LABEL: Record<TargetModelId, string> = {
   gpt_5_6_sol: "GPT-5.6 Sol",
   fable_5: "Fable 5",
   gemini_3_5_thinking: "Gemini 3.5 Thinking",
+  mistral_large_3: "Mistral Large 3",
   grok_4_5: "Grok 4.5",
 };
 

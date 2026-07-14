@@ -1,15 +1,29 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
-import { enhance } from "@/lib/providers/adapter";
-import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
-import { RATE_LIMIT_PER_MIN, COST_CAP_USD_PER_DAY } from "@/lib/providers/config";
+import { enhanceStream, type EnhanceOutput } from "@/lib/providers/adapter";
+import {
+  TARGETS,
+  computeCost,
+  RATE_LIMIT_PER_MIN,
+  COST_CAP_USD_PER_DAY,
+} from "@/lib/providers/config";
+import { ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { diffWords } from "@/lib/enhance/diff";
+import {
+  encodeSseEvent,
+  STREAM_STEPS,
+  type EnhanceStreamEvent,
+  type StreamStep,
+} from "@/lib/enhance/stream-events";
 
 const MAX_INPUT_CHARS = 20_000;
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
+
+/** Streaming can outlive the default function window on long enhancements. */
+export const maxDuration = 60;
 
 function err(status: number, error: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
@@ -19,6 +33,11 @@ function err(status: number, error: string, extra?: Record<string, unknown>) {
  * Enhance a prompt. Auth-required, with a per-user rate limit + daily cost cap
  * enforced server-side before any model call (guardrail: keys server-side,
  * rate limit + cost cap on every model route).
+ *
+ * Every gate failure (401/400/413/429/503-precheck) stays a plain JSON error
+ * with a real HTTP status — the e2e auth contract is unchanged. A 200 carries
+ * an SSE stream of EnhanceStreamEvents ending in `done` (or `error` for
+ * failures after headers are sent).
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -75,45 +94,114 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // --- Enhance ---
-  let result;
-  try {
-    result = await enhance({
-      input,
-      mode: mode as ModeId,
-      target: target as TargetModelId,
-    });
-  } catch (e) {
-    if (e instanceof ProviderNotConfiguredError) {
-      return err(503, e.message, { notConfigured: true });
-    }
-    if (e instanceof ProviderError) {
-      return err(502, e.message);
-    }
-    return err(502, e instanceof Error ? e.message : "Enhancement failed.");
-  }
+  const typedTarget = target as TargetModelId;
+  const typedMode = mode as ModeId;
+  const encoder = new TextEncoder();
 
-  // Log usage (best-effort; never block the response on the ledger write).
-  await supabase.from("usage_events").insert({
-    user_id: user.id,
-    target: target as TargetModelId,
-    mode,
-    model_used: result.modelUsed,
-    token_in: result.tokenIn,
-    token_out: result.tokenOut,
-    cost_usd: result.costUsd,
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: EnhanceStreamEvent) =>
+        controller.enqueue(encoder.encode(encodeSseEvent(event)));
+      const sendStatus = (step: StreamStep) =>
+        send({ type: "status", step, label: STREAM_STEPS[step] });
+
+      // Whatever usage accrued MUST reach the ledger — even when the client
+      // disconnects mid-stream (enqueue throws) or the provider errors. The
+      // cost cap is only as good as this write.
+      let usage: { tokenIn: number; tokenOut: number } | null = null;
+      let result: EnhanceOutput | null = null;
+
+      try {
+        sendStatus("queued");
+        sendStatus("connecting");
+        let generating = false;
+
+        for await (const event of enhanceStream({
+          input,
+          mode: typedMode,
+          target: typedTarget,
+        })) {
+          if (event.type === "delta") {
+            if (!generating) {
+              generating = true;
+              sendStatus("generating");
+            }
+            send({ type: "delta", text: event.text });
+          } else if (event.type === "usage") {
+            usage = { tokenIn: event.tokenIn, tokenOut: event.tokenOut };
+            send({
+              type: "usage",
+              tokenIn: event.tokenIn,
+              tokenOut: event.tokenOut,
+              costUsd: computeCost(typedTarget, event.tokenIn, event.tokenOut),
+            });
+          } else {
+            result = event.result;
+            usage = { tokenIn: event.result.tokenIn, tokenOut: event.result.tokenOut };
+          }
+        }
+
+        if (!result) throw new Error("The model stream ended without a result.");
+
+        sendStatus("diffing");
+        const todayCost = Number(win.today_cost) + result.costUsd;
+        send({
+          type: "done",
+          result: {
+            output: result.output,
+            rationale: result.rationale,
+            diff: diffWords(input, result.output),
+            tokenIn: result.tokenIn,
+            tokenOut: result.tokenOut,
+            modelUsed: result.modelUsed,
+            costUsd: result.costUsd,
+            usage: { todayCost, capUsd: COST_CAP_USD_PER_DAY },
+          },
+        });
+      } catch (e) {
+        // Client may already be gone; a failed send is fine to swallow.
+        try {
+          if (e instanceof ProviderNotConfiguredError) {
+            send({ type: "error", status: 503, error: e.message, notConfigured: true });
+          } else {
+            send({
+              type: "error",
+              status: 502,
+              error: e instanceof Error ? e.message : "Enhancement failed.",
+            });
+          }
+        } catch {
+          /* disconnected */
+        }
+      } finally {
+        if (usage && (usage.tokenIn > 0 || usage.tokenOut > 0)) {
+          const costUsd =
+            result?.costUsd ?? computeCost(typedTarget, usage.tokenIn, usage.tokenOut);
+          await supabase.from("usage_events").insert({
+            user_id: user.id,
+            target: typedTarget,
+            mode,
+            model_used: result?.modelUsed ?? TARGETS[typedTarget].model,
+            token_in: usage.tokenIn,
+            token_out: usage.tokenOut,
+            cost_usd: costUsd,
+          });
+        }
+        try {
+          controller.close();
+        } catch {
+          /* already closed/cancelled */
+        }
+      }
+    },
   });
 
-  const todayCost = Number(win.today_cost) + result.costUsd;
-
-  return NextResponse.json({
-    output: result.output,
-    rationale: result.rationale,
-    diff: diffWords(input, result.output),
-    tokenIn: result.tokenIn,
-    tokenOut: result.tokenOut,
-    modelUsed: result.modelUsed,
-    costUsd: result.costUsd,
-    usage: { todayCost, capUsd: COST_CAP_USD_PER_DAY },
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      // Defeat proxy buffering so deltas actually flow.
+      "x-accel-buffering": "no",
+    },
   });
 }

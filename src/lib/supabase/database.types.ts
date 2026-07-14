@@ -283,6 +283,7 @@ export type Database = {
         | "gpt_5_6_sol"
         | "fable_5"
         | "gemini_3_5_thinking"
+        | "mistral_large_3"
         | "grok_4_5";
       oauth_provider: "github" | "google";
       theme: "dark" | "light" | "system";

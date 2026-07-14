@@ -101,6 +101,22 @@ describe("parseMediaAttributes", () => {
   it("returns empty for invalid JSON", () => {
     expect(parseMediaAttributes("nope")).toEqual({});
   });
+  it("parses the prose description when present, omits it when absent", () => {
+    const withDesc = parseMediaAttributes(
+      '{"description":"A red lighthouse on a rocky point at dusk.","subject":"lighthouse"}',
+    );
+    expect(withDesc.description).toBe("A red lighthouse on a rocky point at dusk.");
+    expect(parseMediaAttributes('{"subject":"cat"}').description).toBeUndefined();
+    // Whitespace-only descriptions are treated as absent.
+    expect(parseMediaAttributes('{"description":"  "}').description).toBeUndefined();
+  });
+});
+
+describe("MEDIA_EXTRACT_SYSTEM", () => {
+  it("requires the prose description field", async () => {
+    const { MEDIA_EXTRACT_SYSTEM } = await import("@/lib/media/extract");
+    expect(MEDIA_EXTRACT_SYSTEM).toContain('"description" (required)');
+  });
 });
 
 describe("parseDataUrl", () => {

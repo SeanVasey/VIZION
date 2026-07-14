@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useUIStore } from "@/stores/ui";
-import { TARGET_MODELS } from "@/lib/constants";
+import { TARGET_MODELS, TARGET_DEVELOPER } from "@/lib/constants";
 import { useEnhance } from "@/lib/enhance/use-enhance";
 import { ModeRig } from "@/components/editor/ModeRig";
+import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
+import { StreamingResult } from "@/components/diff/StreamingResult";
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -65,11 +67,18 @@ export function EnhanceComposer() {
             Target
           </label>
           <div className="relative inline-flex items-center">
+            {/* Native <option> can't render SVG, so the selected model's
+                developer mark sits on the select's left edge (the mirror of
+                the chevron on the right). */}
+            <DeveloperIcon
+              developer={TARGET_DEVELOPER[targetModel]}
+              className="pointer-events-none absolute left-3 h-4 w-4 text-accent"
+            />
             <select
               id="target-model"
               value={targetModel}
               onChange={(e) => setTargetModel(e.target.value as typeof targetModel)}
-              className="font-body cursor-pointer appearance-none rounded-full bg-surface py-1.5 pl-3.5 pr-8 text-sm text-text focus:outline-none focus-visible:shadow-none"
+              className="font-body cursor-pointer appearance-none rounded-full bg-surface py-1.5 pl-9 pr-8 text-sm text-text focus:outline-none focus-visible:shadow-none"
             >
               {TARGET_MODELS.map((m) => (
                 <option key={m.id} value={m.id} className="bg-onyx text-chalk">
@@ -120,10 +129,11 @@ export function EnhanceComposer() {
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {/* RESET stays live during a run — it aborts the stream. */}
             <button
               type="button"
               onClick={resetComposer}
-              disabled={enhanceMutation.isPending || (isEmpty && !result)}
+              disabled={!enhanceMutation.isPending && isEmpty && !result}
               className="btn-laser pill flex h-9 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
             >
               <span aria-hidden="true">↺</span> RESET
@@ -140,8 +150,9 @@ export function EnhanceComposer() {
         </div>
       </div>
 
-      {/* Errors — provider-not-configured and cap messages get a friendly note. */}
-      {enhanceMutation.isError && (
+      {/* Errors — provider-not-configured and cap messages get a friendly note.
+          A deliberate cancel (status 0) is not an error the user should read. */}
+      {enhanceMutation.isError && enhanceMutation.error.status !== 0 && (
         <p
           className={`font-body text-center text-sm ${
             enhanceMutation.error.capReached ? "text-amber" : "text-flare"
@@ -160,6 +171,18 @@ export function EnhanceComposer() {
           ⚠ ${result.usage.todayCost.toFixed(2)} of ${result.usage.capUsd.toFixed(2)}{" "}
           daily cap used
         </p>
+      )}
+
+      {/* Live stream surface while the run is in flight; the finished diff
+          replaces it in the same footprint on done. */}
+      {enhanceMutation.stream.active && !result && (
+        <StreamingResult
+          step={enhanceMutation.stream.step}
+          partialOutput={enhanceMutation.stream.partialOutput}
+          tokenIn={enhanceMutation.stream.tokenIn}
+          tokenOut={enhanceMutation.stream.tokenOut}
+          costUsd={enhanceMutation.stream.costUsd}
+        />
       )}
 
       {result && (
