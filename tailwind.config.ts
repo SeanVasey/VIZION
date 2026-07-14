@@ -23,6 +23,10 @@ const config: Config = {
       chalk: "var(--chalk)",
       laser: "var(--laser)",
       "on-laser": "var(--on-laser)",
+      // In theme.colors (not just extend.borderColor) so bg-hair/divide-hair
+      // exist — without this, `bg-hair` silently generates NO utility and the
+      // hairline dividers render invisible.
+      hair: "var(--hair)",
       accent: "var(--accent-ink)",
       pulse: "var(--pulse)",
       flare: "var(--flare)",
@@ -72,9 +76,6 @@ const config: Config = {
         // Laser focus edge-glow (style-guide §1.4).
         focus: "0 0 0 1px var(--laser), 0 0 24px rgba(183, 255, 60, 0.25)",
         hair: "inset 0 0 0 1px var(--hair)",
-      },
-      borderColor: {
-        hair: "var(--hair)",
       },
       backgroundColor: {
         glass: "var(--glass)",

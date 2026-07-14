@@ -6,6 +6,22 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — Tailwind utilities that silently compiled to nothing
+
+- **`bg-hair` now exists.** The `hair` token lived only under
+  `extend.borderColor`/`boxShadow`, so `bg-hair` generated no CSS and every
+  hairline it painted was invisible: the sign-in "or" divider, the profile
+  field dividers, and the footer monogram separator. It is now a first-class
+  `theme.colors` entry.
+- **Slash-opacity on the var()-based tokens is gone.** Tailwind 3.4 drops the
+  entire utility when an opacity modifier is applied to an unparseable color,
+  so `bg-void/80` (avatar-crop modal scrim — rendered fully transparent),
+  `bg-void/60` (transformation-diff input card fill), `ring-chalk/40` (crop
+  mask ring — fell back to Tailwind's default blue), `text-flare/70` (removed
+  diff tokens — lost their Flare tint), and `text-silver/70` all produced no
+  CSS. Backgrounds/ring now use explicit `color-mix(...)` arbitrary values
+  (still theme-swapped via the vars); the two text cases use `opacity-70`.
+
 ### Added — developer marks on the model roster
 
 - **Every target model now shows its developer's mark** — monochrome SVGs

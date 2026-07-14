@@ -108,8 +108,10 @@ export function TransformationDiff({
 
   return (
     <section className="flex flex-col gap-4" aria-label="Transformation diff">
-      {/* Input — the Void end. */}
-      <div className="rounded-2xl border border-hair bg-void/60 p-4">
+      {/* Input — the Void end. (Slash-opacity can't apply to the var()-based
+          tokens — Tailwind drops the whole utility — so the translucent fill
+          is mixed explicitly, staying theme-swapped via the var.) */}
+      <div className="rounded-2xl border border-hair bg-[color-mix(in_srgb,var(--void)_60%,transparent)] p-4">
         <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
           Input
         </p>

@@ -141,7 +141,7 @@ export function PromptDetail({
             <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
               {segments.map((seg, i) =>
                 seg.op === "removed" ? (
-                  <span key={i} className="text-flare/70 line-through">
+                  <span key={i} className="text-flare line-through opacity-70">
                     {seg.text}
                   </span>
                 ) : (
