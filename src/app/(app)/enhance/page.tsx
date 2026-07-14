@@ -28,7 +28,8 @@ export default function EnhancePage() {
           modes below each transform it a different way.
         </p>
         <EnhanceComposer />
-        <div className="h-px bg-hair" />
+        {/* No hard divider — the media studio reads as part of the composer
+            column (its header + hint carry the section break). */}
         <MediaStudio />
         <Footer inset />
       </div>

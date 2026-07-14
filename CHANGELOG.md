@@ -15,6 +15,19 @@ All notable changes to VIZ(IO)N are documented here. The format follows
   Profile default-model picker (left edge of the select), on the Library
   model-filter chips, and beside the usage readout on each result.
 
+### Added — multi-photo queue, integrated into the composer column
+
+- **Attach several files at once** — each gets its own card (thumbnail, name,
+  size) with a staged Laser progress bar ("Uploading… / Analyzing with
+  {model}…"), then its visual description, usage chip, and Insert/Copy
+  actions. Files process sequentially (kinder to the rate limiter, cost cap,
+  and mobile radio); the 50 MB quota is enforced across the whole selection
+  before anything uploads.
+- **The media studio now reads as part of the composer column** — the hard
+  hairline divider is gone, a hint line ties it to the prompt box above, and
+  the attach control is a dashed glass tile. The generation studio (engine
+  chips · base prompt · save) tracks the most recently analyzed reference.
+
 ### Added — photo analysis by the selected model, with a description box
 
 - **Media analysis now runs on the model selected in the composer** (all six

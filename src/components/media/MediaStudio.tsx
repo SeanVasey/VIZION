@@ -6,6 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import { useUIStore } from "@/stores/ui";
 import { kindForMime, extractOnDevice, captureFrameDataUrl } from "@/lib/media/ondevice";
 import { buildGenerationPrompt, budgetStatus, formatBytes } from "@/lib/media/formatters";
+import { MEDIA_QUOTA_BYTES } from "@/lib/media/formatters";
+import {
+  admitFiles,
+  itemStepLabel,
+  patchItem,
+  type MediaItem,
+} from "@/lib/media/queue";
 import {
   GEN_TARGETS,
   DEFAULT_GEN_TARGET,
@@ -14,25 +21,22 @@ import {
   type MediaKind,
 } from "@/lib/media/types";
 import { savePromptAction } from "@/lib/library/actions";
-import { TARGET_MODELS, TARGET_DEVELOPER, type TargetModelId } from "@/lib/constants";
+import { TARGET_MODELS, TARGET_DEVELOPER } from "@/lib/constants";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
+import { StreamProgress } from "@/components/feedback/StreamProgress";
 import type { Json } from "@/lib/supabase/database.types";
-
-const MODEL_LABEL = new Map<string, string>(TARGET_MODELS.map((m) => [m.id, m.label]));
-
-/** Usage returned by /api/media for the per-analysis quick view. */
-interface AnalysisUsage {
-  tokenIn: number;
-  tokenOut: number;
-  costUsd: number;
-  target: TargetModelId;
-}
 
 /** Extraction pipeline flag (locked default: proxy, with on-device fallback). */
 const EXTRACTION =
   process.env.NEXT_PUBLIC_MEDIA_EXTRACTION === "ondevice" ? "ondevice" : "proxy";
 
-type Status = "idle" | "uploading" | "extracting" | "ready" | "error";
+const MODEL_LABEL = new Map<string, string>(TARGET_MODELS.map((m) => [m.id, m.label]));
+
+const KIND_GLYPH: Record<MediaKind, string> = {
+  image: "🖼",
+  video: "🎞",
+  audio: "🎧",
+};
 
 export function MediaStudio() {
   const targetModel = useUIStore((s) => s.targetModel);
@@ -40,13 +44,12 @@ export function MediaStudio() {
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const [status, setStatus] = useState<Status>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [kind, setKind] = useState<MediaKind | null>(null);
+  const [items, setItems] = useState<MediaItem[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  // The generation studio (targets · base prompt · save) tracks the most
+  // recently analyzed reference, same as the single-file era.
   const [attrs, setAttrs] = useState<MediaAttributes | null>(null);
-  const [description, setDescription] = useState<string | null>(null);
-  const [usage, setUsage] = useState<AnalysisUsage | null>(null);
-  const [inserted, setInserted] = useState(false);
+  const [kind, setKind] = useState<MediaKind | null>(null);
   const [genTarget, setGenTarget] = useState<GenTargetId>("midjourney");
   const [basePrompt, setBasePrompt] = useState("");
   const [usedBytes, setUsedBytes] = useState(0);
@@ -64,7 +67,19 @@ export function MediaStudio() {
       });
   }, []);
 
+  // Thumbnails are object URLs — revoke them all when the studio unmounts.
+  const thumbUrls = useRef<string[]>([]);
+  useEffect(
+    () => () => {
+      for (const url of thumbUrls.current) URL.revokeObjectURL(url);
+    },
+    [],
+  );
+
   const budget = budgetStatus(usedBytes);
+  const busy = items.some((it) =>
+    ["queued", "uploading", "analyzing"].includes(it.status),
+  );
 
   const generated = useMemo(() => {
     if (!attrs) return "";
@@ -72,60 +87,100 @@ export function MediaStudio() {
     return buildGenerationPrompt(base, attrs, genTarget);
   }, [attrs, basePrompt, editorDraft, genTarget]);
 
-  async function onFile(file: File) {
-    setError(null);
+  const patch = (id: string, p: Partial<MediaItem>) =>
+    setItems((prev) => patchItem(prev, id, p));
+
+  /** Admit the picked files, then process them one at a time (kinder to the
+   *  burst limiter, the cost cap, and a mobile radio than a parallel fan-out). */
+  async function onFiles(list: FileList) {
+    setNotice(null);
     setSavedId(null);
-    setDescription(null);
-    setUsage(null);
-    setInserted(false);
-    const k = kindForMime(file.type);
-    if (!k) {
-      setError("Unsupported file type.");
-      setStatus("error");
-      return;
+
+    const { admitted, rejected } = admitFiles(
+      Array.from(list),
+      kindForMime,
+      usedBytes,
+      MEDIA_QUOTA_BYTES,
+    );
+    if (rejected.length > 0) {
+      setNotice(
+        `${rejected.length} file${rejected.length === 1 ? "" : "s"} skipped — ${rejected[0]!.reason}`,
+      );
     }
-    setKind(k);
-    setGenTarget(DEFAULT_GEN_TARGET[k]);
+    if (admitted.length === 0) return;
 
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      setError("Sign in to attach media.");
-      setStatus("error");
+      setNotice("Sign in to attach media.");
       return;
     }
 
+    const queued = admitted.map(({ file, kind: k }) => {
+      const thumbUrl = k === "image" ? URL.createObjectURL(file) : undefined;
+      if (thumbUrl) thumbUrls.current.push(thumbUrl);
+      return {
+        item: {
+          id: crypto.randomUUID(),
+          name: file.name,
+          kind: k,
+          sizeBytes: file.size,
+          thumbUrl,
+          status: "queued",
+        } satisfies MediaItem,
+        file,
+      };
+    });
+    setItems((prev) => [...prev, ...queued.map((q) => q.item)]);
+
+    for (const { item, file } of queued) {
+      await processItem(supabase, user.id, item, file);
+    }
+  }
+
+  async function processItem(
+    supabase: ReturnType<typeof createClient>,
+    userId: string,
+    item: MediaItem,
+    file: File,
+  ) {
+    const k = item.kind;
+
     // Upload to the private media bucket under the owner's prefix.
-    setStatus("uploading");
+    patch(item.id, { status: "uploading" });
     const ext = file.name.split(".").pop() ?? "bin";
-    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("media")
       .upload(path, file, { contentType: file.type, upsert: false });
     if (upErr) {
-      setError(upErr.message);
-      setStatus("error");
+      patch(item.id, { status: "error", error: upErr.message });
       return;
     }
     setUsedBytes((b) => b + file.size);
 
     const { data: asset, error: insErr } = await supabase
       .from("media_assets")
-      .insert({ user_id: user.id, storage_path: path, kind: k, size_bytes: file.size })
+      .insert({ user_id: userId, storage_path: path, kind: k, size_bytes: file.size })
       .select("id")
       .single();
     if (insErr || !asset) {
-      setError(insErr?.message ?? "Couldn't record the asset.");
-      setStatus("error");
+      patch(item.id, {
+        status: "error",
+        error: insErr?.message ?? "Couldn't record the asset.",
+      });
       return;
     }
 
-    // Extract — proxy by default (image/video frame), on-device fallback/audio.
-    setStatus("extracting");
+    // Extract — proxy (selected model) by default, on-device fallback/audio.
+    patch(item.id, { status: "analyzing" });
     const onDevice = await extractOnDevice(file, k);
     let merged: MediaAttributes = onDevice;
+    let description: string | undefined;
+    let usage: MediaItem["usage"];
+    let analysisNote: string | undefined;
 
     if (EXTRACTION === "proxy" && k !== "audio") {
       const dataUrl = await captureFrameDataUrl(file, k);
@@ -139,27 +194,20 @@ export function MediaStudio() {
           });
           const data = await res.json().catch(() => ({}));
           if (res.ok && data.attributes) {
-            merged = {
-              ...onDevice,
-              ...data.attributes,
-              description: data.description ?? undefined,
-              source: "proxy",
-            };
-            if (typeof data.description === "string") setDescription(data.description);
+            description = typeof data.description === "string" ? data.description : undefined;
+            merged = { ...onDevice, ...data.attributes, description, source: "proxy" };
             if (data.usage) {
-              setUsage({
+              usage = {
                 tokenIn: data.usage.tokenIn ?? 0,
                 tokenOut: data.usage.tokenOut ?? 0,
                 costUsd: data.usage.costUsd ?? 0,
                 target: targetModel,
-              });
+              };
             }
           } else if (data.notConfigured) {
-            setError(
-              `${MODEL_LABEL.get(targetModel) ?? "This model"} isn't configured for vision — used on-device analysis.`,
-            );
+            analysisNote = `${MODEL_LABEL.get(targetModel) ?? "This model"} isn't configured for vision — used on-device analysis.`;
           } else if (!res.ok && data.error) {
-            setError(`${data.error} Used on-device analysis instead.`);
+            analysisNote = `${data.error} Used on-device analysis instead.`;
           }
         } catch {
           /* network — keep the on-device result */
@@ -171,8 +219,30 @@ export function MediaStudio() {
       .from("media_assets")
       .update({ extracted: merged as unknown as Json })
       .eq("id", asset.id);
+
+    patch(item.id, {
+      status: "ready",
+      attrs: merged,
+      description,
+      usage,
+      error: analysisNote,
+    });
     setAttrs(merged);
-    setStatus("ready");
+    setKind(k);
+    setGenTarget(DEFAULT_GEN_TARGET[k]);
+  }
+
+  function insertDescription(item: MediaItem) {
+    if (!item.description) return;
+    setEditorDraft(
+      editorDraft.trim()
+        ? `${editorDraft.trimEnd()}\n\n${item.description}`
+        : item.description,
+    );
+    patch(item.id, { inserted: true });
+    document
+      .getElementById("prompt-input")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   function save() {
@@ -192,15 +262,21 @@ export function MediaStudio() {
     });
   }
 
-  const busy = status === "uploading" || status === "extracting";
   const targets = GEN_TARGETS.filter((t) => !kind || t.kind === kind);
 
   return (
     <section className="flex flex-col gap-4" aria-label="Media to generation prompt">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl tracking-wide text-text">Media reference</h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl tracking-wide text-text">
+            Media reference
+          </h2>
+          <p className="font-body mt-0.5 text-xs text-silver">
+            Photos are analyzed by your selected model and feed the prompt above.
+          </p>
+        </div>
         {budget.warn && (
-          <span className="font-body text-xs text-amber">
+          <span className="font-body shrink-0 text-xs text-amber">
             ⚠ {formatBytes(budget.usedBytes)} / {formatBytes(budget.quotaBytes)}
           </span>
         )}
@@ -210,10 +286,10 @@ export function MediaStudio() {
         ref={fileInput}
         type="file"
         accept="image/*,video/*,audio/*"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void onFile(f);
+          if (e.target.files?.length) void onFiles(e.target.files);
           e.target.value = "";
         }}
       />
@@ -221,26 +297,120 @@ export function MediaStudio() {
         type="button"
         onClick={() => fileInput.current?.click()}
         disabled={busy || budget.over}
-        className="glass min-h-[48px] rounded-xl px-4 text-sm text-text disabled:opacity-60"
+        className="glass min-h-[48px] rounded-xl border border-dashed border-hair px-4 text-sm text-text transition-shadow hover:shadow-hair disabled:opacity-60"
       >
-        {status === "uploading"
-          ? "Uploading…"
-          : status === "extracting"
-            ? "Reading the details…"
-            : budget.over
-              ? "Storage full — remove media to continue"
-              : "📎 Attach image, video, or audio"}
+        {busy
+          ? "Working through your files…"
+          : budget.over
+            ? "Storage full — remove media to continue"
+            : "📎 Attach images, video, or audio"}
       </button>
 
-      {error && (
+      {notice && (
         <p className="font-body text-sm text-flare" role="alert">
-          {error}
+          {notice}
         </p>
+      )}
+
+      {/* One card per attached reference: thumb, staged progress, then the
+          model's visual description with its usage chip + insert action. */}
+      {items.length > 0 && (
+        <ul className="flex flex-col gap-3">
+          {items.map((item) => (
+            <li key={item.id} className="glass flex flex-col gap-3 rounded-2xl p-4">
+              <div className="flex items-center gap-3">
+                {item.thumbUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.thumbUrl}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface text-lg"
+                  >
+                    {KIND_GLYPH[item.kind]}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-body truncate text-sm text-text">{item.name}</p>
+                  <p className="font-body text-xs text-silver">
+                    {formatBytes(item.sizeBytes)}
+                  </p>
+                </div>
+                {item.usage && (
+                  <span className="font-body flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-silver">
+                    <DeveloperIcon
+                      developer={TARGET_DEVELOPER[item.usage.target]}
+                      className="h-3.5 w-3.5 shrink-0 text-accent"
+                    />
+                    {MODEL_LABEL.get(item.usage.target)} · {item.usage.tokenIn}→
+                    {item.usage.tokenOut} tok · ${item.usage.costUsd.toFixed(4)}
+                  </span>
+                )}
+              </div>
+
+              {["queued", "uploading", "analyzing"].includes(item.status) && (
+                <StreamProgress
+                  indeterminate
+                  step={itemStepLabel(item, MODEL_LABEL.get(targetModel) ?? "the model")}
+                />
+              )}
+
+              {item.status === "error" && (
+                <p className="font-body text-sm text-flare" role="alert">
+                  {item.error}
+                </p>
+              )}
+              {/* A soft note (vision fallback) on an otherwise ready item. */}
+              {item.status === "ready" && item.error && (
+                <p className="font-body text-xs text-amber" role="status">
+                  {item.error}
+                </p>
+              )}
+
+              {item.description && (
+                <>
+                  {/* OUTPUT REGION: model-written description renders in mono. */}
+                  <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
+                    {item.description}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {item.inserted ? (
+                      <span className="font-body inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-4 text-sm text-accent">
+                        ✓ In prompt
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => insertDescription(item)}
+                        className="btn-laser min-h-[44px] rounded-xl px-4 text-sm"
+                      >
+                        ↑ Insert into prompt
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigator.clipboard?.writeText(item.description ?? "")
+                      }
+                      className="glass min-h-[44px] rounded-xl px-4 text-sm text-text"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
 
       {attrs && (
         <>
-          {/* Detected attributes. */}
+          {/* Detected attributes (most recent reference). */}
           <div className="glass flex flex-col gap-2 rounded-2xl p-4">
             <p className="font-body text-xs uppercase tracking-wider text-silver">
               Detected · {attrs.source}
@@ -281,64 +451,6 @@ export function MediaStudio() {
                 ))}
             </dl>
           </div>
-
-          {/* Visual description — the model's prose read of the photo, with a
-              path straight back into the prompt box above. */}
-          {description && (
-            <div className="glass flex flex-col gap-3 rounded-2xl p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-body text-xs uppercase tracking-wider text-silver">
-                  Visual description
-                </p>
-                {usage && (
-                  <span className="font-body flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-silver">
-                    <DeveloperIcon
-                      developer={TARGET_DEVELOPER[usage.target]}
-                      className="h-3.5 w-3.5 shrink-0 text-accent"
-                    />
-                    {MODEL_LABEL.get(usage.target)} · {usage.tokenIn}→{usage.tokenOut}{" "}
-                    tok · ${usage.costUsd.toFixed(4)}
-                  </span>
-                )}
-              </div>
-              {/* OUTPUT REGION: model-written description renders in mono. */}
-              <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
-                {description}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {inserted ? (
-                  <span className="font-body inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-4 text-sm text-accent">
-                    ✓ In prompt
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditorDraft(
-                        editorDraft.trim()
-                          ? `${editorDraft.trimEnd()}\n\n${description}`
-                          : description,
-                      );
-                      setInserted(true);
-                      document
-                        .getElementById("prompt-input")
-                        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }}
-                    className="btn-laser min-h-[44px] rounded-xl px-4 text-sm"
-                  >
-                    ↑ Insert into prompt
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard?.writeText(description)}
-                  className="glass min-h-[44px] rounded-xl px-4 text-sm text-text"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Generation target + base prompt. */}
           <div className="flex flex-wrap gap-2">
