@@ -61,6 +61,10 @@ export function MediaStudio() {
   const [attrs, setAttrs] = useState<MediaAttributes | null>(null);
   const [kind, setKind] = useState<MediaKind | null>(null);
   const [genTarget, setGenTarget] = useState<GenTargetId>("midjourney");
+  // The model that actually analyzed the most-recent reference (credited,
+  // fallback-aware), or null for on-device analysis — drives the model-aware
+  // attribution badge in the generation studio.
+  const [genModel, setGenModel] = useState<TargetModelId | null>(null);
   const [basePrompt, setBasePrompt] = useState("");
   const [usedBytes, setUsedBytes] = useState(0);
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -328,6 +332,9 @@ export function MediaStudio() {
     setAttrs(merged);
     setKind(k);
     setGenTarget(DEFAULT_GEN_TARGET[k]);
+    // Credit the model that ran (usage.target is fallback-aware); null = the
+    // on-device path, which no model performed.
+    setGenModel(usage?.target ?? null);
   }
 
   function insertDescription(item: MediaItem) {
@@ -386,7 +393,9 @@ export function MediaStudio() {
     });
   }
 
-  const targets = GEN_TARGETS.filter((t) => !kind || t.kind === kind);
+  // The engine the generation prompt is formatted for (per-kind default now
+  // that the studio surfaces the analysis model instead of an engine picker).
+  const genEngineLabel = GEN_TARGETS.find((t) => t.id === genTarget)?.label;
 
   return (
     <section className="flex flex-col gap-4" aria-label="Media to generation prompt">
@@ -634,24 +643,24 @@ export function MediaStudio() {
             </dl>
           </div>
 
-          {/* Generation target + base prompt. */}
-          <div className="flex flex-wrap gap-2">
-            {targets.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setGenTarget(t.id)}
-                aria-pressed={genTarget === t.id}
-                className={[
-                  "font-body rounded-full px-3 py-1.5 text-xs transition-colors",
-                  genTarget === t.id
-                    ? "bg-laser text-on-laser"
-                    : "glass text-silver hover:text-chalk",
-                ].join(" ")}
-              >
-                {t.label}
-              </button>
-            ))}
+          {/* Analysis attribution — the model (with its developer mark) that
+              actually read this reference, so the studio is model-aware; falls
+              back to on-device. The generation prompt is formatted for the
+              engine named on its own header below. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-body inline-flex items-center gap-1.5 rounded-full border border-hair bg-surface px-3 py-1.5 text-xs text-silver">
+              {genModel ? (
+                <>
+                  <DeveloperIcon
+                    developer={TARGET_DEVELOPER[genModel]}
+                    className="h-3.5 w-3.5 shrink-0 text-accent"
+                  />
+                  Analyzed by {MODEL_LABEL.get(genModel) ?? genModel}
+                </>
+              ) : (
+                <>Analyzed on-device</>
+              )}
+            </span>
           </div>
           <label htmlFor="media-base-prompt" className="sr-only">
             Base prompt for generation
@@ -671,6 +680,7 @@ export function MediaStudio() {
           <div className="glass rounded-2xl p-4">
             <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
               Generation prompt
+              {genEngineLabel ? ` · ${genEngineLabel}` : ""}
             </p>
             {/* OUTPUT REGION: generation prompt body in mono (JetBrains). */}
             <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">

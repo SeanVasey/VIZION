@@ -6,6 +6,17 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — the media generation studio is model-aware
+
+- The green generation-**engine** chip (Midjourney / Runway / Sora / Kling /
+  Audio spec) is replaced by a **model-aware attribution badge** showing the
+  developer mark + the model that actually analyzed the reference (e.g.
+  "Analyzed by Opus 4.8", fallback-aware), or "Analyzed on-device". The
+  engine the prompt is formatted for now follows the per-kind default and is
+  named on the generation-prompt header ("Generation prompt · Midjourney"),
+  so that information isn't lost — at the cost of picking between the three
+  video engines from this screen.
+
 ### Fixed — the ambient background finally renders (it was built, never visible)
 
 - **The R4 ambient layer — neural-mesh canvas, aurora blooms, gradient
