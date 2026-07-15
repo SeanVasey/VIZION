@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MODES, type ModeId, type TargetModelId } from "@/lib/constants";
 import { diffWords, countChanges, type DiffSegment } from "@/lib/enhance/diff";
@@ -66,6 +66,20 @@ export function PromptDetail({
   const defaultA = current?.parent_ver ?? versions[versions.length - 2]?.id ?? defaultB;
   const [aId, setAId] = useState(defaultA);
   const [bId, setBId] = useState(defaultB);
+
+  // Re-seed the compare selects whenever the CURRENT version moves (save-as-
+  // new-version, restore): router.refresh() delivers new props to the same
+  // client instance, so state seeded at first render would keep labeling a
+  // superseded version as the current output (and copy the stale text).
+  const seededFor = useRef(currentId);
+  useEffect(() => {
+    if (seededFor.current === currentId || !currentId) return;
+    seededFor.current = currentId;
+    const cur = versions.find((v) => v.id === currentId);
+    setBId(currentId);
+    setAId(cur?.parent_ver ?? currentId);
+  }, [currentId, versions]);
+
   const a = versions.find((v) => v.id === aId);
   const b = versions.find((v) => v.id === bId);
   const segments: DiffSegment[] = a && b ? diffWords(a.output_text, b.output_text) : [];
@@ -404,10 +418,16 @@ function TagEditor({
   onSaved: () => void;
 }) {
   const [inputValue, setInputValue] = useState("");
+  // Optimistic local copy: the `tags` prop is stale until router.refresh()
+  // lands, so two quick edits computed from the prop would silently drop the
+  // first one — every commit derives from (and immediately updates) this.
+  const [localTags, setLocalTags] = useState(tags);
+  useEffect(() => setLocalTags(tags), [tags]);
   const [saving, startSave] = useTransition();
 
   function commit(next: string[]) {
     onError(null);
+    setLocalTags(next);
     startSave(async () => {
       const res = await updateTagsAction(promptId, next);
       if (res.ok) onSaved();
@@ -419,13 +439,13 @@ function TagEditor({
     const parsed = parseTags(inputValue);
     if (parsed.length === 0) return;
     setInputValue("");
-    const next = Array.from(new Set([...tags, ...parsed]));
-    if (next.length !== tags.length) commit(next);
+    const next = Array.from(new Set([...localTags, ...parsed]));
+    if (next.length !== localTags.length) commit(next);
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label="Tags">
-      {tags.map((t) => (
+      {localTags.map((t) => (
         <span
           key={t}
           className="font-body inline-flex items-center gap-1 rounded-full border border-hair bg-surface py-1 pl-3 pr-1 text-xs text-silver"
@@ -435,7 +455,7 @@ function TagEditor({
             type="button"
             aria-label={`Remove tag ${t}`}
             disabled={disabled || saving}
-            onClick={() => commit(tags.filter((x) => x !== t))}
+            onClick={() => commit(localTags.filter((x) => x !== t))}
             className="-my-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:text-chalk disabled:opacity-60"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3">

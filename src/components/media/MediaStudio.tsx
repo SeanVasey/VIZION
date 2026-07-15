@@ -308,16 +308,23 @@ export function MediaStudio() {
       usage,
       error: analysisNote,
     });
-    setStored((prev) => [
-      {
-        id: asset.id,
-        storage_path: path,
-        kind: k,
-        size_bytes: file.size,
-        created_at: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    // Dedupe by id: a concurrent removeStored → loadStored() can already have
+    // fetched this row (it's inserted at upload time, before the slow
+    // analysis), and a duplicate would also duplicate a React key.
+    setStored((prev) =>
+      prev.some((a) => a.id === asset.id)
+        ? prev
+        : [
+            {
+              id: asset.id,
+              storage_path: path,
+              kind: k,
+              size_bytes: file.size,
+              created_at: new Date().toISOString(),
+            },
+            ...prev,
+          ],
+    );
     setAttrs(merged);
     setKind(k);
     setGenTarget(DEFAULT_GEN_TARGET[k]);
@@ -366,8 +373,15 @@ export function MediaStudio() {
         if (res.ok && res.promptId) setSavedId(res.promptId);
         else setNotice(res.error ?? "Couldn't save to the library.");
       } catch {
-        await enqueueOutbox("save-prompt", payload);
-        setSaveQueued(true);
+        // Only a genuine offline throw belongs in the outbox — an online
+        // server failure would be re-queued and fail on every flush while
+        // the UI promises "syncs when online".
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+          await enqueueOutbox("save-prompt", payload);
+          setSaveQueued(true);
+        } else {
+          setNotice("Couldn't save to the library — try again.");
+        }
       }
     });
   }
