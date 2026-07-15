@@ -12,15 +12,16 @@
  * Caching strategy (FINAL_PLAN §3):
  *  - App shell + same-origin static assets (navigations, script/style/font/image)
  *    → StaleWhileRevalidate (`vizion-shell`). Instant loads, refresh in background.
- *  - `/api/enhance` + auth (Supabase `/api/auth`) → NetworkFirst (`vizion-enhance`)
- *    with a short network timeout. We NEVER serve a stale enhancement: there is no
- *    long-lived cache fallback here — the cache is a last resort only and entries
- *    expire almost immediately.
- *  - Library / history reads (`/api/library`, `/api/prompts`) → NetworkFirst with a
- *    real cache fallback (`vizion-library`, ~50 entries / 1 day) so saved work is
- *    visible offline.
- *  - Offline navigation fallback: a failed navigation serves the precached `/`
- *    shell document via `setCatchHandler`.
+ *    The page purges this cache whenever the auth gate is shown (register-sw.ts)
+ *    so a signed-out browser is never served the previous session's HTML.
+ *  - Model + auth endpoints are deliberately NOT routed: `/api/enhance` and
+ *    `/api/media` are POST-only (a GET runtime route can never match them, and
+ *    responses must never be cached), and Supabase `/auth/v1` responses carry
+ *    session PII that must not enter Cache Storage. Library data flows through
+ *    server components / server actions (also uncacheable), with the IndexedDB
+ *    outbox covering offline writes.
+ *  - Offline navigation fallback: a failed navigation serves the precached
+ *    `/offline.html` via `setCatchHandler`.
  */
 
 import { clientsClaim } from "workbox-core";
@@ -30,14 +31,12 @@ import {
   cleanupOutdatedCaches,
 } from "workbox-precaching";
 import { registerRoute, setCatchHandler } from "workbox-routing";
-import { StaleWhileRevalidate, NetworkFirst } from "workbox-strategies";
+import { StaleWhileRevalidate } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 
 // Centralized cache names.
 const SHELL_CACHE = "vizion-shell";
-const ENHANCE_CACHE = "vizion-enhance";
-const LIBRARY_CACHE = "vizion-library";
 
 // The offline navigation fallback. With auth gating, every app route redirects
 // depending on session state (so none is safe to precache as "the shell").
@@ -87,37 +86,12 @@ registerRoute(
   }),
 );
 
-// 2. Enhancement + auth → NetworkFirst, short timeout, never serve stale.
-registerRoute(
-  ({ url }) =>
-    url.pathname.startsWith("/api/enhance") ||
-    url.pathname.startsWith("/api/auth") ||
-    url.pathname.includes("/auth/v1"),
-  new NetworkFirst({
-    cacheName: ENHANCE_CACHE,
-    networkTimeoutSeconds: 10,
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-      // Effectively no stale fallback: keep at most a couple of entries for a
-      // few seconds so an enhancement is never served from a previous run.
-      new ExpirationPlugin({ maxEntries: 4, maxAgeSeconds: 30 }),
-    ],
-  }),
-);
-
-// 3. Library / history reads → NetworkFirst with cache fallback.
-registerRoute(
-  ({ url }) =>
-    url.pathname.startsWith("/api/library") || url.pathname.startsWith("/api/prompts"),
-  new NetworkFirst({
-    cacheName: LIBRARY_CACHE,
-    networkTimeoutSeconds: 10,
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 }),
-    ],
-  }),
-);
+// (Former runtime routes 2 and 3 are intentionally gone. Route 2 targeted
+// POST-only endpoints — GET-only runtime routes can never match them — so its
+// sole live effect was caching cross-origin Supabase /auth/v1 GET responses
+// (session PII) into Cache Storage. Route 3 targeted /api/library and
+// /api/prompts, endpoints that have never existed — library data flows through
+// server components and server actions. Dead-or-harmful config, removed.)
 
 // --- Offline navigation fallback -----------------------------------------
 

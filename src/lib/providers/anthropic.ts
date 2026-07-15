@@ -45,7 +45,11 @@ export async function* streamAnthropic(
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
     if (error instanceof Anthropic.APIError) {
-      throw new ProviderError("anthropic", `Opus request failed: ${error.message}`);
+      throw new ProviderError(
+        "anthropic",
+        `Opus request failed: ${error.message}`,
+        error.status,
+      );
     }
     throw new ProviderError(
       "anthropic",

@@ -80,3 +80,18 @@ export function computeCost(
 /** Per-user limits (env-overridable). Enforced on every model route. */
 export const RATE_LIMIT_PER_MIN = numEnv("RATE_LIMIT_PER_MIN", 20);
 export const COST_CAP_USD_PER_DAY = numEnv("COST_CAP_USD_PER_DAY", 2);
+
+/** Env var holding each provider's API key (keys are server-side only). */
+export const PROVIDER_KEY_ENV: Record<Provider, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+  google: "GOOGLE_API_KEY",
+  mistral: "MISTRAL_API_KEY",
+  xai: "XAI_API_KEY",
+};
+
+/** Whether a target's provider has its key set — lets routes fail a missing
+ *  key as a plain pre-stream 503 instead of discovering it mid-stream. */
+export function isProviderConfigured(target: TargetModelId): boolean {
+  return Boolean(process.env[PROVIDER_KEY_ENV[TARGETS[target].provider]]);
+}

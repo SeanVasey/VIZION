@@ -23,7 +23,7 @@ export function AuthHero() {
         className="h-auto w-[176px]"
       />
       <Wordmark className="text-3xl" />
-      <p className="font-body max-w-[280px] text-sm text-muted">
+      <p className="font-body max-w-[280px] text-pretty text-sm text-muted">
         Transform any prompt for the engine that&apos;s about to receive it.
       </p>
       <BrandPills />

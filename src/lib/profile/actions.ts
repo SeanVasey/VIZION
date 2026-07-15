@@ -47,6 +47,21 @@ export async function updateProfileAction(patch: ProfilePatch): Promise<ActionRe
     return { ok: false, error: error.message };
   }
 
+  // Identity edits log to the activity feed (spec §5 flow — the enum value
+  // existed but was never emitted). Preference flips (theme/default model)
+  // are deliberately not logged: they'd spam the feed on every toggle.
+  if (
+    update.full_name !== undefined ||
+    update.display_name !== undefined ||
+    update.avatar_url !== undefined
+  ) {
+    await supabase.from("activity_events").insert({
+      user_id: user.id,
+      type: "profile_updated",
+      meta: {},
+    });
+  }
+
   revalidatePath("/profile");
   return { ok: true };
 }

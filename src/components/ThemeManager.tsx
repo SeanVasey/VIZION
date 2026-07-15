@@ -8,8 +8,8 @@ import type { Theme } from "@/lib/constants";
 
 /** Locked surface colors per theme (tokens.css). */
 const SURFACE: Record<"dark" | "light", string> = {
-  dark: "#0F1012", // Void
-  light: "#F2F3F6", // Chalk
+  dark: "#0F1012", // Void (dark)
+  light: "#EEF0F4", // Void (light canvas) — matches tokens.css --void on light
 };
 
 /** Collapse `system` to a concrete dark/light using the OS preference. */

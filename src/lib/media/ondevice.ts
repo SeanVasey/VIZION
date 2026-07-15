@@ -170,9 +170,18 @@ export async function captureFrameDataUrl(
 function audioDuration(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
     const audio = document.createElement("audio");
+    // Revoke on both settle paths — the object URL pins the whole file blob
+    // in memory otherwise (one leak per audio attachment).
+    const url = URL.createObjectURL(file);
     audio.preload = "metadata";
-    audio.onloadedmetadata = () => resolve(audio.duration);
-    audio.onerror = () => reject(new Error("audio load failed"));
-    audio.src = URL.createObjectURL(file);
+    audio.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      resolve(audio.duration);
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("audio load failed"));
+    };
+    audio.src = url;
   });
 }

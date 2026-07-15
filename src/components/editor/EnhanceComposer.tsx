@@ -2,12 +2,18 @@
 
 import { useState } from "react";
 import { useUIStore } from "@/stores/ui";
-import { TARGET_MODELS, TARGET_DEVELOPER } from "@/lib/constants";
+import {
+  TARGET_MODELS,
+  TARGET_DEVELOPER,
+  type ModeId,
+  type TargetModelId,
+} from "@/lib/constants";
 import { useEnhance } from "@/lib/enhance/use-enhance";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
 import { StreamingResult } from "@/components/diff/StreamingResult";
+import { PartialOutput } from "@/components/diff/PartialOutput";
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -28,7 +34,15 @@ export function EnhanceComposer() {
 
   const enhanceMutation = useEnhance();
   const result = enhanceMutation.data;
-  const [submittedInput, setSubmittedInput] = useState("");
+  // Snapshot of what was actually SUBMITTED — input AND mode AND target.
+  // The result tree must read these, not the live store values: flipping the
+  // mode grid or target select after a run must not relabel the save payload,
+  // the exports, or the developer chip (R8).
+  const [submitted, setSubmitted] = useState<{
+    input: string;
+    mode: ModeId;
+    target: TargetModelId;
+  } | null>(null);
 
   // Cheap, deterministic token estimate (~4 chars/token) for the readout.
   const approxTokens = editorDraft.trim()
@@ -40,7 +54,7 @@ export function EnhanceComposer() {
   function runEnhance() {
     const input = editorDraft.trim();
     if (!input) return;
-    setSubmittedInput(input);
+    setSubmitted({ input, mode: activeMode, target: targetModel });
     enhanceMutation.mutate({ input, mode: activeMode, target: targetModel });
   }
 
@@ -120,21 +134,24 @@ export function EnhanceComposer() {
             bottom corners so the whole composer reads as one object. */}
         <div className="flex items-center justify-between gap-2 border-t border-hair px-2.5 py-2">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="font-body shrink-0 text-xs text-silver">📎 Media below</span>
-            <span
-              className="font-body shrink-0 text-xs text-silver"
-              aria-live="polite"
-            >
-              ⌁ {approxTokens} tokens
+            <span className="font-body shrink-0 text-xs text-silver">
+              <span aria-hidden="true">📎 </span>Media below
+            </span>
+            {/* No aria-live: the count changes per keystroke and would flood
+                screen readers — it's a passive visual readout. */}
+            <span className="font-body shrink-0 text-xs tabular-nums text-silver">
+              <span aria-hidden="true">⌁ </span>
+              {approxTokens} tokens
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {/* h-11 (44px tap target) with -my-1 so the rail keeps its height. */}
             {/* RESET stays live during a run — it aborts the stream. */}
             <button
               type="button"
               onClick={resetComposer}
               disabled={!enhanceMutation.isPending && isEmpty && !result}
-              className="btn-laser pill flex h-9 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
+              className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
             >
               <span aria-hidden="true">↺</span> RESET
             </button>
@@ -142,7 +159,7 @@ export function EnhanceComposer() {
               type="button"
               onClick={runEnhance}
               disabled={enhanceMutation.isPending || isEmpty}
-              className="btn-laser pill flex h-9 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
+              className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
             >
               {enhanceMutation.isPending ? "Enhancing…" : "► ENHANCE"}
             </button>
@@ -153,16 +170,24 @@ export function EnhanceComposer() {
       {/* Errors — provider-not-configured and cap messages get a friendly note.
           A deliberate cancel (status 0) is not an error the user should read. */}
       {enhanceMutation.isError && enhanceMutation.error.status !== 0 && (
-        <p
-          className={`font-body text-center text-sm ${
-            enhanceMutation.error.capReached ? "text-amber" : "text-flare"
-          }`}
-          role="alert"
-        >
-          {enhanceMutation.error.notConfigured
-            ? "This model isn't configured yet — add its API key on the server to enable it."
-            : enhanceMutation.error.message}
-        </p>
+        <>
+          <p
+            className={`font-body text-center text-sm ${
+              enhanceMutation.error.capReached ? "text-amber" : "text-flare"
+            }`}
+            role="alert"
+          >
+            {enhanceMutation.error.notConfigured
+              ? "This model isn't configured yet — add its API key on the server to enable it."
+              : enhanceMutation.error.message}
+          </p>
+          {/* Anything that already streamed in survives the failure — a run
+              that dies at 90% must not erase copyable work (the hook retains
+              partialOutput; it just was never rendered on error). */}
+          {enhanceMutation.stream.partialOutput && (
+            <PartialOutput text={enhanceMutation.stream.partialOutput} />
+          )}
+        </>
       )}
 
       {/* Amber storage/quota-style warning as the daily cap approaches. */}
@@ -185,11 +210,11 @@ export function EnhanceComposer() {
         />
       )}
 
-      {result && (
+      {result && submitted && (
         <TransformationDiff
-          input={submittedInput}
-          mode={activeMode}
-          target={targetModel}
+          input={submitted.input}
+          mode={submitted.mode}
+          target={submitted.target}
           result={result}
         />
       )}

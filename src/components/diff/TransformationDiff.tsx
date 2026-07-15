@@ -7,7 +7,7 @@ import type { EnhanceResponse } from "@/lib/enhance/use-enhance";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { countChanges } from "@/lib/enhance/diff";
 import { EXPORTERS, type ExportData, type ExportFormat } from "@/lib/enhance/export";
-import { savePromptAction } from "@/lib/library/actions";
+import { savePromptAction, logShareAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 
 /**
@@ -87,6 +87,10 @@ export function TransformationDiff({
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
         await navigator.share({ title: "VIZ(IO)N prompt", text });
+        // The activity feed advertises "shared" events — log them when the
+        // shared prompt is saved (the action existed, unwired). Swallow a
+        // failed log so it never becomes an unhandled rejection.
+        if (savedId) void logShareAction(savedId).catch(() => {});
         return;
       } catch {
         /* user cancelled or unsupported; fall through to copy */
@@ -115,9 +119,18 @@ export function TransformationDiff({
         <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
           Input
         </p>
-        {/* OUTPUT REGION: the prompt body renders in mono (JetBrains). */}
+        {/* OUTPUT REGION: the prompt body renders in mono (JetBrains).
+            Removed tokens are dimmed + struck on the input side (the diff's
+            documented contract) — equal + removed segments reconstruct the
+            input losslessly, so nothing the author typed is hidden. */}
         <p className="mono whitespace-pre-wrap break-words text-sm text-silver">
-          {input}
+          {result.diff.map((seg, i) =>
+            seg.op === "added" ? null : (
+              <span key={i} className={seg.op === "removed" ? "line-through opacity-60" : undefined}>
+                {seg.text}
+              </span>
+            ),
+          )}
         </p>
       </div>
 
@@ -136,7 +149,7 @@ export function TransformationDiff({
               type="button"
               onClick={copyOutput}
               aria-label={copied ? "Copied" : "Copy enhanced prompt"}
-              className="-my-2 -mr-1.5 flex h-11 w-11 items-center justify-center rounded-full text-silver transition-colors hover:text-chalk focus-visible:text-chalk"
+              className="-my-2 -mr-1.5 flex h-11 w-11 items-center justify-center rounded-full text-silver transition-[color,transform] duration-150 hover:text-chalk focus-visible:text-chalk active:scale-95"
             >
               {copied ? (
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-accent">
@@ -191,7 +204,7 @@ export function TransformationDiff({
           What changed
         </p>
         <p className="font-body text-sm text-text">{result.rationale}</p>
-        <p className="font-body mt-3 flex items-center gap-1.5 text-xs text-silver">
+        <p className="font-body mt-3 flex items-center gap-1.5 text-xs tabular-nums text-silver">
           <DeveloperIcon
             developer={TARGET_DEVELOPER[target]}
             className="h-3.5 w-3.5 shrink-0 text-accent"
@@ -219,7 +232,7 @@ export function TransformationDiff({
             type="button"
             onClick={save}
             disabled={saving}
-            className="glass min-h-[44px] rounded-xl px-4 text-sm text-text disabled:opacity-60"
+            className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save to library"}
           </button>
@@ -234,7 +247,7 @@ export function TransformationDiff({
         <button
           type="button"
           onClick={share}
-          className="glass min-h-[44px] rounded-xl px-4 text-sm text-text"
+          className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors"
         >
           Share
         </button>
@@ -244,7 +257,7 @@ export function TransformationDiff({
             key={fmt}
             type="button"
             onClick={() => download(fmt)}
-            className="glass min-h-[44px] rounded-xl px-3 text-xs uppercase text-silver hover:text-chalk"
+            className="glass min-h-[44px] rounded-xl px-3 text-xs uppercase text-silver transition-colors hover:text-chalk"
           >
             {fmt}
           </button>

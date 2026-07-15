@@ -33,7 +33,7 @@ export default async function PromptPage({
 
   return (
     <>
-      <ScreenHeader title="Prompt" />
+      <ScreenHeader title="Prompt" backHref="/library" />
       <div className="mx-auto max-w-screen-sm px-4 py-5">
         <PromptDetail prompt={prompt} versions={versions ?? []} />
       </div>

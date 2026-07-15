@@ -30,15 +30,26 @@ export default async function SetPasswordPage() {
     <div className="mx-auto flex min-h-[100dvh] max-w-sm flex-col items-center justify-center gap-8 px-6 pb-safe pt-safe">
       <div className="text-center">
         <Wordmark className="text-2xl" />
-        <h1 className="mt-4 font-display text-xl tracking-wide text-text">
+        <h1 className="mt-4 font-display text-balance text-xl tracking-wide text-text">
           Secure your account
         </h1>
-        <p className="mt-2 text-sm text-muted">
+        <p className="mt-2 text-pretty text-sm text-muted">
           Set a password so you can sign in even without a magic link. You can still use
           magic links any time.
         </p>
       </div>
       <SetPasswordForm />
+      {/* Escape hatch: this gate hides the nav and every app route bounces
+          back here — a magic link opened for the wrong account (shared
+          device) must still be able to switch accounts. */}
+      <form action="/auth/sign-out" method="post">
+        <button
+          type="submit"
+          className="font-body min-h-[44px] px-4 text-sm text-silver transition-colors hover:text-chalk"
+        >
+          Sign out
+        </button>
+      </form>
     </div>
   );
 }

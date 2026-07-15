@@ -22,7 +22,38 @@ export function buildGenerationPrompt(
   }
 }
 
-/** Midjourney prompt syntax: `<desc> --ar … --v …`. */
+/** Common Midjourney aspect ratios; the extracted dimensions snap to the
+ *  nearest one (deterministic, always-valid `--ar` syntax). */
+const MJ_RATIOS: readonly (readonly [number, number])[] = [
+  [1, 1],
+  [4, 3],
+  [3, 4],
+  [3, 2],
+  [2, 3],
+  [16, 9],
+  [9, 16],
+  [5, 4],
+  [4, 5],
+  [21, 9],
+];
+
+function nearestAspect(width: number, height: number): string {
+  const r = width / height;
+  let best = MJ_RATIOS[0]!;
+  let bestDiff = Number.POSITIVE_INFINITY;
+  for (const ratio of MJ_RATIOS) {
+    const diff = Math.abs(ratio[0] / ratio[1] - r);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = ratio;
+    }
+  }
+  return `${best[0]}:${best[1]}`;
+}
+
+/** Midjourney prompt syntax: `<desc> --ar … --v …`. The aspect ratio follows
+ *  the reference image's real extracted dimensions when known (a portrait
+ *  reference must not silently become 16:9); 16:9 stays the no-dims default. */
 function midjourney(base: string, a: MediaAttributes): string {
   const parts = [
     base.trim(),
@@ -35,7 +66,8 @@ function midjourney(base: string, a: MediaAttributes): string {
   ].filter((p): p is string => Boolean(p && p.trim()));
 
   const prompt = parts.join(", ");
-  const params = ["--ar 16:9", "--v 6"];
+  const ar = a.width && a.height ? nearestAspect(a.width, a.height) : "16:9";
+  const params = [`--ar ${ar}`, "--v 6"];
   return `${prompt} ${params.join(" ")}`.trim();
 }
 

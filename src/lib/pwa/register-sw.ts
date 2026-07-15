@@ -34,6 +34,23 @@ async function requestPersistentStorage(): Promise<void> {
 }
 
 /**
+ * The runtime cache that holds visited page HTML (see sw-src.js). Purged
+ * whenever the auth gate is shown so a signed-out browser is never served the
+ * previous session's cached pages.
+ */
+const SHELL_CACHE = "vizion-shell";
+
+function purgeShellCacheOnGate(): void {
+  try {
+    if (window.location.pathname === "/sign-in" && "caches" in window) {
+      void caches.delete(SHELL_CACHE);
+    }
+  } catch {
+    // Best-effort only; ignore failures.
+  }
+}
+
+/**
  * Register the VIZ(IO)N service worker. Safe to call on every client mount.
  */
 export function registerServiceWorker(): void {
@@ -42,6 +59,7 @@ export function registerServiceWorker(): void {
   }
 
   void requestPersistentStorage();
+  purgeShellCacheOnGate();
 
   navigator.serviceWorker
     .register("/sw.js", { scope: "/" })
@@ -58,6 +76,14 @@ export function registerServiceWorker(): void {
             installing.postMessage({ type: "SKIP_WAITING" });
           }
         });
+      });
+      // Long-lived standalone sessions never re-navigate, so the updatefound
+      // path above would otherwise have nothing to find: check for a new
+      // worker whenever the app returns to the foreground.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          void registration.update().catch(() => {});
+        }
       });
     })
     .catch(() => {

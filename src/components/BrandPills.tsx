@@ -9,9 +9,11 @@ export function BrandPills({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center justify-center gap-2 ${className}`}>
       <Pill>
+        {/* bg-accent (--accent-ink), not bg-laser: raw Laser is invisible on
+            the light pill surface (contrast law §6); dark is unchanged. */}
         <span
           aria-hidden="true"
-          className="inline-block h-1.5 w-1.5 rounded-full bg-laser"
+          className="inline-block h-1.5 w-1.5 rounded-full bg-accent"
         />
         VASEY/AI
       </Pill>

@@ -30,6 +30,9 @@ export async function* streamMistral(
   try {
     const stream = await client.chat.completions.create({
       model,
+      // Output ceiling for adapter parity (Anthropic caps at 16k). Classic
+      // max_tokens — Mistral 422s on unknown fields like max_completion_tokens.
+      max_tokens: 16_000,
       messages: [
         { role: "system", content: system },
         { role: "user", content: input },
@@ -52,7 +55,11 @@ export async function* streamMistral(
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
     if (error instanceof OpenAI.APIError) {
-      throw new ProviderError("mistral", `Mistral request failed: ${error.message}`);
+      throw new ProviderError(
+        "mistral",
+        `Mistral request failed: ${error.message}`,
+        error.status,
+      );
     }
     throw new ProviderError(
       "mistral",

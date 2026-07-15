@@ -7,7 +7,12 @@ import {
 
 interface GeminiResponse {
   candidates?: { content?: { parts?: { text?: string }[] } }[];
-  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    /** Thinking-model reasoning tokens — billed as output. */
+    thoughtsTokenCount?: number;
+  };
   error?: { message?: string };
 }
 
@@ -36,7 +41,14 @@ export async function* streamGoogle(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts: [{ text: input }] }],
-        generationConfig: { responseMimeType: "application/json" },
+        generationConfig: {
+          responseMimeType: "application/json",
+          // Output ceiling for adapter parity — 32k, not 16k: on the thinking
+          // target this budget includes thought tokens, and a heavy reasoning
+          // pass inside a 16k cap could truncate the JSON envelope mid-stream
+          // (turning a previously-good enhancement into a parse failure).
+          maxOutputTokens: 32_000,
+        },
       }),
     });
 
@@ -45,6 +57,7 @@ export async function* streamGoogle(
       throw new ProviderError(
         "google",
         `Gemini request failed: ${data.error?.message ?? res.statusText}`,
+        res.status,
       );
     }
 
@@ -76,7 +89,11 @@ export async function* streamGoogle(
               yield {
                 usage: {
                   tokenIn: data.usageMetadata.promptTokenCount ?? 0,
-                  tokenOut: data.usageMetadata.candidatesTokenCount ?? 0,
+                  // Thinking tokens are billed as output — dropping them
+                  // undercounts the daily cost cap for the thinking target.
+                  tokenOut:
+                    (data.usageMetadata.candidatesTokenCount ?? 0) +
+                    (data.usageMetadata.thoughtsTokenCount ?? 0),
                 },
               };
             }

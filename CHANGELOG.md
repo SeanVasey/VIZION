@@ -6,6 +6,115 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — the media generation studio is model-aware
+
+- The green generation-**engine** chip (Midjourney / Runway / Sora / Kling /
+  Audio spec) is replaced by a **model-aware attribution badge** showing the
+  developer mark + the model that actually analyzed the reference (e.g.
+  "Analyzed by Opus 4.8", fallback-aware), or "Analyzed on-device". The
+  engine the prompt is formatted for now follows the per-kind default and is
+  named on the generation-prompt header ("Generation prompt · Midjourney"),
+  so that information isn't lost — at the cost of picking between the three
+  video engines from this screen.
+
+### Fixed — the ambient background finally renders (it was built, never visible)
+
+- **The R4 ambient layer — neural-mesh canvas, aurora blooms, gradient
+  ground — was fully occluded in both themes since P1.** Two opaque fills
+  painted over the fixed `-z-10` background layer: the shell wrapper's
+  `bg-bg` and, decisively, the `body` gradient (a body background paints
+  *above* negative-z-index fixed layers; only the root element's background
+  sits beneath them). The 30fps canvas was animating invisibly on every
+  screen. Both fills are gone — `html`'s token background still guards
+  overscroll — and the frosted header/nav chrome now actually reveals the
+  glow it was designed around. Verified by screenshot in both themes.
+- **The mesh is now theme-aware and stable.** Node/link colors resolve from
+  `--silver`/`--accent-ink` (so the field is legible on the light canvas and
+  never paints raw Laser on light), re-resolve when `[data-theme]` flips,
+  survive viewport-chrome resizes without re-scattering (iOS URL-bar
+  collapse, Android keyboard), and honour `prefers-reduced-motion` changes
+  live instead of only at mount.
+
+### Fixed — correctness across the enhance, media, and provider layers
+
+- **The result tree now reads the submitted mode/target, not the live
+  selection.** Flipping the mode grid or target select after a run mislabeled
+  the save payload, the exports, and the developer chip.
+- **A client abort mid-stream no longer leaks spend past the daily cap.**
+  OpenAI-compatible providers only report usage in the final chunk; the
+  enhance route now estimates from streamed characters (~4 chars/token) when
+  a run dies before that, and both model routes log a failed ledger write.
+- **Gemini thinking tokens are billed as output** — `thoughtsTokenCount` now
+  counts toward the cost cap on the enhance and vision paths.
+- **A missing provider key 503s before the stream starts** (the documented
+  contract) instead of being discovered mid-SSE; every provider preserves the
+  upstream HTTP status on errors; all five providers now cap output tokens
+  (16k, matching Anthropic) and the OpenAI-compatible vision path enforces
+  JSON mode + a 1k output cap like its siblings.
+- **The Midjourney `--ar` follows the reference image's real dimensions**
+  (nearest standard ratio; 16:9 stays the no-dims default), and the on-device
+  audio probe no longer leaks a whole-file object URL per attachment.
+- **The 1px Laser focus ring never rendered** — Tailwind's universal
+  `--tw-shadow: 0 0 #0000` default made the `var()` fallback dead on every
+  element. The ring is now literal; keyboard focus finally shows the
+  spec's crisp Laser edge everywhere.
+- **The service worker no longer caches Supabase `/auth/v1` responses** (the
+  "enhance" runtime route could never match its own POST-only endpoints — its
+  sole live effect was caching session PII), the dead `/api/library` route
+  config is gone, the page-HTML cache is purged whenever the auth gate shows
+  (no more previous-session HTML after sign-out), concurrent outbox flushes
+  can no longer duplicate saves, and long-lived standalone sessions check for
+  SW updates on foreground.
+- **Light theme details:** the browser/status-bar tint now matches the light
+  canvas (`#EEF0F4`), and the footer's Laser hairline + brand-pill dot use
+  `--accent-ink` so they no longer vanish on light (contrast law §6).
+
+### Added — features that existed server-side but had no UI
+
+- **Password sign-in.** The set-password onboarding created a durable
+  email+password credential that could never be used — the gate now has a
+  quiet "Have a password?" toggle (spec §3.2/A4: email+password is the
+  durable credential, magic link the convenience).
+- **Tag editing.** `updateTagsAction` + `parseTags` existed since P4 with no
+  UI, leaving the library tag filter permanently empty — the prompt detail
+  screen now has an inline tag editor (add via Enter/comma, remove per chip).
+- **Storage management.** The 50 MB quota's "storage full — remove media to
+  continue" was a dead end with no removal affordance anywhere; the media
+  studio now lists stored assets (with delete) as the budget tightens, and
+  vision spend shows the same amber daily-cap warning as the composer.
+- **Branded 404 / error screens** (`not-found.tsx`, `error.tsx`) replace
+  Next's unstyled defaults inside the locked shell; a back chevron on the
+  prompt-detail header replaces the missing standalone-PWA way back; the
+  detail screen gained a copy affordance for the current version; "shared"
+  and "profile_updated" activity events (enum values with no emitter) are now
+  logged; restore events carry the prompt title so the feed stops dangling
+  "Restored a version of".
+- **Resilience details:** the sign-in form recovers from bfcache restores
+  (backing out of OAuth no longer strands every control disabled), the
+  "check your email" card has a "use a different email" escape, the
+  set-password gate has a sign-out escape, auth error slugs render as human
+  copy, media saves queue to the offline outbox like prompt saves, partial
+  streamed output survives a mid-run failure as a copyable card, and the
+  avatar cropper surfaces decode/crop failures instead of hanging on
+  "Loading…".
+
+### Changed — small modern touches within the locked design
+
+- Buttons ease (`filter` 120ms) with hover states on all three primitives
+  (disabled-guarded); chrome icon buttons and nav tabs give `active:scale-95`
+  press feedback; the mode help pill fades in; the streaming caret blinks;
+  text selection and scrollbars are tokenized; headings/copy use
+  `text-balance`/`text-pretty`; numeric readouts use tabular numerals
+  everywhere; composer CTAs are true 44px tap targets (as are footer
+  monograms and detail-screen controls); the mode rig is an honest
+  `radiogroup` with full arrow-key/roving-tabindex support; ThemeSegmented
+  drops its false radio semantics; live regions announce step changes only
+  (never per-token counts); the diff input card now dims removed tokens per
+  the diff contract; `STREAM_STEPS.parsing` is finally emitted; the stale
+  three-model copy in the app metadata + manifest names the six-target
+  roster; the offline fallback follows the OS theme, pads safe areas, and
+  self-recovers when connectivity returns.
+
 ### Fixed — a rejected provider key no longer kills photo analysis
 
 - **Media analysis now survives a provider key the vendor rejects.** Uploading

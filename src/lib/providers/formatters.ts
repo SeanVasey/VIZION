@@ -1,4 +1,4 @@
-import type { ModeId, TargetModelId } from "@/lib/constants";
+import { TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
 import { MODE_INSTRUCTIONS } from "@/lib/enhance/modes";
 
 /**
@@ -21,15 +21,11 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
     "Target engine: Mistral. Favor concise, explicit instructions with the context front-loaded and the expected output format stated inline; keep the prompt tight — this engine rewards economy over elaborate scaffolding.",
 };
 
-/** Display labels (kept in sync with constants TARGET_MODELS). */
-export const TARGET_LABEL: Record<TargetModelId, string> = {
-  opus_4_8: "Opus 4.8",
-  gpt_5_6_sol: "GPT-5.6 Sol",
-  fable_5: "Fable 5",
-  gemini_3_5_thinking: "Gemini 3.5 Thinking",
-  mistral_large_3: "Mistral Large 3",
-  grok_4_5: "Grok 4.5",
-};
+/** Display labels — mechanically derived from TARGET_MODELS so a roster
+ *  rename can't drift (the sibling TARGET_DEVELOPER map set the pattern). */
+export const TARGET_LABEL: Record<TargetModelId, string> = Object.fromEntries(
+  TARGET_MODELS.map((m) => [m.id, m.label]),
+) as Record<TargetModelId, string>;
 
 /**
  * Modes whose whole point is to stay close to the author's original wording and
@@ -88,20 +84,6 @@ export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
     "Do not wrap the JSON in markdown fences. Do not include any other text.",
   ].join("\n");
 }
-
-/** JSON schema describing the enhancement result, shared across providers. */
-export const ENHANCE_SCHEMA = {
-  type: "object",
-  properties: {
-    output: { type: "string", description: "The transformed prompt." },
-    rationale: {
-      type: "string",
-      description: "Plain-language explanation of what changed and why.",
-    },
-  },
-  required: ["output", "rationale"],
-  additionalProperties: false,
-} as const;
 
 export interface EnhancePayload {
   output: string;

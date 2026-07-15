@@ -481,6 +481,46 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   system libs got the full matrix green locally — don't skip the e2e gate just
   because the runner image is stale.
 
+## Integration review — features can ship "green" while a layer is invisible or unwired
+
+- **A `body` background paints ABOVE negative-z-index fixed layers.** Only the
+  ROOT element's background sits beneath a `position:fixed; z-index:-10` layer
+  (CSS 2.1 App. E paint order). The P1 body gradient therefore occluded the
+  entire R4 ambient background (mesh canvas + auroras) in both themes — the
+  canvas animated at 30fps, invisibly, on every screen, and every gate stayed
+  green because nothing *asserts* pixels. The committed docs/preview.png even
+  showed the flat background and nobody noticed. Lessons: (1) put page-wide
+  background ownership in ONE place (html guards, the fixed layer paints);
+  (2) an "is it actually visible?" screenshot beats any amount of code review
+  for layered/z-index work — my stacking-context *theory* pointed at the wrong
+  fill (the shell div) until pixel-sampling the render exposed the second one.
+- **`var(--tw-shadow, fallback)` is always dead under Tailwind.** Using any
+  shadow utility anywhere makes Tailwind emit `*,::before,::after
+  { --tw-shadow: 0 0 #0000 }`, so the custom-property fallback never fires —
+  the global focus ring's 1px Laser layer had never rendered. Write literals
+  in hand-authored CSS; utilities still override by cascade.
+- **Grep for server actions with no client callers.** `updateTagsAction`,
+  `logShareAction`, and the `profile_updated`/`shared` enum values were fully
+  built, RLS-policied, and dead — the library tag filter could never have
+  data. When a feature spans DB → action → UI, verify the LAST hop exists.
+- **ARIA roles are promises about keyboard behavior.** `role="tablist"`/
+  `role="radiogroup"` without arrow-key + roving-tabindex handling is worse
+  than no role. Either implement the pattern's keys or use humbler semantics
+  (`role="group"` + `aria-pressed`).
+- **Workbox runtime routes match GETs only.** Routes registered for POST-only
+  endpoints (`/api/enhance`) can never fire — the "enhance" route's only live
+  effect was caching cross-origin Supabase `/auth/v1` GETs (session PII) into
+  Cache Storage. Audit SW route matchers against the actual method + origin
+  of the traffic they claim to govern.
+- **Snapshot every input of a run, not just the big one.** The composer
+  snapshotted the submitted *input* (R8) but passed live `activeMode`/
+  `targetModel` to the result tree, so flipping either after a run mislabeled
+  saves/exports. If a result must be stable, snapshot the whole request.
+- **Subagent verification can vanish mid-flight** (session limits) — the
+  audit fan-out completed but all 105 verifiers died on quota. The fallback
+  that worked: verify each finding directly against the source before
+  implementing, and let the gate + screenshots be the arbiter.
+
 ## Media vision — a "configured" key can still be rejected by the provider
 
 - **Key present ≠ key permitted.** The vision path checked only that the env

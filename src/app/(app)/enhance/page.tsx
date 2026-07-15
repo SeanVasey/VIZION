@@ -23,7 +23,7 @@ export default function EnhancePage() {
       <div className="mx-auto flex max-w-screen-sm flex-col gap-8 px-4 py-5">
         {/* Guidance strip — a two-line orientation directly under the header;
             the per-mode detail lives in the ModeRig help pill. */}
-        <p className="font-body -mb-3 text-center text-sm text-silver">
+        <p className="font-body -mb-3 text-balance text-center text-sm text-silver">
           Paste a prompt and VIZ(IO)N rewrites it for your target model — the six
           modes below each transform it a different way.
         </p>

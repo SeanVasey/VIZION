@@ -26,13 +26,15 @@ export function Footer({ inset = false }: { inset?: boolean }) {
         inset ? "pb-6" : "pb-safe"
       }`}
     >
-      {/* Hairline divider: transparent → laser → transparent */}
+      {/* Hairline divider: transparent → accent → transparent. --accent-ink
+          keeps it Laser on dark but deep green on light — a 1px raw-Laser
+          stroke vanishes on the light canvas (contrast law §6). */}
       <div
         aria-hidden="true"
         className="mb-7 h-px w-12"
         style={{
           background:
-            "linear-gradient(90deg, transparent, var(--laser), transparent)",
+            "linear-gradient(90deg, transparent, var(--accent-ink), transparent)",
         }}
       />
 
@@ -43,7 +45,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Vasey Multimedia"
-          className="inline-flex items-center text-silver opacity-45 transition-opacity hover:opacity-75"
+          className="-m-2 inline-flex items-center p-2 text-silver opacity-45 transition-opacity hover:opacity-75"
         >
           <svg
             className="h-[31px] w-9"
@@ -65,7 +67,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="VASEY/AI"
-          className="inline-flex items-center text-silver opacity-45 transition-opacity hover:opacity-75"
+          className="-m-2 inline-flex items-center p-2 text-silver opacity-45 transition-opacity hover:opacity-75"
         >
           <svg
             className="h-12 w-12"
@@ -83,7 +85,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
       <p className="font-body mb-2 text-xs font-medium uppercase tracking-[0.25em] text-silver">
         A VASEY/AI Production
       </p>
-      <p className="font-mono mb-4 text-[11px] text-silver opacity-70">
+      <p className="font-mono mb-4 text-[11px] tabular-nums text-silver opacity-70">
         VIZ(IO)N v{APP_VERSION} · Multi-Model Prompt Studio
       </p>
       <p className="font-body text-[11px] leading-relaxed text-silver opacity-60">

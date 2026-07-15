@@ -41,7 +41,7 @@ NEXT_PUBLIC_MEDIA_EXTRACTION=proxy   # default — vision via the model proxy
 ## Storage
 
 - Private Supabase bucket **`media`** (not public); writes/reads scoped to the owner via
-  the `{user_id}/…` path prefix. The Midjourney image-ref uses a 7-day **signed URL**.
+  the `{user_id}/…` path prefix.
 - `media_assets` (RLS owner-only) records each attachment (`kind`, `storage_path`,
   `size_bytes`, `extracted` jsonb).
 - A per-user **50 MB** budget shows an **Amber** warning at 80% and blocks new uploads at
@@ -49,9 +49,10 @@ NEXT_PUBLIC_MEDIA_EXTRACTION=proxy   # default — vision via the model proxy
 
 ## Generation formatters
 
-`buildGenerationPrompt(base, attributes, target, refUrl?)` in
-`src/lib/media/formatters.ts` is pure and unit-tested:
+`buildGenerationPrompt(base, attributes, target)` in
+`src/lib/media/formatters.ts` is pure and unit-tested (no reference URL or
+image-weight flag is ever embedded — asserted by negative tests):
 
-- **Midjourney** — `<ref> <desc> --ar 16:9 --v 6 [--iw 1]`
+- **Midjourney** — `<desc> --ar <from extracted dimensions, default 16:9> --v 6`
 - **Runway / Sora / Kling** — labeled motion phrasing (`Subject / Camera & motion / …`)
 - **Audio** — structured spec (`Tempo / Timbre / Mood / Duration`)

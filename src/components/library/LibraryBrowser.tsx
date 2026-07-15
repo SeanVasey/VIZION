@@ -35,7 +35,9 @@ export function LibraryBrowser({ prompts }: { prompts: PromptCard[] }) {
   if (prompts.length === 0) {
     return (
       <div className="glass rounded-2xl p-6 text-center">
-        <p className="font-display text-xl tracking-wide text-text">Nothing saved yet</p>
+        <p className="font-display text-balance text-xl tracking-wide text-text">
+          Nothing saved yet
+        </p>
         <p className="mt-2 text-sm text-muted">
           Enhance a prompt and tap <span className="text-text">Save to library</span> — it
           lands here with full version history.
@@ -46,7 +48,11 @@ export function LibraryBrowser({ prompts }: { prompts: PromptCard[] }) {
 
   return (
     <section className="flex flex-col gap-4" aria-label="Saved prompts">
+      <label htmlFor="library-search" className="sr-only">
+        Search prompts
+      </label>
       <input
+        id="library-search"
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -110,7 +116,10 @@ const PromptRow = memo(function PromptRow({ prompt: p }: { prompt: PromptCard })
     <li>
       <Link
         href={`/library/${p.id}`}
-        className="glass block rounded-2xl p-4 transition-colors hover:border-hair"
+        // .hover-hair brightens the hairline (.glass already borders in
+        // --hair, so hover:border-hair was a no-op; a hover shadow would
+        // out-specify the focus ring).
+        className="glass hover-hair block rounded-2xl p-4 transition-colors"
       >
         <div className="flex items-start justify-between gap-3">
           <p className="font-body text-base text-text">{p.title}</p>
@@ -118,7 +127,7 @@ const PromptRow = memo(function PromptRow({ prompt: p }: { prompt: PromptCard })
             {MODEL_LABEL.get(p.target_model) ?? p.target_model}
           </span>
         </div>
-        <p className="font-body mt-1 text-xs text-silver">
+        <p className="font-body mt-1 text-xs tabular-nums text-silver">
           edited {relativeTime(p.updated_at)} · {p.versions} version
           {p.versions === 1 ? "" : "s"}
           {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
