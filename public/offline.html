@@ -65,9 +65,16 @@
       <p>VIZ(IO)N is offline — your saved work is safe on the server.</p>
     </main>
     <script>
-      // Self-recover: reload into the app the moment connectivity returns.
+      // Self-recover when connectivity returns. reload() retries the URL the
+      // user actually navigated to (the SW served this document at that URL),
+      // so their intended destination is preserved rather than discarded to
+      // "/". A once-guard stops a flapping connection from bouncing through
+      // repeated navigations.
+      var recovered = false;
       window.addEventListener("online", function () {
-        window.location.replace("/");
+        if (recovered) return;
+        recovered = true;
+        window.location.reload();
       });
     </script>
   </body>

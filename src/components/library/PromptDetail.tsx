@@ -7,6 +7,7 @@ import { diffWords, countChanges, type DiffSegment } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
 import { useEnhance } from "@/lib/enhance/use-enhance";
 import { StreamingResult } from "@/components/diff/StreamingResult";
+import { PartialOutput } from "@/components/diff/PartialOutput";
 import {
   addVersionAction,
   restoreVersionAction,
@@ -364,11 +365,18 @@ export function PromptDetail({
         {/* A deliberate cancel (status 0) is not an error the user should read
             — same contract as the composer. */}
         {enhanceMutation.isError && enhanceMutation.error.status !== 0 && (
-          <p className="font-body text-sm text-flare" role="alert">
-            {enhanceMutation.error.notConfigured
-              ? "This model isn't configured yet — add its API key on the server."
-              : enhanceMutation.error.message}
-          </p>
+          <>
+            <p className="font-body text-sm text-flare" role="alert">
+              {enhanceMutation.error.notConfigured
+                ? "This model isn't configured yet — add its API key on the server."
+                : enhanceMutation.error.message}
+            </p>
+            {/* Same as the composer: text that already streamed survives a
+                mid-run failure as a copyable card. */}
+            {enhanceMutation.stream.partialOutput && (
+              <PartialOutput text={enhanceMutation.stream.partialOutput} />
+            )}
+          </>
         )}
         {/* Live stream surface while the re-enhance is in flight — the same
             footprint the finished preview replaces (parity with the composer;
@@ -427,11 +435,22 @@ function TagEditor({
 
   function commit(next: string[]) {
     onError(null);
+    const prev = localTags;
     setLocalTags(next);
     startSave(async () => {
-      const res = await updateTagsAction(promptId, next);
-      if (res.ok) onSaved();
-      else onError(res.error ?? "Couldn't update tags.");
+      try {
+        const res = await updateTagsAction(promptId, next);
+        if (res.ok) onSaved();
+        else {
+          setLocalTags(prev); // roll the optimistic update back
+          onError(res.error ?? "Couldn't update tags.");
+        }
+      } catch {
+        // A network-level throw inside a React 19 async transition would
+        // otherwise escape to the route error boundary; keep it local.
+        setLocalTags(prev);
+        onError("Couldn't update tags — check your connection.");
+      }
     });
   }
 

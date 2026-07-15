@@ -88,8 +88,9 @@ export function TransformationDiff({
       try {
         await navigator.share({ title: "VIZ(IO)N prompt", text });
         // The activity feed advertises "shared" events — log them when the
-        // shared prompt is saved (the action existed, unwired).
-        if (savedId) void logShareAction(savedId);
+        // shared prompt is saved (the action existed, unwired). Swallow a
+        // failed log so it never becomes an unhandled rejection.
+        if (savedId) void logShareAction(savedId).catch(() => {});
         return;
       } catch {
         /* user cancelled or unsupported; fall through to copy */
