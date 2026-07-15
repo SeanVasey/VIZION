@@ -8,7 +8,7 @@ The enhance engine routes each **target** to its provider. Keys are **server-sid
 ```
 ANTHROPIC_API_KEY=   # Opus 4.8 + Fable 5 targets
 OPENAI_API_KEY=      # GPT-5.6 Sol target
-GOOGLE_API_KEY=      # Gemini 3.5 Thinking target
+GOOGLE_API_KEY=      # Gemini 3.5 Flash target
 XAI_API_KEY=         # Grok 4.5 target — NEW with the five-model roster
 ```
 
@@ -36,11 +36,11 @@ Defaults live in `src/lib/providers/config.ts`; override per deployment:
 MODEL_OPUS=claude-opus-4-8         # default
 MODEL_GPT=gpt-5.6-sol              # default — point at your deployed OpenAI model
 MODEL_FABLE=claude-fable-5         # default
-MODEL_GEMINI=gemini-3.5-thinking   # default — point at your deployed Gemini model
+MODEL_GEMINI=gemini-3.5-flash      # default — point at your deployed Gemini model
 MODEL_GROK=grok-4.5                # default — point at your deployed xAI model
 ```
 
-`GPT-5.6 Sol`, `Gemini 3.5 Thinking`, and `Grok 4.5` are the named product targets; set
+`GPT-5.6 Sol`, `Gemini 3.5 Flash`, and `Grok 4.5` are the named product targets; set
 the env to the exact model string your account serves. Swapping a model is a config
 change, not a refactor.
 

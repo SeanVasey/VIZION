@@ -39,9 +39,9 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
   },
   gemini_3_5_thinking: {
     provider: "google",
-    model: process.env.MODEL_GEMINI ?? "gemini-3.5-thinking",
-    priceIn: numEnv("PRICE_GEMINI_IN", 2),
-    priceOut: numEnv("PRICE_GEMINI_OUT", 10),
+    model: process.env.MODEL_GEMINI ?? "gemini-3.5-flash",
+    priceIn: numEnv("PRICE_GEMINI_IN", 0.3),
+    priceOut: numEnv("PRICE_GEMINI_OUT", 1.2),
   },
   mistral_large_3: {
     provider: "mistral",

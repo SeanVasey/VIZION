@@ -19,7 +19,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Re-target — the same i
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZ(IO)N
 > _transforms_ it — across five target models (Opus 4.8 · GPT-5.6 Sol · Fable 5 ·
-> Gemini 3.5 Thinking · Grok 4.5), six enhancement modes, and media-aware prompt
+> Gemini 3.5 Flash · Grok 4.5), six enhancement modes, and media-aware prompt
 > construction, with accounts and a versioned prompt library.
 
 <div align="center">

@@ -18,7 +18,7 @@ NEXT_PUBLIC_MEDIA_EXTRACTION=proxy   # default — vision via the model proxy
 - **provider fallback**: when the selected model fails for a _config-shaped_ reason —
   missing key, a key the provider rejects (401/403), or an unknown model string
   (404) — the route retries once on the first _other_ configured provider
-  (Opus 4.8 first, then GPT-5.6 Sol · Gemini 3.5 Thinking · Mistral Large 3 ·
+  (Opus 4.8 first, then GPT-5.6 Sol · Gemini 3.5 Flash · Mistral Large 3 ·
   Grok 4.5). The response carries
   `fallbackFrom` + the real `usage.target`; usage is logged (and the chip credited)
   against the model that actually analyzed, and the card shows a soft note.
