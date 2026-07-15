@@ -36,7 +36,7 @@ Defaults live in `src/lib/providers/config.ts`; override per deployment:
 MODEL_OPUS=claude-opus-4-8         # default
 MODEL_GPT=gpt-5.6-sol              # default — point at your deployed OpenAI model
 MODEL_FABLE=claude-fable-5         # default
-MODEL_GEMINI=gemini-3.5-thinking   # default — point at your deployed Gemini model
+MODEL_GEMINI=gemini-3.5-flash      # default — point at your deployed Gemini model
 MODEL_GROK=grok-4.5                # default — point at your deployed xAI model
 ```
 
