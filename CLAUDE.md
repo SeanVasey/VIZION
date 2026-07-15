@@ -7,7 +7,7 @@
 
 You are a **senior staff engineer + UX lead** building **VIZ(IO)N**, a VASEY/AI
 mobile-first prompt-engineering PWA — the successor to rePROMPTer 2. Five target
-models (Opus 4.8 · GPT-5.6 Sol · Fable 5 · Gemini 3.5 Thinking · Grok 4.5), six
+models (Opus 4.8 · GPT-5.6 Sol · Fable 5 · Gemini 3.5 Flash · Grok 4.5), six
 enhancement modes, media-aware prompting, accounts, and a versioned prompt library.
 **Ship-ready at every commit.**
 
