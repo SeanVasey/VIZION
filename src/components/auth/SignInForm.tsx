@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ProviderIcon } from "@/components/auth/ProviderIcon";
 
@@ -15,19 +15,57 @@ const PROVIDER_LABEL = {
   google: "Continue with Google",
 } as const;
 
+/** Human copy for the machine slugs the auth callback/confirm routes emit. */
+const ERROR_COPY: Record<string, string> = {
+  missing_code: "That sign-in link was incomplete — request a fresh one.",
+  invalid_link: "That sign-in link is invalid or has expired — request a fresh one.",
+};
+
 export function SignInForm({ initialError }: { initialError?: string }) {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  // Magic link is the default entry; the password path exercises the durable
+  // credential set during onboarding (product-spec §3.2 / A4).
+  const [withPassword, setWithPassword] = useState(false);
   const [status, setStatus] = useState<Status>(
-    initialError ? { kind: "error", message: initialError } : { kind: "idle" },
+    initialError
+      ? { kind: "error", message: ERROR_COPY[initialError] ?? initialError }
+      : { kind: "idle" },
   );
+
+  // Backing out of the OAuth consent screen can restore this page from the
+  // back/forward cache with `sending` state intact — every control would stay
+  // disabled with no way back. pageshow(persisted) returns the form to idle.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setStatus({ kind: "idle" });
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
-  async function sendMagicLink(e: React.FormEvent) {
+  async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
     setStatus({ kind: "sending" });
     const supabase = createClient();
+
+    if (withPassword) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) {
+        setStatus({ kind: "error", message: error.message });
+        return;
+      }
+      // Full navigation so middleware sees the fresh session cookies.
+      window.location.assign("/enhance");
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: { emailRedirectTo: `${origin}/auth/callback` },
@@ -54,12 +92,23 @@ export function SignInForm({ initialError }: { initialError?: string }) {
         className="glass mx-auto w-full max-w-[300px] rounded-2xl p-5 text-center"
         role="status"
       >
-        <p className="font-display text-xl tracking-wide text-text">Check your email</p>
-        <p className="font-body mt-2 text-sm text-muted">
+        <p className="font-display text-balance text-xl tracking-wide text-text">
+          Check your email
+        </p>
+        <p className="font-body mt-2 text-pretty text-sm text-muted">
           We sent a magic link to{" "}
           <span className="font-body font-medium text-text">{email}</span>. Open it on
           this device to continue.
         </p>
+        {/* Not a dead end: a typo'd address needs an in-app way back (the
+            installed PWA has no URL bar to reload from). */}
+        <button
+          type="button"
+          onClick={() => setStatus({ kind: "idle" })}
+          className="font-body mt-3 min-h-[44px] text-sm text-accent underline-offset-4 hover:underline"
+        >
+          Use a different email
+        </button>
       </div>
     );
   }
@@ -87,8 +136,9 @@ export function SignInForm({ initialError }: { initialError?: string }) {
         <span className="h-px flex-1 bg-hair" />
       </div>
 
-      {/* Magic email link. */}
-      <form onSubmit={sendMagicLink} className="flex flex-col gap-2">
+      {/* Email — magic link by default, or the password credential set during
+          onboarding (A4: email+password is the durable path). */}
+      <form onSubmit={submitEmail} className="flex flex-col gap-2">
         <label htmlFor="email" className="sr-only">
           Email address
         </label>
@@ -97,18 +147,51 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           type="email"
           inputMode="email"
           autoComplete="email"
+          enterKeyHint={withPassword ? "next" : "send"}
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
           className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-center text-base text-text placeholder:text-muted focus:outline-none"
         />
+        {withPassword && (
+          <>
+            <label htmlFor="password" className="sr-only">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              enterKeyHint="go"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-center text-base text-text placeholder:text-muted focus:outline-none"
+            />
+          </>
+        )}
         <button
           type="submit"
           disabled={busy}
           className="btn-laser font-body flex min-h-[48px] items-center justify-center rounded-xl px-6 text-base disabled:opacity-60"
         >
-          {busy ? "Sending…" : "Email me a magic link"}
+          {busy
+            ? withPassword
+              ? "Signing in…"
+              : "Sending…"
+            : withPassword
+              ? "Sign in"
+              : "Email me a magic link"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setWithPassword((v) => !v)}
+          className="font-body min-h-[44px] text-sm text-silver transition-colors hover:text-chalk"
+        >
+          {withPassword ? "Use a magic link instead" : "Have a password? Sign in with it"}
         </button>
       </form>
 

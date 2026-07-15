@@ -27,7 +27,7 @@ export function ActivityFeed({ events }: { events: Event[] }) {
   return (
     <section aria-label="Activity">
       <h2 className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
-        ⟲ Activity
+        <span aria-hidden="true">⟲ </span>Activity
       </h2>
       {events.length === 0 ? (
         <div className="glass rounded-2xl p-5 text-center text-sm text-muted">
@@ -35,16 +35,20 @@ export function ActivityFeed({ events }: { events: Event[] }) {
           events.
         </div>
       ) : (
-        <ul className="glass flex flex-col divide-y divide-hair rounded-2xl">
+        // overflow-hidden clips the row hover fill to the rounded corners.
+        <ul className="glass flex flex-col divide-y divide-hair overflow-hidden rounded-2xl">
           {events.map((e) => {
             const title =
               e.meta && typeof e.meta === "object" && "title" in e.meta
                 ? String((e.meta as Record<string, unknown>).title)
                 : null;
+            // Older "restored" rows carry no title — don't dangle "…of".
+            const verb =
+              e.type === "restored" && !title ? "Restored a version" : VERB[e.type];
             const body = (
               <div className="flex items-center justify-between gap-3 px-4 py-3">
                 <span className="font-body text-sm text-text">
-                  {VERB[e.type]}
+                  {verb}
                   {e.type !== "profile_updated" && title ? (
                     <span className="text-silver"> “{title}”</span>
                   ) : null}
@@ -57,7 +61,10 @@ export function ActivityFeed({ events }: { events: Event[] }) {
             return (
               <li key={e.id}>
                 {e.prompt_id ? (
-                  <Link href={`/library/${e.prompt_id}`} className="block">
+                  <Link
+                    href={`/library/${e.prompt_id}`}
+                    className="block transition-colors hover:bg-surface"
+                  >
                     {body}
                   </Link>
                 ) : (

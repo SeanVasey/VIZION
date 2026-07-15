@@ -27,7 +27,7 @@ export function ThemeToggle() {
       onClick={() => setTheme(NEXT[theme])}
       aria-label={`Theme: ${theme}. Switch to ${NEXT[theme]}.`}
       title={`Theme: ${theme}`}
-      className="glass flex h-11 w-11 items-center justify-center rounded-xl text-lg text-silver transition-colors hover:text-accent"
+      className="glass flex h-11 w-11 items-center justify-center rounded-xl text-lg text-silver transition-[color,transform] duration-150 hover:text-accent active:scale-95"
     >
       <span aria-hidden="true">{GLYPH[theme]}</span>
     </button>
@@ -40,17 +40,15 @@ export function ThemeSegmented() {
   const setTheme = useSetTheme();
 
   return (
-    <div
-      role="radiogroup"
-      aria-label="Theme"
-      className="glass inline-flex rounded-xl p-1"
-    >
+    // A group of toggle buttons, not role="radiogroup": radios promise an
+    // arrow-key roving-tabindex contract these plain tab stops don't implement;
+    // aria-pressed matches the actual Tab+Enter behavior (WCAG AA).
+    <div role="group" aria-label="Theme" className="glass inline-flex rounded-xl p-1">
       {THEMES.map((t) => (
         <button
           key={t}
           type="button"
-          role="radio"
-          aria-checked={theme === t}
+          aria-pressed={theme === t}
           onClick={() => setTheme(t)}
           className={[
             "rounded-lg px-3 py-2 text-sm capitalize transition-colors",

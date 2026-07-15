@@ -148,17 +148,21 @@ export async function restoreVersionAction(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
 
-  const { error } = await supabase
+  // Grab the title in the same round trip so the activity feed can render
+  // "Restored a version of “<title>”" instead of a dangling verb.
+  const { data: updated, error } = await supabase
     .from("prompts")
     .update({ current_ver: versionId })
-    .eq("id", promptId);
+    .eq("id", promptId)
+    .select("title")
+    .single();
   if (error) return { ok: false, error: error.message };
 
   await supabase.from("activity_events").insert({
     user_id: user.id,
     prompt_id: promptId,
     type: "restored",
-    meta: { version_id: versionId },
+    meta: { version_id: versionId, title: updated?.title },
   });
 
   revalidatePath(`/library/${promptId}`);

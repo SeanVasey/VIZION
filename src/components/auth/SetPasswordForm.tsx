@@ -32,7 +32,7 @@ export function SetPasswordForm() {
         required
         minLength={8}
         placeholder="New password"
-        className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-base text-text placeholder:text-muted focus:outline-none"
+        className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-center text-base text-text placeholder:text-muted focus:outline-none"
       />
       <label htmlFor="confirm" className="sr-only">
         Confirm password
@@ -45,7 +45,7 @@ export function SetPasswordForm() {
         required
         minLength={8}
         placeholder="Confirm password"
-        className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-base text-text placeholder:text-muted focus:outline-none"
+        className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-center text-base text-text placeholder:text-muted focus:outline-none"
       />
       <button
         type="submit"

@@ -27,6 +27,8 @@ export async function* streamXAI(
   try {
     const stream = await client.chat.completions.create({
       model,
+      // Output ceiling for adapter parity (Anthropic caps at 16k).
+      max_tokens: 16_000,
       messages: [
         { role: "system", content: system },
         { role: "user", content: input },
@@ -50,7 +52,7 @@ export async function* streamXAI(
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
     if (error instanceof OpenAI.APIError) {
-      throw new ProviderError("xai", `Grok request failed: ${error.message}`);
+      throw new ProviderError("xai", `Grok request failed: ${error.message}`, error.status);
     }
     throw new ProviderError(
       "xai",

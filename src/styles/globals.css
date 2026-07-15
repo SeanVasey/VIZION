@@ -29,7 +29,11 @@
   }
 
   body {
-    background: linear-gradient(180deg, var(--void) 0%, var(--lift) 100%) fixed;
+    /* NO background here. A body background paints ABOVE negative-z-index
+       fixed layers (only the ROOT element's background sits beneath them), so
+       the P1-era gradient was silently occluding the entire R4 ambient layer
+       (mesh canvas + aurora + .bg-mesh-ground) in both themes. The ambient
+       layer owns the canvas; html's background-color guards overscroll. */
     color: var(--text);
     font-family: var(--font-body);
     line-height: 1.55;
@@ -40,30 +44,44 @@
     min-height: 100dvh;
   }
 
-  :root[data-theme="light"] body,
-  :root[data-theme="system"] body {
-    background: var(--bg) fixed;
-  }
-
-  /* Visible focus everywhere — Laser edge-glow (style-guide §1.4). */
+  /* Visible focus everywhere — Laser edge-glow (style-guide §1.4).
+     The ring is a literal: Tailwind's universal defaults define --tw-shadow
+     (0 0 #0000) on every element, so a var(--tw-shadow, ring) fallback never
+     renders. Utilities like focus-visible:shadow-none still override this by
+     cascade (utilities layer + higher specificity). */
   :focus-visible {
     outline: none;
     box-shadow:
-      var(--tw-shadow, 0 0 0 1px var(--laser)),
+      0 0 0 1px var(--laser),
       0 0 24px var(--laser-glow);
     border-radius: 8px;
   }
 
-  /* Respect reduced-motion preferences (WCAG AA). */
+  /* Respect reduced-motion preferences (WCAG AA). animation-delay is zeroed
+     too — a delayed `both`-fill animation (footer fade) would otherwise hold
+     its FROM state (invisible) for the whole delay and then pop. */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+
+  /* Tokenized text selection — the UA default blue is the only untokenized
+     color on the surface. Laser at low alpha reads in both themes. */
+  ::selection {
+    background-color: color-mix(in srgb, var(--laser) 30%, transparent);
+  }
+
+  /* Quiet, token-driven scrollbars (Firefox + Chromium 121+). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--hair) transparent;
   }
 }
 
@@ -105,13 +123,6 @@
     box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28);
   }
 
-  /* The "focused" elevation tier — glass + Laser edge-light. */
-  .glass-focus {
-    box-shadow:
-      0 0 0 1px var(--laser),
-      0 0 24px var(--laser-glow);
-  }
-
   /* Primary CTA — ALWAYS --on-laser ink on a Laser fill (never the reverse),
      in BOTH themes.  Pill radius, Laser focus ring (via :focus-visible). */
   .btn-laser {
@@ -121,8 +132,12 @@
     font-weight: 600;
     border: none;
     border-radius: 12px;
+    transition: filter 120ms ease;
   }
-  .btn-laser:active {
+  .btn-laser:hover:not(:disabled) {
+    filter: brightness(1.05);
+  }
+  .btn-laser:active:not(:disabled) {
     filter: brightness(0.94);
   }
 
@@ -135,8 +150,12 @@
     font-weight: 500;
     border: 1px solid var(--hair);
     border-radius: 12px;
+    transition: filter 120ms ease;
   }
-  .btn-secondary:active {
+  .btn-secondary:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  .btn-secondary:active:not(:disabled) {
     filter: brightness(1.06);
   }
 
@@ -148,6 +167,13 @@
     font-weight: 500;
     border: 1px solid var(--hair);
     border-radius: 12px;
+    transition: border-color 120ms ease;
+  }
+  .btn-destructive:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--flare) 45%, transparent);
+  }
+  .btn-destructive:active:not(:disabled) {
+    filter: brightness(0.92);
   }
 
   /* Pill modifier for the hero CTAs (Enhance, auth buttons). */
@@ -176,10 +202,6 @@
   .pr-safe {
     padding-right: env(safe-area-inset-right);
   }
-  .min-h-screen-safe {
-    min-height: 100dvh;
-  }
-
   /* Editor surface: suppress pull-to-refresh so in-progress text is protected. */
   .no-pull-refresh {
     overscroll-behavior: contain;
@@ -240,18 +262,6 @@
     }
   }
 
-  /* Theme-adaptive brand monograms (R7): native on dark, inverted on light so
-     Sean's real SVG files stay legible without recolouring/redrawing them. */
-  :root[data-theme="light"] .monogram,
-  :root[data-theme="system"] .monogram {
-    filter: invert(1);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root[data-theme="system"] .monogram {
-      filter: none;
-    }
-  }
-
   /* Footer entry — a quiet rise-and-fade; neutralized by the reduced-motion
      rule in the base layer (template v1.1, {{ANIM_DELAY}} = 0.8s). */
   .footer-fade-in {
@@ -261,6 +271,22 @@
     from {
       opacity: 0;
       transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Quiet entrance for the mode help pill — matches the app's small-motion
+     language; neutralized by the base-layer reduced-motion rule. */
+  .tooltip-in {
+    animation: tooltip-in 0.15s ease-out both;
+  }
+  @keyframes tooltip-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
     }
     to {
       opacity: 1;

@@ -19,9 +19,21 @@ const handlers: Record<string, OutboxHandler> = {
  */
 export function OutboxFlusher() {
   useEffect(() => {
+    // Re-entrancy guard: `online` and `visibilitychange` often fire together
+    // (returning to a foregrounded tab that just reconnected) and two
+    // concurrent flushes over the same items would duplicate saves —
+    // savePromptAction is not idempotent.
+    let flushing = false;
     const flush = () => {
+      if (flushing) return;
       if (typeof navigator !== "undefined" && navigator.onLine) {
-        void flushOutbox(handlers, idbStore);
+        flushing = true;
+        // Never let an IndexedDB failure surface as an unhandled rejection.
+        void flushOutbox(handlers, idbStore)
+          .catch(() => {})
+          .finally(() => {
+            flushing = false;
+          });
       }
     };
     flush();

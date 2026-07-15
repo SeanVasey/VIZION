@@ -37,6 +37,15 @@ export function AvatarCropper({
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [rendering, setRendering] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  // Move focus into the dialog once on open so keyboard/SR users land inside
+  // (the host scrim handles Escape + backdrop dismissal). A render-time ref
+  // callback would re-fire per render and steal focus from the zoom slider.
+  useEffect(() => {
+    rootRef.current?.focus();
+  }, []);
 
   // Live drag bookkeeping (pointer id + start positions) without re-renders.
   const dragRef = useRef<{
@@ -48,10 +57,14 @@ export function AvatarCropper({
   } | null>(null);
 
   // Load the File into an HTMLImageElement; revoke the object URL on cleanup.
+  // A file that fails to decode must not strand the modal on "Loading…" —
+  // surface it and leave Cancel as the way out.
   useEffect(() => {
+    setError(null);
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => setImage(img);
+    img.onerror = () => setError("Couldn't read that image — try a different file.");
     img.src = url;
     return () => {
       URL.revokeObjectURL(url);
@@ -108,6 +121,8 @@ export function AvatarCropper({
       const transform: CropTransform = { zoom, offsetX: offset.x, offsetY: offset.y };
       const blob = await renderCroppedBlob(image, VIEWPORT, transform);
       onCropped(blob);
+    } catch {
+      setError("Couldn't crop that image — try again or pick another file.");
     } finally {
       setRendering(false);
     }
@@ -131,8 +146,11 @@ export function AvatarCropper({
   return (
     <div
       role="dialog"
+      aria-modal="true"
       aria-label="Crop avatar"
-      className="glass flex flex-col items-center gap-5 rounded-2xl p-5"
+      tabIndex={-1}
+      ref={rootRef}
+      className="glass flex w-full max-w-sm flex-col items-center gap-5 rounded-2xl p-5 focus:outline-none"
     >
       {/* Square viewport with a circular mask: dimmed corners + a ring. */}
       <div
@@ -154,7 +172,7 @@ export function AvatarCropper({
           />
         ) : (
           <div className="font-body absolute inset-0 grid place-items-center text-xs text-silver">
-            Loading…
+            {error ? "Preview unavailable" : "Loading…"}
           </div>
         )}
 
@@ -189,6 +207,12 @@ export function AvatarCropper({
           +
         </span>
       </div>
+
+      {error && (
+        <p className="font-body w-full max-w-[256px] text-center text-sm text-flare" role="alert">
+          {error}
+        </p>
+      )}
 
       {/* Actions. */}
       <div className="flex w-full max-w-[256px] gap-3">

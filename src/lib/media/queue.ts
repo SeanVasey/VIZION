@@ -31,6 +31,10 @@ export interface MediaItem {
   usage?: AnalysisUsage;
   /** The description has been inserted into the prompt draft. */
   inserted?: boolean;
+  /** Target captured when the file was picked — the analysis request uses
+   *  this, so progress labels must too (the live selection can change
+   *  mid-queue). */
+  analysisTarget?: TargetModelId;
 }
 
 /** Immutable single-item patch. */

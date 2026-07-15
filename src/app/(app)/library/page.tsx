@@ -12,10 +12,31 @@ export const metadata: Metadata = { title: "Library" };
 export default async function LibraryPage() {
   const supabase = await createClient();
 
-  const { data: prompts } = await supabase
+  const { data: prompts, error: promptsError } = await supabase
     .from("prompts")
     .select("id, title, target_model, tags, updated_at")
     .order("updated_at", { ascending: false });
+
+  // A failed query must not masquerade as "Nothing saved yet" — the user's
+  // library still exists on the server.
+  if (promptsError) {
+    return (
+      <>
+        <ScreenHeader title="Library" />
+        <div className="mx-auto flex max-w-screen-sm flex-col px-4 py-5">
+          <div className="glass rounded-2xl p-6 text-center" role="alert">
+            <p className="font-display text-balance text-xl tracking-wide text-text">
+              Couldn&apos;t load your library
+            </p>
+            <p className="font-body mt-2 text-sm text-muted">
+              Your prompts are safe on the server — check your connection and
+              reload.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const ids = (prompts ?? []).map((p) => p.id);
 

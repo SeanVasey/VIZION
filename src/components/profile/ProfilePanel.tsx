@@ -166,29 +166,35 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
 
       {/* Editable fields */}
       <div className="glass flex flex-col gap-4 rounded-2xl p-5">
-        <Field label="Full name">
+        <Field label="Full name" htmlFor="profile-full-name">
           <input
+            id="profile-full-name"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Full name"
+            autoComplete="name"
             className="font-body w-full rounded-lg bg-transparent text-right text-text placeholder:text-muted focus:outline-none"
           />
         </Field>
         <Divider />
-        <Field label="Display name">
+        <Field label="Display name" htmlFor="profile-display-name">
           <input
+            id="profile-display-name"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="unique handle"
+            autoComplete="username"
             className="font-body w-full rounded-lg bg-transparent text-right text-text placeholder:text-muted focus:outline-none"
           />
         </Field>
         <Divider />
-        <Field label="Email">
+        <Field label="Email" htmlFor="profile-email">
           <input
+            id="profile-email"
             type="email"
             value={emailField}
             onChange={(e) => setEmailField(e.target.value)}
+            autoComplete="email"
             className="font-body w-full rounded-lg bg-transparent text-right text-text placeholder:text-muted focus:outline-none"
           />
         </Field>
@@ -220,7 +226,7 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
               id="default-model"
               value={defaultModel}
               onChange={(e) => changeDefaultModel(e.target.value as TargetModelId)}
-              className={`font-body w-full rounded-xl bg-transparent py-2 pr-3 text-sm text-text focus:outline-none ${
+              className={`font-body w-full cursor-pointer appearance-none rounded-xl bg-transparent py-2 pr-8 text-sm text-text focus:outline-none ${
                 TARGET_DEVELOPER[defaultModel] ? "pl-9" : "pl-3"
               }`}
             >
@@ -230,6 +236,22 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
                 </option>
               ))}
             </select>
+            {/* Styled chevron — mirrors the composer's target select idiom
+                (appearance-none drops the native UA arrow). */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="pointer-events-none absolute right-2.5 h-4 w-4 text-silver"
+            >
+              <path
+                d="M8 10l4 4 4-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
         </Field>
         <Divider />
@@ -263,9 +285,20 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
 
       {/* Avatar crop modal. The scrim mixes its alpha explicitly — slash
           opacity (bg-void/80) can't apply to the var()-based tokens and
-          compiled to nothing, leaving the backdrop fully transparent. */}
+          compiled to nothing, leaving the backdrop fully transparent.
+          Modal contract: aria-modal, Escape dismisses, the scrim is clickable,
+          and focus moves into the dialog on open. */}
       {pickedFile && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[color-mix(in_srgb,var(--void)_80%,transparent)] p-6">
+        <div
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !avatarBusy) setPickedFile(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && !avatarBusy) setPickedFile(null);
+          }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[color-mix(in_srgb,var(--void)_80%,transparent)] p-6"
+        >
           <AvatarCropper
             file={pickedFile}
             busy={avatarBusy}
@@ -288,10 +321,25 @@ function initials(fullName: string | null, displayName: string | null): string {
   return letters.toUpperCase() || "◉";
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  /** Associates the visible label with its control for AT (WCAG 1.3.1). */
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="font-body shrink-0 text-base text-text">{label}</span>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className="font-body shrink-0 text-base text-text">
+          {label}
+        </label>
+      ) : (
+        <span className="font-body shrink-0 text-base text-text">{label}</span>
+      )}
       <div className="min-w-0 flex-1 text-right">{children}</div>
     </div>
   );
@@ -327,7 +375,11 @@ function ChangePassword({ onFlash }: { onFlash: (ok: boolean, text: string) => v
 
   return (
     <form action={submit} className="glass flex flex-col gap-3 rounded-2xl p-5">
+      <label htmlFor="change-password" className="sr-only">
+        New password
+      </label>
       <input
+        id="change-password"
         name="password"
         type="password"
         autoComplete="new-password"
@@ -336,7 +388,11 @@ function ChangePassword({ onFlash }: { onFlash: (ok: boolean, text: string) => v
         placeholder="New password"
         className="font-body w-full rounded-lg bg-transparent text-text placeholder:text-muted focus:outline-none"
       />
+      <label htmlFor="change-password-confirm" className="sr-only">
+        Confirm password
+      </label>
       <input
+        id="change-password-confirm"
         name="confirm"
         type="password"
         autoComplete="new-password"

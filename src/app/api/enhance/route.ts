@@ -5,6 +5,7 @@ import { enhanceStream, type EnhanceOutput } from "@/lib/providers/adapter";
 import {
   TARGETS,
   computeCost,
+  isProviderConfigured,
   RATE_LIMIT_PER_MIN,
   COST_CAP_USD_PER_DAY,
 } from "@/lib/providers/config";
@@ -76,6 +77,15 @@ export async function POST(request: NextRequest) {
   if (typeof target !== "string" || !TARGET_IDS.has(target)) {
     return err(400, "Unknown target model.");
   }
+  // Missing keys fail closed as a plain pre-stream 503 (the documented
+  // contract) instead of being discovered only after SSE headers are sent.
+  if (!isProviderConfigured(target as TargetModelId)) {
+    return err(
+      503,
+      `The ${TARGETS[target as TargetModelId].provider} provider is not configured on the server.`,
+      { notConfigured: true },
+    );
+  }
 
   // --- Rate limit + cost cap (RLS scopes the window to this user) ---
   const { data: windowRows, error: windowError } = await supabase.rpc("usage_window", {
@@ -110,6 +120,11 @@ export async function POST(request: NextRequest) {
       // cost cap is only as good as this write.
       let usage: { tokenIn: number; tokenOut: number } | null = null;
       let result: EnhanceOutput | null = null;
+      // Chars streamed so far — the abort-path usage estimate. OpenAI-compat
+      // providers only report usage in the FINAL chunk, so a client abort
+      // mid-stream would otherwise write nothing to the ledger and the spend
+      // would leak past the daily cap.
+      let streamedChars = 0;
 
       try {
         sendStatus("queued");
@@ -126,6 +141,7 @@ export async function POST(request: NextRequest) {
               generating = true;
               sendStatus("generating");
             }
+            streamedChars += event.text.length;
             send({ type: "delta", text: event.text });
           } else if (event.type === "usage") {
             usage = { tokenIn: event.tokenIn, tokenOut: event.tokenOut };
@@ -141,6 +157,11 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Completes the documented step ladder. NOTE: the adapter parses the
+        // payload internally before yielding `done`, so by the time the loop
+        // ends the parse has already happened — this marks the transition
+        // for ordering honesty, it cannot label the parse *while* it runs.
+        sendStatus("parsing");
         if (!result) throw new Error("The model stream ended without a result.");
 
         sendStatus("diffing");
@@ -174,10 +195,22 @@ export async function POST(request: NextRequest) {
           /* disconnected */
         }
       } finally {
+        // An aborted/failed run must still charge the cap for what streamed
+        // (~4 chars/token). Two leak shapes: OpenAI-compat providers report
+        // usage only in the FINAL chunk (abort → no usage at all), while
+        // Anthropic snapshots usage at message_start (abort → usage exists
+        // but tokenOut is ~1). Estimate when absent; floor a stale snapshot
+        // at the estimate when the run never completed.
+        if (streamedChars > 0 && !result) {
+          const estOut = Math.ceil(streamedChars / 4);
+          usage = usage
+            ? { ...usage, tokenOut: Math.max(usage.tokenOut, estOut) }
+            : { tokenIn: Math.ceil(input.length / 4), tokenOut: estOut };
+        }
         if (usage && (usage.tokenIn > 0 || usage.tokenOut > 0)) {
           const costUsd =
             result?.costUsd ?? computeCost(typedTarget, usage.tokenIn, usage.tokenOut);
-          await supabase.from("usage_events").insert({
+          const { error: ledgerError } = await supabase.from("usage_events").insert({
             user_id: user.id,
             target: typedTarget,
             mode,
@@ -186,6 +219,11 @@ export async function POST(request: NextRequest) {
             token_out: usage.tokenOut,
             cost_usd: costUsd,
           });
+          // The cap is only as good as this write — a silent failure would
+          // let spend leak invisibly. (console.error survives prod stripping.)
+          if (ledgerError) {
+            console.error("[enhance] usage ledger write failed:", ledgerError.message);
+          }
         }
         try {
           controller.close();

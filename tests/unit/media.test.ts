@@ -35,6 +35,18 @@ describe("buildGenerationPrompt", () => {
     expect(p).not.toContain("--iw");
   });
 
+  it("derives --ar from the extracted dimensions when known", () => {
+    const square = buildGenerationPrompt("x", { ...attrs, width: 1000, height: 1000 }, "midjourney");
+    expect(square).toContain("--ar 1:1");
+    const portrait = buildGenerationPrompt("x", { ...attrs, width: 3024, height: 4032 }, "midjourney");
+    expect(portrait).toContain("--ar 3:4");
+    const wide = buildGenerationPrompt("x", { ...attrs, width: 2560, height: 1080 }, "midjourney");
+    expect(wide).toContain("--ar 21:9");
+    // No dimensions → the long-standing 16:9 default.
+    const noDims = buildGenerationPrompt("x", attrs, "midjourney");
+    expect(noDims).toContain("--ar 16:9");
+  });
+
   it("formats motion engines with labeled fields", () => {
     const p = buildGenerationPrompt("clip", attrs, "runway");
     expect(p.startsWith("[runway]")).toBe(true);

@@ -25,6 +25,7 @@ export const ModeRig = memo(function ModeRig({
     0,
     MODES.findIndex((m) => m.id === activeMode),
   );
+  const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const [helpFor, setHelpFor] = useState<ModeId | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,12 +60,41 @@ export const ModeRig = memo(function ModeRig({
     : 0;
 
   return (
+    // A radiogroup, not a tablist: this is a pick-one control with no panels,
+    // and radios carry the arrow-key + roving-tabindex contract implemented
+    // below (WCAG AA — previously the roles promised keys that did nothing).
     <div
-      role="tablist"
+      role="radiogroup"
       aria-label="Enhancement mode"
       className="glass relative grid grid-cols-6 gap-0 rounded-2xl p-1"
       onKeyDown={(e) => {
-        if (e.key === "Escape") hideHelp();
+        if (e.key === "Escape") {
+          hideHelp();
+          return;
+        }
+        const last = MODES.length - 1;
+        let next: number;
+        switch (e.key) {
+          case "ArrowRight":
+          case "ArrowDown":
+            next = activeIndex === last ? 0 : activeIndex + 1;
+            break;
+          case "ArrowLeft":
+          case "ArrowUp":
+            next = activeIndex === 0 ? last : activeIndex - 1;
+            break;
+          case "Home":
+            next = 0;
+            break;
+          case "End":
+            next = last;
+            break;
+          default:
+            return;
+        }
+        e.preventDefault();
+        onSelect(MODES[next]!.id);
+        cellRefs.current[next]?.focus();
       }}
     >
       {/* Sliding lens-lock indicator — one sixth wide, translates to the cell. */}
@@ -76,14 +106,18 @@ export const ModeRig = memo(function ModeRig({
           transform: `translateX(calc(${activeIndex} * 100%))`,
         }}
       />
-      {MODES.map((mode) => {
+      {MODES.map((mode, i) => {
         const active = activeMode === mode.id;
         return (
           <button
             key={mode.id}
             type="button"
-            role="tab"
-            aria-selected={active}
+            role="radio"
+            aria-checked={active}
+            tabIndex={active ? 0 : -1}
+            ref={(el) => {
+              cellRefs.current[i] = el;
+            }}
             aria-describedby={helpFor === mode.id ? "mode-help-pill" : undefined}
             onClick={() => {
               onSelect(mode.id);
@@ -116,7 +150,7 @@ export const ModeRig = memo(function ModeRig({
         <div
           id="mode-help-pill"
           role="tooltip"
-          className="pill pointer-events-none absolute inset-x-1 bottom-full z-30 mb-2 border border-hair bg-onyx px-4 py-2 text-center text-xs text-chalk"
+          className="pill tooltip-in pointer-events-none absolute inset-x-1 bottom-full z-30 mb-2 border border-hair bg-onyx px-4 py-2 text-center text-xs text-chalk"
         >
           <span
             aria-hidden="true"

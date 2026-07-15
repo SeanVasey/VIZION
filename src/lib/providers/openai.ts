@@ -25,6 +25,9 @@ export async function* streamOpenAI(
   try {
     const stream = await client.chat.completions.create({
       model,
+      // Output ceiling for adapter parity (Anthropic caps at 16k): a runaway
+      // generation must stay bounded — the cost cap is only checked pre-call.
+      max_completion_tokens: 16_000,
       messages: [
         { role: "system", content: system },
         { role: "user", content: input },
@@ -48,7 +51,9 @@ export async function* streamOpenAI(
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
     if (error instanceof OpenAI.APIError) {
-      throw new ProviderError("openai", `GPT request failed: ${error.message}`);
+      // Keep the upstream status so callers can classify (401/403/404 are
+      // deployment-shaped, not input-shaped) — same contract as vision.
+      throw new ProviderError("openai", `GPT request failed: ${error.message}`, error.status);
     }
     throw new ProviderError(
       "openai",

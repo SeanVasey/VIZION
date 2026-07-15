@@ -21,10 +21,20 @@ import {
   type MediaKind,
 } from "@/lib/media/types";
 import { savePromptAction } from "@/lib/library/actions";
+import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { TARGET_MODELS, TARGET_DEVELOPER, type TargetModelId } from "@/lib/constants";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { StreamProgress } from "@/components/feedback/StreamProgress";
 import type { Json } from "@/lib/supabase/database.types";
+
+/** A previously uploaded asset row (the storage manager's unit). */
+interface StoredAsset {
+  id: string;
+  storage_path: string;
+  kind: string;
+  size_bytes: number | null;
+  created_at: string;
+}
 
 /** Extraction pipeline flag (locked default: proxy, with on-device fallback). */
 const EXTRACTION =
@@ -54,18 +64,62 @@ export function MediaStudio() {
   const [basePrompt, setBasePrompt] = useState("");
   const [usedBytes, setUsedBytes] = useState(0);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveQueued, setSaveQueued] = useState(false);
   const [saving, startSave] = useTransition();
+  // Vision spend counts against the same daily cap as enhancement — mirror
+  // the composer's amber warning (the route already returns these figures).
+  const [capUsage, setCapUsage] = useState<{ todayCost: number; capUsd: number } | null>(
+    null,
+  );
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // Uploaded assets, listed when the budget warns so "remove media to
+  // continue" is an action the user can actually take here.
+  const [stored, setStored] = useState<StoredAsset[]>([]);
 
-  // Load the running storage total for the Amber budget warning.
+  function copyText(key: string, text: string | undefined) {
+    if (!text) return;
+    void navigator.clipboard?.writeText(text).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+    });
+  }
+
+  // Load the storage ledger (budget total + the removable-asset list).
   useEffect(() => {
-    const supabase = createClient();
-    void supabase
-      .from("media_assets")
-      .select("size_bytes")
-      .then(({ data }) => {
-        setUsedBytes((data ?? []).reduce((sum, r) => sum + (r.size_bytes ?? 0), 0));
-      });
+    void loadStored();
   }, []);
+
+  async function loadStored() {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("media_assets")
+      .select("id, storage_path, kind, size_bytes, created_at")
+      .order("created_at", { ascending: false });
+    const rows = data ?? [];
+    setStored(rows);
+    setUsedBytes(rows.reduce((sum, r) => sum + (r.size_bytes ?? 0), 0));
+  }
+
+  async function removeStored(asset: StoredAsset) {
+    setNotice(null);
+    const supabase = createClient();
+    const { error: storageErr } = await supabase.storage
+      .from("media")
+      .remove([asset.storage_path]);
+    if (storageErr) {
+      setNotice(`Couldn't remove that file — ${storageErr.message}`);
+      return;
+    }
+    const { error: rowErr } = await supabase
+      .from("media_assets")
+      .delete()
+      .eq("id", asset.id);
+    if (rowErr) {
+      setNotice(`Couldn't remove that file — ${rowErr.message}`);
+      return;
+    }
+    await loadStored();
+  }
 
   // Thumbnails are object URLs — revoke them all when the studio unmounts.
   const thumbUrls = useRef<string[]>([]);
@@ -95,6 +149,7 @@ export function MediaStudio() {
   async function onFiles(list: FileList) {
     setNotice(null);
     setSavedId(null);
+    setSaveQueued(false);
 
     const { admitted, rejected } = admitFiles(
       Array.from(list),
@@ -118,6 +173,10 @@ export function MediaStudio() {
       return;
     }
 
+    // Capture the analysis target at pick time: the whole batch analyzes on
+    // this model even if the user flips the selector mid-queue — and the
+    // per-item label reads the same captured value, never live state.
+    const analysisTarget = targetModel;
     const queued = admitted.map(({ file, kind: k }) => {
       const thumbUrl = k === "image" ? URL.createObjectURL(file) : undefined;
       if (thumbUrl) thumbUrls.current.push(thumbUrl);
@@ -129,6 +188,7 @@ export function MediaStudio() {
           sizeBytes: file.size,
           thumbUrl,
           status: "queued",
+          analysisTarget,
         } satisfies MediaItem,
         file,
       };
@@ -136,7 +196,7 @@ export function MediaStudio() {
     setItems((prev) => [...prev, ...queued.map((q) => q.item)]);
 
     for (const { item, file } of queued) {
-      await processItem(supabase, user.id, item, file);
+      await processItem(supabase, user.id, item, file, analysisTarget);
     }
   }
 
@@ -145,6 +205,7 @@ export function MediaStudio() {
     userId: string,
     item: MediaItem,
     file: File,
+    analysisTarget: TargetModelId,
   ) {
     const k = item.kind;
 
@@ -186,11 +247,11 @@ export function MediaStudio() {
       const dataUrl = await captureFrameDataUrl(file, k);
       if (dataUrl) {
         try {
-          // Analysis runs on the model selected in the composer above.
+          // Analysis runs on the model captured when the batch was picked.
           const res = await fetch("/api/media", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ dataUrl, target: targetModel }),
+            body: JSON.stringify({ dataUrl, target: analysisTarget }),
           });
           const data = await res.json().catch(() => ({}));
           if (res.ok && data.attributes) {
@@ -201,7 +262,7 @@ export function MediaStudio() {
             // selected model's key lacks vision access) — credit that one.
             const analyzedWith: TargetModelId = MODEL_LABEL.has(data.usage?.target)
               ? (data.usage.target as TargetModelId)
-              : targetModel;
+              : analysisTarget;
             if (data.usage) {
               usage = {
                 tokenIn: data.usage.tokenIn ?? 0,
@@ -209,18 +270,29 @@ export function MediaStudio() {
                 costUsd: data.usage.costUsd ?? 0,
                 target: analyzedWith,
               };
+              // Vision spend feeds the same daily cap as enhancement — track
+              // the running figure for the amber warning below.
+              if (typeof data.usage.todayCost === "number") {
+                setCapUsage({
+                  todayCost: data.usage.todayCost,
+                  capUsd: data.usage.capUsd ?? 0,
+                });
+              }
             }
             if (data.fallbackFrom) {
-              analysisNote = `${MODEL_LABEL.get(targetModel) ?? "The selected model"} couldn't analyze this image — used ${MODEL_LABEL.get(analyzedWith) ?? "another model"} instead.`;
+              analysisNote = `${MODEL_LABEL.get(analysisTarget) ?? "The selected model"} couldn't analyze this image — used ${MODEL_LABEL.get(analyzedWith) ?? "another model"} instead.`;
             }
           } else if (data.notConfigured) {
-            analysisNote = `${MODEL_LABEL.get(targetModel) ?? "This model"} isn't configured for vision — used on-device analysis.`;
+            analysisNote = `${MODEL_LABEL.get(analysisTarget) ?? "This model"} isn't configured for vision — used on-device analysis.`;
           } else if (!res.ok) {
             analysisNote = `${data.error ?? "Proxy analysis failed."} Used on-device analysis instead.`;
           }
         } catch {
           /* network — keep the on-device result */
         }
+      } else {
+        // The only silent-degrade branch in the pipeline: say what happened.
+        analysisNote = "Couldn't capture a frame from this file — used on-device analysis.";
       }
     }
 
@@ -236,6 +308,16 @@ export function MediaStudio() {
       usage,
       error: analysisNote,
     });
+    setStored((prev) => [
+      {
+        id: asset.id,
+        storage_path: path,
+        kind: k,
+        size_bytes: file.size,
+        created_at: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
     setAttrs(merged);
     setKind(k);
     setGenTarget(DEFAULT_GEN_TARGET[k]);
@@ -249,25 +331,44 @@ export function MediaStudio() {
         : item.description,
     );
     patch(item.id, { inserted: true });
+    // Honour reduced motion — a JS-driven smooth scroll bypasses the global
+    // CSS rule.
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     document
       .getElementById("prompt-input")
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      ?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
   }
 
   function save() {
     if (!attrs || !generated) return;
+    setNotice(null);
+    const payload = {
+      input: (basePrompt || editorDraft || "").trim() || "(media reference)",
+      output: generated,
+      rationale: `Generation prompt from an attached ${kind} reference (${attrs.source}).`,
+      mode: "target" as const,
+      target: targetModel,
+      modelUsed: `media:${attrs.source}`,
+      tokenIn: 0,
+      tokenOut: 0,
+    };
     startSave(async () => {
-      const res = await savePromptAction({
-        input: (basePrompt || editorDraft || "").trim() || "(media reference)",
-        output: generated,
-        rationale: `Generation prompt from an attached ${kind} reference (${attrs.source}).`,
-        mode: "target",
-        target: targetModel,
-        modelUsed: `media:${attrs.source}`,
-        tokenIn: 0,
-        tokenOut: 0,
-      });
-      if (res.ok && res.promptId) setSavedId(res.promptId);
+      // Offline → outbox, same as the sibling TransformationDiff save.
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        await enqueueOutbox("save-prompt", payload);
+        setSaveQueued(true);
+        return;
+      }
+      try {
+        const res = await savePromptAction(payload);
+        // A silent failure left the button flipping back to "Save to library"
+        // with no explanation — surface it like every other error here.
+        if (res.ok && res.promptId) setSavedId(res.promptId);
+        else setNotice(res.error ?? "Couldn't save to the library.");
+      } catch {
+        await enqueueOutbox("save-prompt", payload);
+        setSaveQueued(true);
+      }
     });
   }
 
@@ -285,11 +386,61 @@ export function MediaStudio() {
           </p>
         </div>
         {budget.warn && (
-          <span className="font-body shrink-0 text-xs text-amber">
-            ⚠ {formatBytes(budget.usedBytes)} / {formatBytes(budget.quotaBytes)}
+          <span className="font-body shrink-0 text-xs tabular-nums text-amber">
+            <span aria-hidden="true">⚠ </span>
+            {formatBytes(budget.usedBytes)} / {formatBytes(budget.quotaBytes)}
           </span>
         )}
       </div>
+
+      {/* Storage manager — shown as the budget tightens, so "remove media to
+          continue" is actionable right here instead of a dead end. */}
+      {budget.warn && stored.length > 0 && (
+        <div className="glass flex flex-col gap-1 rounded-2xl p-4">
+          <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
+            Stored media
+          </p>
+          <ul className="flex flex-col divide-y divide-hair">
+            {stored.map((asset) => (
+              <li key={asset.id} className="flex items-center gap-3 py-2">
+                <span aria-hidden="true" className="text-base">
+                  {KIND_GLYPH[(asset.kind as MediaKind) ?? "image"] ?? "🖼"}
+                </span>
+                <span className="font-body min-w-0 flex-1 truncate text-xs text-silver">
+                  {asset.storage_path.split("/").pop()}
+                </span>
+                <span className="font-body shrink-0 text-xs tabular-nums text-silver">
+                  {formatBytes(asset.size_bytes ?? 0)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void removeStored(asset)}
+                  aria-label={`Remove ${asset.storage_path.split("/").pop()}`}
+                  className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-silver transition-colors hover:text-flare"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4">
+                    <path
+                      d="M6 6l12 12M18 6L6 18"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Amber daily-cap warning — vision spend counts against the same cap
+          as enhancement (parity with the composer's warning). */}
+      {capUsage && capUsage.todayCost >= capUsage.capUsd * 0.8 && (
+        <p className="font-body text-center text-xs tabular-nums text-amber" role="status">
+          ⚠ ${capUsage.todayCost.toFixed(2)} of ${capUsage.capUsd.toFixed(2)} daily cap
+          used
+        </p>
+      )}
 
       <input
         ref={fileInput}
@@ -364,7 +515,12 @@ export function MediaStudio() {
               {["queued", "uploading", "analyzing"].includes(item.status) && (
                 <StreamProgress
                   indeterminate
-                  step={itemStepLabel(item, MODEL_LABEL.get(targetModel) ?? "the model")}
+                  step={itemStepLabel(
+                    item,
+                    // The captured per-item target — the live selection can
+                    // change mid-queue and must not relabel in-flight work.
+                    MODEL_LABEL.get(item.analysisTarget ?? targetModel) ?? "the model",
+                  )}
                 />
               )}
 
@@ -402,12 +558,10 @@ export function MediaStudio() {
                     )}
                     <button
                       type="button"
-                      onClick={() =>
-                        navigator.clipboard?.writeText(item.description ?? "")
-                      }
-                      className="glass min-h-[44px] rounded-xl px-4 text-sm text-text"
+                      onClick={() => copyText(`desc:${item.id}`, item.description)}
+                      className="glass min-h-[44px] rounded-xl px-4 text-sm text-text transition-shadow hover:shadow-hair"
                     >
-                      Copy
+                      {copiedKey === `desc:${item.id}` ? "Copied ✓" : "Copy"}
                     </button>
                   </div>
                 </>
@@ -427,10 +581,15 @@ export function MediaStudio() {
             {attrs.palette && attrs.palette.length > 0 && (
               <div className="flex gap-1">
                 {attrs.palette.map((hex) => (
+                  // Hairline keeps near-white/near-void swatches visible on
+                  // either theme's card; the label reaches touch + SR users
+                  // (title is mouse-only).
                   <span
                     key={hex}
+                    role="img"
+                    aria-label={`Palette color ${hex}`}
                     title={hex}
-                    className="h-5 w-5 rounded"
+                    className="h-5 w-5 rounded border border-hair"
                     style={{ backgroundColor: hex }}
                   />
                 ))}
@@ -468,6 +627,7 @@ export function MediaStudio() {
                 key={t.id}
                 type="button"
                 onClick={() => setGenTarget(t.id)}
+                aria-pressed={genTarget === t.id}
                 className={[
                   "font-body rounded-full px-3 py-1.5 text-xs transition-colors",
                   genTarget === t.id
@@ -479,7 +639,11 @@ export function MediaStudio() {
               </button>
             ))}
           </div>
+          <label htmlFor="media-base-prompt" className="sr-only">
+            Base prompt for generation
+          </label>
           <textarea
+            id="media-base-prompt"
             value={basePrompt}
             onChange={(e) => setBasePrompt(e.target.value)}
             rows={3}
@@ -502,10 +666,10 @@ export function MediaStudio() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => navigator.clipboard?.writeText(generated)}
+              onClick={() => copyText("gen", generated)}
               className="btn-laser min-h-[44px] rounded-xl px-4 text-sm"
             >
-              Copy
+              {copiedKey === "gen" ? "Copied ✓" : "Copy"}
             </button>
             {savedId ? (
               <Link
@@ -514,12 +678,16 @@ export function MediaStudio() {
               >
                 Saved ✓ — open
               </Link>
+            ) : saveQueued ? (
+              <span className="font-body min-h-[44px] rounded-xl bg-amber px-4 text-sm leading-[44px] text-on-laser">
+                Queued — syncs when online
+              </span>
             ) : (
               <button
                 type="button"
                 onClick={save}
                 disabled={saving}
-                className="glass min-h-[44px] rounded-xl px-4 text-sm text-text disabled:opacity-60"
+                className="glass min-h-[44px] rounded-xl px-4 text-sm text-text transition-shadow hover:shadow-hair disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Save to library"}
               </button>

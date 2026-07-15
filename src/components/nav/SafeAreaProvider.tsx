@@ -20,7 +20,10 @@ export function SafeAreaProvider({ children }: { children: ReactNode }) {
   const reserveNav = showsBottomNav(usePathname());
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col bg-bg text-text">
+    // No background here: an opaque fill would paint OVER the fixed -z-10
+    // ambient layer (mesh canvas + aurora + gradient ground) and hide it —
+    // html/body already carry the token background beneath that layer.
+    <div className="relative flex min-h-[100dvh] flex-col text-text">
       <main
         id="main-content"
         tabIndex={-1}

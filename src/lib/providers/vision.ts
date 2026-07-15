@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { TargetModelId } from "@/lib/constants";
-import { TARGETS, type Provider } from "@/lib/providers/config";
+import { TARGETS, PROVIDER_KEY_ENV } from "@/lib/providers/config";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { MEDIA_EXTRACT_SYSTEM, parseMediaAttributes } from "@/lib/media/extract";
 import type { MediaAttributes } from "@/lib/media/types";
@@ -65,17 +65,24 @@ async function describeAnthropic(
   };
 }
 
-/** OpenAI, xAI, and Mistral all take an image_url content part. */
+/** OpenAI, xAI, and Mistral all take an image_url content part.
+ *  Parity with the sibling paths (Anthropic caps at 1024; Gemini pins JSON):
+ *  enforce json_object and cap the output. The cap field differs per API —
+ *  OpenAI wants max_completion_tokens, while Mistral 422s on unknown fields
+ *  and (like xAI) takes classic max_tokens — so the caller picks it. */
 async function describeOpenAICompatible(
   apiKey: string,
   baseURL: string | undefined,
   base64: string,
   mediaType: string,
   model: string,
+  tokenCap: { max_tokens: number } | { max_completion_tokens: number },
 ): Promise<VisionResult> {
   const client = new OpenAI({ apiKey, baseURL });
   const response = await client.chat.completions.create({
     model,
+    ...tokenCap,
+    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: MEDIA_EXTRACT_SYSTEM },
       {
@@ -99,7 +106,12 @@ async function describeOpenAICompatible(
 
 interface GeminiVisionResponse {
   candidates?: { content?: { parts?: { text?: string }[] } }[];
-  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    /** Thinking-model reasoning tokens — billed as output. */
+    thoughtsTokenCount?: number;
+  };
   error?: { message?: string };
 }
 
@@ -152,17 +164,12 @@ async function describeGoogle(
   return {
     attrs: parseMediaAttributes(text),
     tokenIn: data.usageMetadata?.promptTokenCount ?? 0,
-    tokenOut: data.usageMetadata?.candidatesTokenCount ?? 0,
+    // Thinking tokens are billed as output — dropping them undercounts the cap.
+    tokenOut:
+      (data.usageMetadata?.candidatesTokenCount ?? 0) +
+      (data.usageMetadata?.thoughtsTokenCount ?? 0),
   };
 }
-
-const PROVIDER_KEY_ENV: Record<Provider, string> = {
-  anthropic: "ANTHROPIC_API_KEY",
-  openai: "OPENAI_API_KEY",
-  google: "GOOGLE_API_KEY",
-  mistral: "MISTRAL_API_KEY",
-  xai: "XAI_API_KEY",
-};
 
 /** Fallback priority when the selected model can't run vision — the original
  *  design analyzed on Opus, so Anthropic stays first. */
@@ -218,20 +225,26 @@ export async function describeImage(
       case "anthropic":
         return await describeAnthropic(base64, mediaType, cfg.model);
       case "openai":
+        // 4096, not 1024: reasoning-class models spend completion budget on
+        // reasoning tokens first — a tight cap can be consumed before any
+        // JSON is emitted, silently returning empty attributes.
         return await describeOpenAICompatible(
           requireKey("OPENAI_API_KEY"),
           undefined,
           base64,
           mediaType,
           cfg.model,
+          { max_completion_tokens: 4096 },
         );
       case "xai":
+        // Grok-class models reason unconditionally — same headroom as OpenAI.
         return await describeOpenAICompatible(
           requireKey("XAI_API_KEY"),
           "https://api.x.ai/v1",
           base64,
           mediaType,
           cfg.model,
+          { max_tokens: 4096 },
         );
       case "mistral":
         return await describeOpenAICompatible(
@@ -240,6 +253,7 @@ export async function describeImage(
           base64,
           mediaType,
           cfg.model,
+          { max_tokens: 1024 },
         );
       case "google":
         return await describeGoogle(base64, mediaType, cfg.model);

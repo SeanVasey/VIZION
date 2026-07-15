@@ -36,7 +36,9 @@ export function StreamingResult({
         {/* OUTPUT REGION: streamed result text renders in mono (JetBrains). */}
         <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
           {partialOutput}
-          <span className="text-accent" aria-hidden="true">
+          {/* animate-pulse reads as a live cursor; the global reduced-motion
+              rule clamps it to a static caret. */}
+          <span className="animate-pulse text-accent" aria-hidden="true">
             ▍
           </span>
         </p>

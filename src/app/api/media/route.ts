@@ -19,6 +19,10 @@ import { rateLimit } from "@/lib/security/rate-limit";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 
+/** Same window as the sibling model route: a slow vision call plus the
+ *  cross-provider fallback retry can exceed the default serverless budget. */
+export const maxDuration = 60;
+
 function err(status: number, error: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
 }
@@ -118,7 +122,7 @@ export async function POST(request: NextRequest) {
 
   const cfg = TARGETS[usedTarget];
   const costUsd = computeCost(usedTarget, extracted.tokenIn, extracted.tokenOut);
-  await supabase.from("usage_events").insert({
+  const { error: ledgerError } = await supabase.from("usage_events").insert({
     user_id: user.id,
     target: usedTarget,
     mode: "extract",
@@ -127,6 +131,10 @@ export async function POST(request: NextRequest) {
     token_out: extracted.tokenOut,
     cost_usd: costUsd,
   });
+  // The cap is only as good as this write (console.error survives prod).
+  if (ledgerError) {
+    console.error("[media] usage ledger write failed:", ledgerError.message);
+  }
 
   const { description, ...attrs } = extracted.attrs;
   return NextResponse.json({

@@ -28,12 +28,17 @@ export function StreamProgress({
 }) {
   const showUsage = !indeterminate && (tokenIn > 0 || tokenOut > 0);
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`} role="status" aria-live="polite">
+    <div className={`flex flex-col gap-1.5 ${className}`}>
       <div className="stream-progress-track">
         <span className="stream-progress-sweep" aria-hidden="true" />
       </div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-body text-xs text-silver">{step}</span>
+        {/* The live region covers ONLY the step label (rare changes). The
+            token/cost readout updates on every rAF flush — inside the region
+            it would flood screen readers with per-token announcements. */}
+        <span className="font-body text-xs text-silver" role="status" aria-live="polite">
+          {step}
+        </span>
         {showUsage && (
           <span className="font-body shrink-0 text-xs tabular-nums text-silver">
             ⌁ {tokenIn}→{tokenOut} tok

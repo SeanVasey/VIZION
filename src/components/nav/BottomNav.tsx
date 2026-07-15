@@ -83,7 +83,10 @@ export function BottomNav() {
                 aria-current={active ? "page" : undefined}
                 className={[
                   "flex min-h-[var(--bottom-nav-h)] flex-col items-center justify-center gap-1 py-2",
-                  "text-xs transition-colors",
+                  // active:scale gives touch users immediate tap feedback (hover
+                  // never fires on touch); the global reduced-motion rule
+                  // neutralizes the transition.
+                  "text-xs transition-[color,transform] duration-150 active:scale-95",
                   active ? "text-accent" : "text-silver hover:text-chalk",
                 ].join(" ")}
               >

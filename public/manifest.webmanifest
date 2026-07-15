@@ -1,7 +1,7 @@
 {
   "name": "VIZ(IO)N",
   "short_name": "VIZ(IO)N",
-  "description": "A VASEY/AI prompt-engineering studio — clarify, expand, condense, reformat, and re-target prompts for Opus, GPT, and Gemini.",
+  "description": "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts for Fable, Opus, GPT, Gemini, Mistral, and Grok.",
   "id": "/",
   "start_url": "/?source=pwa",
   "scope": "/",

@@ -22,13 +22,6 @@ export class ProviderError extends Error {
   }
 }
 
-export interface ProviderResult {
-  output: string;
-  rationale: string;
-  tokenIn: number;
-  tokenOut: number;
-}
-
 /** One raw chunk from a provider's token stream: undecoded response text
  *  and/or a cumulative usage snapshot. The adapter's envelope scanner turns
  *  the raw text into output-field deltas in one shared place. */
