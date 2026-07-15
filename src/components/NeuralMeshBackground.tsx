@@ -56,8 +56,14 @@ export function NeuralMeshBackground() {
         const n = parseInt(full, 16);
         return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
       }
-      const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(c);
-      return rgb ? `${rgb[1]}, ${rgb[2]}, ${rgb[3]}` : null;
+      // Digit-match the first three channels so comma- OR space-separated
+      // rgb()/rgba() (modern CSS + Tailwind v4) and bare channel lists all
+      // parse — a strict comma regex would fail on `rgb(185 188 197)` and
+      // silently fall back to the dark defaults on a light canvas.
+      const nums = c.match(/\d+/g);
+      return nums && nums.length >= 3
+        ? `${nums[0]}, ${nums[1]}, ${nums[2]}`
+        : null;
     }
 
     function resolvePalette() {

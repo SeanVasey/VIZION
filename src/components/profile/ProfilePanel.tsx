@@ -58,6 +58,18 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
   // A freshly saved avatar (new URL) should get another load attempt.
   useEffect(() => setAvatarError(false), [profile.avatar_url]);
 
+  // Escape dismisses the crop modal. A window listener (not onKeyDown on the
+  // presentation scrim) captures the key regardless of where focus sits, and
+  // keeps interactive handlers off a role="presentation" element.
+  useEffect(() => {
+    if (!pickedFile) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !avatarBusy) setPickedFile(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pickedFile, avatarBusy]);
+
   function flash(ok: boolean, text: string) {
     setNotice({ ok, text });
   }
@@ -286,16 +298,14 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
       {/* Avatar crop modal. The scrim mixes its alpha explicitly — slash
           opacity (bg-void/80) can't apply to the var()-based tokens and
           compiled to nothing, leaving the backdrop fully transparent.
-          Modal contract: aria-modal, Escape dismisses, the scrim is clickable,
-          and focus moves into the dialog on open. */}
+          Modal contract: aria-modal (on the cropper), the scrim is clickable,
+          Escape dismisses via the window listener above (kept off this
+          presentation element), and focus moves into the dialog on open. */}
       {pickedFile && (
         <div
           role="presentation"
           onClick={(e) => {
             if (e.target === e.currentTarget && !avatarBusy) setPickedFile(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" && !avatarBusy) setPickedFile(null);
           }}
           className="fixed inset-0 z-[60] flex items-center justify-center bg-[color-mix(in_srgb,var(--void)_80%,transparent)] p-6"
         >
