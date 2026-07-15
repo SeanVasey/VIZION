@@ -471,7 +471,7 @@ export function MediaStudio() {
         type="button"
         onClick={() => fileInput.current?.click()}
         disabled={busy || budget.over}
-        className="glass min-h-[48px] rounded-xl border border-dashed border-hair px-4 text-sm text-text transition-shadow hover:shadow-hair disabled:opacity-60"
+        className="glass min-h-[48px] rounded-xl border border-dashed border-hair px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
       >
         {busy
           ? "Working through your files…"
@@ -573,7 +573,7 @@ export function MediaStudio() {
                     <button
                       type="button"
                       onClick={() => copyText(`desc:${item.id}`, item.description)}
-                      className="glass min-h-[44px] rounded-xl px-4 text-sm text-text transition-shadow hover:shadow-hair"
+                      className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors"
                     >
                       {copiedKey === `desc:${item.id}` ? "Copied ✓" : "Copy"}
                     </button>
@@ -701,7 +701,7 @@ export function MediaStudio() {
                 type="button"
                 onClick={save}
                 disabled={saving}
-                className="glass min-h-[44px] rounded-xl px-4 text-sm text-text transition-shadow hover:shadow-hair disabled:opacity-60"
+                className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Save to library"}
               </button>

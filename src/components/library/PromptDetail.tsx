@@ -287,7 +287,7 @@ export function PromptDetail({
                   type="button"
                   onClick={() => restore(v.id)}
                   disabled={pending}
-                  className="glass font-body -my-1 min-h-[44px] shrink-0 rounded-xl px-3 text-xs text-text transition-shadow hover:shadow-hair disabled:opacity-60"
+                  className="glass font-body -my-1 min-h-[44px] shrink-0 rounded-xl px-3 text-xs text-text hover-hair transition-colors disabled:opacity-60"
                 >
                   Restore
                 </button>
@@ -342,7 +342,7 @@ export function PromptDetail({
               type="button"
               onClick={saveVersion}
               disabled={pending}
-              className="glass min-h-[44px] rounded-xl px-4 text-sm text-text transition-shadow hover:shadow-hair disabled:opacity-60"
+              className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
             >
               {pending ? "Saving…" : "Save as new version"}
             </button>

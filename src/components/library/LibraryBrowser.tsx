@@ -116,10 +116,10 @@ const PromptRow = memo(function PromptRow({ prompt: p }: { prompt: PromptCard })
     <li>
       <Link
         href={`/library/${p.id}`}
-        // hover:shadow-hair is a real affordance (.glass already borders in
-        // --hair, so hover:border-hair was a no-op) — same idiom as the media
-        // attach button.
-        className="glass block rounded-2xl p-4 transition-shadow hover:shadow-hair"
+        // .hover-hair brightens the hairline (.glass already borders in
+        // --hair, so hover:border-hair was a no-op; a hover shadow would
+        // out-specify the focus ring).
+        className="glass hover-hair block rounded-2xl p-4 transition-colors"
       >
         <div className="flex items-start justify-between gap-3">
           <p className="font-body text-base text-text">{p.title}</p>

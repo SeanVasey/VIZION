@@ -44,15 +44,18 @@
     min-height: 100dvh;
   }
 
-  /* Visible focus everywhere — Laser edge-glow (style-guide §1.4).
-     The ring is a literal: Tailwind's universal defaults define --tw-shadow
-     (0 0 #0000) on every element, so a var(--tw-shadow, ring) fallback never
-     renders. Utilities like focus-visible:shadow-none still override this by
-     cascade (utilities layer + higher specificity). */
+  /* Visible focus everywhere — accent edge-ring + Laser glow (style-guide
+     §1.4). The ring is a literal: Tailwind's universal defaults define
+     --tw-shadow (0 0 #0000) on every element, so a var(--tw-shadow, ring)
+     fallback never renders. The ring color is --accent-ink, NOT raw --laser:
+     laser as a 1px stroke on a light surface is the 1.09:1 contrast-law FAIL
+     (§6) — accent-ink keeps it Laser on dark and deep green on light.
+     Utilities like focus-visible:shadow-none still override this by cascade
+     (utilities layer + higher specificity). */
   :focus-visible {
     outline: none;
     box-shadow:
-      0 0 0 1px var(--laser),
+      0 0 0 1px var(--accent-ink),
       0 0 24px var(--laser-glow);
     border-radius: 8px;
   }
@@ -179,6 +182,14 @@
   /* Pill modifier for the hero CTAs (Enhance, auth buttons). */
   .pill {
     border-radius: 9999px;
+  }
+
+  /* Quiet hover lift for glass buttons/cards: brightens the hairline border.
+     Deliberately NOT a box-shadow — a hover shadow utility out-specifies the
+     base :focus-visible ring and wipes it while a focused control is hovered.
+     Pair with `transition-colors`. */
+  .hover-hair:hover {
+    border-color: color-mix(in srgb, var(--silver) 40%, transparent);
   }
 
   /* Mono utility text — prompts, diffs, tokens, version hashes. */

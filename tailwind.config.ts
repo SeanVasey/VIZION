@@ -73,8 +73,9 @@ const config: Config = {
         glass: "16px",
       },
       boxShadow: {
-        // Laser focus edge-glow (style-guide §1.4).
-        focus: "0 0 0 1px var(--laser), 0 0 24px rgba(183, 255, 60, 0.25)",
+        // Focus edge-glow (style-guide §1.4). Ring in --accent-ink, not raw
+        // --laser: a 1px laser stroke on light is the contrast-law FAIL (§6).
+        focus: "0 0 0 1px var(--accent-ink), 0 0 24px rgba(183, 255, 60, 0.25)",
         hair: "inset 0 0 0 1px var(--hair)",
       },
       backgroundColor: {

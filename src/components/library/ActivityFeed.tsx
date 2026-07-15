@@ -61,9 +61,11 @@ export function ActivityFeed({ events }: { events: Event[] }) {
             return (
               <li key={e.id}>
                 {e.prompt_id ? (
+                  // Inset focus ring: the list's overflow-hidden would clip
+                  // the default outside-the-edge ring on these full-bleed rows.
                   <Link
                     href={`/library/${e.prompt_id}`}
-                    className="block transition-colors hover:bg-surface"
+                    className="block transition-colors hover:bg-surface focus-visible:shadow-[inset_0_0_0_1px_var(--accent-ink)]"
                   >
                     {body}
                   </Link>

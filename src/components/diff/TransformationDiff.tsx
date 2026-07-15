@@ -231,7 +231,7 @@ export function TransformationDiff({
             type="button"
             onClick={save}
             disabled={saving}
-            className="glass min-h-[44px] rounded-xl px-4 text-sm text-text transition-shadow hover:shadow-hair disabled:opacity-60"
+            className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save to library"}
           </button>
@@ -246,7 +246,7 @@ export function TransformationDiff({
         <button
           type="button"
           onClick={share}
-          className="glass min-h-[44px] rounded-xl px-4 text-sm text-text transition-shadow hover:shadow-hair"
+          className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors"
         >
           Share
         </button>
