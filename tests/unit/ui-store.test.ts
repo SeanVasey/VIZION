@@ -6,7 +6,7 @@ beforeEach(() => {
   useUIStore.setState({
     theme: "system",
     activeMode: "clarify",
-    targetModel: "opus_4_8",
+    targetModel: "opus_5",
     editorDraft: "",
   });
 });
@@ -16,7 +16,7 @@ describe("useUIStore", () => {
     const s = useUIStore.getState();
     expect(s.theme).toBe("system");
     expect(s.activeMode).toBe("clarify");
-    expect(s.targetModel).toBe("opus_4_8");
+    expect(s.targetModel).toBe("opus_5");
     expect(s.editorDraft).toBe("");
   });
 
@@ -34,7 +34,7 @@ describe("useUIStore", () => {
     expect(next.editorDraft).toBe("hello");
   });
 
-  it("migrates legacy persisted target-model IDs (v0 → v1)", () => {
+  it("migrates legacy persisted target-model IDs (v0/v1 → v2)", () => {
     const migrate = useUIStore.persist.getOptions().migrate!;
     // Renamed IDs map to their successors.
     expect(migrate({ targetModel: "gpt_5_5" }, 0)).toMatchObject({
@@ -43,12 +43,15 @@ describe("useUIStore", () => {
     expect(migrate({ targetModel: "gemini_pro_3_1" }, 0)).toMatchObject({
       targetModel: "gemini_3_5_thinking",
     });
+    expect(migrate({ targetModel: "opus_4_8" }, 1)).toMatchObject({
+      targetModel: "opus_5",
+    });
     // Current IDs pass through; unknown IDs fall back to the default.
     expect(migrate({ targetModel: "fable_5" }, 0)).toMatchObject({
       targetModel: "fable_5",
     });
     expect(migrate({ targetModel: "bogus" }, 0)).toMatchObject({
-      targetModel: "opus_4_8",
+      targetModel: "opus_5",
     });
   });
 });

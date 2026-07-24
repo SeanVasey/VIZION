@@ -18,8 +18,10 @@ _Clarify · Polish · Expand · Condense · Reformat · Re-target — the same i
 </div>
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZ(IO)N
-> _transforms_ it — across five target models (Opus 4.8 · GPT-5.6 Sol · Fable 5 ·
-> Gemini 3.5 Flash · Grok 4.5), six enhancement modes, and media-aware prompt
+> _transforms_ it — across thirteen target models from eleven developers
+> (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol · DeepSeek V4 · Gemini 3.5 Flash ·
+> Llama 4 Maverick · MiniMax M2.7 · Mistral Large 3 · Kimi K2.6 · Sonar Pro ·
+> Qwen3.7 Max · Grok 4.5), six enhancement modes, and media-aware prompt
 > construction, with accounts and a versioned prompt library.
 
 <div align="center">
@@ -38,10 +40,15 @@ Client (PWA, Next.js 15 · React 19)
   └─ Service worker: SWR(shell) · network-first(enhance, auth) · cache-fallback(library)
         │  HTTPS — no model keys client-side
         ▼
-Next Route Handlers (Edge) ── Provider Adapter ──┬─ Anthropic (opus_4_8 · fable_5)
-  ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI    (gpt_5_6_sol)
-  ├─ /api/media     (extract → attributes)        ├─ Google    (gemini_3_5_thinking)
-  └─ per-user rate limit + cost cap + audit log   └─ xAI       (grok_4_5)
+Next Route Handlers (Edge) ── Provider Adapter ──┬─ Anthropic  (fable_5 · opus_5 · sonnet_5)
+  ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI     (gpt_5_6_sol)
+  ├─ /api/media     (extract → attributes)        ├─ Google     (gemini_3_5_thinking)
+  └─ per-user rate limit + cost cap + audit log   ├─ Mistral    (mistral_large_3)
+                                                  ├─ xAI        (grok_4_5)
+                                                  └─ OpenAI-compatible proxy:
+                                                     DeepSeek (deepseek_v4) · Meta (llama_4_maverick)
+                                                     MiniMax (minimax_m2_7) · Moonshot (kimi_k2_6)
+                                                     Perplexity (sonar_pro) · Qwen (qwen3_7_max)
         │
         ▼
 Supabase ── Postgres (RLS) · Auth (magic link · GitHub · Google) · Storage (avatars, media)

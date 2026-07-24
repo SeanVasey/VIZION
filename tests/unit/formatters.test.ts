@@ -4,7 +4,7 @@ import { MODES, TARGET_MODELS } from "@/lib/constants";
 
 describe("buildSystemPrompt", () => {
   it("includes the mode instruction and target conventions", () => {
-    const p = buildSystemPrompt("expand", "opus_4_8");
+    const p = buildSystemPrompt("expand", "opus_5");
     expect(p).toContain("EXPAND");
     expect(p).toContain("Claude Opus");
     expect(p).toContain('"output"');
@@ -69,7 +69,7 @@ describe("buildSystemPrompt", () => {
   });
 
   it("polish preserves the input's shape and skips target restructuring idioms", () => {
-    const p = buildSystemPrompt("polish", "opus_4_8");
+    const p = buildSystemPrompt("polish", "opus_5");
     expect(p).toContain("POLISH");
     // No XML/structured idioms leak in for a shape-preserving mode.
     expect(p).not.toContain("XML-tagged");

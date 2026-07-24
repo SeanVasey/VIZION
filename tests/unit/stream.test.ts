@@ -143,7 +143,7 @@ vi.mock("@/lib/providers/xai", () => ({ streamXAI: vi.fn() }));
 describe("enhanceStream / enhance", () => {
   it("yields decoded deltas + usage, then a done result matching the buffered drain", async () => {
     const { enhanceStream, enhance } = await import("@/lib/providers/adapter");
-    const args = { input: "hi", mode: "clarify", target: "opus_4_8" } as const;
+    const args = { input: "hi", mode: "clarify", target: "opus_5" } as const;
 
     const events = [];
     for await (const e of enhanceStream(args)) events.push(e);

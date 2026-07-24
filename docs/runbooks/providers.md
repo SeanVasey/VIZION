@@ -6,14 +6,38 @@ The enhance engine routes each **target** to its provider. Keys are **server-sid
 ## Keys (server env / Vercel project env)
 
 ```
-ANTHROPIC_API_KEY=   # Opus 4.8 + Fable 5 targets
+ANTHROPIC_API_KEY=   # Fable 5 + Opus 5 + Sonnet 5 targets
 OPENAI_API_KEY=      # GPT-5.6 Sol target
 GOOGLE_API_KEY=      # Gemini 3.5 Flash target
-XAI_API_KEY=         # Grok 4.5 target — NEW with the five-model roster
+XAI_API_KEY=         # Grok 4.5 target
+MISTRAL_API_KEY=     # Mistral Large 3 target
+DEEPSEEK_API_KEY=    # DeepSeek V4 — NEW with the thirteen-model roster
+LLAMA_API_KEY=       # Llama 4 Maverick (Meta Llama API) — NEW
+MINIMAX_API_KEY=     # MiniMax M2.7 — NEW
+MOONSHOT_API_KEY=    # Kimi K2.6 (Moonshot AI) — NEW
+PERPLEXITY_API_KEY=  # Sonar Pro — NEW
+DASHSCOPE_API_KEY=   # Qwen3.7 Max (Alibaba Cloud Model Studio) — NEW
 ```
 
 A target whose key is absent returns **503** with a "not configured" message; the other
 targets keep working. Magic-link/profile features don't need these.
+
+Where to create the new keys:
+
+| Key | Console |
+| --- | --- |
+| `DEEPSEEK_API_KEY` | platform.deepseek.com → API keys |
+| `LLAMA_API_KEY` | llama.developer.meta.com (Llama API) → API keys |
+| `MINIMAX_API_KEY` | platform.minimax.io → API keys (international region) |
+| `MOONSHOT_API_KEY` | platform.moonshot.ai → API keys (international region) |
+| `PERPLEXITY_API_KEY` | perplexity.ai → Settings → API |
+| `DASHSCOPE_API_KEY` | Alibaba Cloud Model Studio (international/Singapore region) |
+
+The six new providers are all served through the shared OpenAI-compatible
+streaming adapter (`src/lib/providers/openai-compat.ts`) — region matters for
+MiniMax, Moonshot, and DashScope (the adapter points at the international
+endpoints `api.minimax.io`, `api.moonshot.ai`, and
+`dashscope-intl.aliyuncs.com`; a China-region key will 401 against them).
 
 Keys must be able to call the provider's standard inference endpoint (Anthropic
 Messages, OpenAI-compatible Chat Completions, Gemini `generateContent`). A
@@ -23,29 +47,40 @@ permissions"** — use an unrestricted key or grant the inference scope.
 `/api/media` retries such failures on another configured provider
 (see `docs/runbooks/media.md`); `/api/enhance` surfaces them directly.
 
-> **Deploy note:** the Grok 4.5 target needs `XAI_API_KEY` added to the Vercel
-> project env (Vercel → vizion → Settings → Environment Variables). Until it is
-> set, Grok 4.5 returns 503 "not configured" while the other four targets keep
-> working.
+> **Deploy note:** each of the six new keys needs adding to the Vercel project
+> env (Vercel → vizion → Settings → Environment Variables). Until a key is set,
+> that provider's target returns 503 "not configured" while the rest keep
+> working — keys can therefore be added one at a time.
 
 ## Model strings (env-overridable — D9)
 
 Defaults live in `src/lib/providers/config.ts`; override per deployment:
 
 ```
-MODEL_OPUS=claude-opus-4-8         # default
-MODEL_GPT=gpt-5.6-sol              # default — point at your deployed OpenAI model
-MODEL_FABLE=claude-fable-5         # default
-MODEL_GEMINI=gemini-3.5-flash      # default — point at your deployed Gemini model
-MODEL_GROK=grok-4.5                # default — point at your deployed xAI model
+MODEL_OPUS=claude-opus-5                              # default
+MODEL_SONNET=claude-sonnet-5                          # default
+MODEL_GPT=gpt-5.6-sol                                 # default — point at your deployed OpenAI model
+MODEL_FABLE=claude-fable-5                            # default
+MODEL_DEEPSEEK=deepseek-chat                          # default — tracks the current DeepSeek flagship (V4)
+MODEL_GEMINI=gemini-3.5-flash                         # default — point at your deployed Gemini model
+MODEL_LLAMA=Llama-4-Maverick-17B-128E-Instruct-FP8    # default — the Llama API serving string
+MODEL_MINIMAX=MiniMax-M2.7                            # default
+MODEL_MISTRAL=mistral-large-latest                    # default — tracks the current Large release
+MODEL_KIMI=kimi-k2.6                                  # default
+MODEL_SONAR=sonar-pro                                 # default
+MODEL_QWEN=qwen-max                                   # default — tracks the current Max release (Qwen3.7 Max)
+MODEL_GROK=grok-4.5                                   # default — point at your deployed xAI model
 ```
 
-`GPT-5.6 Sol`, `Gemini 3.5 Flash`, and `Grok 4.5` are the named product targets; set
-the env to the exact model string your account serves. Swapping a model is a config
-change, not a refactor.
+The labels in the picker are named product targets; set the env to the exact
+model string your account serves. Swapping a model is a config change, not a
+refactor.
 
 Note on cost: Fable 5 lists at $10/$50 per 1M tokens (in/out) — noticeably pricier than
-the other targets, so users reach the daily cost cap sooner on it.
+the other targets, so users reach the daily cost cap sooner on it. At the other end,
+DeepSeek V4 (~$0.45/$0.90) and MiniMax M2.7 (~$0.30/$1.20) barely dent the cap.
+Qwen3.7 Max defaults reflect the current 50%-promo rate ($1.25/$3.75, list $2.50/$7.50) —
+override `PRICE_QWEN_*` when the promo lapses.
 
 ## Cost cap & rate limit
 

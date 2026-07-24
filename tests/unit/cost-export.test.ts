@@ -5,7 +5,7 @@ import { toMarkdown, toJson, toText, type ExportData } from "@/lib/enhance/expor
 describe("computeCost", () => {
   it("computes Opus cost from token counts ($5/$25 per MTok default)", () => {
     // 1M in + 1M out = $5 + $25 = $30
-    expect(computeCost("opus_4_8", 1_000_000, 1_000_000)).toBe(30);
+    expect(computeCost("opus_5", 1_000_000, 1_000_000)).toBe(30);
   });
 
   it("is zero for zero tokens", () => {
@@ -13,7 +13,7 @@ describe("computeCost", () => {
   });
 
   it("rounds to 6 decimal places", () => {
-    const c = computeCost("opus_4_8", 1, 1);
+    const c = computeCost("opus_5", 1, 1);
     expect(c).toBeCloseTo(0.00003, 6);
   });
 });
@@ -23,8 +23,8 @@ const data: ExportData = {
   output: "Write a concise summary.",
   rationale: "Tightened the ask.",
   mode: "clarify",
-  target: "opus_4_8",
-  modelUsed: "claude-opus-4-8",
+  target: "opus_5",
+  modelUsed: "claude-opus-5",
 };
 
 describe("exporters", () => {
@@ -33,14 +33,14 @@ describe("exporters", () => {
     expect(md).toContain("write a summary");
     expect(md).toContain("Write a concise summary.");
     expect(md).toContain("Tightened the ask.");
-    expect(md).toContain("Opus 4.8");
+    expect(md).toContain("Opus 5");
   });
 
   it("json round-trips the fields", () => {
     const parsed = JSON.parse(toJson(data));
     expect(parsed.output).toBe("Write a concise summary.");
     expect(parsed.mode).toBe("clarify");
-    expect(parsed.model).toBe("claude-opus-4-8");
+    expect(parsed.model).toBe("claude-opus-5");
   });
 
   it("text is just the output", () => {

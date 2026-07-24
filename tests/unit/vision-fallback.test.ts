@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   describeImage,
   isVisionConfigError,
+  supportsVision,
   visionFallbackTarget,
 } from "@/lib/providers/vision";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
@@ -12,6 +13,9 @@ const KEY_ENVS = [
   "GOOGLE_API_KEY",
   "MISTRAL_API_KEY",
   "XAI_API_KEY",
+  "LLAMA_API_KEY",
+  "MOONSHOT_API_KEY",
+  "PERPLEXITY_API_KEY",
 ] as const;
 
 describe("isVisionConfigError", () => {
@@ -61,18 +65,39 @@ describe("visionFallbackTarget", () => {
   it("prefers the Anthropic (Opus) fallback when available", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
     vi.stubEnv("GOOGLE_API_KEY", "g-test");
-    expect(visionFallbackTarget("grok_4_5")).toBe("opus_4_8");
+    expect(visionFallbackTarget("grok_4_5")).toBe("opus_5");
   });
 
   it("never falls back within the failed provider (same key would fail again)", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
-    // fable_5 and opus_4_8 share the anthropic key — no other provider is up.
+    // fable_5 and opus_5 share the anthropic key — no other provider is up.
     expect(visionFallbackTarget("fable_5")).toBeNull();
-    expect(visionFallbackTarget("opus_4_8")).toBeNull();
+    expect(visionFallbackTarget("opus_5")).toBeNull();
   });
 
   it("returns null when nothing is configured", () => {
     expect(visionFallbackTarget("gpt_5_6_sol")).toBeNull();
+  });
+
+  it("offers the new vision-capable providers as a last resort", () => {
+    vi.stubEnv("MOONSHOT_API_KEY", "k-test");
+    expect(visionFallbackTarget("minimax_m2_7")).toBe("kimi_k2_6");
+  });
+});
+
+describe("supportsVision", () => {
+  it("flags text-only flagships so the route can redirect up front", () => {
+    expect(supportsVision("deepseek_v4")).toBe(false);
+    expect(supportsVision("minimax_m2_7")).toBe(false);
+    expect(supportsVision("qwen3_7_max")).toBe(false);
+  });
+
+  it("keeps the multimodal targets on their own provider", () => {
+    expect(supportsVision("opus_5")).toBe(true);
+    expect(supportsVision("sonnet_5")).toBe(true);
+    expect(supportsVision("llama_4_maverick")).toBe(true);
+    expect(supportsVision("kimi_k2_6")).toBe(true);
+    expect(supportsVision("sonar_pro")).toBe(true);
   });
 });
 

@@ -19,14 +19,32 @@ export type ModeId = (typeof MODES)[number]["id"];
 /** Model developers, in locked display order: Anthropic and OpenAI always
  *  first, the rest alphabetical. `DEVELOPER_ORDER` is the single source the
  *  roster (and its ordering test) is checked against. */
-export const DEVELOPER_ORDER = ["anthropic", "openai", "google", "mistral", "xai"] as const;
+export const DEVELOPER_ORDER = [
+  "anthropic",
+  "openai",
+  "deepseek",
+  "google",
+  "meta",
+  "minimax",
+  "mistral",
+  "moonshot",
+  "perplexity",
+  "qwen",
+  "xai",
+] as const;
 export type Developer = (typeof DEVELOPER_ORDER)[number];
 
 export const DEVELOPER_LABEL: Record<Developer, string> = {
   anthropic: "Anthropic",
   openai: "OpenAI",
+  deepseek: "DeepSeek",
   google: "Google",
+  meta: "Meta AI",
+  minimax: "MiniMax",
   mistral: "Mistral",
+  moonshot: "Moonshot AI",
+  perplexity: "Perplexity",
+  qwen: "Qwen",
   xai: "xAI",
 };
 
@@ -38,10 +56,17 @@ export const DEVELOPER_LABEL: Record<Developer, string> = {
  *  first within each developer. */
 export const TARGET_MODELS = [
   { id: "fable_5", label: "Fable 5", developer: "anthropic" },
-  { id: "opus_4_8", label: "Opus 4.8", developer: "anthropic" },
+  { id: "opus_5", label: "Opus 5", developer: "anthropic" },
+  { id: "sonnet_5", label: "Sonnet 5", developer: "anthropic" },
   { id: "gpt_5_6_sol", label: "GPT-5.6 Sol", developer: "openai" },
+  { id: "deepseek_v4", label: "DeepSeek V4", developer: "deepseek" },
   { id: "gemini_3_5_thinking", label: "Gemini 3.5 Flash", developer: "google" },
+  { id: "llama_4_maverick", label: "Llama 4 Maverick", developer: "meta" },
+  { id: "minimax_m2_7", label: "MiniMax M2.7", developer: "minimax" },
   { id: "mistral_large_3", label: "Mistral Large 3", developer: "mistral" },
+  { id: "kimi_k2_6", label: "Kimi K2.6", developer: "moonshot" },
+  { id: "sonar_pro", label: "Sonar Pro", developer: "perplexity" },
+  { id: "qwen3_7_max", label: "Qwen3.7 Max", developer: "qwen" },
   { id: "grok_4_5", label: "Grok 4.5", developer: "xai" },
 ] as const satisfies readonly { id: string; label: string; developer: Developer }[];
 export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
