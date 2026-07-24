@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <>
       <ProfileHydrator
         theme={profile?.theme ?? "system"}
-        defaultModel={profile?.default_model ?? "opus_4_8"}
+        defaultModel={profile?.default_model ?? "opus_5"}
       />
       <OutboxFlusher />
       {children}

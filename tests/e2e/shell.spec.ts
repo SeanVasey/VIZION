@@ -43,7 +43,7 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     request,
   }) => {
     const res = await request.post("/api/enhance", {
-      data: { input: "write a summary", mode: "clarify", target: "opus_4_8" },
+      data: { input: "write a summary", mode: "clarify", target: "opus_5" },
     });
     expect(res.status()).toBe(401);
   });

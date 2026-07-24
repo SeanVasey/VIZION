@@ -4,6 +4,7 @@ import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
 import {
   describeImage,
   isVisionConfigError,
+  supportsVision,
   visionFallbackTarget,
 } from "@/lib/providers/vision";
 import { parseDataUrl } from "@/lib/media/extract";
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
   if (target !== undefined && (typeof target !== "string" || !TARGET_IDS.has(target))) {
     return err(400, "Unknown target model.");
   }
-  const typedTarget = (target as TargetModelId | undefined) ?? "opus_4_8";
+  const typedTarget = (target as TargetModelId | undefined) ?? "opus_5";
 
   const parsed = parseDataUrl(dataUrl);
   if (!parsed || !parsed.mediaType.startsWith("image/")) {
@@ -98,19 +99,31 @@ export async function POST(request: NextRequest) {
     return err(429, "You've reached today's usage cap.", { capReached: true });
   }
 
-  // Vision runs on the selected model. A config-shaped failure (missing key,
-  // key without permission, unknown model string) retries once on the first
-  // other configured provider — a bad key for one provider shouldn't cost the
-  // user the whole feature. Anything else surfaces as-is.
+  // Vision runs on the selected model. A text-only flagship (DeepSeek,
+  // MiniMax, Qwen Max) can't take an image at all, so analysis is routed to
+  // the first configured vision-capable provider up front. A config-shaped
+  // failure (missing key, key without permission, unknown model string)
+  // retries once on the first other configured provider — a bad key for one
+  // provider shouldn't cost the user the whole feature. Anything else
+  // surfaces as-is.
   let usedTarget = typedTarget;
+  if (!supportsVision(typedTarget)) {
+    const redirect = visionFallbackTarget(typedTarget);
+    if (!redirect) {
+      return err(503, "No vision-capable model is configured on the server.", {
+        notConfigured: true,
+      });
+    }
+    usedTarget = redirect;
+  }
   let extracted;
   try {
-    extracted = await describeImage(parsed.base64, parsed.mediaType, typedTarget);
+    extracted = await describeImage(parsed.base64, parsed.mediaType, usedTarget);
   } catch (e) {
-    const fallback = isVisionConfigError(e) ? visionFallbackTarget(typedTarget) : null;
+    const fallback = isVisionConfigError(e) ? visionFallbackTarget(usedTarget) : null;
     if (!fallback) return visionError(e);
     console.error(
-      `[media] vision on ${typedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
+      `[media] vision on ${usedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
     );
     try {
       extracted = await describeImage(parsed.base64, parsed.mediaType, fallback);

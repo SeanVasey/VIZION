@@ -8,6 +8,14 @@ import { streamOpenAI } from "@/lib/providers/openai";
 import { streamGoogle } from "@/lib/providers/google";
 import { streamMistral } from "@/lib/providers/mistral";
 import { streamXAI } from "@/lib/providers/xai";
+import {
+  streamDeepSeek,
+  streamMeta,
+  streamMiniMax,
+  streamMoonshot,
+  streamPerplexity,
+  streamQwen,
+} from "@/lib/providers/openai-compat";
 
 export interface EnhanceArgs {
   input: string;
@@ -51,8 +59,14 @@ export async function* enhanceStream({
   const streams = {
     anthropic: streamAnthropic,
     openai: streamOpenAI,
+    deepseek: streamDeepSeek,
     google: streamGoogle,
+    meta: streamMeta,
+    minimax: streamMiniMax,
     mistral: streamMistral,
+    moonshot: streamMoonshot,
+    perplexity: streamPerplexity,
+    qwen: streamQwen,
     xai: streamXAI,
   } as const;
 

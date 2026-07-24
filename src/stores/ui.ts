@@ -87,7 +87,7 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       theme: "system",
       activeMode: "clarify",
-      targetModel: "opus_4_8",
+      targetModel: "opus_5",
       editorDraft: "",
 
       setTheme: (theme) => set({ theme }),
@@ -99,14 +99,16 @@ export const useUIStore = create<UIState>()(
       name: UI_STORE_KEY,
       storage: createJSONStorage(() => debouncedLocalStorage()),
       // v1: the 2026-07 model-roster rename (gpt_5_5 → gpt_5_6_sol,
-      // gemini_pro_3_1 → gemini_3_5_thinking). A stale persisted ID would
-      // 400 on /api/enhance, so map legacy values and fall back to the default.
-      version: 1,
+      // gemini_pro_3_1 → gemini_3_5_thinking). v2: opus_4_8 → opus_5. A stale
+      // persisted ID would 400 on /api/enhance, so map legacy values and fall
+      // back to the default.
+      version: 2,
       migrate: (persisted) => {
         const s = (persisted ?? {}) as Partial<UIState>;
         const legacy: Record<string, TargetModelId> = {
           gpt_5_5: "gpt_5_6_sol",
           gemini_pro_3_1: "gemini_3_5_thinking",
+          opus_4_8: "opus_5",
         };
         const valid = new Set<string>(TARGET_MODELS.map((m) => m.id));
         const t = s.targetModel as string | undefined;
@@ -115,7 +117,7 @@ export const useUIStore = create<UIState>()(
           targetModel:
             t && valid.has(t)
               ? (t as TargetModelId)
-              : ((t && legacy[t]) ?? "opus_4_8"),
+              : ((t && legacy[t]) ?? "opus_5"),
         };
       },
       // Draft is intentionally NOT persisted as the only copy — it is a

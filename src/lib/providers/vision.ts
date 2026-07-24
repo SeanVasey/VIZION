@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { TargetModelId } from "@/lib/constants";
-import { TARGETS, PROVIDER_KEY_ENV } from "@/lib/providers/config";
+import { TARGETS, PROVIDER_KEY_ENV, type Provider } from "@/lib/providers/config";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { MEDIA_EXTRACT_SYSTEM, parseMediaAttributes } from "@/lib/media/extract";
 import type { MediaAttributes } from "@/lib/media/types";
@@ -77,12 +77,15 @@ async function describeOpenAICompatible(
   mediaType: string,
   model: string,
   tokenCap: { max_tokens: number } | { max_completion_tokens: number },
+  // Perplexity and Meta take json_schema, not json_object — for those the
+  // prompt alone pins JSON and parseMediaAttributes tolerates a miss.
+  jsonMode = true,
 ): Promise<VisionResult> {
   const client = new OpenAI({ apiKey, baseURL });
   const response = await client.chat.completions.create({
     model,
     ...tokenCap,
-    response_format: { type: "json_object" },
+    ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
     messages: [
       { role: "system", content: MEDIA_EXTRACT_SYSTEM },
       {
@@ -174,12 +177,35 @@ async function describeGoogle(
 /** Fallback priority when the selected model can't run vision — the original
  *  design analyzed on Opus, so Anthropic stays first. */
 const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
-  "opus_4_8",
+  "opus_5",
   "gpt_5_6_sol",
   "gemini_3_5_thinking",
   "mistral_large_3",
   "grok_4_5",
+  "llama_4_maverick",
+  "kimi_k2_6",
+  "sonar_pro",
 ];
+
+/** Providers whose roster flagship takes image input. DeepSeek, MiniMax, and
+ *  Qwen Max are text-only flagships (their vision models are separate SKUs),
+ *  so media analysis for those targets is routed to the fallback chain. */
+const VISION_CAPABLE_PROVIDERS: ReadonlySet<Provider> = new Set([
+  "anthropic",
+  "openai",
+  "google",
+  "meta",
+  "mistral",
+  "moonshot",
+  "perplexity",
+  "xai",
+]);
+
+/** Whether the target's provider can analyze images at all — callers should
+ *  route non-capable targets straight to `visionFallbackTarget`. */
+export function supportsVision(target: TargetModelId): boolean {
+  return VISION_CAPABLE_PROVIDERS.has(TARGETS[target].provider);
+}
 
 /**
  * A failure the deployment (not the image) caused: missing key, a key the
@@ -255,8 +281,47 @@ export async function describeImage(
           cfg.model,
           { max_tokens: 1024 },
         );
+      case "meta":
+        return await describeOpenAICompatible(
+          requireKey("LLAMA_API_KEY"),
+          "https://api.llama.com/compat/v1",
+          base64,
+          mediaType,
+          cfg.model,
+          { max_tokens: 1024 },
+          false,
+        );
+      case "moonshot":
+        return await describeOpenAICompatible(
+          requireKey("MOONSHOT_API_KEY"),
+          "https://api.moonshot.ai/v1",
+          base64,
+          mediaType,
+          cfg.model,
+          { max_tokens: 1024 },
+        );
+      case "perplexity":
+        // Sonar reasons before answering — same headroom as OpenAI.
+        return await describeOpenAICompatible(
+          requireKey("PERPLEXITY_API_KEY"),
+          "https://api.perplexity.ai",
+          base64,
+          mediaType,
+          cfg.model,
+          { max_tokens: 4096 },
+          false,
+        );
       case "google":
         return await describeGoogle(base64, mediaType, cfg.model);
+      case "deepseek":
+      case "minimax":
+      case "qwen":
+        // Text-only flagships — callers gate on supportsVision() first, so
+        // this is a defensive backstop, not a reachable user path.
+        throw new ProviderError(
+          cfg.provider,
+          "The selected model can't analyze images.",
+        );
     }
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError || error instanceof ProviderError) {

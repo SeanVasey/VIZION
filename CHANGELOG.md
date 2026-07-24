@@ -6,6 +6,35 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — the roster grows from six to thirteen: Opus 5, Sonnet 5, and six new developers
+
+- **Opus 4.8 → Opus 5.** The Anthropic Opus target now points at
+  `claude-opus-5` (same $5/$25 per-MTok pricing). The DB enum value is renamed
+  in place (`supabase/migrations/20260724000000_expand_model_roster.sql` —
+  existing prompt versions, usage events, and profile defaults follow
+  automatically), and a persisted `opus_4_8` picker selection migrates to
+  `opus_5` on load (UI-store v2).
+- **Sonnet 5 joins** as the third Anthropic target (`claude-sonnet-5`,
+  $3/$15) — served by the existing `ANTHROPIC_API_KEY`.
+- **Six frontier models from six new developers:** DeepSeek V4
+  (`deepseek-chat`) · Llama 4 Maverick (Meta Llama API) · MiniMax M2.7 ·
+  Kimi K2.6 (Moonshot AI) · Sonar Pro (Perplexity) · Qwen3.7 Max (Alibaba,
+  `qwen-max`). All six speak the OpenAI wire shape and stream through one new
+  shared factory (`src/lib/providers/openai-compat.ts`) — including a
+  cross-chunk `<think>…</think>` filter for MiniMax's interleaved reasoning,
+  which would otherwise corrupt the JSON envelope. Each provider needs its own
+  server-side key (`DEEPSEEK_API_KEY` · `LLAMA_API_KEY` · `MINIMAX_API_KEY` ·
+  `MOONSHOT_API_KEY` · `PERPLEXITY_API_KEY` · `DASHSCOPE_API_KEY`); a target
+  whose key is unset returns 503 "not configured" while the rest keep working.
+- **Media analysis knows which flagships can see.** Text-only flagships
+  (DeepSeek V4, MiniMax M2.7, Qwen3.7 Max) route image analysis straight to
+  the vision fallback chain instead of failing; the chain itself gains
+  Llama 4 Maverick, Kimi K2.6, and Sonar Pro as last resorts after the
+  original five.
+- Per-target prompt conventions, developer marks (monochrome single-path,
+  Simple Icons), model picker grouping, `.env.example`, and the provider/media
+  runbooks all extend to the new roster.
+
 ### Changed — the media generation studio is model-aware
 
 - The green generation-**engine** chip (Midjourney / Runway / Sora / Kling /

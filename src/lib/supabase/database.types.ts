@@ -279,11 +279,18 @@ export type Database = {
       enhance_mode: "clarify" | "polish" | "expand" | "condense" | "reformat" | "target";
       media_kind: "image" | "video" | "audio";
       model_target:
-        | "opus_4_8"
+        | "opus_5"
+        | "sonnet_5"
         | "gpt_5_6_sol"
         | "fable_5"
+        | "deepseek_v4"
         | "gemini_3_5_thinking"
+        | "llama_4_maverick"
+        | "minimax_m2_7"
         | "mistral_large_3"
+        | "kimi_k2_6"
+        | "sonar_pro"
+        | "qwen3_7_max"
         | "grok_4_5";
       oauth_provider: "github" | "google";
       theme: "dark" | "light" | "system";

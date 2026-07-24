@@ -1,6 +1,17 @@
 import type { TargetModelId } from "@/lib/constants";
 
-export type Provider = "anthropic" | "openai" | "google" | "mistral" | "xai";
+export type Provider =
+  | "anthropic"
+  | "openai"
+  | "deepseek"
+  | "google"
+  | "meta"
+  | "minimax"
+  | "mistral"
+  | "moonshot"
+  | "perplexity"
+  | "qwen"
+  | "xai";
 
 interface TargetConfig {
   provider: Provider;
@@ -19,11 +30,17 @@ interface TargetConfig {
  * deployed string via env.
  */
 export const TARGETS: Record<TargetModelId, TargetConfig> = {
-  opus_4_8: {
+  opus_5: {
     provider: "anthropic",
-    model: process.env.MODEL_OPUS ?? "claude-opus-4-8",
+    model: process.env.MODEL_OPUS ?? "claude-opus-5",
     priceIn: numEnv("PRICE_OPUS_IN", 5),
     priceOut: numEnv("PRICE_OPUS_OUT", 25),
+  },
+  sonnet_5: {
+    provider: "anthropic",
+    model: process.env.MODEL_SONNET ?? "claude-sonnet-5",
+    priceIn: numEnv("PRICE_SONNET_IN", 3),
+    priceOut: numEnv("PRICE_SONNET_OUT", 15),
   },
   gpt_5_6_sol: {
     provider: "openai",
@@ -37,11 +54,31 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_FABLE_IN", 10),
     priceOut: numEnv("PRICE_FABLE_OUT", 50),
   },
+  deepseek_v4: {
+    provider: "deepseek",
+    // `deepseek-chat` tracks the current flagship (V4 as of 2026-07); pin an
+    // exact string via env if drift ever matters.
+    model: process.env.MODEL_DEEPSEEK ?? "deepseek-chat",
+    priceIn: numEnv("PRICE_DEEPSEEK_IN", 0.45),
+    priceOut: numEnv("PRICE_DEEPSEEK_OUT", 0.9),
+  },
   gemini_3_5_thinking: {
     provider: "google",
     model: process.env.MODEL_GEMINI ?? "gemini-3.5-flash",
     priceIn: numEnv("PRICE_GEMINI_IN", 0.3),
     priceOut: numEnv("PRICE_GEMINI_OUT", 1.2),
+  },
+  llama_4_maverick: {
+    provider: "meta",
+    model: process.env.MODEL_LLAMA ?? "Llama-4-Maverick-17B-128E-Instruct-FP8",
+    priceIn: numEnv("PRICE_LLAMA_IN", 0.5),
+    priceOut: numEnv("PRICE_LLAMA_OUT", 1),
+  },
+  minimax_m2_7: {
+    provider: "minimax",
+    model: process.env.MODEL_MINIMAX ?? "MiniMax-M2.7",
+    priceIn: numEnv("PRICE_MINIMAX_IN", 0.3),
+    priceOut: numEnv("PRICE_MINIMAX_OUT", 1.2),
   },
   mistral_large_3: {
     provider: "mistral",
@@ -50,6 +87,26 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     model: process.env.MODEL_MISTRAL ?? "mistral-large-latest",
     priceIn: numEnv("PRICE_MISTRAL_IN", 2),
     priceOut: numEnv("PRICE_MISTRAL_OUT", 6),
+  },
+  kimi_k2_6: {
+    provider: "moonshot",
+    model: process.env.MODEL_KIMI ?? "kimi-k2.6",
+    priceIn: numEnv("PRICE_KIMI_IN", 0.6),
+    priceOut: numEnv("PRICE_KIMI_OUT", 2.5),
+  },
+  sonar_pro: {
+    provider: "perplexity",
+    model: process.env.MODEL_SONAR ?? "sonar-pro",
+    priceIn: numEnv("PRICE_SONAR_IN", 3),
+    priceOut: numEnv("PRICE_SONAR_OUT", 15),
+  },
+  qwen3_7_max: {
+    provider: "qwen",
+    // `qwen-max` tracks the current Max release (Qwen3.7 Max as of 2026-07);
+    // pin an exact snapshot via env if drift ever matters.
+    model: process.env.MODEL_QWEN ?? "qwen-max",
+    priceIn: numEnv("PRICE_QWEN_IN", 1.25),
+    priceOut: numEnv("PRICE_QWEN_OUT", 3.75),
   },
   grok_4_5: {
     provider: "xai",
@@ -85,8 +142,14 @@ export const COST_CAP_USD_PER_DAY = numEnv("COST_CAP_USD_PER_DAY", 2);
 export const PROVIDER_KEY_ENV: Record<Provider, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
+  deepseek: "DEEPSEEK_API_KEY",
   google: "GOOGLE_API_KEY",
+  meta: "LLAMA_API_KEY",
+  minimax: "MINIMAX_API_KEY",
   mistral: "MISTRAL_API_KEY",
+  moonshot: "MOONSHOT_API_KEY",
+  perplexity: "PERPLEXITY_API_KEY",
+  qwen: "DASHSCOPE_API_KEY",
   xai: "XAI_API_KEY",
 };
 

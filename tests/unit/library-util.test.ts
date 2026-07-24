@@ -28,7 +28,7 @@ describe("parseTags", () => {
 
 describe("filterPrompts", () => {
   const prompts = [
-    { title: "Launch email", tags: ["marketing"], target_model: "opus_4_8" },
+    { title: "Launch email", tags: ["marketing"], target_model: "opus_5" },
     { title: "JSON spec", tags: ["code"], target_model: "gpt_5_6_sol" },
   ];
   it("filters by query against title and tags", () => {
@@ -44,7 +44,7 @@ describe("filterPrompts", () => {
       filterPrompts(prompts, { query: "", tag: "code", model: null })[0]!.title,
     ).toBe("JSON spec");
     expect(
-      filterPrompts(prompts, { query: "", tag: null, model: "opus_4_8" })[0]!.title,
+      filterPrompts(prompts, { query: "", tag: null, model: "opus_5" })[0]!.title,
     ).toBe("Launch email");
   });
 });

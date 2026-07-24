@@ -46,13 +46,24 @@ on every theme change; CSS `env(safe-area-inset-*)` utilities handle layout inse
 
 A single `enhance(input, mode, target)` interface fans out to model-specific formatters:
 
-- **Opus 4.8** — XML-tagged sections, explicit system/user separation, CoT scaffolds.
+- **Opus 5** — XML-tagged sections, explicit system/user separation, CoT scaffolds.
+- **Sonnet 5** — clear direct instructions, XML sections for layered context, literal precision.
 - **GPT-5.6 Sol** — developer/system/user roles, JSON-mode / structured-output, tool schemas.
 - **Fable 5** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
+- **DeepSeek V4** — plain complete problem statement, reasoning left to the engine, explicit format.
 - **Gemini 3.5 Flash** — multimodal "parts", system-instruction conventions, grounding.
-- **Grok 4.5** — direct plain-spoken instructions, inline context, explicit output format. (xAI — new provider; needs `XAI_API_KEY`.)
+- **Llama 4 Maverick** — short unambiguous instructions, enumerated constraints, explicit format.
+- **MiniMax M2.7** — tight ordered brief; goal, constraints, and deliverable up front.
+- **Mistral Large 3** — concise front-loaded instructions; economy over scaffolding.
+- **Kimi K2.6** — clear goal + constraints with key context front-loaded; long-context friendly.
+- **Sonar Pro** — research-brief phrasing: scope, time window, source/citation expectations.
+- **Qwen3.7 Max** — well-separated task/context/format sections; language expectations stated.
+- **Grok 4.5** — direct plain-spoken instructions, inline context, explicit output format.
 
-Model strings live in server config so swaps are a config change, not a refactor.
+The six 2026-07 additions (DeepSeek · Meta · MiniMax · Moonshot · Perplexity ·
+Qwen) all speak the OpenAI wire shape and share one streaming factory
+(`src/lib/providers/openai-compat.ts`). Model strings live in server config so
+swaps are a config change, not a refactor.
 
 ## Data model (P2/P4)
 

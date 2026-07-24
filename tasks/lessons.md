@@ -535,3 +535,27 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   (`usage.target` from the server), or the ledger lies and the chip
   misattributes spend. A soft amber note on the ready card beats failing the
   item.
+
+## Roster expansion (2026-07) — six OpenAI-compatible providers in one pass
+
+- **A DB-enum rename touches four layers in lockstep:** the enum migration
+  (`RENAME VALUE` — updates rows in place), the generated
+  `database.types.ts`, every hardcoded default (`ui.ts`, layout, media
+  route), and the UI-store `migrate` (bump the persist `version` and map the
+  legacy ID, or a stale localStorage selection 400s on `/api/enhance`).
+  Grep for the raw ID string first — half the references live in tests.
+- **When N providers speak the same wire shape, add one factory, not N
+  files.** `openai-compat.ts` configures six providers from one streaming
+  implementation. Divergences fit in three flags: base URL, whether
+  `response_format: json_object` is accepted (Perplexity: no — json_schema
+  only), and whether the model interleaves `<think>…</think>` into content
+  (MiniMax: yes — strip it before the envelope scanner, remembering a tag
+  can split across stream chunks).
+- **Not every flagship can see.** New enhance targets aren't automatically
+  vision targets — gate media analysis on a capability check
+  (`supportsVision`) and route text-only flagships to the fallback chain up
+  front, instead of letting the provider 400 and surfacing it to the user.
+- **Pin new-provider defaults to alias strings where the vendor offers one**
+  (`deepseek-chat`, `qwen-max`, `mistral-large-latest`) — the roster label
+  can name the product ("DeepSeek V4") while the wire string tracks the
+  vendor's current release; exact snapshots stay an env override.

@@ -26,9 +26,10 @@ describe("model roster ordering", () => {
     expect(rest).toEqual([...rest].sort());
   });
 
-  it("puts the best Anthropic model first (Fable 5 before Opus 4.8)", () => {
+  it("puts the best Anthropic model first (Fable 5 before Opus 5 before Sonnet 5)", () => {
     const ids = TARGET_MODELS.map((m) => m.id);
-    expect(ids.indexOf("fable_5")).toBeLessThan(ids.indexOf("opus_4_8"));
+    expect(ids.indexOf("fable_5")).toBeLessThan(ids.indexOf("opus_5"));
+    expect(ids.indexOf("opus_5")).toBeLessThan(ids.indexOf("sonnet_5"));
     expect(ids[0]).toBe("fable_5");
   });
 

@@ -7,18 +7,32 @@ import { MODE_INSTRUCTIONS } from "@/lib/enhance/modes";
  * is formatted for — each provider re-renders the prompt into its own idiom.
  */
 const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
-  opus_4_8:
+  opus_5:
     "Target engine: Claude Opus. Favor XML-tagged sections (e.g. <task>, <context>, <constraints>, <examples>) and chain-of-thought scaffolds where reasoning helps, all inside the one prompt. Structure for long context.",
+  sonnet_5:
+    "Target engine: Claude Sonnet. Favor clear, direct instructions with XML-tagged sections for layered context; state the goal, constraints, and expected output shape explicitly — this engine follows instructions literally and rewards precision over hint-dropping.",
   gpt_5_6_sol:
     "Target engine: GPT. Favor terse, directive instructions; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
   fable_5:
     "Target engine: Claude Fable. State the goal, constraints, and what a finished answer looks like, and avoid over-prescriptive step-by-step scaffolding — this engine plans best from a clear brief. XML-tagged sections are welcome for long or layered context.",
+  deepseek_v4:
+    "Target engine: DeepSeek. State the problem plainly and completely up front, then let the engine reason — avoid prescribing step-by-step chains. Spell out the expected output format explicitly near the end of the prompt.",
   gemini_3_5_thinking:
     "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. Give the reasoning variants a clearly separated goal and constraints.",
-  grok_4_5:
-    "Target engine: Grok. Favor direct, plain-spoken instructions with the needed context stated inline; spell out the desired output format and any tone constraints inside the prompt.",
+  llama_4_maverick:
+    "Target engine: Llama. Favor short, unambiguous instructions with the context stated inline; enumerate requirements as explicit constraints and spell out the output format — this engine rewards directness over subtlety.",
+  minimax_m2_7:
+    "Target engine: MiniMax. Favor a tight brief with the goal, constraints, and deliverable stated up front; keep instructions concrete and ordered — this agentic engine executes well-scoped plans best.",
   mistral_large_3:
     "Target engine: Mistral. Favor concise, explicit instructions with the context front-loaded and the expected output format stated inline; keep the prompt tight — this engine rewards economy over elaborate scaffolding.",
+  kimi_k2_6:
+    "Target engine: Kimi. State the goal and constraints clearly and front-load the key context — this long-context engine handles large pasted material well; make the deliverable and its format explicit.",
+  sonar_pro:
+    "Target engine: Perplexity Sonar. Phrase the prompt as a research brief: state what to find, the time window that matters, source expectations (e.g. cite sources), and the shape of the answer — this engine searches the web, so scoping and recency cues do real work.",
+  qwen3_7_max:
+    "Target engine: Qwen. Favor explicit, well-structured instructions with the task, context, and output format clearly separated; state language expectations when relevant — this engine is strong multilingually and rewards clean structure.",
+  grok_4_5:
+    "Target engine: Grok. Favor direct, plain-spoken instructions with the needed context stated inline; spell out the desired output format and any tone constraints inside the prompt.",
 };
 
 /** Display labels — mechanically derived from TARGET_MODELS so a roster
