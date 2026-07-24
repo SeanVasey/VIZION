@@ -8,7 +8,9 @@ import { MODE_BLURB } from "@/lib/enhance/modes";
  * Mode instrument (remediation R5.1).  ONE glass chassis with six equal cells
  * (grid repeat(6,1fr)), icon-over-label, and a sliding Laser "lens-lock"
  * indicator behind the active cell — the same aperture motion as the brand
- * mark.  Active cell text/icon = --on-laser.  Symmetric at 360/390/430px.
+ * mark.  Active cell text/icon = --on-laser; inactive cell ICONS carry the
+ * brand green via --accent-ink (Laser on dark, deep green on light — never raw
+ * laser as a stroke on a light surface, §6).  Symmetric at 360/390/430px.
  *
  * A dedicated help strip sits IN FLOW below the rig (above the composer): it
  * always shows one mode description — the hovered/focused cell, falling back
@@ -111,7 +113,10 @@ export const ModeRig = memo(function ModeRig({
                 active ? "text-on-laser" : "text-silver hover:text-chalk",
               ].join(" ")}
             >
-              <ModeIcon id={mode.id} />
+              {/* Inactive icons take the theme-aware green; the active icon
+                  inherits the cell's --on-laser so it stays legible on the
+                  Laser lens-lock fill. */}
+              <ModeIcon id={mode.id} className={active ? undefined : "text-accent"} />
               <span className="tracking-wide">{mode.label}</span>
             </button>
           );
@@ -131,7 +136,12 @@ export const ModeRig = memo(function ModeRig({
           className="absolute -top-1 h-2 w-2 rotate-45 border-l border-t border-hair bg-onyx transition-[left] duration-300 ease-out"
           style={{ left: `calc(${shownIndex + 0.5} * (100% / 6) - 4px)` }}
         />
-        <div className="grid text-center">
+        {/* Blurbs are set in the same display-caps voice as the guidance line
+            above the rig (font-display + uppercase guard, text-sm).  items-
+            center + text-balance keep every mode consistent inside the
+            reserved height: a one-line blurb sits centered rather than
+            top-hung, and any wrap splits into two even lines. */}
+        <div className="grid items-center text-center">
           {MODES.map((mode) => {
             const shown = mode.id === shownMode;
             return (
@@ -139,7 +149,7 @@ export const ModeRig = memo(function ModeRig({
                 key={mode.id}
                 aria-hidden={!shown}
                 className={[
-                  "font-body col-start-1 row-start-1 text-[0.8125rem] leading-snug text-text transition-opacity duration-150",
+                  "font-display col-start-1 row-start-1 text-balance text-sm uppercase leading-snug tracking-wide text-text transition-opacity duration-150",
                   shown ? "opacity-100" : "opacity-0",
                 ].join(" ")}
               >
@@ -154,12 +164,12 @@ export const ModeRig = memo(function ModeRig({
 });
 
 /** 1.5px-stroke, rounded-join icons on a 24px grid (style-guide §1.4). */
-function ModeIcon({ id }: { id: ModeId }) {
+function ModeIcon({ id, className }: { id: ModeId; className?: string }) {
   const common = {
     viewBox: "0 0 24 24",
     fill: "none",
     "aria-hidden": true,
-    className: "h-5 w-5",
+    className: ["h-5 w-5 transition-colors", className].filter(Boolean).join(" "),
   } as const;
   const stroke = {
     stroke: "currentColor",
