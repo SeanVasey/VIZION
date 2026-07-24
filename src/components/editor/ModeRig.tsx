@@ -8,9 +8,12 @@ import { MODE_BLURB } from "@/lib/enhance/modes";
  * Mode instrument (remediation R5.1).  ONE glass chassis with six equal cells
  * (grid repeat(6,1fr)), icon-over-label, and a sliding Laser "lens-lock"
  * indicator behind the active cell — the same aperture motion as the brand
- * mark.  Active cell text/icon = --on-laser; inactive cell ICONS carry the
- * brand green via --accent-ink (Laser on dark, deep green on light — never raw
- * laser as a stroke on a light surface, §6).  Symmetric at 360/390/430px.
+ * mark.  Active cell text/icon = --on-laser; inactive cells (icon AND label)
+ * carry the brand green via --accent-ink (Laser on dark, deep green on light —
+ * never raw laser as a stroke on a light surface, §6).  Cell labels and the
+ * help-strip blurbs use `.cap-trim` so their glyphs — not the font's
+ * ascent/descent headroom — are what gets vertically centered in each pill.
+ * Symmetric at 360/390/430px.
  *
  * A dedicated help strip sits IN FLOW below the rig (above the composer): it
  * always shows one mode description — the hovered/focused cell, falling back
@@ -109,15 +112,15 @@ export const ModeRig = memo(function ModeRig({
               onFocus={() => setPreviewMode(mode.id)}
               onBlur={() => setPreviewMode(null)}
               className={[
-                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-colors",
-                active ? "text-on-laser" : "text-silver hover:text-chalk",
+                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-[color,filter]",
+                active ? "text-on-laser" : "text-accent hover:brightness-110",
               ].join(" ")}
             >
-              {/* Inactive icons take the theme-aware green; the active icon
-                  inherits the cell's --on-laser so it stays legible on the
-                  Laser lens-lock fill. */}
-              <ModeIcon id={mode.id} className={active ? undefined : "text-accent"} />
-              <span className="tracking-wide">{mode.label}</span>
+              {/* Icon and label both inherit the cell color: theme-aware green
+                  (--accent-ink) when inactive, --on-laser on the Laser
+                  lens-lock fill when active. */}
+              <ModeIcon id={mode.id} />
+              <span className="cap-trim leading-none tracking-wide">{mode.label}</span>
             </button>
           );
         })}
@@ -136,11 +139,12 @@ export const ModeRig = memo(function ModeRig({
           className="absolute -top-1 h-2 w-2 rotate-45 border-l border-t border-hair bg-onyx transition-[left] duration-300 ease-out"
           style={{ left: `calc(${shownIndex + 0.5} * (100% / 6) - 4px)` }}
         />
-        {/* Blurbs are set in the same display-caps voice as the guidance line
-            above the rig (font-display + uppercase guard, text-sm).  items-
-            center + text-balance keep every mode consistent inside the
-            reserved height: a one-line blurb sits centered rather than
-            top-hung, and any wrap splits into two even lines. */}
+        {/* Blurbs are set in the display-caps voice (font-display + uppercase
+            guard, text-sm) in the theme-aware brand green (--accent-ink — AA
+            on --onyx in both themes).  items-center + cap-trim + text-balance
+            keep every mode consistent inside the reserved height: the caps
+            themselves sit dead-center (not the font's line box), and any wrap
+            splits into two even lines. */}
         <div className="grid items-center text-center">
           {MODES.map((mode) => {
             const shown = mode.id === shownMode;
@@ -149,7 +153,7 @@ export const ModeRig = memo(function ModeRig({
                 key={mode.id}
                 aria-hidden={!shown}
                 className={[
-                  "font-display col-start-1 row-start-1 text-balance text-sm uppercase leading-snug tracking-wide text-text transition-opacity duration-150",
+                  "cap-trim font-display col-start-1 row-start-1 text-balance text-sm uppercase leading-snug tracking-wide text-accent transition-opacity duration-150",
                   shown ? "opacity-100" : "opacity-0",
                 ].join(" ")}
               >
@@ -163,13 +167,14 @@ export const ModeRig = memo(function ModeRig({
   );
 });
 
-/** 1.5px-stroke, rounded-join icons on a 24px grid (style-guide §1.4). */
-function ModeIcon({ id, className }: { id: ModeId; className?: string }) {
+/** 1.5px-stroke, rounded-join icons on a 24px grid (style-guide §1.4).
+ *  Color is always inherited from the cell (currentColor). */
+function ModeIcon({ id }: { id: ModeId }) {
   const common = {
     viewBox: "0 0 24 24",
     fill: "none",
     "aria-hidden": true,
-    className: ["h-5 w-5 transition-colors", className].filter(Boolean).join(" "),
+    className: "h-5 w-5 transition-colors",
   } as const;
   const stroke = {
     stroke: "currentColor",

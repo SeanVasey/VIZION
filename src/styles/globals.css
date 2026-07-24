@@ -289,6 +289,68 @@
     }
   }
 
+  /* Enhance hero flow (PromptFlow) — raw signal → aperture → ordered output.
+     The dash march, the traveling pulse, and the aperture halo share one
+     clock family.  The global reduced-motion rule collapses all three: the
+     pulse's BASE opacity is 0 so it simply vanishes, and the dashes and halo
+     hold as a static graphic. */
+  .flow-dash {
+    stroke-dasharray: 7 5;
+    animation: flow-dash 1.1s linear infinite;
+  }
+  @keyframes flow-dash {
+    to {
+      stroke-dashoffset: -12;
+    }
+  }
+  .flow-glow {
+    filter: blur(10px);
+    animation: flow-breathe 3.6s ease-in-out infinite;
+  }
+  @keyframes flow-breathe {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 0.9;
+    }
+  }
+  .flow-pulse {
+    opacity: 0;
+    filter: drop-shadow(0 0 4px var(--laser-glow));
+    animation: flow-travel 3.6s ease-in-out infinite;
+  }
+  @keyframes flow-travel {
+    0% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    86% {
+      opacity: 1;
+    }
+    100% {
+      /* SVG-child CSS px == viewBox user units: 8 → 308 across the 320 box. */
+      transform: translateX(300px);
+      opacity: 0;
+    }
+  }
+  .flow-out-glow {
+    filter: drop-shadow(0 0 6px var(--laser-glow));
+  }
+
+  /* Optical vertical centering for text inside pills: trim the line box to
+     cap height / baseline so flex-grid centering centers the GLYPHS instead
+     of the font's ascent-descent headroom (Bebas caps otherwise sit visibly
+     high in their box).  Progressive — engines without text-box support
+     (pre-2025) keep plain line-box centering. */
+  .cap-trim {
+    text-box: trim-both cap alphabetic;
+  }
+
   /* Top-edge Laser shimmer for the active result surface (R4). */
   .result-shimmer {
     position: relative;
