@@ -21,9 +21,11 @@ export default function EnhancePage() {
     <>
       <ScreenHeader brand />
       <div className="mx-auto flex max-w-screen-sm flex-col gap-8 px-4 py-5">
-        {/* Guidance strip — a two-line orientation directly under the header;
-            the per-mode detail lives in the ModeRig help pill. */}
-        <p className="font-body -mb-3 text-balance text-center text-sm text-silver">
+        {/* Guidance strip — display-caps orientation directly under the header
+            (Bebas at the same body-sm size; `uppercase` keeps the caps when the
+            fallback stack renders). Per-mode detail lives in the ModeRig help
+            strip below the rig. */}
+        <p className="font-display -mb-3 text-balance text-center text-sm uppercase tracking-wide text-silver">
           Paste a prompt and VIZ(IO)N rewrites it for your target model — the six
           modes below each transform it a different way.
         </p>

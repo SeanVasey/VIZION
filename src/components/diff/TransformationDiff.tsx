@@ -214,54 +214,68 @@ export function TransformationDiff({
         </p>
       </div>
 
-      {/* Save / copy / share / export. */}
-      <div className="flex flex-wrap items-center gap-2">
-        {savedId ? (
-          <Link
-            href={`/library/${savedId}`}
-            className="min-h-[44px] rounded-xl bg-pulse px-4 text-sm leading-[44px] text-on-laser"
+      {/* Save / copy / share / export — two deliberate rows sized to the
+          column, so nothing free-wraps: a weighted primary rail (the save cell
+          is widest so its label holds one line at 360px) and a one-chassis
+          segmented export strip beneath it. */}
+      <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-[1.35fr_1fr_1fr] gap-2">
+          {savedId ? (
+            <Link
+              href={`/library/${savedId}`}
+              className="flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl bg-pulse px-2 text-sm text-on-laser"
+            >
+              Saved ✓ — open
+            </Link>
+          ) : queued ? (
+            <span className="font-body flex min-h-[44px] items-center justify-center rounded-xl bg-amber px-2 text-center text-xs leading-snug text-on-laser">
+              Queued — syncs when online
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save to library"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={copyOutput}
+            className="btn-laser flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm"
           >
-            Saved ✓ — open
-          </Link>
-        ) : queued ? (
-          <span className="font-body min-h-[44px] rounded-xl bg-amber px-4 text-sm leading-[44px] text-on-laser">
-            Queued — syncs when online
+            {copied ? "Copied ✓" : "Copy"}
+          </button>
+          <button
+            type="button"
+            onClick={share}
+            className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
+          >
+            Share
+          </button>
+        </div>
+
+        {/* Export strip — a micro-label cap plus equal format segments split by
+            hairlines. The focus ring is INSET: the chassis' overflow-hidden
+            (which squares the segment corners) would clip the default outer
+            ring. */}
+        <div className="glass flex items-stretch overflow-hidden rounded-xl">
+          <span className="font-body flex items-center border-r border-hair px-3.5 text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+            Export
           </span>
-        ) : (
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save to library"}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={copyOutput}
-          className="btn-laser min-h-[44px] rounded-xl px-4 text-sm"
-        >
-          {copied ? "Copied ✓" : "Copy"}
-        </button>
-        <button
-          type="button"
-          onClick={share}
-          className="glass min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors"
-        >
-          Share
-        </button>
-        <span className="font-body ml-1 text-xs text-silver">Export</span>
-        {(Object.keys(EXPORTERS) as ExportFormat[]).map((fmt) => (
-          <button
-            key={fmt}
-            type="button"
-            onClick={() => download(fmt)}
-            className="glass min-h-[44px] rounded-xl px-3 text-xs uppercase text-silver transition-colors hover:text-chalk"
-          >
-            {fmt}
-          </button>
-        ))}
+          {(Object.keys(EXPORTERS) as ExportFormat[]).map((fmt) => (
+            <button
+              key={fmt}
+              type="button"
+              onClick={() => download(fmt)}
+              className="font-body min-h-[44px] flex-1 border-r border-hair text-xs uppercase tracking-wide text-silver transition-colors last:border-r-0 hover:text-chalk focus-visible:shadow-[inset_0_0_0_1px_var(--accent-ink)]"
+            >
+              {fmt}
+            </button>
+          ))}
+        </div>
       </div>
       {saveError && (
         <p className="font-body text-sm text-flare" role="alert">

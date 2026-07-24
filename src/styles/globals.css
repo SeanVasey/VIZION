@@ -289,22 +289,6 @@
     }
   }
 
-  /* Quiet entrance for the mode help pill — matches the app's small-motion
-     language; neutralized by the base-layer reduced-motion rule. */
-  .tooltip-in {
-    animation: tooltip-in 0.15s ease-out both;
-  }
-  @keyframes tooltip-in {
-    from {
-      opacity: 0;
-      transform: translateY(4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
   /* Top-edge Laser shimmer for the active result surface (R4). */
   .result-shimmer {
     position: relative;
