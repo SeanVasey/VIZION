@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { MODES, type ModeId } from "@/lib/constants";
 import { MODE_BLURB } from "@/lib/enhance/modes";
 
@@ -10,9 +10,14 @@ import { MODE_BLURB } from "@/lib/enhance/modes";
  * indicator behind the active cell — the same aperture motion as the brand
  * mark.  Active cell text/icon = --on-laser.  Symmetric at 360/390/430px.
  *
- * A single shared help pill sits below the rig: it appears on hover/focus of a
- * cell (and briefly on tap-selection for touch), its caret tracking the cell
- * with the same sixth-width math as the lens-lock. Escape/leave/blur hides it.
+ * A dedicated help strip sits IN FLOW below the rig (above the composer): it
+ * always shows one mode description — the hovered/focused cell, falling back
+ * to the active mode — with a caret tracking the described cell via the same
+ * sixth-width math as the lens-lock.  In flow because both floating placements
+ * fail: above the rig the pill covered the guidance line, and below the rig
+ * the composer's backdrop-filter stacking context painted over it.  All six
+ * blurbs are stacked in one grid cell, so the strip is sized by the longest
+ * description and never shifts layout as the described mode changes.
  */
 export const ModeRig = memo(function ModeRig({
   activeMode,
@@ -27,142 +32,123 @@ export const ModeRig = memo(function ModeRig({
   );
   const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const [helpFor, setHelpFor] = useState<ModeId | null>(null);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearHideTimer = () => {
-    if (hideTimer.current) {
-      clearTimeout(hideTimer.current);
-      hideTimer.current = null;
-    }
-  };
-  useEffect(() => clearHideTimer, []);
-
-  const showHelp = (id: ModeId) => {
-    clearHideTimer();
-    setHelpFor(id);
-  };
-  const hideHelp = () => {
-    clearHideTimer();
-    setHelpFor(null);
-  };
-  /** Tap/click: no hover to end the pill, so it hides itself after a beat. */
-  const flashHelp = (id: ModeId) => {
-    showHelp(id);
-    hideTimer.current = setTimeout(() => setHelpFor(null), 2500);
-  };
-
-  const helpIndex = helpFor
-    ? Math.max(
-        0,
-        MODES.findIndex((m) => m.id === helpFor),
-      )
-    : 0;
+  /** Transient hover/focus preview; the strip falls back to the active mode. */
+  const [previewMode, setPreviewMode] = useState<ModeId | null>(null);
+  const shownMode = previewMode ?? activeMode;
+  const shownIndex = Math.max(
+    0,
+    MODES.findIndex((m) => m.id === shownMode),
+  );
 
   return (
-    // A radiogroup, not a tablist: this is a pick-one control with no panels,
-    // and radios carry the arrow-key + roving-tabindex contract implemented
-    // below (WCAG AA — previously the roles promised keys that did nothing).
-    <div
-      role="radiogroup"
-      aria-label="Enhancement mode"
-      className="glass relative grid grid-cols-6 gap-0 rounded-2xl p-1"
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          hideHelp();
-          return;
-        }
-        const last = MODES.length - 1;
-        let next: number;
-        switch (e.key) {
-          case "ArrowRight":
-          case "ArrowDown":
-            next = activeIndex === last ? 0 : activeIndex + 1;
-            break;
-          case "ArrowLeft":
-          case "ArrowUp":
-            next = activeIndex === 0 ? last : activeIndex - 1;
-            break;
-          case "Home":
-            next = 0;
-            break;
-          case "End":
-            next = last;
-            break;
-          default:
+    <div className="flex flex-col gap-2">
+      {/* A radiogroup, not a tablist: this is a pick-one control with no panels,
+          and radios carry the arrow-key + roving-tabindex contract implemented
+          below (WCAG AA — previously the roles promised keys that did nothing). */}
+      <div
+        role="radiogroup"
+        aria-label="Enhancement mode"
+        className="glass relative grid grid-cols-6 gap-0 rounded-2xl p-1"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setPreviewMode(null);
             return;
-        }
-        e.preventDefault();
-        onSelect(MODES[next]!.id);
-        cellRefs.current[next]?.focus();
-      }}
-    >
-      {/* Sliding lens-lock indicator — one sixth wide, translates to the cell. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-1 left-1 rounded-xl bg-laser transition-transform duration-300 ease-out"
-        style={{
-          width: "calc((100% - 0.5rem) / 6)",
-          transform: `translateX(calc(${activeIndex} * 100%))`,
+          }
+          const last = MODES.length - 1;
+          let next: number;
+          switch (e.key) {
+            case "ArrowRight":
+            case "ArrowDown":
+              next = activeIndex === last ? 0 : activeIndex + 1;
+              break;
+            case "ArrowLeft":
+            case "ArrowUp":
+              next = activeIndex === 0 ? last : activeIndex - 1;
+              break;
+            case "Home":
+              next = 0;
+              break;
+            case "End":
+              next = last;
+              break;
+            default:
+              return;
+          }
+          e.preventDefault();
+          onSelect(MODES[next]!.id);
+          cellRefs.current[next]?.focus();
         }}
-      />
-      {MODES.map((mode, i) => {
-        const active = activeMode === mode.id;
-        return (
-          <button
-            key={mode.id}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            tabIndex={active ? 0 : -1}
-            ref={(el) => {
-              cellRefs.current[i] = el;
-            }}
-            aria-describedby={helpFor === mode.id ? "mode-help-pill" : undefined}
-            onClick={() => {
-              onSelect(mode.id);
-              flashHelp(mode.id);
-            }}
-            onMouseEnter={() => showHelp(mode.id)}
-            onMouseLeave={hideHelp}
-            onFocus={() => showHelp(mode.id)}
-            onBlur={hideHelp}
-            className={[
-              "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-colors",
-              active ? "text-on-laser" : "text-silver hover:text-chalk",
-            ].join(" ")}
-          >
-            <ModeIcon id={mode.id} />
-            <span className="tracking-wide">{mode.label}</span>
-          </button>
-        );
-      })}
-      {/* Shared help pill — one floating description ABOVE the rig, its caret
-          aligned to the described cell (same sixth-width math as the lens-lock).
-          It must sit above, not below: the composer beneath is a .glass surface
-          whose backdrop-filter forms its own stacking context and paints over a
-          sibling's children regardless of their z-index — below the rig the
-          pill is obscured (seen on mobile). The fill is OPAQUE --onyx, not
-          .glass: a translucent pill over the guidance strip blends both texts
-          into an unreadable smear — the pill must cleanly cover what's behind
-          it. pointer-events-none keeps it inert. */}
-      {helpFor !== null && (
-        <div
-          id="mode-help-pill"
-          role="tooltip"
-          className="pill tooltip-in pointer-events-none absolute inset-x-1 bottom-full z-30 mb-2 border border-hair bg-onyx px-4 py-2 text-center text-xs text-chalk"
-        >
-          <span
-            aria-hidden="true"
-            className="absolute -bottom-1 h-2 w-2 rotate-45 border-b border-r border-hair bg-onyx"
-            style={{
-              left: `calc(${helpIndex + 0.5} * (100% / 6))`,
-              marginLeft: "-4px",
-            }}
-          />
-          {MODE_BLURB[helpFor]}
+      >
+        {/* Sliding lens-lock indicator — one sixth wide, translates to the cell. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-1 left-1 rounded-xl bg-laser transition-transform duration-300 ease-out"
+          style={{
+            width: "calc((100% - 0.5rem) / 6)",
+            transform: `translateX(calc(${activeIndex} * 100%))`,
+          }}
+        />
+        {MODES.map((mode, i) => {
+          const active = activeMode === mode.id;
+          return (
+            <button
+              key={mode.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              tabIndex={active ? 0 : -1}
+              ref={(el) => {
+                cellRefs.current[i] = el;
+              }}
+              aria-describedby={shownMode === mode.id ? "mode-help-strip" : undefined}
+              onClick={() => onSelect(mode.id)}
+              onMouseEnter={() => setPreviewMode(mode.id)}
+              onMouseLeave={() => setPreviewMode(null)}
+              onFocus={() => setPreviewMode(mode.id)}
+              onBlur={() => setPreviewMode(null)}
+              className={[
+                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-colors",
+                active ? "text-on-laser" : "text-silver hover:text-chalk",
+              ].join(" ")}
+            >
+              <ModeIcon id={mode.id} />
+              <span className="tracking-wide">{mode.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Help strip — the reserved description area between the rig and the
+          composer.  Opaque --onyx (like the old pill) so the caret joins its
+          fill without a translucency seam.  The stacked blurbs share one grid
+          cell: the tallest fixes the height, the shown one cross-fades in. */}
+      <div
+        id="mode-help-strip"
+        className="relative rounded-xl border border-hair bg-onyx px-4 py-2.5"
+      >
+        <span
+          aria-hidden="true"
+          className="absolute -top-1 h-2 w-2 rotate-45 border-l border-t border-hair bg-onyx transition-[left] duration-300 ease-out"
+          style={{ left: `calc(${shownIndex + 0.5} * (100% / 6) - 4px)` }}
+        />
+        <div className="grid text-center">
+          {MODES.map((mode) => {
+            const shown = mode.id === shownMode;
+            return (
+              <p
+                key={mode.id}
+                aria-hidden={!shown}
+                className={[
+                  "font-body col-start-1 row-start-1 text-[0.8125rem] leading-snug text-text transition-opacity duration-150",
+                  shown ? "opacity-100" : "opacity-0",
+                ].join(" ")}
+              >
+                {MODE_BLURB[mode.id]}
+              </p>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 });
