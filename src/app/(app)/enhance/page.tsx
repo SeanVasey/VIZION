@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { EnhanceComposer } from "@/components/editor/EnhanceComposer";
+import { PromptFlow } from "@/components/editor/PromptFlow";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = { title: "Enhance" };
@@ -21,14 +22,11 @@ export default function EnhancePage() {
     <>
       <ScreenHeader brand />
       <div className="mx-auto flex max-w-screen-sm flex-col gap-8 px-4 py-5">
-        {/* Guidance strip — display-caps orientation directly under the header
-            (Bebas at the same body-sm size; `uppercase` keeps the caps when the
-            fallback stack renders). Per-mode detail lives in the ModeRig help
-            strip below the rig. */}
-        <p className="font-display -mb-3 text-balance text-center text-sm uppercase tracking-wide text-silver">
-          Paste a prompt and VIZ(IO)N rewrites it for your target model — the six
-          modes below each transform it a different way.
-        </p>
+        {/* Hero — the animated prompt-optics graphic directly under the header
+            (the old guidance sentence lives on inside it as sr-only text, so
+            screen readers keep the orientation). Per-mode detail lives in the
+            ModeRig help strip below the rig. */}
+        <PromptFlow className="-mb-3" />
         <EnhanceComposer />
         {/* No hard divider — the media studio reads as part of the composer
             column (its header + hint carry the section break). */}
