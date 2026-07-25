@@ -31,6 +31,7 @@ export const DEVELOPER_ORDER = [
   "perplexity",
   "qwen",
   "xai",
+  "zai",
 ] as const;
 export type Developer = (typeof DEVELOPER_ORDER)[number];
 
@@ -46,6 +47,7 @@ export const DEVELOPER_LABEL: Record<Developer, string> = {
   perplexity: "Perplexity",
   qwen: "Qwen",
   xai: "xAI",
+  zai: "Z.ai",
 };
 
 /** The target models (product-spec §4.3, extended). Strings are display
@@ -61,13 +63,14 @@ export const TARGET_MODELS = [
   { id: "gpt_5_6_sol", label: "GPT-5.6 Sol", developer: "openai" },
   { id: "deepseek_v4", label: "DeepSeek V4", developer: "deepseek" },
   { id: "gemini_3_5_thinking", label: "Gemini 3.5 Flash", developer: "google" },
-  { id: "llama_4_maverick", label: "Llama 4 Maverick", developer: "meta" },
+  { id: "muse_spark_1_1", label: "Muse Spark 1.1", developer: "meta" },
   { id: "minimax_m2_7", label: "MiniMax M2.7", developer: "minimax" },
   { id: "mistral_large_3", label: "Mistral Large 3", developer: "mistral" },
   { id: "kimi_k2_6", label: "Kimi K2.6", developer: "moonshot" },
   { id: "sonar_pro", label: "Sonar Pro", developer: "perplexity" },
   { id: "qwen3_7_max", label: "Qwen3.7 Max", developer: "qwen" },
   { id: "grok_4_5", label: "Grok 4.5", developer: "xai" },
+  { id: "glm_5_2", label: "GLM-5.2", developer: "zai" },
 ] as const satisfies readonly { id: string; label: string; developer: Developer }[];
 export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
 

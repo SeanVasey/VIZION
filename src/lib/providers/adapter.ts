@@ -15,6 +15,7 @@ import {
   streamMoonshot,
   streamPerplexity,
   streamQwen,
+  streamZai,
 } from "@/lib/providers/openai-compat";
 
 export interface EnhanceArgs {
@@ -68,6 +69,7 @@ export async function* enhanceStream({
     perplexity: streamPerplexity,
     qwen: streamQwen,
     xai: streamXAI,
+    zai: streamZai,
   } as const;
 
   const scanner = createEnvelopeScanner("output");

@@ -19,8 +19,8 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
     "Target engine: DeepSeek. State the problem plainly and completely up front, then let the engine reason — avoid prescribing step-by-step chains. Spell out the expected output format explicitly near the end of the prompt.",
   gemini_3_5_thinking:
     "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. Give the reasoning variants a clearly separated goal and constraints.",
-  llama_4_maverick:
-    "Target engine: Llama. Favor short, unambiguous instructions with the context stated inline; enumerate requirements as explicit constraints and spell out the output format — this engine rewards directness over subtlety.",
+  muse_spark_1_1:
+    "Target engine: Muse Spark. State the goal explicitly up front, enumerate requirements as numbered constraints, and put the output contract (format, length, done-criteria) near the top — this agentic engine executes a well-specified brief best and handles very long inline context.",
   minimax_m2_7:
     "Target engine: MiniMax. Favor a tight brief with the goal, constraints, and deliverable stated up front; keep instructions concrete and ordered — this agentic engine executes well-scoped plans best.",
   mistral_large_3:
@@ -33,6 +33,8 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
     "Target engine: Qwen. Favor explicit, well-structured instructions with the task, context, and output format clearly separated; state language expectations when relevant — this engine is strong multilingually and rewards clean structure.",
   grok_4_5:
     "Target engine: Grok. Favor direct, plain-spoken instructions with the needed context stated inline; spell out the desired output format and any tone constraints inside the prompt.",
+  glm_5_2:
+    "Target engine: GLM. Favor structured, explicit specs — separate the task, context, constraints, and output format into clearly labeled parts and state acceptance criteria for code or reasoning work; this engine rewards complete, unambiguous specifications.",
 };
 
 /** Display labels — mechanically derived from TARGET_MODELS so a roster

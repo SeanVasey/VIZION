@@ -11,12 +11,13 @@ OPENAI_API_KEY=      # GPT-5.6 Sol target
 GOOGLE_API_KEY=      # Gemini 3.5 Flash target
 XAI_API_KEY=         # Grok 4.5 target
 MISTRAL_API_KEY=     # Mistral Large 3 target
-DEEPSEEK_API_KEY=    # DeepSeek V4 — NEW with the thirteen-model roster
-LLAMA_API_KEY=       # Llama 4 Maverick (Meta Llama API) — NEW
-MINIMAX_API_KEY=     # MiniMax M2.7 — NEW
-MOONSHOT_API_KEY=    # Kimi K2.6 (Moonshot AI) — NEW
-PERPLEXITY_API_KEY=  # Sonar Pro — NEW
-DASHSCOPE_API_KEY=   # Qwen3.7 Max (Alibaba Cloud Model Studio) — NEW
+DEEPSEEK_API_KEY=    # DeepSeek V4
+META_API_KEY=        # Muse Spark 1.1 (Meta Model API) — replaces LLAMA_API_KEY
+MINIMAX_API_KEY=     # MiniMax M2.7
+MOONSHOT_API_KEY=    # Kimi K2.6 (Moonshot AI)
+PERPLEXITY_API_KEY=  # Sonar Pro
+DASHSCOPE_API_KEY=   # Qwen3.7 Max (Alibaba Cloud Model Studio)
+ZAI_API_KEY=         # GLM-5.2 (Z.ai open platform) — NEW with the fourteen-model roster
 ```
 
 A target whose key is absent returns **503** with a "not configured" message; the other
@@ -27,17 +28,23 @@ Where to create the new keys:
 | Key | Console |
 | --- | --- |
 | `DEEPSEEK_API_KEY` | platform.deepseek.com → API keys |
-| `LLAMA_API_KEY` | llama.developer.meta.com (Llama API) → API keys |
+| `META_API_KEY` | developer.meta.com (Meta Model API) → API keys |
 | `MINIMAX_API_KEY` | platform.minimax.io → API keys (international region) |
 | `MOONSHOT_API_KEY` | platform.moonshot.ai → API keys (international region) |
 | `PERPLEXITY_API_KEY` | perplexity.ai → Settings → API |
 | `DASHSCOPE_API_KEY` | Alibaba Cloud Model Studio (international/Singapore region) |
+| `ZAI_API_KEY` | z.ai open platform → API keys |
 
-The six new providers are all served through the shared OpenAI-compatible
+The seven compat providers are all served through the shared OpenAI-compatible
 streaming adapter (`src/lib/providers/openai-compat.ts`) — region matters for
 MiniMax, Moonshot, and DashScope (the adapter points at the international
 endpoints `api.minimax.io`, `api.moonshot.ai`, and
 `dashscope-intl.aliyuncs.com`; a China-region key will 401 against them).
+Meta's adapter points at the Meta Model API (`api.meta.ai`) — the retired
+Llama API (`api.llama.com`) and its `LLAMA_API_KEY` / `MODEL_LLAMA` /
+`PRICE_LLAMA_*` env vars no longer apply; **rename the Vercel env var to
+`META_API_KEY`** (a Meta Model API key, not an old Llama API key) or the Meta
+target reports 503 "not configured".
 
 Keys must be able to call the provider's standard inference endpoint (Anthropic
 Messages, OpenAI-compatible Chat Completions, Gemini `generateContent`). A
@@ -47,10 +54,12 @@ permissions"** — use an unrestricted key or grant the inference scope.
 `/api/media` retries such failures on another configured provider
 (see `docs/runbooks/media.md`); `/api/enhance` surfaces them directly.
 
-> **Deploy note:** each of the six new keys needs adding to the Vercel project
-> env (Vercel → vizion → Settings → Environment Variables). Until a key is set,
-> that provider's target returns 503 "not configured" while the rest keep
-> working — keys can therefore be added one at a time.
+> **Deploy note:** each key needs adding to the Vercel project env (Vercel →
+> vizion → Settings → Environment Variables). Until a key is set, that
+> provider's target returns 503 "not configured" while the rest keep working —
+> keys can therefore be added one at a time. The 2026-07 Muse Spark cutover
+> renamed `LLAMA_API_KEY` → `META_API_KEY`; the Meta target stays "not
+> configured" until the new var is set.
 
 ## Model strings (env-overridable — D9)
 
@@ -63,13 +72,14 @@ MODEL_GPT=gpt-5.6-sol                                 # default — point at you
 MODEL_FABLE=claude-fable-5                            # default
 MODEL_DEEPSEEK=deepseek-chat                          # default — tracks the current DeepSeek flagship (V4)
 MODEL_GEMINI=gemini-3.5-flash                         # default — point at your deployed Gemini model
-MODEL_LLAMA=Llama-4-Maverick-17B-128E-Instruct-FP8    # default — the Llama API serving string
+MODEL_MUSE=muse-spark-1.1                             # default — the Meta Model API serving string
 MODEL_MINIMAX=MiniMax-M2.7                            # default
 MODEL_MISTRAL=mistral-large-latest                    # default — tracks the current Large release
 MODEL_KIMI=kimi-k2.6                                  # default
 MODEL_SONAR=sonar-pro                                 # default
 MODEL_QWEN=qwen-max                                   # default — tracks the current Max release (Qwen3.7 Max)
 MODEL_GROK=grok-4.5                                   # default — point at your deployed xAI model
+MODEL_GLM=glm-5.2                                     # default — point at a long-context variant string if Z.ai serves one separately
 ```
 
 The labels in the picker are named product targets; set the env to the exact
@@ -80,7 +90,9 @@ Note on cost: Fable 5 lists at $10/$50 per 1M tokens (in/out) — noticeably pri
 the other targets, so users reach the daily cost cap sooner on it. At the other end,
 DeepSeek V4 (~$0.45/$0.90) and MiniMax M2.7 (~$0.30/$1.20) barely dent the cap.
 Qwen3.7 Max defaults reflect the current 50%-promo rate ($1.25/$3.75, list $2.50/$7.50) —
-override `PRICE_QWEN_*` when the promo lapses.
+override `PRICE_QWEN_*` when the promo lapses. GLM-5.2 list rates were unpublished at
+launch — the defaults ($1.00/$3.20) are the GLM-5 reference rates; override
+`PRICE_GLM_*` when Z.ai publishes 5.2 pricing.
 
 ## Cost cap & rate limit
 

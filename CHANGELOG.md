@@ -6,6 +6,31 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — Meta's slot moves to Muse Spark 1.1; Z.ai's GLM-5.2 joins (fourteen models, twelve developers)
+
+- **Llama 4 Maverick → Muse Spark 1.1.** Meta retired the open-weights Llama
+  line from its developer platform; the roster's Meta slot now targets
+  **Muse Spark 1.1** (Meta Superintelligence Labs) on the OpenAI-compatible
+  **Meta Model API** (`api.meta.ai`, `muse-spark-1.1`, $1.25/$4.25 per MTok
+  defaults). The DB enum value is renamed in place
+  (`supabase/migrations/20260725000000_muse_spark_and_glm.sql` — existing
+  prompt versions, usage events, and profile defaults follow automatically),
+  and a persisted `llama_4_maverick` picker selection migrates on load
+  (UI-store v3). Muse Spark is multimodal, so it keeps Meta's place in the
+  vision fallback chain.
+- **Env cutover:** `LLAMA_API_KEY` / `MODEL_LLAMA` / `PRICE_LLAMA_*` are
+  replaced by `META_API_KEY` / `MODEL_MUSE` / `PRICE_MUSE_*`. **Rename the
+  Vercel env var** — until `META_API_KEY` (a Meta Model API key) is set, the
+  Meta target returns 503 "not configured" while the rest keep working.
+- **GLM-5.2 joins as a new developer (Z.ai).** Z.ai's frontier flagship
+  (`glm-5.2`, 1M context) streams through the shared OpenAI-compatible
+  factory against `api.z.ai`; needs `ZAI_API_KEY`. List rates were
+  unpublished at launch, so the cost-cap defaults are the GLM-5 reference
+  rates ($1.00/$3.20) — override `PRICE_GLM_*` when published. The flagship
+  is text-only (Z.ai's vision model is a separate SKU), so media analysis
+  routes it to the vision fallback chain, and the Z.ai mark (Simple Icons
+  `zdotai`) joins the developer-mark set.
+
 ### Changed — the Enhance hero calms to a single glow
 
 - **The guidance sentence above the mode rig is now a decorative "prompt

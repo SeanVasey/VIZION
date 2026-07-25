@@ -13,7 +13,7 @@ const KEY_ENVS = [
   "GOOGLE_API_KEY",
   "MISTRAL_API_KEY",
   "XAI_API_KEY",
-  "LLAMA_API_KEY",
+  "META_API_KEY",
   "MOONSHOT_API_KEY",
   "PERPLEXITY_API_KEY",
 ] as const;
@@ -90,12 +90,13 @@ describe("supportsVision", () => {
     expect(supportsVision("deepseek_v4")).toBe(false);
     expect(supportsVision("minimax_m2_7")).toBe(false);
     expect(supportsVision("qwen3_7_max")).toBe(false);
+    expect(supportsVision("glm_5_2")).toBe(false);
   });
 
   it("keeps the multimodal targets on their own provider", () => {
     expect(supportsVision("opus_5")).toBe(true);
     expect(supportsVision("sonnet_5")).toBe(true);
-    expect(supportsVision("llama_4_maverick")).toBe(true);
+    expect(supportsVision("muse_spark_1_1")).toBe(true);
     expect(supportsVision("kimi_k2_6")).toBe(true);
     expect(supportsVision("sonar_pro")).toBe(true);
   });
