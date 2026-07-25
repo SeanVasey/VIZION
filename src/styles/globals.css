@@ -289,14 +289,13 @@
     }
   }
 
-  /* Enhance hero flow (PromptFlow) — raw signal → aperture → ordered output.
-     Deliberately quiet: the dashed input lines and the Laser output lines are
-     STATIC texture; the aperture halo's slow breathe is the hero's ONLY
-     motion.  The global reduced-motion rule collapses the breathe, leaving
-     the halo at the base opacity below (the midpoint of the breathe range). */
-  .flow-dash {
-    stroke-dasharray: 7 5;
-  }
+  /* Enhance hero flow (PromptFlow) — a symmetric emblem: mirror-image Laser
+     wings about the (│›◯) aperture.  Deliberately quiet: the wings sit
+     slightly translucent and shimmer on the halo's slow ~6s cycle, each line
+     phase-offset so the emblem ripples rather than blinks.  The global
+     reduced-motion rule collapses ALL of it, leaving the halo at the base
+     opacity below (the midpoint of the breathe range) and the wings at their
+     resting translucency. */
   .flow-glow {
     opacity: 0.55;
     filter: blur(10px);
@@ -309,6 +308,29 @@
     }
     50% {
       opacity: 0.75;
+    }
+  }
+  .flow-lines {
+    opacity: 0.7;
+  }
+  .flow-line {
+    animation: flow-shimmer 6s ease-in-out infinite;
+  }
+  /* nth-of-type counts per wing (each wing group holds three paths), so the
+     stagger lands identically on the mirrored side — symmetry is preserved. */
+  .flow-line:nth-of-type(2) {
+    animation-delay: -2s;
+  }
+  .flow-line:nth-of-type(3) {
+    animation-delay: -4s;
+  }
+  @keyframes flow-shimmer {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
     }
   }
   .flow-out-glow {

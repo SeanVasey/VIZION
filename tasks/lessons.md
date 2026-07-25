@@ -581,3 +581,31 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   training memory.** The Meta rename (Llama API → Meta Model API, new model
   id, new pricing) and Z.ai's current flagship id both post-date any
   baked-in knowledge — fetch the developer docs before writing config.
+
+## K3/M3 + GPT-5.6 tiers + symmetric hero (2026-07) — same-provider additions are the cheap kind
+
+- **Adding a target on an EXISTING provider is config-only:** Luna/Terra
+  reuse OpenAI's key, stream, and vision path — only constants, TARGETS,
+  TARGET_CONVENTIONS, the DB enum, and docs grow. The expensive shape is a
+  new provider, not a new model; check which case you're in before planning.
+- **A flagship-version bump is the same drill as a rename, every time:**
+  enum RENAME VALUE migration, `database.types.ts` union surgery (renames
+  keep position, adds append), UI-store legacy map + version bump, tests
+  that spell the raw id, `.env.example`, and four docs. The grep list from
+  the Muse Spark lesson held exactly.
+- **Mirror, don't redraw.** For the symmetric hero, wrapping copies of the
+  right-wing paths in `transform="translate(320 0) scale(-1 1)"` guarantees
+  the mirror stays exact through future tweaks — hand-mirrored coordinates
+  drift. Anchor symmetry on the optical center the parentheses define
+  (x=160), not the halo's cx.
+- **Stagger with negative delays and check nth-of-type scope:** phase-offset
+  line shimmer uses `animation-delay: -2s/-4s` so all lines are mid-cycle at
+  load, and `nth-of-type` counts per wing group, so one rule lands
+  identically on both mirrored sides. The global reduced-motion rule zeroes
+  delays and iterations — animations must rest at their specified (static)
+  values.
+- **When a product mark diverges from the corporate mark, pick the one the
+  user recognizes:** Kimi's "K" (Simple Icons `kimi`) over Moonshot's
+  crescent. Where no official product glyph exists (Muse Spark), draw an
+  original in the set's own convention (single monochrome `currentColor`
+  path) and document the deviation at the source-comment.

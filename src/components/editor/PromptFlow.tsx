@@ -1,14 +1,15 @@
 /**
  * PromptFlow — the decorative "prompt optics" hero for the Enhance screen.
- * Replaces the plain guidance sentence (which is preserved for screen readers):
- * a raw Silver signal enters the (│›◯) aperture — the same bar · chevron ·
- * split-ring motif as the brand mark, framed by its chrome parentheses — and
- * leaves as clean, ordered Laser lines.  Deliberately quiet: the lines are a
- * static illustration and the aperture halo's slow ~6s breathe (`.flow-glow`
- * in globals.css) is the ONLY motion, collapsed to a static glow under the
- * global reduced-motion rule.  All strokes are currentColor through the
- * theme-aware roles (--accent-ink — never raw laser as a stroke on a light
- * surface, §6).
+ * Replaces the plain guidance sentence (which is preserved for screen
+ * readers): the (│›◯) aperture — the same bar · chevron · split-ring motif as
+ * the brand mark, framed by its chrome parentheses — sits at the center of
+ * two mirror-image wings of clean Laser lines, one emblem, symmetric about
+ * the aperture. Deliberately quiet: the wings are slightly translucent
+ * (`.flow-lines`) and carry a slow, staggered shimmer (`.flow-line`), and the
+ * aperture halo keeps its ~6s breathe (`.flow-glow`) — all of it collapsed
+ * to a static glow under the global reduced-motion rule. All strokes are
+ * currentColor through the theme-aware roles (--accent-ink — never raw laser
+ * as a stroke on a light surface, §6).
  */
 export function PromptFlow({ className = "" }: { className?: string }) {
   return (
@@ -22,23 +23,19 @@ export function PromptFlow({ className = "" }: { className?: string }) {
         aria-hidden="true"
         className="mx-auto block h-auto w-full max-w-[320px]"
       >
-        {/* Aperture halo — a slow, gentle breathe; the hero's only motion. */}
+        {/* Aperture halo — a slow, gentle breathe. */}
         <circle cx="161" cy="32" r="16" fill="var(--laser-glow)" className="flow-glow" />
 
-        {/* Raw input — three uneven, drifting Silver signal lines — plus the
-            chrome parentheses that frame the aperture on the brand mark. */}
+        {/* Chrome parentheses framing the aperture, as on the brand mark. */}
         <g
           className="text-silver"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="2"
           strokeLinecap="round"
           fill="none"
         >
-          <path className="flow-dash" d="M8 24c10-4 21 4 32 0s21 4 32 0 21 4 32 0" />
-          <path className="flow-dash" d="M8 32c11-4 23 4 34 0s23 4 34 0 23 4 34 0" />
-          <path className="flow-dash" d="M8 40c10-3 20 3 30 0s20 3 30 0 20 3 30 0" />
-          <path d="M132 14a24 24 0 0 0 0 36" strokeWidth="2" />
-          <path d="M188 14a24 24 0 0 1 0 36" strokeWidth="2" />
+          <path d="M132 14a24 24 0 0 0 0 36" />
+          <path d="M188 14a24 24 0 0 1 0 36" />
         </g>
 
         <g className="text-accent">
@@ -56,17 +53,24 @@ export function PromptFlow({ className = "" }: { className?: string }) {
             <path d="M181.4 35.4a10 10 0 0 1-18.8 0" />
           </g>
 
-          {/* Refined output — clean, ordered Laser lines (the reformat voice). */}
+          {/* Symmetric wings — the right-hand Laser lines and their exact
+              mirror (about x=160, the parentheses' optical center) on the
+              left, so the emblem reads balanced. */}
           <g
-            className="flow-out-glow"
+            className="flow-lines flow-out-glow"
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
             fill="none"
           >
-            <path d="M204 24h108" />
-            <path d="M204 32h68" />
-            <path d="M204 40h88" />
+            <path className="flow-line" d="M204 24h108" />
+            <path className="flow-line" d="M204 32h68" />
+            <path className="flow-line" d="M204 40h88" />
+            <g transform="translate(320 0) scale(-1 1)">
+              <path className="flow-line" d="M204 24h108" />
+              <path className="flow-line" d="M204 32h68" />
+              <path className="flow-line" d="M204 40h88" />
+            </g>
           </g>
         </g>
       </svg>

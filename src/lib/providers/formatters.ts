@@ -13,6 +13,10 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
     "Target engine: Claude Sonnet. Favor clear, direct instructions with XML-tagged sections for layered context; state the goal, constraints, and expected output shape explicitly — this engine follows instructions literally and rewards precision over hint-dropping.",
   gpt_5_6_sol:
     "Target engine: GPT. Favor terse, directive instructions; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
+  gpt_5_6_luna:
+    "Target engine: GPT. Favor terse, directive instructions with the goal stated first; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt — this balanced tier follows a crisp brief without heavy scaffolding.",
+  gpt_5_6_terra:
+    "Target engine: GPT. Keep the prompt short and self-contained with the goal and expected output format stated explicitly — this fast tier rewards brevity and concrete instructions over elaborate scaffolding.",
   fable_5:
     "Target engine: Claude Fable. State the goal, constraints, and what a finished answer looks like, and avoid over-prescriptive step-by-step scaffolding — this engine plans best from a clear brief. XML-tagged sections are welcome for long or layered context.",
   deepseek_v4:
@@ -21,11 +25,11 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
     "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. Give the reasoning variants a clearly separated goal and constraints.",
   muse_spark_1_1:
     "Target engine: Muse Spark. State the goal explicitly up front, enumerate requirements as numbered constraints, and put the output contract (format, length, done-criteria) near the top — this agentic engine executes a well-specified brief best and handles very long inline context.",
-  minimax_m2_7:
+  minimax_m3:
     "Target engine: MiniMax. Favor a tight brief with the goal, constraints, and deliverable stated up front; keep instructions concrete and ordered — this agentic engine executes well-scoped plans best.",
   mistral_large_3:
     "Target engine: Mistral. Favor concise, explicit instructions with the context front-loaded and the expected output format stated inline; keep the prompt tight — this engine rewards economy over elaborate scaffolding.",
-  kimi_k2_6:
+  kimi_k3:
     "Target engine: Kimi. State the goal and constraints clearly and front-load the key context — this long-context engine handles large pasted material well; make the deliverable and its format explicit.",
   sonar_pro:
     "Target engine: Perplexity Sonar. Phrase the prompt as a research brief: state what to find, the time window that matters, source expectations (e.g. cite sources), and the shape of the answer — this engine searches the web, so scoping and recency cues do real work.",

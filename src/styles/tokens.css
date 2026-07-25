@@ -72,7 +72,10 @@
 
   --surface: rgba(255, 255, 255, 0.72);
   --glass: rgba(255, 255, 255, 0.82);
-  --chrome: rgba(255, 255, 255, 0.6);
+  /* Thinner than the dark tier's 0.45 reads equivalent on white: at 0.6 the
+     bars looked solid — 0.42 + the chrome blur lets underlying graphics show
+     through while the frosted tint keeps bar text/icons AA-legible. */
+  --chrome: rgba(255, 255, 255, 0.42);
   --onyx: #ffffff;
   --hair: rgba(15, 16, 18, 0.12);
 
@@ -97,7 +100,7 @@
 
     --surface: rgba(255, 255, 255, 0.72);
     --glass: rgba(255, 255, 255, 0.82);
-    --chrome: rgba(255, 255, 255, 0.6);
+    --chrome: rgba(255, 255, 255, 0.42);
     --onyx: #ffffff;
     --hair: rgba(15, 16, 18, 0.12);
     --accent-ink: #3f6b00;

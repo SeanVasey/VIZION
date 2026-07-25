@@ -286,13 +286,15 @@ export type Database = {
         | "deepseek_v4"
         | "gemini_3_5_thinking"
         | "muse_spark_1_1"
-        | "minimax_m2_7"
+        | "minimax_m3"
         | "mistral_large_3"
-        | "kimi_k2_6"
+        | "kimi_k3"
         | "sonar_pro"
         | "qwen3_7_max"
         | "grok_4_5"
-        | "glm_5_2";
+        | "glm_5_2"
+        | "gpt_5_6_luna"
+        | "gpt_5_6_terra";
       oauth_provider: "github" | "google";
       theme: "dark" | "light" | "system";
     };

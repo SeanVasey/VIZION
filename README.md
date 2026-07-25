@@ -18,10 +18,10 @@ _Clarify · Polish · Expand · Condense · Reformat · Re-target — the same i
 </div>
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZ(IO)N
-> _transforms_ it — across fourteen target models from twelve developers
-> (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol · DeepSeek V4 · Gemini 3.5 Flash ·
-> Muse Spark 1.1 · MiniMax M2.7 · Mistral Large 3 · Kimi K2.6 · Sonar Pro ·
-> Qwen3.7 Max · Grok 4.5 · GLM-5.2), six enhancement modes, and media-aware
+> _transforms_ it — across sixteen target models from twelve developers
+> (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol/Luna/Terra · DeepSeek V4 ·
+> Gemini 3.5 Flash · Muse Spark 1.1 · MiniMax M3 · Mistral Large 3 · Kimi K3 ·
+> Sonar Pro · Qwen3.7 Max · Grok 4.5 · GLM-5.2), six enhancement modes, and media-aware
 > prompt construction, with accounts and a versioned prompt library.
 
 <div align="center">
@@ -41,13 +41,13 @@ Client (PWA, Next.js 15 · React 19)
         │  HTTPS — no model keys client-side
         ▼
 Next Route Handlers (Edge) ── Provider Adapter ──┬─ Anthropic  (fable_5 · opus_5 · sonnet_5)
-  ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI     (gpt_5_6_sol)
+  ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI     (gpt_5_6_sol · gpt_5_6_luna · gpt_5_6_terra)
   ├─ /api/media     (extract → attributes)        ├─ Google     (gemini_3_5_thinking)
   └─ per-user rate limit + cost cap + audit log   ├─ Mistral    (mistral_large_3)
                                                   ├─ xAI        (grok_4_5)
                                                   └─ OpenAI-compatible proxy:
                                                      DeepSeek (deepseek_v4) · Meta (muse_spark_1_1)
-                                                     MiniMax (minimax_m2_7) · Moonshot (kimi_k2_6)
+                                                     MiniMax (minimax_m3) · Moonshot (kimi_k3)
                                                      Perplexity (sonar_pro) · Qwen (qwen3_7_max)
                                                      Z.ai (glm_5_2)
         │
