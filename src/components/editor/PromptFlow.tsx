@@ -3,11 +3,12 @@
  * Replaces the plain guidance sentence (which is preserved for screen readers):
  * a raw Silver signal enters the (│›◯) aperture — the same bar · chevron ·
  * split-ring motif as the brand mark, framed by its chrome parentheses — and
- * leaves as clean, ordered Laser lines.  A pulse rides the path and the
- * aperture halo breathes on the same clock (`.flow-*` utilities in
- * globals.css).  All strokes are currentColor through the theme-aware roles
- * (--accent-ink — never raw laser as a stroke on a light surface, §6), and
- * every animation collapses under the global reduced-motion rule.
+ * leaves as clean, ordered Laser lines.  Deliberately quiet: the lines are a
+ * static illustration and the aperture halo's slow ~6s breathe (`.flow-glow`
+ * in globals.css) is the ONLY motion, collapsed to a static glow under the
+ * global reduced-motion rule.  All strokes are currentColor through the
+ * theme-aware roles (--accent-ink — never raw laser as a stroke on a light
+ * surface, §6).
  */
 export function PromptFlow({ className = "" }: { className?: string }) {
   return (
@@ -21,7 +22,7 @@ export function PromptFlow({ className = "" }: { className?: string }) {
         aria-hidden="true"
         className="mx-auto block h-auto w-full max-w-[320px]"
       >
-        {/* Aperture halo — breathes in sync with the traveling pulse. */}
+        {/* Aperture halo — a slow, gentle breathe; the hero's only motion. */}
         <circle cx="161" cy="32" r="16" fill="var(--laser-glow)" className="flow-glow" />
 
         {/* Raw input — three uneven, drifting Silver signal lines — plus the
@@ -41,9 +42,6 @@ export function PromptFlow({ className = "" }: { className?: string }) {
         </g>
 
         <g className="text-accent">
-          {/* Pulse — drawn first so it passes UNDER the aperture glyphs. */}
-          <circle className="flow-pulse" cx="8" cy="32" r="3" fill="currentColor" />
-
           {/* The (│›◯) aperture: bar · chevron · split ring. */}
           <g
             stroke="currentColor"

@@ -290,52 +290,25 @@
   }
 
   /* Enhance hero flow (PromptFlow) — raw signal → aperture → ordered output.
-     The dash march, the traveling pulse, and the aperture halo share one
-     clock family.  The global reduced-motion rule collapses all three: the
-     pulse's BASE opacity is 0 so it simply vanishes, and the dashes and halo
-     hold as a static graphic. */
+     Deliberately quiet: the dashed input lines and the Laser output lines are
+     STATIC texture; the aperture halo's slow breathe is the hero's ONLY
+     motion.  The global reduced-motion rule collapses the breathe, leaving
+     the halo at the base opacity below (the midpoint of the breathe range). */
   .flow-dash {
     stroke-dasharray: 7 5;
-    animation: flow-dash 1.1s linear infinite;
-  }
-  @keyframes flow-dash {
-    to {
-      stroke-dashoffset: -12;
-    }
   }
   .flow-glow {
+    opacity: 0.55;
     filter: blur(10px);
-    animation: flow-breathe 3.6s ease-in-out infinite;
+    animation: flow-breathe 6s ease-in-out infinite;
   }
   @keyframes flow-breathe {
     0%,
     100% {
-      opacity: 0.35;
+      opacity: 0.4;
     }
     50% {
-      opacity: 0.9;
-    }
-  }
-  .flow-pulse {
-    opacity: 0;
-    filter: drop-shadow(0 0 4px var(--laser-glow));
-    animation: flow-travel 3.6s ease-in-out infinite;
-  }
-  @keyframes flow-travel {
-    0% {
-      transform: translateX(0);
-      opacity: 0;
-    }
-    12% {
-      opacity: 1;
-    }
-    86% {
-      opacity: 1;
-    }
-    100% {
-      /* SVG-child CSS px == viewBox user units: 8 → 308 across the 320 box. */
-      transform: translateX(300px);
-      opacity: 0;
+      opacity: 0.75;
     }
   }
   .flow-out-glow {

@@ -6,6 +6,25 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — the Enhance hero calms to a single glow
+
+- **The guidance sentence above the mode rig is now a decorative "prompt
+  optics" hero** (`PromptFlow`): raw Silver signal lines enter the brand
+  (│›◯) aperture and leave as clean, ordered Laser lines; the sentence
+  survives as screen-reader-only text. Deliberately quiet — after a busier
+  first cut, the marching dashes and the traveling pulse are gone; the
+  aperture halo's slow ~6s breathe is the hero's only motion (a static
+  glow under reduced motion).
+- **Mode-rig color returns to spec:** cell labels stay Silver (Chalk on
+  hover) with only the inactive ICONS in the theme-aware green; the help
+  pill's per-mode blurb is now green display caps (`--accent-ink`, AA on
+  Onyx in both themes).
+- **True optical centering in the pills.** A new `.cap-trim` utility
+  (`text-box: trim-both cap alphabetic`) centers the glyphs — not the
+  font's ascent/descent headroom — in the mode cells and the help pill
+  (progressive: engines without `text-box` support keep plain line-box
+  centering).
+
 ### Changed — the roster grows from six to thirteen: Opus 5, Sonnet 5, and six new developers
 
 - **Opus 4.8 → Opus 5.** The Anthropic Opus target now points at
