@@ -6,6 +6,45 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Security — dependency audit back to zero (was 1 critical · 7 high · 3 moderate)
+
+`npm audit` reports **0 vulnerabilities** on both the full tree and the
+production tree (`--omit=dev`), which is the gating CI step.
+
+- **Next.js 15.5.19 → 15.5.21** clears eight advisories, all of which touch
+  code we ship: SSRF in rewrites and in Server Actions, cache confusion of
+  response bodies, an unbounded Server Action payload on the Edge runtime,
+  DoS in the App Router and in the Image Optimization API, and unauthenticated
+  disclosure of internal Server Function endpoints. In-range for `^15.1.3`, so
+  no framework migration — the declared floor moves to `^15.5.21` so a fresh
+  resolve can't land below the fix.
+- **The one critical was `vitest` (< 3.2.6, arbitrary file read/execute via
+  the UI server), fixed by 2.1.9 → 4.1.10**, which also clears the `vite`
+  `server.fs.deny` bypass, its path traversal, and the `vite-node` /
+  `@vitest/mocker` cascade. `vite ^7.3.6` is now an explicit devDependency
+  (vitest 4 makes it a peer) and `@vitejs/plugin-react` moves 4.3.4 → 5.2.0
+  for vite 7. `vitest.config.ts` needed no changes.
+- **`esbuild` 0.24.2 → 0.28.1** (dev-server request advisory) and **`sharp`
+  0.33.5 → 0.35.3** (four inherited libvips CVEs). `postcss` → `^8.5.23`
+  (source-map path traversal, arbitrary file read, stringify XSS).
+- **`overrides` added for five transitive pins with no direct upgrade path:**
+  `postcss` and `sharp` (Next pins `postcss@8.4.31` exactly and `sharp@^0.34.3`
+  as an optional dep, both vulnerable — the override dedupes each to one
+  patched copy), plus `js-yaml@^4.3.0`, `fast-uri@^3.1.4`, and
+  `brace-expansion@^5.0.8`. The last one is the interesting case: the
+  unbounded-expansion OOM advisory covers **everything ≤ 5.0.7**, so the 1.x
+  and 2.x lines have no patched release, and that single package was the root
+  cause of fourteen reported entries cascading up through `minimatch` →
+  `@eslint/config-array` / `@eslint/eslintrc` → `eslint` → `eslint-config-next`
+  and its plugins, and through `filelist` → `jake` → `ejs` →
+  `@trickfilm400/rollup-plugin-off-main-thread` → `workbox-build`.
+
+No application code changed. Verified beyond the standard gate: the icon
+matrix was regenerated under sharp 0.35 and is **pixel-identical** to the
+committed PNGs (raw-buffer compare, max channel delta 0 — only PNG container
+bytes differ, so the shipped assets are left untouched), and the service
+worker still precaches its 21 entries under esbuild 0.28.
+
 ### Changed — GPT-5.6 Luna + Terra join; Kimi and MiniMax move to K3 / M3 (sixteen models, twelve developers)
 
 - **GPT-5.6 Luna and GPT-5.6 Terra join OpenAI's slot** alongside Sol — the

@@ -633,3 +633,44 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   Mistral's). Rendering the glyph to PNG at both theme inks — `#b7ff3c` on
   `--void`, `#3f6b00` on light — confirms the counters punch through and the
   mark stays legible in both themes; a `d`-string diff alone can't show that.
+
+## Clearing the dependency audit (2026-07) — `npm audit fix` is the wrong tool
+
+- **`npm audit fix` made it worse: 11 → 22.** It left the one that mattered
+  (`next`) untouched while drifting `workbox-build`, `minimatch`, and the
+  eslint chain into *newly* vulnerable versions. Read the report, pick
+  versions deliberately, and re-audit after each step. Reach for
+  `npm audit fix` only to confirm what it would do, never to do it.
+- **Chase root causes, not entry counts.** Fourteen of the reported entries
+  were one package: `brace-expansion`. `npm audit --json` → each entry's
+  `.via` (a string means "cascaded from that package", an object is a real
+  advisory) and `.nodes` (the actual installed paths) separate causes from
+  cascade. Nonsense `fixAvailable` values — "fix" `@eslint/eslintrc` by
+  *downgrading* to 0.1.0, or `eslint-config-next` to 12.0.4 — are the tell
+  that an entry is cascade, not cause.
+- **Check whether the old major has any patched release at all.** The
+  `brace-expansion` OOM advisory covers everything `<=5.0.7`, so the 1.x/2.x
+  lines are permanently affected and an `overrides` jump to 5.x is the only
+  fix. Before forcing a major on transitive consumers, confirm the packaging
+  is drop-in: 5.0.8 still publishes a CJS `require` export, so `minimatch@3`
+  (CJS) keeps working — verified by the fact that `npm run lint` exercises
+  exactly that path.
+- **Never regenerate `package-lock.json` from scratch for a security bump.**
+  `rm package-lock.json && npm install` drifted 69 unrelated packages,
+  including `@supabase/*` 2.108 → 2.110 on the auth path, `react`/`react-dom`,
+  and `@playwright/test` (which then demanded a different browser build and
+  failed 5 e2e specs — an environment artifact that reads exactly like a code
+  regression). Keep the committed lockfile as the base and let `npm install`
+  move only what the new ranges and overrides require: same 0 vulnerabilities,
+  10 incidental changes instead of 69, all of them transitives of the
+  intended upgrades.
+- **Know which audit gates CI.** `.github/workflows/ci.yml` gates on
+  `npm audit --omit=dev --audit-level=high` and runs the full tree as advisory
+  only. Fix the production tree first — that is both the real deployed risk
+  and the failing gate — then work outward through dev tooling.
+- **A native-module bump needs an output diff, not just a passing script.**
+  sharp 0.33 → 0.35 is a new libvips. Re-running `generate:icons` "worked",
+  but the real question was whether the 32 shipped PNGs still render the same:
+  a raw-buffer compare showed max channel delta 0, so only container bytes
+  changed and the committed assets could be left alone. Re-encoding locked
+  brand assets inside a dependency PR is churn a reviewer can't verify.
