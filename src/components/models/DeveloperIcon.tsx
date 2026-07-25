@@ -3,18 +3,18 @@ import type { Developer } from "@/lib/constants";
 /**
  * Model-developer marks for the target picker, filter chips, and result chips.
  *
- * The original five sourced from thesvg.org (open-source, glincker/thesvg)
- * per guardrail §6; the 2026-07 roster additions (DeepSeek · MiniMax ·
- * Perplexity · Qwen, Moonshot via the `kimi` slug — the Kimi "K" product
- * mark, not the corporate Moonshot logo — and Z.ai via the `zdotai` slug)
- * from the Simple Icons set — same monochrome single-path convention — and
- * optimized with SVGO. Meta's slot carries an original Muse Spark twin-spark
- * mark (Meta Superintelligence Labs publishes no standalone glyph for the
- * model yet), drawn to the same convention. Every glyph is a single
- * monochrome path drawn with `currentColor`, so the parent's text colour
- * governs — pair with `text-accent` (the theme-aware `--accent-ink`: Laser in
- * dark, deep green on light) to keep the mark AA-legible in both themes.
- * Never hardcode a fill.
+ * The original five, plus Meta, sourced from thesvg.org (open-source,
+ * glincker/thesvg) per guardrail §6 — Meta from its `meta/mono.svg` variant;
+ * the 2026-07 roster additions (DeepSeek · MiniMax · Perplexity · Qwen,
+ * Moonshot via the `kimi` slug — the Kimi "K" product mark, not the corporate
+ * Moonshot logo — and Z.ai via the `zdotai` slug) from the Simple Icons set —
+ * same monochrome single-path convention — and optimized with SVGO. Every
+ * glyph is a single monochrome path drawn with `currentColor`, so the parent's
+ * text colour governs — pair with `text-accent` (the theme-aware
+ * `--accent-ink`: Laser in dark, deep green on light) to keep the mark
+ * AA-legible in both themes. The one exception is a mark sitting on a Laser
+ * fill (the active library filter chip), where the chip's `text-on-laser`
+ * ink governs per the §6 contrast law. Never hardcode a fill.
  */
 const PATHS: Record<Developer, { viewBox: string; d: string; evenodd?: boolean }> = {
   anthropic: {
@@ -34,11 +34,12 @@ const PATHS: Record<Developer, { viewBox: string; d: string; evenodd?: boolean }
     d: "M141.201 4.886c2.282-6.17 11.042-6.071 13.184.148l5.985 17.37a184 184 0 0 0 111.257 113.049l19.304 6.997c6.143 2.227 6.156 10.91.02 13.155l-19.35 7.082a184 184 0 0 0-109.495 109.385l-7.573 20.629c-2.241 6.105-10.869 6.121-13.133.025l-7.908-21.296a184 184 0 0 0-109.02-108.658l-19.698-7.239c-6.102-2.243-6.118-10.867-.025-13.132l20.083-7.467A184 184 0 0 0 133.291 26.28z",
   },
   meta: {
-    // Muse Spark — an original twin-spark mark (a large four-point spark with
-    // a smaller companion), replacing the Meta infinity logo now that the
-    // slot is the Muse Spark model line.
+    // The Meta infinity mark (thesvg.org `meta/mono.svg`) — the developer
+    // mark for the "Meta AI" slot. Marks identify the *developer*, not the
+    // model, so the corporate glyph is the right one even though the slot's
+    // model is Muse Spark 1.1.
     viewBox: "0 0 24 24",
-    d: "M10.5 3.5Q12 12 20.5 13.5 12 15 10.5 23.5 9 15 .5 13.5 9 12 10.5 3.5ZM19.5.5Q20.25 3.75 23.5 4.5 20.25 5.25 19.5 8.5 18.75 5.25 15.5 4.5 18.75 3.75 19.5.5Z",
+    d: "M6.915 4.03c-1.968 0-3.683 1.28-4.871 3.113C.704 9.208 0 11.883 0 14.449c0 .706.07 1.369.21 1.973a6.624 6.624 0 0 0 .265.86 5.297 5.297 0 0 0 .371.761c.696 1.159 1.818 1.927 3.593 1.927 1.497 0 2.633-.671 3.965-2.444.76-1.012 1.144-1.626 2.663-4.32l.756-1.339.186-.325c.061.1.121.196.183.3l2.152 3.595c.724 1.21 1.665 2.556 2.47 3.314 1.046.987 1.992 1.22 3.06 1.22 1.075 0 1.876-.355 2.455-.843a3.743 3.743 0 0 0 .81-.973c.542-.939.861-2.127.861-3.745 0-2.72-.681-5.357-2.084-7.45-1.282-1.912-2.957-2.93-4.716-2.93-1.047 0-2.088.467-3.053 1.308-.652.57-1.257 1.29-1.82 2.05-.69-.875-1.335-1.547-1.958-2.056-1.182-.966-2.315-1.303-3.454-1.303zm10.16 2.053c1.147 0 2.188.758 2.992 1.999 1.132 1.748 1.647 4.195 1.647 6.4 0 1.548-.368 2.9-1.839 2.9-.58 0-1.027-.23-1.664-1.004-.496-.601-1.343-1.878-2.832-4.358l-.617-1.028a44.908 44.908 0 0 0-1.255-1.98c.07-.109.141-.224.211-.327 1.12-1.667 2.118-2.602 3.358-2.602zm-10.201.553c1.265 0 2.058.791 2.675 1.446.307.327.737.871 1.234 1.579l-1.02 1.566c-.757 1.163-1.882 3.017-2.837 4.338-1.191 1.649-1.81 1.817-2.486 1.817-.524 0-1.038-.237-1.383-.794-.263-.426-.464-1.13-.464-2.046 0-2.221.63-4.535 1.66-6.088.454-.687.964-1.226 1.533-1.533a2.264 2.264 0 0 1 1.088-.285z",
   },
   minimax: {
     viewBox: "0 0 24 24",

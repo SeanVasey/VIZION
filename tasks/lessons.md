@@ -609,3 +609,27 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   crescent. Where no official product glyph exists (Muse Spark), draw an
   original in the set's own convention (single monochrome `currentColor`
   path) and document the deviation at the source-comment.
+
+## Developer marks name the developer, not the model (2026-07)
+
+- **Don't draw an original when an official mark already exists.** Meta's slot
+  got a hand-drawn twin-spark glyph on the reasoning that Muse Spark has no
+  published mark — but the row is keyed on `Developer`/`DEVELOPER_LABEL`
+  ("Meta AI"), so the mark answers *who made this*, not *which model*. The
+  official Meta infinity mark was already in the repo and was the right
+  answer; it is now restored from thesvg.org `icons/meta/mono.svg` and pinned
+  by a unit test (`models.test.tsx`) so it can't drift again. The
+  draw-an-original escape hatch applies only when the *developer* has no
+  glyph in the source set — not when a model is new.
+- **Verify guardrail §6 sourcing before re-attributing an asset.** The
+  2026-07 comment moved Meta into the "Simple Icons" group; the path was in
+  fact byte-identical to thesvg.org's `meta/mono.svg` (its mono variants
+  mirror the Simple Icons single-path convention, which is what made the two
+  look interchangeable). One `curl` against
+  `https://thesvg.org/icons/{slug}/{variant}.svg` settles it — cheaper than a
+  wrong provenance note that outlives the change.
+- **Rasterize a restored path before trusting it.** The Meta mark's two inner
+  counters rely on the default nonzero fill rule (no `evenodd`, unlike
+  Mistral's). Rendering the glyph to PNG at both theme inks — `#b7ff3c` on
+  `--void`, `#3f6b00` on light — confirms the counters punch through and the
+  mark stays legible in both themes; a `d`-string diff alone can't show that.

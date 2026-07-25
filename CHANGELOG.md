@@ -32,10 +32,14 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 - **Light-mode top/bottom bars read as glass, not solid white:** the light
   `--chrome` alpha drops 0.60 → 0.42 so graphics flowing underneath show
   through the frosted blur.
-- **Developer marks:** Meta's slot now carries a Muse Spark twin-spark glyph
-  (the Meta infinity logo read as the wrong brand for the model line), and
-  Moonshot's slot shows the Kimi "K" product mark (Simple Icons `kimi`)
-  instead of the corporate Moonshot logo.
+- **Developer marks:** Moonshot's slot shows the Kimi "K" product mark (Simple
+  Icons `kimi`) instead of the corporate Moonshot logo. Meta's slot keeps the
+  official Meta infinity mark (thesvg.org `meta/mono.svg`) — a twin-spark
+  glyph was tried in place of it and reverted, since the marks identify the
+  developer ("Meta AI"), not the model in the slot. Both render in
+  `currentColor`, so they take the theme accent (`--accent-ink`: Laser on
+  dark, deep green on light) — or `--on-laser` when the mark sits on a Laser
+  fill.
 
 ### Changed — Meta's slot moves to Muse Spark 1.1; Z.ai's GLM-5.2 joins (fourteen models, twelve developers)
 
