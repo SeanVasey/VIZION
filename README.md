@@ -18,11 +18,11 @@ _Clarify · Polish · Expand · Condense · Reformat · Re-target — the same i
 </div>
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZ(IO)N
-> _transforms_ it — across thirteen target models from eleven developers
+> _transforms_ it — across fourteen target models from twelve developers
 > (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol · DeepSeek V4 · Gemini 3.5 Flash ·
-> Llama 4 Maverick · MiniMax M2.7 · Mistral Large 3 · Kimi K2.6 · Sonar Pro ·
-> Qwen3.7 Max · Grok 4.5), six enhancement modes, and media-aware prompt
-> construction, with accounts and a versioned prompt library.
+> Muse Spark 1.1 · MiniMax M2.7 · Mistral Large 3 · Kimi K2.6 · Sonar Pro ·
+> Qwen3.7 Max · Grok 4.5 · GLM-5.2), six enhancement modes, and media-aware
+> prompt construction, with accounts and a versioned prompt library.
 
 <div align="center">
 
@@ -46,9 +46,10 @@ Next Route Handlers (Edge) ── Provider Adapter ──┬─ Anthropic  (fabl
   └─ per-user rate limit + cost cap + audit log   ├─ Mistral    (mistral_large_3)
                                                   ├─ xAI        (grok_4_5)
                                                   └─ OpenAI-compatible proxy:
-                                                     DeepSeek (deepseek_v4) · Meta (llama_4_maverick)
+                                                     DeepSeek (deepseek_v4) · Meta (muse_spark_1_1)
                                                      MiniMax (minimax_m2_7) · Moonshot (kimi_k2_6)
                                                      Perplexity (sonar_pro) · Qwen (qwen3_7_max)
+                                                     Z.ai (glm_5_2)
         │
         ▼
 Supabase ── Postgres (RLS) · Auth (magic link · GitHub · Google) · Storage (avatars, media)

@@ -559,3 +559,25 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   (`deepseek-chat`, `qwen-max`, `mistral-large-latest`) — the roster label
   can name the product ("DeepSeek V4") while the wire string tracks the
   vendor's current release; exact snapshots stay an env override.
+
+## Muse Spark cutover + Z.ai (2026-07) — a provider-key rename ripples beyond code
+
+- **An env-key rename is a deployment event, not a refactor.** Renaming
+  `LLAMA_API_KEY` → `META_API_KEY` touches the Vercel project env (operator
+  action — the target reads "not configured" until it happens), the
+  vision-fallback test's clean-slate `KEY_ENVS` fixture, `.env.example`, and
+  two runbooks. Grep for the old VAR NAME, not just the old model id.
+- **The hand-maintained `database.types.ts` must mirror enum surgery
+  exactly:** a `RENAME VALUE` keeps its position in the union (values are
+  stored by OID), an `ADD VALUE` appends at the end — matching what a
+  regenerated type would produce keeps future diffs clean.
+- **Decorative animation defaults to too busy — start subtle.** The hero
+  graphic shipped with three concurrent motions (dash march, traveling
+  pulse, breathing halo) and immediately got feedback to calm it. One slow
+  motion is a better default than three fast ones; and when a keyframe range
+  narrows, set the element's BASE opacity to the midpoint so the global
+  reduced-motion collapse rests inside the designed range.
+- **Model-facts research goes through the vendor's current page, not
+  training memory.** The Meta rename (Llama API → Meta Model API, new model
+  id, new pricing) and Z.ai's current flagship id both post-date any
+  baked-in knowledge — fetch the developer docs before writing config.

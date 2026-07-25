@@ -11,7 +11,8 @@ export type Provider =
   | "moonshot"
   | "perplexity"
   | "qwen"
-  | "xai";
+  | "xai"
+  | "zai";
 
 interface TargetConfig {
   provider: Provider;
@@ -68,11 +69,13 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_GEMINI_IN", 0.3),
     priceOut: numEnv("PRICE_GEMINI_OUT", 1.2),
   },
-  llama_4_maverick: {
+  muse_spark_1_1: {
     provider: "meta",
-    model: process.env.MODEL_LLAMA ?? "Llama-4-Maverick-17B-128E-Instruct-FP8",
-    priceIn: numEnv("PRICE_LLAMA_IN", 0.5),
-    priceOut: numEnv("PRICE_LLAMA_OUT", 1),
+    // Meta Model API's Muse Spark 1.1 (Meta Superintelligence Labs) — the
+    // closed-weights successor to the retired Llama API line.
+    model: process.env.MODEL_MUSE ?? "muse-spark-1.1",
+    priceIn: numEnv("PRICE_MUSE_IN", 1.25),
+    priceOut: numEnv("PRICE_MUSE_OUT", 4.25),
   },
   minimax_m2_7: {
     provider: "minimax",
@@ -114,6 +117,15 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_GROK_IN", 3),
     priceOut: numEnv("PRICE_GROK_OUT", 15),
   },
+  glm_5_2: {
+    provider: "zai",
+    // GLM-5.2 list rates are unpublished at launch — defaults are the GLM-5
+    // reference rates; override PRICE_GLM_* when Z.ai publishes them.
+    // MODEL_GLM also absorbs any long-context variant serving string.
+    model: process.env.MODEL_GLM ?? "glm-5.2",
+    priceIn: numEnv("PRICE_GLM_IN", 1),
+    priceOut: numEnv("PRICE_GLM_OUT", 3.2),
+  },
 };
 
 function numEnv(name: string, fallback: number): number {
@@ -144,13 +156,14 @@ export const PROVIDER_KEY_ENV: Record<Provider, string> = {
   openai: "OPENAI_API_KEY",
   deepseek: "DEEPSEEK_API_KEY",
   google: "GOOGLE_API_KEY",
-  meta: "LLAMA_API_KEY",
+  meta: "META_API_KEY",
   minimax: "MINIMAX_API_KEY",
   mistral: "MISTRAL_API_KEY",
   moonshot: "MOONSHOT_API_KEY",
   perplexity: "PERPLEXITY_API_KEY",
   qwen: "DASHSCOPE_API_KEY",
   xai: "XAI_API_KEY",
+  zai: "ZAI_API_KEY",
 };
 
 /** Whether a target's provider has its key set — lets routes fail a missing

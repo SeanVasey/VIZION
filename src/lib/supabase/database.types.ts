@@ -285,13 +285,14 @@ export type Database = {
         | "fable_5"
         | "deepseek_v4"
         | "gemini_3_5_thinking"
-        | "llama_4_maverick"
+        | "muse_spark_1_1"
         | "minimax_m2_7"
         | "mistral_large_3"
         | "kimi_k2_6"
         | "sonar_pro"
         | "qwen3_7_max"
-        | "grok_4_5";
+        | "grok_4_5"
+        | "glm_5_2";
       oauth_provider: "github" | "google";
       theme: "dark" | "light" | "system";
     };

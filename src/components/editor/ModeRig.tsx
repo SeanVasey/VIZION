@@ -8,12 +8,12 @@ import { MODE_BLURB } from "@/lib/enhance/modes";
  * Mode instrument (remediation R5.1).  ONE glass chassis with six equal cells
  * (grid repeat(6,1fr)), icon-over-label, and a sliding Laser "lens-lock"
  * indicator behind the active cell — the same aperture motion as the brand
- * mark.  Active cell text/icon = --on-laser; inactive cells (icon AND label)
- * carry the brand green via --accent-ink (Laser on dark, deep green on light —
- * never raw laser as a stroke on a light surface, §6).  Cell labels and the
- * help-strip blurbs use `.cap-trim` so their glyphs — not the font's
- * ascent/descent headroom — are what gets vertically centered in each pill.
- * Symmetric at 360/390/430px.
+ * mark.  Active cell text/icon = --on-laser; inactive cell ICONS carry the
+ * brand green via --accent-ink (Laser on dark, deep green on light — never raw
+ * laser as a stroke on a light surface, §6) while their labels stay Silver.
+ * Cell labels and the help-strip blurbs use `.cap-trim` so their glyphs — not
+ * the font's ascent/descent headroom — are what gets vertically centered in
+ * each pill.  Symmetric at 360/390/430px.
  *
  * A dedicated help strip sits IN FLOW below the rig (above the composer): it
  * always shows one mode description — the hovered/focused cell, falling back
@@ -112,14 +112,14 @@ export const ModeRig = memo(function ModeRig({
               onFocus={() => setPreviewMode(mode.id)}
               onBlur={() => setPreviewMode(null)}
               className={[
-                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-[color,filter]",
-                active ? "text-on-laser" : "text-accent hover:brightness-110",
+                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-colors",
+                active ? "text-on-laser" : "text-silver hover:text-chalk",
               ].join(" ")}
             >
-              {/* Icon and label both inherit the cell color: theme-aware green
-                  (--accent-ink) when inactive, --on-laser on the Laser
-                  lens-lock fill when active. */}
-              <ModeIcon id={mode.id} />
+              {/* Inactive icons take the theme-aware green; the active icon
+                  inherits the cell's --on-laser so it stays legible on the
+                  Laser lens-lock fill. */}
+              <ModeIcon id={mode.id} className={active ? undefined : "text-accent"} />
               <span className="cap-trim leading-none tracking-wide">{mode.label}</span>
             </button>
           );
@@ -167,14 +167,13 @@ export const ModeRig = memo(function ModeRig({
   );
 });
 
-/** 1.5px-stroke, rounded-join icons on a 24px grid (style-guide §1.4).
- *  Color is always inherited from the cell (currentColor). */
-function ModeIcon({ id }: { id: ModeId }) {
+/** 1.5px-stroke, rounded-join icons on a 24px grid (style-guide §1.4). */
+function ModeIcon({ id, className }: { id: ModeId; className?: string }) {
   const common = {
     viewBox: "0 0 24 24",
     fill: "none",
     "aria-hidden": true,
-    className: "h-5 w-5 transition-colors",
+    className: ["h-5 w-5 transition-colors", className].filter(Boolean).join(" "),
   } as const;
   const stroke = {
     stroke: "currentColor",

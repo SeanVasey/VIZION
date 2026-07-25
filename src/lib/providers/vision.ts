@@ -77,8 +77,9 @@ async function describeOpenAICompatible(
   mediaType: string,
   model: string,
   tokenCap: { max_tokens: number } | { max_completion_tokens: number },
-  // Perplexity and Meta take json_schema, not json_object — for those the
-  // prompt alone pins JSON and parseMediaAttributes tolerates a miss.
+  // Perplexity takes json_schema, not json_object (and Meta keeps the same
+  // conservative carve-out on the new Meta Model API) — for those the prompt
+  // alone pins JSON and parseMediaAttributes tolerates a miss.
   jsonMode = true,
 ): Promise<VisionResult> {
   const client = new OpenAI({ apiKey, baseURL });
@@ -182,14 +183,15 @@ const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
   "gemini_3_5_thinking",
   "mistral_large_3",
   "grok_4_5",
-  "llama_4_maverick",
+  "muse_spark_1_1",
   "kimi_k2_6",
   "sonar_pro",
 ];
 
-/** Providers whose roster flagship takes image input. DeepSeek, MiniMax, and
- *  Qwen Max are text-only flagships (their vision models are separate SKUs),
- *  so media analysis for those targets is routed to the fallback chain. */
+/** Providers whose roster flagship takes image input. DeepSeek, MiniMax,
+ *  Qwen Max, and GLM-5.2 are text-only flagships (their vision models are
+ *  separate SKUs — e.g. Z.ai's glm-5v-turbo), so media analysis for those
+ *  targets is routed to the fallback chain. */
 const VISION_CAPABLE_PROVIDERS: ReadonlySet<Provider> = new Set([
   "anthropic",
   "openai",
@@ -283,8 +285,8 @@ export async function describeImage(
         );
       case "meta":
         return await describeOpenAICompatible(
-          requireKey("LLAMA_API_KEY"),
-          "https://api.llama.com/compat/v1",
+          requireKey("META_API_KEY"),
+          "https://api.meta.ai/v1",
           base64,
           mediaType,
           cfg.model,
@@ -316,6 +318,7 @@ export async function describeImage(
       case "deepseek":
       case "minimax":
       case "qwen":
+      case "zai":
         // Text-only flagships — callers gate on supportsVision() first, so
         // this is a defensive backstop, not a reachable user path.
         throw new ProviderError(

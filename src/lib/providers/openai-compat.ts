@@ -162,11 +162,13 @@ export const streamDeepSeek = makeOpenAICompatStream({
   baseURL: "https://api.deepseek.com/v1",
 });
 
+/** Meta Model API — Muse Spark (Meta Superintelligence Labs), the successor
+ *  to the retired Llama API endpoint. */
 export const streamMeta = makeOpenAICompatStream({
   provider: "meta",
-  label: "Llama",
-  keyEnv: "LLAMA_API_KEY",
-  baseURL: "https://api.llama.com/compat/v1",
+  label: "Muse Spark",
+  keyEnv: "META_API_KEY",
+  baseURL: "https://api.meta.ai/v1",
 });
 
 export const streamMiniMax = makeOpenAICompatStream({
@@ -198,4 +200,14 @@ export const streamQwen = makeOpenAICompatStream({
   label: "Qwen",
   keyEnv: "DASHSCOPE_API_KEY",
   baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+});
+
+/** Z.ai open platform (GLM). Reasoning arrives in a separate
+ *  `reasoning_content`-style field on the official endpoint (which we never
+ *  read), so `content` is clean — no think filter needed. */
+export const streamZai = makeOpenAICompatStream({
+  provider: "zai",
+  label: "GLM",
+  keyEnv: "ZAI_API_KEY",
+  baseURL: "https://api.z.ai/api/paas/v4",
 });

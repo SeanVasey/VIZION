@@ -52,16 +52,17 @@ A single `enhance(input, mode, target)` interface fans out to model-specific for
 - **Fable 5** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
 - **DeepSeek V4** — plain complete problem statement, reasoning left to the engine, explicit format.
 - **Gemini 3.5 Flash** — multimodal "parts", system-instruction conventions, grounding.
-- **Llama 4 Maverick** — short unambiguous instructions, enumerated constraints, explicit format.
+- **Muse Spark 1.1** — explicit goal up front, numbered constraints, output contract at the top.
 - **MiniMax M2.7** — tight ordered brief; goal, constraints, and deliverable up front.
 - **Mistral Large 3** — concise front-loaded instructions; economy over scaffolding.
 - **Kimi K2.6** — clear goal + constraints with key context front-loaded; long-context friendly.
 - **Sonar Pro** — research-brief phrasing: scope, time window, source/citation expectations.
 - **Qwen3.7 Max** — well-separated task/context/format sections; language expectations stated.
 - **Grok 4.5** — direct plain-spoken instructions, inline context, explicit output format.
+- **GLM-5.2** — labeled task/context/constraints/format parts; acceptance criteria stated.
 
-The six 2026-07 additions (DeepSeek · Meta · MiniMax · Moonshot · Perplexity ·
-Qwen) all speak the OpenAI wire shape and share one streaming factory
+The seven 2026-07 additions (DeepSeek · Meta · MiniMax · Moonshot · Perplexity ·
+Qwen · Z.ai) all speak the OpenAI wire shape and share one streaming factory
 (`src/lib/providers/openai-compat.ts`). Model strings live in server config so
 swaps are a config change, not a refactor.
 

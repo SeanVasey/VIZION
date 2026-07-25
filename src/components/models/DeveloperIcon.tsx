@@ -5,8 +5,9 @@ import type { Developer } from "@/lib/constants";
  *
  * The original five sourced from thesvg.org (open-source, glincker/thesvg)
  * per guardrail §6; the 2026-07 roster additions (DeepSeek · Meta · MiniMax ·
- * Moonshot · Perplexity · Qwen) from the Simple Icons set — same monochrome
- * single-path convention — and optimized with SVGO. Every glyph is a single
+ * Moonshot · Perplexity · Qwen, and Z.ai via the `zdotai` slug) from the
+ * Simple Icons set — same monochrome single-path convention — and optimized
+ * with SVGO. Every glyph is a single
  * monochrome path drawn with `currentColor`, so the parent's text colour
  * governs — pair with `text-accent` (the theme-aware `--accent-ink`: Laser in
  * dark, deep green on light) to keep the mark AA-legible in both themes.
@@ -57,6 +58,10 @@ const PATHS: Record<Developer, { viewBox: string; d: string; evenodd?: boolean }
   xai: {
     viewBox: "0 0 1024 1024",
     d: "M395.479 633.828 735.91 381.105c16.689-12.39 40.544-7.557 48.496 11.687 41.854 101.493 23.155 223.461-60.118 307.204s-199.137 102.108-305.041 60.281l-115.691 53.866c165.934 114.059 367.431 85.852 493.345-40.861 99.875-100.439 130.807-237.345 101.884-360.806l.262.263C857.105 231.37 909.358 158.874 1016.4 10.633c2.53-3.515 5.07-7.03 7.6-10.633L883.144 141.651v-.439L395.392 633.916m-70.166 61.335c-119.098-114.411-98.564-291.475 3.059-393.583 75.146-75.571 198.264-106.414 305.741-61.072l115.428-53.602c-20.797-15.114-47.447-31.371-78.03-42.794-138.234-57.206-303.731-28.735-416.101 84.182-108.089 108.699-142.079 275.833-83.71 418.451 43.603 106.59-27.874 181.985-99.874 258.083C46.224 931.893 20.622 958.87 0 987.429l325.139-292.09",
+  },
+  zai: {
+    viewBox: "0 0 24 24",
+    d: "M12.606 1.806l-1.677 2.388c-0.258 0.374-0.697 0.606-1.161 0.606h-9.162V1.794C0.594 1.806 12.606 1.806 12.606 1.806zM24 1.806L9.6 22.206 0 22.206 14.4 1.806zM11.394 22.206l1.69-2.4c0.258-0.374 0.697-0.606 1.161-0.606h9.149v3.006H11.394z",
   },
 };
 
