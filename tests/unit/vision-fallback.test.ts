@@ -81,14 +81,14 @@ describe("visionFallbackTarget", () => {
 
   it("offers the new vision-capable providers as a last resort", () => {
     vi.stubEnv("MOONSHOT_API_KEY", "k-test");
-    expect(visionFallbackTarget("minimax_m2_7")).toBe("kimi_k2_6");
+    expect(visionFallbackTarget("minimax_m3")).toBe("kimi_k3");
   });
 });
 
 describe("supportsVision", () => {
   it("flags text-only flagships so the route can redirect up front", () => {
     expect(supportsVision("deepseek_v4")).toBe(false);
-    expect(supportsVision("minimax_m2_7")).toBe(false);
+    expect(supportsVision("minimax_m3")).toBe(false);
     expect(supportsVision("qwen3_7_max")).toBe(false);
     expect(supportsVision("glm_5_2")).toBe(false);
   });
@@ -97,7 +97,9 @@ describe("supportsVision", () => {
     expect(supportsVision("opus_5")).toBe(true);
     expect(supportsVision("sonnet_5")).toBe(true);
     expect(supportsVision("muse_spark_1_1")).toBe(true);
-    expect(supportsVision("kimi_k2_6")).toBe(true);
+    expect(supportsVision("kimi_k3")).toBe(true);
+    expect(supportsVision("gpt_5_6_luna")).toBe(true);
+    expect(supportsVision("gpt_5_6_terra")).toBe(true);
     expect(supportsVision("sonar_pro")).toBe(true);
   });
 });

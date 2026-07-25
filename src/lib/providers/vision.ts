@@ -184,7 +184,7 @@ const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
   "mistral_large_3",
   "grok_4_5",
   "muse_spark_1_1",
-  "kimi_k2_6",
+  "kimi_k3",
   "sonar_pro",
 ];
 

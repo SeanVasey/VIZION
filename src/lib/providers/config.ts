@@ -49,6 +49,22 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_GPT_IN", 5),
     priceOut: numEnv("PRICE_GPT_OUT", 15),
   },
+  gpt_5_6_luna: {
+    provider: "openai",
+    // The balanced mid tier of the GPT-5.6 family; defaults follow the
+    // family's published tiering below Sol — override via env when the
+    // deployed rates differ.
+    model: process.env.MODEL_GPT_LUNA ?? "gpt-5.6-luna",
+    priceIn: numEnv("PRICE_GPT_LUNA_IN", 1),
+    priceOut: numEnv("PRICE_GPT_LUNA_OUT", 4),
+  },
+  gpt_5_6_terra: {
+    provider: "openai",
+    // The fast, light tier of the GPT-5.6 family.
+    model: process.env.MODEL_GPT_TERRA ?? "gpt-5.6-terra",
+    priceIn: numEnv("PRICE_GPT_TERRA_IN", 0.2),
+    priceOut: numEnv("PRICE_GPT_TERRA_OUT", 0.8),
+  },
   fable_5: {
     provider: "anthropic",
     model: process.env.MODEL_FABLE ?? "claude-fable-5",
@@ -77,9 +93,11 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_MUSE_IN", 1.25),
     priceOut: numEnv("PRICE_MUSE_OUT", 4.25),
   },
-  minimax_m2_7: {
+  minimax_m3: {
     provider: "minimax",
-    model: process.env.MODEL_MINIMAX ?? "MiniMax-M2.7",
+    // M3 launch rates match the M2-series list pricing; override PRICE_MINIMAX_*
+    // if MiniMax publishes different rates.
+    model: process.env.MODEL_MINIMAX ?? "MiniMax-M3",
     priceIn: numEnv("PRICE_MINIMAX_IN", 0.3),
     priceOut: numEnv("PRICE_MINIMAX_OUT", 1.2),
   },
@@ -91,9 +109,11 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_MISTRAL_IN", 2),
     priceOut: numEnv("PRICE_MISTRAL_OUT", 6),
   },
-  kimi_k2_6: {
+  kimi_k3: {
     provider: "moonshot",
-    model: process.env.MODEL_KIMI ?? "kimi-k2.6",
+    // K3 launch rates match the K2-series list pricing; override PRICE_KIMI_*
+    // if Moonshot publishes different rates.
+    model: process.env.MODEL_KIMI ?? "kimi-k3",
     priceIn: numEnv("PRICE_KIMI_IN", 0.6),
     priceOut: numEnv("PRICE_KIMI_OUT", 2.5),
   },

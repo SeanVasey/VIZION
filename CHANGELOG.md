@@ -6,6 +6,37 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — GPT-5.6 Luna + Terra join; Kimi and MiniMax move to K3 / M3 (sixteen models, twelve developers)
+
+- **GPT-5.6 Luna and GPT-5.6 Terra join OpenAI's slot** alongside Sol — the
+  family's balanced mid tier (`gpt-5.6-luna`, $1.00/$4.00 per MTok defaults)
+  and fast tier (`gpt-5.6-terra`, $0.20/$0.80), env-overridable via
+  `MODEL_GPT_LUNA` / `MODEL_GPT_TERRA` and `PRICE_GPT_LUNA_*` /
+  `PRICE_GPT_TERRA_*`. Both stream through the existing OpenAI path and
+  provider key, and both are vision-capable.
+- **Kimi K2.6 → Kimi K3** (`kimi-k3`) and **MiniMax M2.7 → MiniMax M3**
+  (`MiniMax-M3`) — each vendor's newest flagship, launch price defaults
+  carried forward from the outgoing models. DB enum values renamed in place
+  (`supabase/migrations/20260726000000_kimi_k3_minimax_m3_gpt_tiers.sql` —
+  existing prompt versions, usage events, and profile defaults follow
+  automatically), and persisted `kimi_k2_6` / `minimax_m2_7` picker
+  selections migrate on load (UI-store v4).
+
+### Changed — Enhance hero goes symmetric; lighter light-mode chrome; truer developer marks
+
+- **The Enhance hero is now a symmetric emblem:** the right-hand Laser lines
+  are mirrored onto the left of the (│›◯) aperture (replacing the dashed
+  Silver squiggles), the wings sit slightly translucent, and a slow staggered
+  shimmer joins the halo's breathe for gentle motion — all collapsed to a
+  static glow under reduced motion.
+- **Light-mode top/bottom bars read as glass, not solid white:** the light
+  `--chrome` alpha drops 0.60 → 0.42 so graphics flowing underneath show
+  through the frosted blur.
+- **Developer marks:** Meta's slot now carries a Muse Spark twin-spark glyph
+  (the Meta infinity logo read as the wrong brand for the model line), and
+  Moonshot's slot shows the Kimi "K" product mark (Simple Icons `kimi`)
+  instead of the corporate Moonshot logo.
+
 ### Changed — Meta's slot moves to Muse Spark 1.1; Z.ai's GLM-5.2 joins (fourteen models, twelve developers)
 
 - **Llama 4 Maverick → Muse Spark 1.1.** Meta retired the open-weights Llama
