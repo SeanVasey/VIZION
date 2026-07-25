@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
+import { describeWriteError } from "@/lib/supabase/errors";
 import { deriveTitle } from "@/lib/library/util";
 
 export interface SaveResult {
@@ -54,7 +55,11 @@ export async function savePromptAction(
     .insert({ user_id: user.id, title: promptTitle, target_model: v.target, tags })
     .select("id")
     .single();
-  if (pErr || !prompt) return { ok: false, error: pErr?.message ?? "Couldn't save." };
+  // A target the app offers but the DB enum lacks (unapplied migration) lands
+  // here as Postgres 22P02 — surface the model, not the internal error text.
+  if (pErr || !prompt) {
+    return { ok: false, error: describeWriteError(pErr, "Couldn't save.") };
+  }
 
   const { data: ver, error: vErr } = await supabase
     .from("prompt_versions")
@@ -70,8 +75,9 @@ export async function savePromptAction(
     })
     .select("id")
     .single();
-  if (vErr || !ver)
-    return { ok: false, error: vErr?.message ?? "Couldn't save version." };
+  if (vErr || !ver) {
+    return { ok: false, error: describeWriteError(vErr, "Couldn't save version.") };
+  }
 
   await supabase.from("prompts").update({ current_ver: ver.id }).eq("id", prompt.id);
   await supabase.from("activity_events").insert([
@@ -123,8 +129,9 @@ export async function addVersionAction(
     })
     .select("id")
     .single();
-  if (vErr || !ver)
-    return { ok: false, error: vErr?.message ?? "Couldn't save version." };
+  if (vErr || !ver) {
+    return { ok: false, error: describeWriteError(vErr, "Couldn't save version.") };
+  }
 
   await supabase.from("prompts").update({ current_ver: ver.id }).eq("id", promptId);
   await supabase.from("activity_events").insert([

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { writeErrorLogLine } from "@/lib/supabase/errors";
 import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
 import { enhanceStream, type EnhanceOutput } from "@/lib/providers/adapter";
 import {
@@ -221,8 +222,13 @@ export async function POST(request: NextRequest) {
           });
           // The cap is only as good as this write — a silent failure would
           // let spend leak invisibly. (console.error survives prod stripping.)
+          // An unapplied `model_target` migration fails EVERY write for that
+          // target, so the drift is named explicitly rather than logged as a
+          // generic write failure.
           if (ledgerError) {
-            console.error("[enhance] usage ledger write failed:", ledgerError.message);
+            console.error(
+              writeErrorLogLine("enhance", "usage ledger write", ledgerError),
+            );
           }
         }
         try {
