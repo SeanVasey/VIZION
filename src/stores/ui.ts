@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import {
+  LEGACY_TARGET_IDS,
   TARGET_MODELS,
   UI_STORE_KEY,
   type ModeId,
@@ -106,14 +107,6 @@ export const useUIStore = create<UIState>()(
       version: 4,
       migrate: (persisted) => {
         const s = (persisted ?? {}) as Partial<UIState>;
-        const legacy: Record<string, TargetModelId> = {
-          gpt_5_5: "gpt_5_6_sol",
-          gemini_pro_3_1: "gemini_3_5_thinking",
-          opus_4_8: "opus_5",
-          llama_4_maverick: "muse_spark_1_1",
-          kimi_k2_6: "kimi_k3",
-          minimax_m2_7: "minimax_m3",
-        };
         const valid = new Set<string>(TARGET_MODELS.map((m) => m.id));
         const t = s.targetModel as string | undefined;
         return {
@@ -121,7 +114,7 @@ export const useUIStore = create<UIState>()(
           targetModel:
             t && valid.has(t)
               ? (t as TargetModelId)
-              : ((t && legacy[t]) ?? "opus_5"),
+              : ((t && LEGACY_TARGET_IDS[t]) ?? "opus_5"),
         };
       },
       // Draft is intentionally NOT persisted as the only copy — it is a

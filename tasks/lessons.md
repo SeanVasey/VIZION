@@ -674,3 +674,37 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   a raw-buffer compare showed max channel delta 0, so only container bytes
   changed and the committed assets could be left alone. Re-encoding locked
   brand assets inside a dependency PR is churn a reviewer can't verify.
+
+## `model_target` enum drift — a committed migration is not an applied migration
+
+- **Five green gates cannot see the hosted schema.** `20260726000000` sat in
+  `supabase/migrations/` unapplied for a day; lint, typecheck, unit, e2e, and
+  build all passed because every one of them reads the migration *file*.
+  Meanwhile four of sixteen targets (GPT-5.6 Terra/Luna, Kimi K3, MiniMax M3)
+  `22P02`'d on every write. The gate that was missing wasn't a better test —
+  it was a check that talks to the actual database (`npm run check:db-enum`).
+- **A hand-edited "generated" file converts a runtime error into a lie.**
+  `database.types.ts` says "Do not edit by hand" and had been, declaring all
+  sixteen labels against a fourteen-label database. That made `TargetModelId`
+  and `Enums<"model_target">` agree perfectly — typecheck confirmed the app
+  against a schema that did not exist. Regenerate from the live project, or the
+  types assert the roster back to itself.
+- **Replaying migrations is a cheap, exact oracle.** Parsing every
+  `ALTER TYPE … ADD VALUE / RENAME VALUE` out of the SQL and applying it to a
+  declared baseline reproduced the hosted enum's fourteen labels *in order*,
+  which is how the baseline (`opus_4_8`, `gpt_5_5`, `gemini_pro_3_1`) was
+  confirmed rather than guessed. Worth doing for any enum the app writes.
+- **Rank the silent failure above the loud one.** The visible symptom was a raw
+  Postgres string in the save button's error slot. The real damage was the
+  `usage_events` insert failing behind a `console.error`: those four models'
+  spend never reached the ledger, so the §6 daily cost cap silently stopped
+  applying to them. When one bad value breaks several writes, audit *every*
+  write site — the one nobody reported is the expensive one.
+- **Verify a DB fix through the app's own path, not just the SQL console.**
+  `ALTER TYPE` succeeding proves the DDL ran. Probing PostgREST
+  (`?target_model=eq.<id>` → 200 present / 400 + 22P02 missing) proves the
+  layer the app actually uses agrees — and that probe, being read-only and
+  dependency-free, became the preflight script.
+- **Prove a new guard fails.** Deleting the migration file and watching three
+  assertions go red — naming the exact four ids — is what distinguishes a
+  regression test from a test that merely passes today.

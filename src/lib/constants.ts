@@ -76,6 +76,20 @@ export const TARGET_MODELS = [
 ] as const satisfies readonly { id: string; label: string; developer: Developer }[];
 export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
 
+/** Every id this roster has ever renamed away from, mapped to its replacement.
+ *  One entry per `ALTER TYPE model_target RENAME VALUE` in supabase/migrations —
+ *  `tests/unit/model-target-enum.test.ts` pins that correspondence, because a
+ *  rename with no entry here leaves a stale persisted selection that 400s on
+ *  `/api/enhance`. Order is migration order, oldest first. */
+export const LEGACY_TARGET_IDS: Record<string, TargetModelId> = {
+  gpt_5_5: "gpt_5_6_sol",
+  gemini_pro_3_1: "gemini_3_5_thinking",
+  opus_4_8: "opus_5",
+  llama_4_maverick: "muse_spark_1_1",
+  minimax_m2_7: "minimax_m3",
+  kimi_k2_6: "kimi_k3",
+};
+
 /** Developer for a target id (for the model picker + result chips). */
 export const TARGET_DEVELOPER: Record<TargetModelId, Developer> = Object.fromEntries(
   TARGET_MODELS.map((m) => [m.id, m.developer]),

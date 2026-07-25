@@ -6,6 +6,36 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — four model targets failed every database write (`model_target` enum drift)
+
+`20260726000000_kimi_k3_minimax_m3_gpt_tiers.sql` was committed but never
+applied to the hosted project, leaving its `model_target` enum at fourteen
+labels while the app offered sixteen. Selecting **GPT-5.6 Terra**, **GPT-5.6
+Luna**, **Kimi K3**, or **MiniMax M3** failed every write with Postgres `22P02`:
+_Save to library_ surfaced `invalid input value for enum model_target:
+"gpt_5_6_terra"` verbatim, and — less visibly — the `usage_events` write failed
+too, so spend on those four models never counted against the daily cost cap.
+
+- **Migration applied**; the hosted enum now carries all sixteen labels. The two
+  `RENAME VALUE`s (`kimi_k2_6` → `kimi_k3`, `minimax_m2_7` → `minimax_m3`)
+  matched zero existing rows, so no data changed.
+- **`tests/unit/model-target-enum.test.ts`** replays every `ALTER TYPE
+  model_target` statement in `supabase/migrations/` onto the pre-repo baseline
+  and pins the result against the roster, the generated types union, and
+  `LEGACY_TARGET_IDS`. Removing the migration file turns three assertions red,
+  naming the four ids — the drift is no longer green-on-CI.
+- **`npm run check:db-enum`** (`scripts/check-model-enum.mjs`) probes the
+  **hosted** enum read-only over PostgREST, the one half no unit test can see.
+  Release-time step; `--strict` makes absent credentials fatal.
+- **Enum failures no longer leak Postgres internals.** `describeWriteError`
+  turns a 22P02 into "GPT-5.6 Terra isn't available on the server yet — pick
+  another model and try again", and `writeErrorLogLine` labels the server-side
+  ledger failure `SCHEMA DRIFT` instead of a generic write error.
+- **`LEGACY_TARGET_IDS` moved to `src/lib/constants.ts`** (from a closure inside
+  the UI store) so the rename history sits with the roster and can be tested.
+- **`docs/runbooks/migrations.md`** documents apply → regenerate types → verify,
+  and is referenced from the release runbook's verify step.
+
 ### Security — dependency audit back to zero (was 1 critical · 7 high · 3 moderate)
 
 `npm audit` reports **0 vulnerabilities** on both the full tree and the

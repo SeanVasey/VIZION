@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { describeWriteError } from "@/lib/supabase/errors";
 import type { Database } from "@/lib/supabase/database.types";
 
 export interface ActionResult {
@@ -44,7 +45,9 @@ export async function updateProfileAction(patch: ProfilePatch): Promise<ActionRe
     if (error.code === "23505") {
       return { ok: false, error: "That display name is taken." };
     }
-    return { ok: false, error: error.message };
+    // `default_model` is the `model_target` enum — a roster entry whose
+    // migration is unapplied fails here the same way a save does.
+    return { ok: false, error: describeWriteError(error, "Couldn't save changes.") };
   }
 
   // Identity edits log to the activity feed (spec §5 flow — the enum value

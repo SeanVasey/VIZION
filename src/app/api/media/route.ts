@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { writeErrorLogLine } from "@/lib/supabase/errors";
 import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
 import {
   describeImage,
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
   });
   // The cap is only as good as this write (console.error survives prod).
   if (ledgerError) {
-    console.error("[media] usage ledger write failed:", ledgerError.message);
+    console.error(writeErrorLogLine("media", "usage ledger write", ledgerError));
   }
 
   const { description, ...attrs } = extracted.attrs;
