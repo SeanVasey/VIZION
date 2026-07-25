@@ -73,4 +73,16 @@ describe("DeveloperIcon", () => {
       "text-accent",
     );
   });
+
+  it("keeps Meta's slot on the thesvg.org infinity mark", () => {
+    // Pinned because this mark was once swapped for a hand-drawn glyph:
+    // developer marks identify the developer, not the model in the slot.
+    // Signature = the opening move + both inner counters of meta/mono.svg.
+    const { container } = render(<DeveloperIcon developer="meta" />);
+    const d = container.querySelector("path")!.getAttribute("d")!;
+    expect(container.querySelector("svg")!.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(d.startsWith("M6.915 4.03c-1.968 0-3.683 1.28-4.871 3.113")).toBe(true);
+    expect(d).toContain("zm10.16 2.053c1.147 0 2.188.758 2.992 1.999");
+    expect(d).toContain("zm-10.201.553c1.265 0 2.058.791 2.675 1.446");
+  });
 });
