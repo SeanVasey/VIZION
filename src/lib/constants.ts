@@ -64,7 +64,8 @@ export const TARGET_MODELS = [
   { id: "gpt_5_6_luna", label: "GPT-5.6 Luna", developer: "openai" },
   { id: "gpt_5_6_terra", label: "GPT-5.6 Terra", developer: "openai" },
   { id: "deepseek_v4", label: "DeepSeek V4", developer: "deepseek" },
-  { id: "gemini_3_5_thinking", label: "Gemini 3.5 Flash", developer: "google" },
+  { id: "gemini_3_6_thinking", label: "Gemini 3.6 Thinking", developer: "google" },
+  { id: "gemini_3_6_flash", label: "Gemini 3.6 Flash", developer: "google" },
   { id: "muse_spark_1_1", label: "Muse Spark 1.1", developer: "meta" },
   { id: "minimax_m3", label: "MiniMax M3", developer: "minimax" },
   { id: "mistral_large_3", label: "Mistral Large 3", developer: "mistral" },
@@ -83,11 +84,15 @@ export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
  *  `/api/enhance`. Order is migration order, oldest first. */
 export const LEGACY_TARGET_IDS: Record<string, TargetModelId> = {
   gpt_5_5: "gpt_5_6_sol",
-  gemini_pro_3_1: "gemini_3_5_thinking",
+  // Renamed twice (gemini_pro_3_1 → gemini_3_5_thinking → gemini_3_6_thinking).
+  // Every link in a rename chain points at the CURRENT id, not the next hop —
+  // a value that is no longer a live target fails the enum contract test.
+  gemini_pro_3_1: "gemini_3_6_thinking",
   opus_4_8: "opus_5",
   llama_4_maverick: "muse_spark_1_1",
   minimax_m2_7: "minimax_m3",
   kimi_k2_6: "kimi_k3",
+  gemini_3_5_thinking: "gemini_3_6_thinking",
 };
 
 /** Developer for a target id (for the model picker + result chips). */

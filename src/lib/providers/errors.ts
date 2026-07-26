@@ -29,3 +29,14 @@ export interface ProviderStreamChunk {
   text?: string;
   usage?: { tokenIn: number; tokenOut: number };
 }
+
+/** How much reasoning a thinking-capable model should spend before answering.
+ *  Gemini 3.x's four levels; other providers would map their own scale onto it. */
+export type ThinkingLevel = "minimal" | "low" | "medium" | "high";
+
+/** Per-target request tuning an adapter may honor. Only the Google adapter
+ *  reads `thinkingLevel` today — it is what separates the Gemini "Thinking"
+ *  target from the "Flash" one, since both are the same API model. */
+export interface ProviderRequestOptions {
+  thinkingLevel?: ThinkingLevel;
+}

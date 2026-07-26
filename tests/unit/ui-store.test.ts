@@ -34,14 +34,18 @@ describe("useUIStore", () => {
     expect(next.editorDraft).toBe("hello");
   });
 
-  it("migrates legacy persisted target-model IDs (v0-v3 → v4)", () => {
+  it("migrates legacy persisted target-model IDs (v0-v4 → v5)", () => {
     const migrate = useUIStore.persist.getOptions().migrate!;
     // Renamed IDs map to their successors.
     expect(migrate({ targetModel: "gpt_5_5" }, 0)).toMatchObject({
       targetModel: "gpt_5_6_sol",
     });
+    // Renamed twice — a v0 store must land on the CURRENT id, not the next hop.
     expect(migrate({ targetModel: "gemini_pro_3_1" }, 0)).toMatchObject({
-      targetModel: "gemini_3_5_thinking",
+      targetModel: "gemini_3_6_thinking",
+    });
+    expect(migrate({ targetModel: "gemini_3_5_thinking" }, 4)).toMatchObject({
+      targetModel: "gemini_3_6_thinking",
     });
     expect(migrate({ targetModel: "opus_4_8" }, 1)).toMatchObject({
       targetModel: "opus_5",

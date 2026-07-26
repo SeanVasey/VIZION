@@ -18,9 +18,9 @@ _Clarify · Polish · Expand · Condense · Reformat · Re-target — the same i
 </div>
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZ(IO)N
-> _transforms_ it — across sixteen target models from twelve developers
+> _transforms_ it — across seventeen target models from twelve developers
 > (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol/Luna/Terra · DeepSeek V4 ·
-> Gemini 3.5 Flash · Muse Spark 1.1 · MiniMax M3 · Mistral Large 3 · Kimi K3 ·
+> Gemini 3.6 Thinking/Flash · Muse Spark 1.1 · MiniMax M3 · Mistral Large 3 · Kimi K3 ·
 > Sonar Pro · Qwen3.7 Max · Grok 4.5 · GLM-5.2), six enhancement modes, and media-aware
 > prompt construction, with accounts and a versioned prompt library.
 
@@ -42,7 +42,7 @@ Client (PWA, Next.js 15 · React 19)
         ▼
 Next Route Handlers (Edge) ── Provider Adapter ──┬─ Anthropic  (fable_5 · opus_5 · sonnet_5)
   ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI     (gpt_5_6_sol · gpt_5_6_luna · gpt_5_6_terra)
-  ├─ /api/media     (extract → attributes)        ├─ Google     (gemini_3_5_thinking)
+  ├─ /api/media     (extract → attributes)        ├─ Google     (gemini_3_6_thinking · gemini_3_6_flash)
   └─ per-user rate limit + cost cap + audit log   ├─ Mistral    (mistral_large_3)
                                                   ├─ xAI        (grok_4_5)
                                                   └─ OpenAI-compatible proxy:

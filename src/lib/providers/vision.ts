@@ -3,7 +3,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { TargetModelId } from "@/lib/constants";
 import { TARGETS, PROVIDER_KEY_ENV, type Provider } from "@/lib/providers/config";
-import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
+import {
+  ProviderError,
+  ProviderNotConfiguredError,
+  type ThinkingLevel,
+} from "@/lib/providers/errors";
 import { MEDIA_EXTRACT_SYSTEM, parseMediaAttributes } from "@/lib/media/extract";
 import type { MediaAttributes } from "@/lib/media/types";
 
@@ -123,6 +127,9 @@ async function describeGoogle(
   base64: string,
   mediaType: string,
   model: string,
+  /** Carried through from the selected target so the "Thinking" slot reasons
+   *  here too, rather than quietly behaving like the "Flash" one. */
+  thinkingLevel?: ThinkingLevel,
 ): Promise<VisionResult> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("google");
@@ -144,7 +151,11 @@ async function describeGoogle(
           ],
         },
       ],
-      generationConfig: { responseMimeType: "application/json" },
+      generationConfig: {
+        responseMimeType: "application/json",
+        // thinkingLevel only — never alongside the 2.5-era thinkingBudget.
+        ...(thinkingLevel ? { thinkingConfig: { thinkingLevel } } : {}),
+      },
     }),
   });
   // Parse defensively — a gateway can answer 401/403/404 with a non-JSON body,
@@ -180,7 +191,9 @@ async function describeGoogle(
 const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
   "opus_5",
   "gpt_5_6_sol",
-  "gemini_3_5_thinking",
+  // The fast Gemini slot: the fallback chain is a cheap utility path
+  // (image → attribute JSON), so it doesn't need the reasoning pass.
+  "gemini_3_6_flash",
   "mistral_large_3",
   "grok_4_5",
   "muse_spark_1_1",
@@ -314,7 +327,7 @@ export async function describeImage(
           false,
         );
       case "google":
-        return await describeGoogle(base64, mediaType, cfg.model);
+        return await describeGoogle(base64, mediaType, cfg.model, cfg.thinkingLevel);
       case "deepseek":
       case "minimax":
       case "qwen":

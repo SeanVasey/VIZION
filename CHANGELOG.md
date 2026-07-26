@@ -6,6 +6,43 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — Google's slot moves to Gemini 3.6 and splits in two (seventeen models, twelve developers)
+
+**Gemini 3.5 Flash** becomes **Gemini 3.6 Thinking**, and **Gemini 3.6 Flash**
+joins alongside it. Gemini 3.6 Flash reached GA on 2026-07-21 — faster and
+stronger on agentic and multimodal work than 3.5 Flash.
+
+Both targets send the **same** API model string, `gemini-3.6-flash`. Gemini 3.x
+has no separate thinking model ID: what the Gemini app's picker calls "Thinking"
+and "Fast" is one model at two `generationConfig.thinkingConfig.thinkingLevel`
+values. VIZ(IO)N mirrors that split — `high` for Thinking, `minimal` for Flash —
+so there is no `gemini-3.6-thinking` string anywhere, and one `MODEL_GEMINI`
+override repoints both slots.
+
+- `TargetConfig` gains an optional `thinkingLevel`, threaded to the Google
+  adapter through a new `ProviderRequestOptions` argument. The eleven other
+  adapters are unchanged: the fan-out map is now typed
+  `Record<Provider, ProviderStream>`, and a three-parameter function satisfies
+  the four-parameter signature.
+- `maxOutputTokens` is level-aware — 64k at `high`, 32k otherwise. Thought
+  tokens count against that budget, and a truncated stream is a parse failure,
+  not a short answer. Thoughts continue to bill as output tokens.
+- Media analysis carries the selected target's thinking level through to the
+  vision call, so the Thinking slot reasons there too. The vision *fallback*
+  chain uses Gemini 3.6 Flash — it is a cheap utility path.
+- Pricing defaults move to **$1.50 / $7.50** per 1M tokens (from $0.30 / $1.20),
+  shared by both targets. **Deploy note:** clear or update any `MODEL_GEMINI`
+  and `PRICE_GEMINI_*` overrides in the Vercel project env — stale values
+  silently keep the old model, and stale prices under-count the daily cost cap
+  6× on output.
+- Migration `20260726120000_gemini_3_6_thinking_and_flash.sql` renames
+  `gemini_3_5_thinking` → `gemini_3_6_thinking` (existing rows carry over) and
+  adds `gemini_3_6_flash`. Apply before deploying. UI-store persist version
+  bumped to 5.
+
+Gemini 3.1 Pro was evaluated and left out: it is Preview-only and sits in a
+different cost class ($2.00 / $12.00 per 1M).
+
 ### Fixed — four model targets failed every database write (`model_target` enum drift)
 
 `20260726000000_kimi_k3_minimax_m3_gpt_tiers.sql` was committed but never

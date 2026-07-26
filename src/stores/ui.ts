@@ -102,9 +102,10 @@ export const useUIStore = create<UIState>()(
       // v1: the 2026-07 model-roster rename (gpt_5_5 → gpt_5_6_sol,
       // gemini_pro_3_1 → gemini_3_5_thinking). v2: opus_4_8 → opus_5.
       // v3: llama_4_maverick → muse_spark_1_1. v4: kimi_k2_6 → kimi_k3,
-      // minimax_m2_7 → minimax_m3. A stale persisted ID would 400 on
+      // minimax_m2_7 → minimax_m3. v5: gemini_3_5_thinking →
+      // gemini_3_6_thinking. A stale persisted ID would 400 on
       // /api/enhance, so map legacy values and fall back to the default.
-      version: 4,
+      version: 5,
       migrate: (persisted) => {
         const s = (persisted ?? {}) as Partial<UIState>;
         const valid = new Set<string>(TARGET_MODELS.map((m) => m.id));

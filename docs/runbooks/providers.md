@@ -8,7 +8,7 @@ The enhance engine routes each **target** to its provider. Keys are **server-sid
 ```
 ANTHROPIC_API_KEY=   # Fable 5 + Opus 5 + Sonnet 5 targets
 OPENAI_API_KEY=      # GPT-5.6 Sol + Luna + Terra targets
-GOOGLE_API_KEY=      # Gemini 3.5 Flash target
+GOOGLE_API_KEY=      # Gemini 3.6 Thinking + Flash targets
 XAI_API_KEY=         # Grok 4.5 target
 MISTRAL_API_KEY=     # Mistral Large 3 target
 DEEPSEEK_API_KEY=    # DeepSeek V4
@@ -73,7 +73,7 @@ MODEL_GPT_LUNA=gpt-5.6-luna                           # default — the 5.6 fami
 MODEL_GPT_TERRA=gpt-5.6-terra                         # default — the 5.6 family's fast tier
 MODEL_FABLE=claude-fable-5                            # default
 MODEL_DEEPSEEK=deepseek-chat                          # default — tracks the current DeepSeek flagship (V4)
-MODEL_GEMINI=gemini-3.5-flash                         # default — point at your deployed Gemini model
+MODEL_GEMINI=gemini-3.6-flash                         # default — drives BOTH Gemini targets (see below)
 MODEL_MUSE=muse-spark-1.1                             # default — the Meta Model API serving string
 MODEL_MINIMAX=MiniMax-M3                              # default
 MODEL_MISTRAL=mistral-large-latest                    # default — tracks the current Large release
@@ -87,6 +87,21 @@ MODEL_GLM=glm-5.2                                     # default — point at a l
 The labels in the picker are named product targets; set the env to the exact
 model string your account serves. Swapping a model is a config change, not a
 refactor.
+
+> **The two Gemini targets are one API model.** Gemini 3.x has no separate
+> thinking model ID: **Gemini 3.6 Thinking** and **Gemini 3.6 Flash** both send
+> `gemini-3.6-flash` and differ only by
+> `generationConfig.thinkingConfig.thinkingLevel` (`high` vs `minimal`), set per
+> target in `src/lib/providers/config.ts`. This mirrors the Gemini app's
+> Thinking/Fast picker, which is also one model behind two labels.
+>
+> There is **no `gemini-3.6-thinking`** string. Pointing `MODEL_GEMINI` at an
+> invented per-slot name 404s *both* targets — and since `/api/media` reads 404
+> as a config error, media analysis would silently fall back to another provider
+> rather than surfacing the mistake. One override repoints both slots; the
+> thinking levels stay in code so a typo can't turn "Thinking" into `minimal`.
+> `thinkingLevel` and the Gemini-2.5-era `thinkingBudget` are mutually
+> exclusive — the adapter only ever sends the former.
 
 Note on cost: Fable 5 lists at $10/$50 per 1M tokens (in/out) — noticeably pricier than
 the other targets, so users reach the daily cost cap sooner on it. At the other end,

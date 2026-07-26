@@ -53,7 +53,10 @@ A single `enhance(input, mode, target)` interface fans out to model-specific for
 - **GPT-5.6 Terra** — short self-contained prompts, explicit format; the family's fast tier.
 - **Fable 5** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
 - **DeepSeek V4** — plain complete problem statement, reasoning left to the engine, explicit format.
-- **Gemini 3.5 Flash** — multimodal "parts", system-instruction conventions, grounding.
+- **Gemini 3.6 Thinking** — multimodal "parts", system-instruction conventions,
+  grounding; goal and constraints in separate blocks for the reasoning pass.
+- **Gemini 3.6 Flash** — the same grounding discipline, kept terse for the
+  low-latency tier. Same API model as Thinking, at a lower `thinkingLevel`.
 - **Muse Spark 1.1** — explicit goal up front, numbered constraints, output contract at the top.
 - **MiniMax M3** — tight ordered brief; goal, constraints, and deliverable up front.
 - **Mistral Large 3** — concise front-loaded instructions; economy over scaffolding.

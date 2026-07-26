@@ -50,6 +50,20 @@ describe("model roster ordering", () => {
       expect(TARGETS[m.id].priceOut).toBeGreaterThan(0);
     }
   });
+
+  it("keeps both Gemini targets on one model string, split only by thinking level", () => {
+    // Gemini 3.x has no separate thinking model ID — "Thinking" and "Flash" are
+    // thinkingLevel values on `gemini-3.6-flash`. Inventing a model string per
+    // slot (e.g. `gemini-3.6-thinking`) 404s every call, and because 404 reads
+    // as a config error the media route would silently fall back to another
+    // provider instead of surfacing it.
+    const thinking = TARGETS.gemini_3_6_thinking;
+    const flash = TARGETS.gemini_3_6_flash;
+    expect(thinking.model).toBe(flash.model);
+    expect(thinking.model).not.toContain("thinking");
+    expect(thinking.thinkingLevel).toBe("high");
+    expect(flash.thinkingLevel).toBe("minimal");
+  });
 });
 
 describe("DeveloperIcon", () => {

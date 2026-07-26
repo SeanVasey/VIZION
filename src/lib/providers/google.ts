@@ -2,6 +2,7 @@ import "server-only";
 import {
   ProviderError,
   ProviderNotConfiguredError,
+  type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 
@@ -21,11 +22,18 @@ interface GeminiResponse {
  * (alt=sse): each SSE frame is a GenerateContentResponse whose parts carry
  * text deltas; usageMetadata rides the trailing frames. Server-side only; key
  * never reaches the client.
+ *
+ * `opts.thinkingLevel` is what distinguishes the Gemini "Thinking" target from
+ * the "Flash" one — both send the same model string, because Gemini 3.x has no
+ * separate thinking model ID. Only `thinkingLevel` is ever sent: it and the
+ * Gemini-2.5-era `thinkingBudget` are mutually exclusive, and sending both is
+ * an API error.
  */
 export async function* streamGoogle(
   system: string,
   input: string,
   model: string,
+  opts: ProviderRequestOptions = {},
 ): AsyncGenerator<ProviderStreamChunk> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("google");
@@ -43,11 +51,15 @@ export async function* streamGoogle(
         contents: [{ role: "user", parts: [{ text: input }] }],
         generationConfig: {
           responseMimeType: "application/json",
-          // Output ceiling for adapter parity — 32k, not 16k: on the thinking
-          // target this budget includes thought tokens, and a heavy reasoning
-          // pass inside a 16k cap could truncate the JSON envelope mid-stream
-          // (turning a previously-good enhancement into a parse failure).
-          maxOutputTokens: 32_000,
+          // Thought tokens count against this budget, so the high-reasoning
+          // target needs headroom the fast one doesn't: a heavy reasoning pass
+          // inside a tight cap truncates the JSON envelope mid-stream (turning
+          // a previously-good enhancement into a parse failure). 3.6 Flash
+          // allows 65,536 output tokens; this is a ceiling, not a target.
+          maxOutputTokens: opts.thinkingLevel === "high" ? 64_000 : 32_000,
+          ...(opts.thinkingLevel
+            ? { thinkingConfig: { thinkingLevel: opts.thinkingLevel } }
+            : {}),
         },
       }),
     });
