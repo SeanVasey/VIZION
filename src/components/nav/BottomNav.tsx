@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useKeyboardVisible } from "./use-keyboard-visible";
 import { showsBottomNav } from "./visibility";
 
 interface Tab {
@@ -64,6 +65,11 @@ const TABS: Tab[] = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  // iOS keeps "fixed" chrome anchored to the layout viewport, so with the
+  // software keyboard open the bar would float mid-screen over the content
+  // being edited. Slide it off-screen while the keyboard is up instead —
+  // the tabs are unreachable behind the keyboard anyway.
+  const keyboardVisible = useKeyboardVisible();
 
   // The auth gate + onboarding screens show only the brand — no nav. Keyed off
   // the shared predicate so the scroll region's reservation stays in agreement.
@@ -72,7 +78,17 @@ export function BottomNav() {
   }
 
   return (
-    <nav aria-label="Primary" className="glass-nav fixed inset-x-0 bottom-0 z-50 pb-safe">
+    <nav
+      aria-label="Primary"
+      // inert (Safari 15.5+) removes the slid-away bar from both the a11y
+      // tree and tab order — stronger than aria-hidden on focusable content.
+      inert={keyboardVisible || undefined}
+      className={[
+        "glass-nav fixed inset-x-0 bottom-0 z-50 pb-safe",
+        "transition-transform duration-200",
+        keyboardVisible ? "pointer-events-none translate-y-full" : "translate-y-0",
+      ].join(" ")}
+    >
       <ul className="mx-auto flex max-w-screen-sm items-stretch justify-around">
         {TABS.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
@@ -85,8 +101,9 @@ export function BottomNav() {
                   "flex min-h-[var(--bottom-nav-h)] flex-col items-center justify-center gap-1 py-2",
                   // active:scale gives touch users immediate tap feedback (hover
                   // never fires on touch); the global reduced-motion rule
-                  // neutralizes the transition.
-                  "text-xs transition-[color,transform] duration-150 active:scale-95",
+                  // neutralizes the transition. select-none stops iOS long-press
+                  // from selecting the tab label instead of navigating.
+                  "select-none text-xs transition-[color,transform] duration-150 active:scale-95",
                   active ? "text-accent" : "text-silver hover:text-chalk",
                 ].join(" ")}
               >

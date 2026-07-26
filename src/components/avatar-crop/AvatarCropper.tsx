@@ -201,7 +201,11 @@ export function AvatarCropper({
           aria-label="Zoom"
           disabled={disabled}
           onChange={(e) => setZoom(Number(e.target.value))}
-          className="h-1 w-full cursor-pointer accent-laser disabled:opacity-50"
+          // 44pt hit box for a thumb-drag control; the negative margins keep
+          // the row's visual height at ~16px (the native track/thumb draw
+          // centered), and the 14px bleed stays inside the column's 20px gaps
+          // so it never overlaps the crop viewport or the buttons.
+          className="-my-3.5 h-11 w-full cursor-pointer accent-laser disabled:opacity-50"
         />
         <span className="font-body text-xs text-silver" aria-hidden="true">
           +

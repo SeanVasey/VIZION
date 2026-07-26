@@ -754,3 +754,46 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   `LEGACY_TARGET_IDS` has to point at the *current* id, not the next hop —
   the enum contract test checks values against the live roster, which is what
   catches a half-updated chain.
+
+## 2026-07-26 — iOS bottom nav: `backdrop-filter` on fixed chrome, and the keyboard
+
+The bottom nav floated mid-screen on iOS, covering the footer, after the bars
+went frosted-glass. What broke, what changed, what to avoid:
+
+- **`backdrop-filter` directly on `position: fixed`/`sticky` chrome is an iOS
+  trap.** WebKit's async scrolling repaints the filtered layer out of step with
+  the scroll, so the bar detaches from the viewport edge. The safe shape —
+  suite-wide — is: keep the fixed element itself plain, put the tint + blur on
+  a `::before` (`inset: 0; z-index: -1; border-radius: inherit`), and promote
+  the bar to its own composited layer. Treat "blur on a bar" as a code-review
+  flag the same way laser-on-light is.
+- **Tailwind transform utilities silently replace a component-layer
+  `transform`.** The `translateZ(0)` promotion sat in `@layer components`; the
+  keyboard slide added `translate-y-*` utilities, which win the cascade and
+  swap the whole `transform` value. `will-change: transform` carries the layer
+  promotion through that override. When a utility and a component class both
+  set the same property, assume the utility wins and design for it.
+- **"Fixed to bottom" means "fixed behind the keyboard" on iOS.** The layout
+  viewport never shrinks for the software keyboard, so bottom bars either
+  hide behind it or — after a scroll — re-anchor mid-screen. Don't fight it:
+  hide the bar while the keyboard is up. The visual-viewport heuristic
+  (`layoutHeight − visualHeight > 150`, pinch-zoom excluded via `scale`) lives
+  in `lib/pwa/keyboard.ts` as pure math, same pattern as `safe-area.ts`, so
+  the tricky part is unit-tested without a device.
+- **The e2e matrix's WebKit leg can't run in the remote container** (no WebKit
+  binary; Chromium build-number skew is bridgeable with a symlink). CI's
+  `playwright install --with-deps` covers mobile-safari — don't burn time
+  trying to install WebKit locally, and don't call the suite green without
+  saying which leg ran where.
+- **Sub-16px form controls are an iOS bug, not a design choice.** Any focused
+  `input`/`select`/`textarea` under 16px makes iOS Safari zoom the page and
+  stay zoomed — which also re-anchors fixed chrome, recreating the floating-bar
+  symptom class. Eight controls had drifted under the threshold. The fix is a
+  single iOS-scoped base rule (`@supports (-webkit-touch-callout: none)` +
+  `font-size: max(1rem, 1em) !important`) rather than eight per-site edits —
+  the `!important` is earned: sub-16px utilities sit on the controls themselves
+  and out-specify any base-layer rule.
+- **44pt targets don't require 44px pills.** The locked style guide's ~30px
+  chips stay visually intact behind `.tap-44`, an invisible hit-area-extending
+  pseudo — but pseudos don't render on replaced elements, so selects need
+  `min-h-[44px]` instead.

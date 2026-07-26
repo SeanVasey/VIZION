@@ -309,7 +309,9 @@ export function PromptDetail({
               onClick={() => setMode(m.id)}
               aria-pressed={mode === m.id}
               className={[
-                "font-body rounded-full px-3 py-1.5 text-xs uppercase tracking-wider transition-colors",
+                // tap-44 extends the hit box to 44pt without touching the
+                // compact pill visual.
+                "tap-44 font-body rounded-full px-3 py-1.5 text-xs uppercase tracking-wider transition-colors",
                 mode === m.id
                   ? "bg-laser text-on-laser"
                   : "glass text-silver hover:text-chalk",
@@ -475,7 +477,7 @@ function TagEditor({
             aria-label={`Remove tag ${t}`}
             disabled={disabled || saving}
             onClick={() => commit(localTags.filter((x) => x !== t))}
-            className="-my-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:text-chalk disabled:opacity-60"
+            className="tap-44 -my-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:text-chalk disabled:opacity-60"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3">
               <path
@@ -504,6 +506,12 @@ function TagEditor({
         }}
         onBlur={addFromInput}
         placeholder={saving ? "Saving…" : "+ tag"}
+        // Tags normalize to lowercase slugs — keep the iOS keyboard from
+        // capitalizing or autocorrecting them; return reads "done".
+        enterKeyHint="done"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         className="font-body w-20 rounded-full border border-hair bg-transparent px-3 py-1 text-xs text-text placeholder:text-muted focus:outline-none disabled:opacity-60"
       />
     </div>
@@ -529,7 +537,7 @@ function VersionSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
-        className="font-body rounded-xl bg-transparent px-2 py-2 text-xs text-text focus:outline-none"
+        className="font-body min-h-[44px] rounded-xl bg-transparent px-2 py-2 text-xs text-text focus:outline-none"
       >
         {versions.map((v) => (
           <option key={v.id} value={v.id} className="bg-onyx text-chalk">

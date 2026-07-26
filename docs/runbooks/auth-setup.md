@@ -11,7 +11,6 @@ Local (`.env.local`, gitignored) and Vercel project env:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...   # the publishable key is fine here
-NEXT_PUBLIC_SITE_URL=https://<your-deploy-domain>
 ```
 
 `SUPABASE_SERVICE_ROLE_KEY` is **not** needed for P2 (all access is the user's session

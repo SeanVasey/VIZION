@@ -6,6 +6,80 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the bottom nav detached from the screen edge on iOS
+
+On iOS the fixed bottom nav could float mid-screen — no longer flush with the
+bottom edge — and sit on top of the footer. Two WebKit behaviors, two fixes:
+
+- **`backdrop-filter` on a `position: fixed` bar breaks async scrolling.**
+  WebKit repaints the frosted bar out of step with the scroll, detaching it
+  from the viewport edge. The chrome tint + blur now live on a `::before`
+  layer inside the bar (`.glass-nav` / `.glass-chrome`), and the bars are
+  promoted to their own composited layer (`transform: translateZ(0)` +
+  `will-change: transform`) — the bar itself stays a plain fixed element that
+  WebKit keeps glued to the edge, and the blur stops re-rasterizing on every
+  scroll frame (a paint-cost win on top of the fix).
+- **The software keyboard doesn't resize iOS's layout viewport.** With the
+  keyboard open, "fixed to bottom" means "fixed behind the keyboard", and
+  scrolling re-anchors the bar mid-screen over the content being edited. The
+  nav now slides off-screen while the keyboard is up (and back when it
+  closes), driven by a visual-viewport heuristic:
+  `src/lib/pwa/keyboard.ts` (pure, unit-tested — pinch-zoom is excluded via
+  `visualViewport.scale`) + `src/components/nav/use-keyboard-visible.ts`
+  (`useSyncExternalStore` over `visualViewport` resizes). While hidden the
+  bar is `inert`, so it drops out of the a11y tree and tab order.
+
+### Fixed — iOS focus auto-zoom on sub-16px form controls
+
+iOS Safari zooms the whole page when a focused control's computed font-size is
+under 16px — and rarely zooms back out. Eight controls were affected, including
+the app's single most-used one (the prompt textarea) and both composer selects.
+One base-layer rule now pins `input`/`select`/`textarea` to
+`font-size: max(1rem, 1em)` **on iOS only** (scoped via
+`@supports (-webkit-touch-callout: none)`), so desktop and Android keep the
+designed 12–14px sizes and future controls can't reintroduce the bug.
+
+### Changed — iOS touch polish
+
+- `-webkit-tap-highlight-color: transparent` on the root — the grey iOS tap
+  flash is gone; `active:scale` / token color states carry the feedback.
+- `touch-action: manipulation` on links, buttons, and form controls removes
+  Safari's ~300ms double-tap-zoom wait, so taps commit immediately.
+- Buttons are non-selectable (`user-select: none` in the base layer, plus
+  `select-none` on the nav tab labels) — a long-press presses or cancels
+  instead of popping the text-selection loupe.
+- **44pt touch targets** on the stragglers, without changing the locked pill
+  visuals: a new `.tap-44` utility (an invisible hit-area-extending pseudo)
+  covers the library filter chips, the prompt-detail revise chips, and the
+  tag-remove ✕; the media stored-asset delete grows to `h-11 w-11`; the
+  version-compare and default-model selects get `min-h-[44px]`; the avatar
+  zoom slider's hit box grows from 4px to 44px (negative margins keep the row
+  visually unchanged).
+- **Avatar-crop modal**: the scrim now scrolls (`overflow-y-auto` +
+  `overscroll-contain`, so short landscape viewports can always reach
+  Cancel / Use photo), and pads with `max(1.5rem, env(safe-area-inset-*))` on
+  all four sides.
+- **Stored-media delete asks first** — removing a stored file is permanent
+  (storage object + DB row), so it now runs behind the same `confirm` gate as
+  prompt delete.
+- **Mobile keyboard hints**: the handle and tag inputs stop iOS capitalizing /
+  autocorrecting values that persist verbatim (`autoCapitalize="none"`,
+  `autoCorrect="off"`, `spellCheck={false}`); the library search shows a
+  Search return key and dismisses the keyboard on return (filtering is live —
+  there is nothing to submit).
+- **ModeRig help-strip caret** now glides via `transform` on a full-width rail
+  instead of animating `left` (which forced layout every frame), matching the
+  lens-lock indicator's compositor-only idiom.
+
+### Changed — docs & metadata readiness
+
+- The PWA manifest and root metadata descriptions drop the stale six-name
+  model list for the current "sixteen target models from twelve AI
+  developers" wording (README's phrasing).
+- `NEXT_PUBLIC_SITE_URL` removed from `.env.example` and the auth-setup
+  runbook — nothing reads it (redirects use `window.location.origin`).
+- `docs/runbooks/local-dev.md` now states CI's actual Node version (22).
+
 ### Added — a per-model thinking selector in the composer
 
 The composer gains a **Thinking** rail for targets whose provider takes a
