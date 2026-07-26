@@ -5,8 +5,11 @@ import { useUIStore } from "@/stores/ui";
 import {
   TARGET_MODELS,
   TARGET_DEVELOPER,
+  TARGET_THINKING_LEVELS,
+  THINKING_LEVEL_LABEL,
   type ModeId,
   type TargetModelId,
+  type ThinkingLevel,
 } from "@/lib/constants";
 import { useEnhance } from "@/lib/enhance/use-enhance";
 import { ModeRig } from "@/components/editor/ModeRig";
@@ -29,8 +32,20 @@ export function EnhanceComposer() {
   const setActiveMode = useUIStore((s) => s.setActiveMode);
   const targetModel = useUIStore((s) => s.targetModel);
   const setTargetModel = useUIStore((s) => s.setTargetModel);
+  const thinkingLevels = useUIStore((s) => s.thinkingLevels);
+  const setThinkingLevel = useUIStore((s) => s.setThinkingLevel);
   const editorDraft = useUIStore((s) => s.editorDraft);
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
+
+  // The selected target's thinking ladder (absent = no knob = no selector),
+  // and the stored choice — validated against the ladder so a stale
+  // persisted level can never ride into the request.
+  const levelOptions = TARGET_THINKING_LEVELS[targetModel];
+  const storedLevel = thinkingLevels[targetModel];
+  const thinkingLevel =
+    levelOptions && storedLevel && levelOptions.includes(storedLevel)
+      ? storedLevel
+      : undefined;
 
   const enhanceMutation = useEnhance();
   const result = enhanceMutation.data;
@@ -55,7 +70,12 @@ export function EnhanceComposer() {
     const input = editorDraft.trim();
     if (!input) return;
     setSubmitted({ input, mode: activeMode, target: targetModel });
-    enhanceMutation.mutate({ input, mode: activeMode, target: targetModel });
+    enhanceMutation.mutate({
+      input,
+      mode: activeMode,
+      target: targetModel,
+      ...(thinkingLevel ? { thinkingLevel } : {}),
+    });
   }
 
   function resetComposer() {
@@ -116,6 +136,57 @@ export function EnhanceComposer() {
             </svg>
           </div>
         </div>
+
+        {/* Thinking rail — reasoning depth, only for targets whose provider
+            takes a per-request level (TARGET_THINKING_LEVELS). "Auto" sends
+            nothing and leaves the provider's own default in place; the choice
+            persists per target, so switching models keeps each one's dial. */}
+        {levelOptions && (
+          <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
+            <label
+              htmlFor="thinking-level"
+              className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver"
+            >
+              Thinking
+            </label>
+            <div className="relative inline-flex items-center">
+              <select
+                id="thinking-level"
+                value={thinkingLevel ?? ""}
+                onChange={(e) =>
+                  setThinkingLevel(
+                    targetModel,
+                    e.target.value === "" ? null : (e.target.value as ThinkingLevel),
+                  )
+                }
+                className="font-body cursor-pointer appearance-none rounded-full bg-surface py-1.5 pl-4 pr-8 text-sm text-text focus:outline-none focus-visible:shadow-none"
+              >
+                <option value="" className="bg-onyx text-chalk">
+                  Auto
+                </option>
+                {levelOptions.map((level) => (
+                  <option key={level} value={level} className="bg-onyx text-chalk">
+                    {THINKING_LEVEL_LABEL[level]}
+                  </option>
+                ))}
+              </select>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="pointer-events-none absolute right-2.5 h-4 w-4 text-silver"
+              >
+                <path
+                  d="M8 10l4 4 4-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+        )}
 
         {/* Prompt editor — Reddit Sans (input is NOT the output region). */}
         <label htmlFor="prompt-input" className="sr-only">

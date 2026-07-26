@@ -163,4 +163,29 @@ describe("enhanceStream / enhance", () => {
     // The buffered form is a drain of the same stream.
     expect(await enhance(args)).toEqual(done.result);
   });
+
+  it("forwards the requested thinking level to the provider adapter", async () => {
+    const { enhanceStream } = await import("@/lib/providers/adapter");
+    const { streamGoogle } = await import("@/lib/providers/google");
+    vi.mocked(streamGoogle).mockImplementation(async function* () {
+      yield { text: '{"output": "ok", "rationale": "r"}' };
+    });
+
+    const events = [];
+    for await (const e of enhanceStream({
+      input: "hi",
+      mode: "clarify",
+      target: "gemini_3_6_flash",
+      thinkingLevel: "high",
+    })) {
+      events.push(e);
+    }
+
+    expect(events.at(-1)?.type).toBe("done");
+    // The 4th argument is the per-request options object — the only path a
+    // thinking selection takes from the route into a provider call.
+    expect(streamGoogle).toHaveBeenCalledWith(expect.any(String), "hi", "gemini-3.6-flash", {
+      thinkingLevel: "high",
+    });
+  });
 });

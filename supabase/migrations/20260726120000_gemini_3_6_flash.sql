@@ -1,0 +1,25 @@
+-- Google's slot moves to Gemini 3.6 Flash — the roster stays at sixteen.
+--
+-- One entry, not two: Gemini 3.x has no separate thinking model ID. What the
+-- Gemini app's picker calls "Thinking" and "Fast" is this ONE model
+-- (`gemini-3.6-flash`) at different generationConfig.thinkingConfig
+-- .thinkingLevel values, so reasoning depth is a per-request option (the
+-- composer's thinking selector), not a second enum label.
+--
+-- The RENAME updates EXISTING rows automatically (enum values are stored by
+-- OID), so prompt_versions / usage_events / profiles.default_model written
+-- under 'gemini_3_5_thinking' come back as 'gemini_3_6_flash' — no data
+-- backfill needed. Note this id has now been renamed twice
+-- (gemini_pro_3_1 → gemini_3_5_thinking → gemini_3_6_flash); BOTH legacy
+-- keys in LEGACY_TARGET_IDS must point at the current id.
+--
+-- Deploy order: the RENAME is the tight direction — old code writes
+-- 'gemini_3_5_thinking', which stops existing the moment it runs, and new
+-- code writes 'gemini_3_6_flash', which doesn't exist until it runs — apply
+-- then deploy, keeping the window short (same drill as 20260710, 20260724,
+-- 20260725, and 20260726).
+--
+-- ALTER TYPE ... RENAME VALUE runs fine in a transaction; this migration is
+-- kept single-statement for parity with the other roster migrations.
+
+ALTER TYPE model_target RENAME VALUE 'gemini_3_5_thinking' TO 'gemini_3_6_flash';

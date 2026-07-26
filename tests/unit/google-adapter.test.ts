@@ -4,16 +4,16 @@ import { streamGoogle } from "@/lib/providers/google";
 /**
  * The Gemini request body.
  *
- * Two roster targets (Gemini 3.6 Thinking / Flash) share one API model string,
- * because Gemini 3.x expresses reasoning depth as a request option rather than
- * a separate model ID. That makes `generationConfig.thinkingConfig` the only
- * thing distinguishing them on the wire — so it is worth pinning:
- *   - `thinkingLevel` is sent when the target asks for one, and never the
+ * Gemini 3.x expresses reasoning depth as a request option, not a separate
+ * model ID — the composer's thinking selector rides
+ * `generationConfig.thinkingConfig` on the ONE `gemini-3.6-flash` model. Worth
+ * pinning on the wire:
+ *   - `thinkingLevel` is sent when the user picked one, and never the
  *     Gemini-2.5-era `thinkingBudget` (the API rejects both in one request);
- *   - a target with no level set sends no thinkingConfig at all, leaving the
+ *   - no selection ("Auto") sends no thinkingConfig at all, leaving the
  *     model's own default in place;
- *   - the high-reasoning target gets output headroom, because thought tokens
- *     count against maxOutputTokens and a truncated stream is a parse failure.
+ *   - the high level gets output headroom, because thought tokens count
+ *     against maxOutputTokens and a truncated stream is a parse failure.
  */
 
 /** A minimal SSE body: one text frame, then a usage frame. */

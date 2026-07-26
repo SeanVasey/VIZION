@@ -1,7 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { writeErrorLogLine } from "@/lib/supabase/errors";
-import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
+import {
+  MODES,
+  TARGET_MODELS,
+  TARGET_THINKING_LEVELS,
+  type ModeId,
+  type TargetModelId,
+  type ThinkingLevel,
+} from "@/lib/constants";
 import { enhanceStream, type EnhanceOutput } from "@/lib/providers/adapter";
 import {
   TARGETS,
@@ -60,10 +67,11 @@ export async function POST(request: NextRequest) {
     return err(400, "Invalid JSON body.");
   }
 
-  const { input, mode, target } = (body ?? {}) as {
+  const { input, mode, target, thinkingLevel } = (body ?? {}) as {
     input?: unknown;
     mode?: unknown;
     target?: unknown;
+    thinkingLevel?: unknown;
   };
 
   if (typeof input !== "string" || input.trim() === "") {
@@ -77,6 +85,18 @@ export async function POST(request: NextRequest) {
   }
   if (typeof target !== "string" || !TARGET_IDS.has(target)) {
     return err(400, "Unknown target model.");
+  }
+  // Optional per-request reasoning depth — only the exact values the target's
+  // provider accepts (TARGET_THINKING_LEVELS); anything else is a 400, so an
+  // invented level can never reach a provider as a bad wire value.
+  const allowedLevels = TARGET_THINKING_LEVELS[target as TargetModelId];
+  if (
+    thinkingLevel !== undefined &&
+    (typeof thinkingLevel !== "string" ||
+      !allowedLevels ||
+      !(allowedLevels as readonly string[]).includes(thinkingLevel))
+  ) {
+    return err(400, "That thinking level isn't available for this model.");
   }
   // Missing keys fail closed as a plain pre-stream 503 (the documented
   // contract) instead of being discovered only after SSE headers are sent.
@@ -107,6 +127,7 @@ export async function POST(request: NextRequest) {
 
   const typedTarget = target as TargetModelId;
   const typedMode = mode as ModeId;
+  const typedThinkingLevel = thinkingLevel as ThinkingLevel | undefined;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -136,6 +157,7 @@ export async function POST(request: NextRequest) {
           input,
           mode: typedMode,
           target: typedTarget,
+          thinkingLevel: typedThinkingLevel,
         })) {
           if (event.type === "delta") {
             if (!generating) {

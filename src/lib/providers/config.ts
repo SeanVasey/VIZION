@@ -1,5 +1,4 @@
 import type { TargetModelId } from "@/lib/constants";
-import type { ThinkingLevel } from "@/lib/providers/errors";
 
 export type Provider =
   | "anthropic"
@@ -19,10 +18,6 @@ interface TargetConfig {
   provider: Provider;
   /** Model string actually sent to the provider — overridable via env (D9). */
   model: string;
-  /** How hard the model should reason, where the provider exposes that as a
-   *  request option rather than a separate model string (Gemini 3.x). Omitted
-   *  leaves the provider's own default in place. */
-  thinkingLevel?: ThinkingLevel;
   /** USD per 1M input / output tokens, for the cost cap. */
   priceIn: number;
   priceOut: number;
@@ -84,23 +79,13 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_DEEPSEEK_IN", 0.45),
     priceOut: numEnv("PRICE_DEEPSEEK_OUT", 0.9),
   },
-  // Both Gemini slots are the SAME API model. "Thinking" and "Flash" are the
-  // Gemini app's picker labels for a thinkingLevel, NOT distinct model strings —
-  // there is no `gemini-3.6-thinking`, and sending one would 404 every call.
-  // One MODEL_GEMINI override therefore repoints both, and both bill at the
-  // same rate ($1.50 / $7.50 per 1M, thoughts billed as output).
-  gemini_3_6_thinking: {
-    provider: "google",
-    model: process.env.MODEL_GEMINI ?? "gemini-3.6-flash",
-    thinkingLevel: "high",
-    priceIn: numEnv("PRICE_GEMINI_IN", 1.5),
-    priceOut: numEnv("PRICE_GEMINI_OUT", 7.5),
-  },
   gemini_3_6_flash: {
     provider: "google",
+    // "Thinking" and "Fast" in Gemini's app are thinkingLevel values on this
+    // ONE model — there is no `gemini-3.6-thinking` model string (it would
+    // 404). Reasoning depth rides the per-request thinking selector
+    // (EnhanceArgs.thinkingLevel), not a second roster entry.
     model: process.env.MODEL_GEMINI ?? "gemini-3.6-flash",
-    // The app's "Fast" mode — the fastest, cheapest way to run this model.
-    thinkingLevel: "minimal",
     priceIn: numEnv("PRICE_GEMINI_IN", 1.5),
     priceOut: numEnv("PRICE_GEMINI_OUT", 7.5),
   },

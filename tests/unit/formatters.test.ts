@@ -56,8 +56,7 @@ describe("buildSystemPrompt", () => {
     expect(buildSystemPrompt("reformat", "gpt_5_6_sol")).toContain("GPT");
   });
 
-  it("targets Gemini idioms for both Gemini targets", () => {
-    expect(buildSystemPrompt("target", "gemini_3_6_thinking")).toContain("Gemini");
+  it("targets Gemini idioms for the Gemini target", () => {
     expect(buildSystemPrompt("target", "gemini_3_6_flash")).toContain("Gemini");
   });
 

@@ -6,39 +6,55 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
-### Changed — Google's slot moves to Gemini 3.6 and splits in two (seventeen models, twelve developers)
+### Added — a per-model thinking selector in the composer
 
-**Gemini 3.5 Flash** becomes **Gemini 3.6 Thinking**, and **Gemini 3.6 Flash**
-joins alongside it. Gemini 3.6 Flash reached GA on 2026-07-21 — faster and
-stronger on agentic and multimodal work than 3.5 Flash.
+The composer gains a **Thinking** rail for targets whose provider takes a
+per-request reasoning-depth option — the in-app equivalent of the
+Intelligence/Speed pickers in vendors' own apps, built on the real API
+parameters instead of their marketing labels:
 
-Both targets send the **same** API model string, `gemini-3.6-flash`. Gemini 3.x
-has no separate thinking model ID: what the Gemini app's picker calls "Thinking"
-and "Fast" is one model at two `generationConfig.thinkingConfig.thinkingLevel`
-values. VIZ(IO)N mirrors that split — `high` for Thinking, `minimal` for Flash —
-so there is no `gemini-3.6-thinking` string anywhere, and one `MODEL_GEMINI`
-override repoints both slots.
+- **Fable 5 · Opus 5 · Sonnet 5** → `output_config.effort`
+  (Low · Medium · High · Extra High · Max)
+- **GPT-5.6 Sol / Luna / Terra** → `reasoning_effort` (Low · Medium · High)
+- **Gemini 3.6 Flash** → `generationConfig.thinkingConfig.thinkingLevel`
+  (Minimal · Low · Medium · High)
+- **Grok 4.5** → `reasoning_effort` (Low · Medium · High)
 
-- `TargetConfig` gains an optional `thinkingLevel`, threaded to the Google
-  adapter through a new `ProviderRequestOptions` argument. The eleven other
-  adapters are unchanged: the fan-out map is now typed
-  `Record<Provider, ProviderStream>`, and a three-parameter function satisfies
-  the four-parameter signature.
-- `maxOutputTokens` is level-aware — 64k at `high`, 32k otherwise. Thought
-  tokens count against that budget, and a truncated stream is a parse failure,
-  not a short answer. Thoughts continue to bill as output tokens.
-- Media analysis carries the selected target's thinking level through to the
-  vision call, so the Thinking slot reasons there too. The vision *fallback*
-  chain uses Gemini 3.6 Flash — it is a cheap utility path.
-- Pricing defaults move to **$1.50 / $7.50** per 1M tokens (from $0.30 / $1.20),
-  shared by both targets. **Deploy note:** clear or update any `MODEL_GEMINI`
-  and `PRICE_GEMINI_*` overrides in the Vercel project env — stale values
-  silently keep the old model, and stale prices under-count the daily cost cap
+"Auto" (the default) sends nothing and leaves the provider's own default in
+place; the choice persists per target. The other eight targets expose no
+per-request knob, so they show no selector. Server-side, the route validates
+the level against `TARGET_THINKING_LEVELS` (400 on anything else) and threads
+it through a new `ProviderRequestOptions` argument — the fan-out map is now
+typed `Record<Provider, ProviderStream>`, so the eight knob-less adapters keep
+their three-parameter signatures untouched. Because thinking bills as output
+tokens against the output cap, the Anthropic and Google adapters raise their
+output ceilings at the deep levels (a truncated stream is a parse failure, not
+a short answer) — and deep levels reach the daily cost cap sooner.
+
+### Changed — Google's slot moves to Gemini 3.6 Flash
+
+**Gemini 3.5 Flash** becomes **Gemini 3.6 Flash** (`gemini_3_5_thinking` →
+`gemini_3_6_flash`) — GA since 2026-07-21, faster and stronger on agentic and
+multimodal work. Still sixteen models from twelve developers.
+
+One entry, deliberately: Gemini 3.x has no separate thinking model ID — what
+the Gemini app calls "Thinking" and "Fast" is this one model at different
+`thinkingLevel` values, which the new selector now exposes directly. There is
+no `gemini-3.6-thinking` string anywhere (an invented one would 404 every
+call, and `/api/media` would read the 404 as a config error and silently fall
+back to another provider).
+
+- Pricing defaults move to **$1.50 / $7.50** per 1M tokens (from
+  $0.30 / $1.20). **Deploy note:** clear or update any `MODEL_GEMINI` and
+  `PRICE_GEMINI_*` overrides in the Vercel project env — a stale model string
+  silently keeps calling 3.5, and stale prices under-count the daily cost cap
   6× on output.
-- Migration `20260726120000_gemini_3_6_thinking_and_flash.sql` renames
-  `gemini_3_5_thinking` → `gemini_3_6_thinking` (existing rows carry over) and
-  adds `gemini_3_6_flash`. Apply before deploying. UI-store persist version
-  bumped to 5.
+- Migration `20260726120000_gemini_3_6_flash.sql` renames the enum value
+  (existing rows carry over; this id has now been renamed twice, so both
+  legacy keys map to it). Apply before deploying, then
+  `npm run check:db-enum -- --strict`. UI-store persist version bumped to 5;
+  persisted thinking selections are re-keyed across renames and stale ones
+  dropped.
 
 Gemini 3.1 Pro was evaluated and left out: it is Preview-only and sits in a
 different cost class ($2.00 / $12.00 per 1M).

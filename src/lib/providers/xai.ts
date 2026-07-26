@@ -3,6 +3,8 @@ import OpenAI from "openai";
 import {
   ProviderError,
   ProviderNotConfiguredError,
+  toReasoningEffort,
+  type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 
@@ -13,16 +15,21 @@ const XAI_BASE_URL = "https://api.x.ai/v1";
 /**
  * Streaming xAI (Grok) call: raw response-text deltas plus a final cumulative
  * usage snapshot. Server-side only; key never reaches the client.
+ *
+ * `opts.thinkingLevel` maps onto Grok's `reasoning_effort` (low/medium/high;
+ * xAI defaults to high and reasoning can't be disabled).
  */
 export async function* streamXAI(
   system: string,
   input: string,
   model: string,
+  opts: ProviderRequestOptions = {},
 ): AsyncGenerator<ProviderStreamChunk> {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("xai");
 
   const client = new OpenAI({ apiKey, baseURL: XAI_BASE_URL });
+  const reasoningEffort = toReasoningEffort(opts.thinkingLevel);
 
   try {
     const stream = await client.chat.completions.create({
@@ -34,6 +41,7 @@ export async function* streamXAI(
         { role: "user", content: input },
       ],
       response_format: { type: "json_object" },
+      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       stream: true,
       stream_options: { include_usage: true },
     });

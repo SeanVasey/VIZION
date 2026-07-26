@@ -5,10 +5,12 @@ import { persist, createJSONStorage, type StateStorage } from "zustand/middlewar
 import {
   LEGACY_TARGET_IDS,
   TARGET_MODELS,
+  TARGET_THINKING_LEVELS,
   UI_STORE_KEY,
   type ModeId,
   type TargetModelId,
   type Theme,
+  type ThinkingLevel,
 } from "@/lib/constants";
 
 /**
@@ -70,12 +72,17 @@ interface UIState {
   theme: Theme;
   activeMode: ModeId;
   targetModel: TargetModelId;
+  /** Chosen reasoning depth PER TARGET (only for targets with a knob —
+   *  TARGET_THINKING_LEVELS). No entry = "Auto" = provider default. */
+  thinkingLevels: Partial<Record<TargetModelId, ThinkingLevel>>;
   /** In-progress editor text, preserved across nav (product-spec §2.4). */
   editorDraft: string;
 
   setTheme: (theme: Theme) => void;
   setActiveMode: (mode: ModeId) => void;
   setTargetModel: (model: TargetModelId) => void;
+  /** `null` clears back to Auto. */
+  setThinkingLevel: (target: TargetModelId, level: ThinkingLevel | null) => void;
   setEditorDraft: (draft: string) => void;
 }
 
@@ -89,11 +96,19 @@ export const useUIStore = create<UIState>()(
       theme: "system",
       activeMode: "clarify",
       targetModel: "opus_5",
+      thinkingLevels: {},
       editorDraft: "",
 
       setTheme: (theme) => set({ theme }),
       setActiveMode: (activeMode) => set({ activeMode }),
       setTargetModel: (targetModel) => set({ targetModel }),
+      setThinkingLevel: (target, level) =>
+        set((s) => {
+          const thinkingLevels = { ...s.thinkingLevels };
+          if (level === null) delete thinkingLevels[target];
+          else thinkingLevels[target] = level;
+          return { thinkingLevels };
+        }),
       setEditorDraft: (editorDraft) => set({ editorDraft }),
     }),
     {
@@ -103,19 +118,33 @@ export const useUIStore = create<UIState>()(
       // gemini_pro_3_1 → gemini_3_5_thinking). v2: opus_4_8 → opus_5.
       // v3: llama_4_maverick → muse_spark_1_1. v4: kimi_k2_6 → kimi_k3,
       // minimax_m2_7 → minimax_m3. v5: gemini_3_5_thinking →
-      // gemini_3_6_thinking. A stale persisted ID would 400 on
-      // /api/enhance, so map legacy values and fall back to the default.
+      // gemini_3_6_flash + per-target thinkingLevels. A stale persisted ID
+      // would 400 on /api/enhance, so map legacy values and fall back to the
+      // default; stale thinking selections are re-keyed or dropped the same way.
       version: 5,
       migrate: (persisted) => {
         const s = (persisted ?? {}) as Partial<UIState>;
         const valid = new Set<string>(TARGET_MODELS.map((m) => m.id));
         const t = s.targetModel as string | undefined;
+
+        // Re-key per-target levels across renames; drop entries whose target
+        // or level no longer exists (a stale level would 400 on /api/enhance).
+        const thinkingLevels: Partial<Record<TargetModelId, ThinkingLevel>> = {};
+        for (const [key, level] of Object.entries(s.thinkingLevels ?? {})) {
+          const id = valid.has(key) ? (key as TargetModelId) : LEGACY_TARGET_IDS[key];
+          if (!id || typeof level !== "string") continue;
+          if ((TARGET_THINKING_LEVELS[id] as readonly string[] | undefined)?.includes(level)) {
+            thinkingLevels[id] = level as ThinkingLevel;
+          }
+        }
+
         return {
           ...s,
           targetModel:
             t && valid.has(t)
               ? (t as TargetModelId)
               : ((t && LEGACY_TARGET_IDS[t]) ?? "opus_5"),
+          thinkingLevels,
         };
       },
       // Draft is intentionally NOT persisted as the only copy — it is a
@@ -124,6 +153,7 @@ export const useUIStore = create<UIState>()(
         theme: state.theme,
         activeMode: state.activeMode,
         targetModel: state.targetModel,
+        thinkingLevels: state.thinkingLevels,
         editorDraft: state.editorDraft,
       }),
     },

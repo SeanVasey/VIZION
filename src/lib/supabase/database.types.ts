@@ -284,7 +284,6 @@ export type Database = {
         | "gpt_5_6_sol"
         | "fable_5"
         | "deepseek_v4"
-        | "gemini_3_6_thinking"
         | "gemini_3_6_flash"
         | "muse_spark_1_1"
         | "minimax_m3"

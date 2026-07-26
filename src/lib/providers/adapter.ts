@@ -1,5 +1,5 @@
 import "server-only";
-import type { ModeId, TargetModelId } from "@/lib/constants";
+import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
 import { TARGETS, computeCost, type Provider } from "@/lib/providers/config";
 import type {
   ProviderRequestOptions,
@@ -26,6 +26,9 @@ export interface EnhanceArgs {
   input: string;
   mode: ModeId;
   target: TargetModelId;
+  /** User-selected reasoning depth (validated by the route against
+   *  TARGET_THINKING_LEVELS). Absent = the provider's own default. */
+  thinkingLevel?: ThinkingLevel;
 }
 
 export interface EnhanceOutput {
@@ -67,6 +70,7 @@ export async function* enhanceStream({
   input,
   mode,
   target,
+  thinkingLevel,
 }: EnhanceArgs): AsyncGenerator<AdapterStreamEvent> {
   const cfg = TARGETS[target];
   const system = buildSystemPrompt(mode, target);
@@ -92,7 +96,7 @@ export async function* enhanceStream({
   let tokenOut = 0;
 
   for await (const chunk of streams[cfg.provider](system, input, cfg.model, {
-    thinkingLevel: cfg.thinkingLevel,
+    thinkingLevel,
   })) {
     if (chunk.text) {
       raw += chunk.text;

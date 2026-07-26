@@ -1,3 +1,4 @@
+import type { ThinkingLevel } from "@/lib/constants";
 import type { Provider } from "@/lib/providers/config";
 
 /** Raised when a provider's API key is absent — surfaced as a 503 to the client
@@ -30,13 +31,21 @@ export interface ProviderStreamChunk {
   usage?: { tokenIn: number; tokenOut: number };
 }
 
-/** How much reasoning a thinking-capable model should spend before answering.
- *  Gemini 3.x's four levels; other providers would map their own scale onto it. */
-export type ThinkingLevel = "minimal" | "low" | "medium" | "high";
-
-/** Per-target request tuning an adapter may honor. Only the Google adapter
- *  reads `thinkingLevel` today — it is what separates the Gemini "Thinking"
- *  target from the "Flash" one, since both are the same API model. */
+/** Per-request tuning an adapter may honor. `thinkingLevel` is the user's
+ *  selection from the composer's thinking selector — already validated by the
+ *  route against TARGET_THINKING_LEVELS, so an adapter can translate it onto
+ *  its provider's parameter without re-checking. Absent = provider default. */
 export interface ProviderRequestOptions {
   thinkingLevel?: ThinkingLevel;
+}
+
+/** Narrow the app-wide level onto the values the OpenAI SDK types accept —
+ *  TARGET_THINKING_LEVELS only offers this trio for the GPT and Grok targets,
+ *  and the guard keeps the wire value inside the typed set if that drifts. */
+export function toReasoningEffort(
+  level: string | undefined,
+): "low" | "medium" | "high" | undefined {
+  return level === "low" || level === "medium" || level === "high"
+    ? level
+    : undefined;
 }

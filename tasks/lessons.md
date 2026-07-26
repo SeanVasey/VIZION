@@ -722,21 +722,28 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   and shown a soft fallback note. The target would appear to "work", just never
   on Google. A wrong model string is loudest on `/api/enhance` and quietest
   exactly where it costs the most to debug.
-- **Two roster entries can share one model string.** The roster is the product
-  surface; `TARGETS` is the wire config. Nothing required them to be 1:1 — the
-  missing piece was a place to put per-target request tuning, not a second model
-  string. `TargetConfig.thinkingLevel` + `ProviderRequestOptions` was the whole
-  change.
+- **A "mode" that's really a request option wants a selector, not roster
+  entries.** The first cut modeled Thinking/Fast as two roster entries sharing
+  one model string with fixed levels. That worked, but it was the vendor's
+  picker re-encoded in config — the honest shape is one entry plus a
+  per-request `thinkingLevel` the user sets (`TARGET_THINKING_LEVELS` +
+  `ProviderRequestOptions`), which then generalized to Anthropic
+  (`output_config.effort`) and OpenAI/xAI (`reasoning_effort`) for free.
+  Duplicate roster entries per knob value would not have scaled to a
+  five-level effort ladder.
 - **Widen a shared function signature, don't touch twelve call sites.** Typing
   the fan-out map as `Record<Provider, ProviderStream>` with an optional fourth
-  parameter let one adapter take options while the other eleven stayed
+  parameter let some adapters take options while the knob-less ones stayed
   three-parameter functions untouched — TypeScript accepts a narrower function
   where a wider signature is expected. The `as const` on that map was what
   blocked it.
-- **Product identity belongs in code, not env.** The thinking level *is* the
-  slot: a `GEMINI_THINKING_LEVEL` env var would let one typo silently turn
-  "Thinking" into `minimal` with nothing in the UI to show it. Env stays for
-  things a deployment legitimately varies (model string, prices).
+- **Each provider's level vocabulary is its own.** Gemini has `minimal…high`,
+  Anthropic `low…max` (and `budget_tokens` is *removed* on the Claude 5
+  family — sending it 400s), OpenAI's SDK types accept `low/medium/high`.
+  One app-wide ladder with per-target subsets — validated by the route,
+  narrowed again at each adapter — keeps a bad value from ever hitting a
+  wire. Offer only what the installed SDK's types accept; a wider consumer
+  list is not evidence the API takes it.
 - **A price change is a cost-cap change.** Gemini output went $1.20 → $7.50 per
   1M. The `numEnv` defaults only apply where the env var is unset, so a stale
   `PRICE_GEMINI_OUT` in Vercel keeps the cap under-counting 6× — the kind of
