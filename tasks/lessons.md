@@ -708,3 +708,49 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 - **Prove a new guard fails.** Deleting the migration file and watching three
   assertions go red — naming the exact four ids — is what distinguishes a
   regression test from a test that merely passes today.
+
+## 2026-07-26 — Gemini 3.6: a vendor's app picker is not its API model list
+
+- **A model-picker label is not a model ID.** Gemini's app offers "3.6 Thinking"
+  and "3.6 Fast"; the API offers `gemini-3.6-flash` and a `thinkingLevel`. The
+  obvious reading of "add 3.6 Thinking and 3.6 Flash" — two roster entries, two
+  model strings — produces a 404 on every call to the invented one. Read the
+  provider's model-ID table before adding a roster entry; the marketing name,
+  the app label, and the API string are three different things.
+- **That 404 would not have looked like a 404.** `isVisionConfigError` classifies
+  404 as config-shaped, so `/api/media` would have retried on another provider
+  and shown a soft fallback note. The target would appear to "work", just never
+  on Google. A wrong model string is loudest on `/api/enhance` and quietest
+  exactly where it costs the most to debug.
+- **A "mode" that's really a request option wants a selector, not roster
+  entries.** The first cut modeled Thinking/Fast as two roster entries sharing
+  one model string with fixed levels. That worked, but it was the vendor's
+  picker re-encoded in config — the honest shape is one entry plus a
+  per-request `thinkingLevel` the user sets (`TARGET_THINKING_LEVELS` +
+  `ProviderRequestOptions`), which then generalized to Anthropic
+  (`output_config.effort`) and OpenAI/xAI (`reasoning_effort`) for free.
+  Duplicate roster entries per knob value would not have scaled to a
+  five-level effort ladder.
+- **Widen a shared function signature, don't touch twelve call sites.** Typing
+  the fan-out map as `Record<Provider, ProviderStream>` with an optional fourth
+  parameter let some adapters take options while the knob-less ones stayed
+  three-parameter functions untouched — TypeScript accepts a narrower function
+  where a wider signature is expected. The `as const` on that map was what
+  blocked it.
+- **Each provider's level vocabulary is its own.** Gemini has `minimal…high`,
+  Anthropic `low…max` (and `budget_tokens` is *removed* on the Claude 5
+  family — sending it 400s), OpenAI's SDK types accept `low/medium/high`.
+  One app-wide ladder with per-target subsets — validated by the route,
+  narrowed again at each adapter — keeps a bad value from ever hitting a
+  wire. Offer only what the installed SDK's types accept; a wider consumer
+  list is not evidence the API takes it.
+- **A price change is a cost-cap change.** Gemini output went $1.20 → $7.50 per
+  1M. The `numEnv` defaults only apply where the env var is unset, so a stale
+  `PRICE_GEMINI_OUT` in Vercel keeps the cap under-counting 6× — the kind of
+  drift that shows up as an unexpected bill, not as a failing test. Any model
+  bump needs a "check the deployed overrides" line in the changelog.
+- **Renames chain; legacy maps don't.** `gemini_pro_3_1` had pointed at
+  `gemini_3_5_thinking`, which this change renamed away. Every entry in
+  `LEGACY_TARGET_IDS` has to point at the *current* id, not the next hop —
+  the enum contract test checks values against the live roster, which is what
+  catches a half-updated chain.

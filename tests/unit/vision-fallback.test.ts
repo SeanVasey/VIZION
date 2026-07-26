@@ -124,7 +124,7 @@ describe("describeImage — Gemini error bodies", () => {
 
     let caught: unknown;
     try {
-      await describeImage("AAAA", "image/png", "gemini_3_5_thinking");
+      await describeImage("AAAA", "image/png", "gemini_3_6_flash");
     } catch (e) {
       caught = e;
     }

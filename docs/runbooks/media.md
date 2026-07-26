@@ -18,7 +18,7 @@ NEXT_PUBLIC_MEDIA_EXTRACTION=proxy   # default — vision via the model proxy
 - **provider fallback**: when the selected model fails for a _config-shaped_ reason —
   missing key, a key the provider rejects (401/403), or an unknown model string
   (404) — the route retries once on the first _other_ configured provider
-  (Opus 5 first, then GPT-5.6 Sol · Gemini 3.5 Flash · Mistral Large 3 ·
+  (Opus 5 first, then GPT-5.6 Sol · Gemini 3.6 Flash · Mistral Large 3 ·
   Grok 4.5 · Muse Spark 1.1 · Kimi K3 · Sonar Pro). Targets whose flagship is
   text-only (DeepSeek V4 · MiniMax M3 · Qwen3.7 Max · GLM-5.2) skip the
   attempt and route straight to that same chain. The response carries

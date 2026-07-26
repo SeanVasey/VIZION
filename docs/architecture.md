@@ -53,7 +53,8 @@ A single `enhance(input, mode, target)` interface fans out to model-specific for
 - **GPT-5.6 Terra** — short self-contained prompts, explicit format; the family's fast tier.
 - **Fable 5** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
 - **DeepSeek V4** — plain complete problem statement, reasoning left to the engine, explicit format.
-- **Gemini 3.5 Flash** — multimodal "parts", system-instruction conventions, grounding.
+- **Gemini 3.6 Flash** — multimodal "parts", system-instruction conventions,
+  grounding; goal and constraints in separate blocks for the reasoning passes.
 - **Muse Spark 1.1** — explicit goal up front, numbered constraints, output contract at the top.
 - **MiniMax M3** — tight ordered brief; goal, constraints, and deliverable up front.
 - **Mistral Large 3** — concise front-loaded instructions; economy over scaffolding.
@@ -67,6 +68,26 @@ The seven 2026-07 additions (DeepSeek · Meta · MiniMax · Moonshot · Perplexi
 Qwen · Z.ai) all speak the OpenAI wire shape and share one streaming factory
 (`src/lib/providers/openai-compat.ts`). Model strings live in server config so
 swaps are a config change, not a refactor.
+
+### Thinking selector
+
+Targets whose provider takes a per-request reasoning-depth option get a
+"Thinking" selector in the composer (`TARGET_THINKING_LEVELS` in
+`src/lib/constants.ts` — absent target = no knob = no selector). The chosen
+level rides the enhance request (validated server-side) into the provider
+adapter, which translates it onto that provider's parameter:
+
+| Provider | Parameter | Levels offered |
+| --- | --- | --- |
+| Anthropic (Fable 5 · Opus 5 · Sonnet 5) | `output_config.effort` | low · medium · high · xhigh · max |
+| OpenAI (GPT-5.6 Sol/Luna/Terra) | `reasoning_effort` | low · medium · high |
+| Google (Gemini 3.6 Flash) | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high |
+| xAI (Grok 4.5) | `reasoning_effort` | low · medium · high |
+
+"Auto" (the default) sends nothing — the provider's own default applies. The
+selection persists per target in the UI store. Vendors' consumer-app picker
+labels (Gemini "Thinking"/"Fast", ChatGPT "Ultra"…) are marketing names for
+these values, not separate models or API strings.
 
 ## Data model (P2/P4)
 

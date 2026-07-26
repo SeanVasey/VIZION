@@ -3,6 +3,8 @@ import OpenAI from "openai";
 import {
   ProviderError,
   ProviderNotConfiguredError,
+  toReasoningEffort,
+  type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 
@@ -11,16 +13,21 @@ import {
  * cumulative usage snapshot from the final chunk (stream_options.include_usage).
  * Server-side only; key never reaches the client. The JSON envelope is decoded
  * centrally in the adapter.
+ *
+ * `opts.thinkingLevel` maps onto `reasoning_effort`; omitted leaves the
+ * model's own default in place.
  */
 export async function* streamOpenAI(
   system: string,
   input: string,
   model: string,
+  opts: ProviderRequestOptions = {},
 ): AsyncGenerator<ProviderStreamChunk> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("openai");
 
   const client = new OpenAI({ apiKey });
+  const reasoningEffort = toReasoningEffort(opts.thinkingLevel);
 
   try {
     const stream = await client.chat.completions.create({
@@ -33,6 +40,7 @@ export async function* streamOpenAI(
         { role: "user", content: input },
       ],
       response_format: { type: "json_object" },
+      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       stream: true,
       stream_options: { include_usage: true },
     });

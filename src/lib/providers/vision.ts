@@ -180,7 +180,7 @@ async function describeGoogle(
 const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
   "opus_5",
   "gpt_5_6_sol",
-  "gemini_3_5_thinking",
+  "gemini_3_6_flash",
   "mistral_large_3",
   "grok_4_5",
   "muse_spark_1_1",

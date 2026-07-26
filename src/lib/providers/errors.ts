@@ -1,3 +1,4 @@
+import type { ThinkingLevel } from "@/lib/constants";
 import type { Provider } from "@/lib/providers/config";
 
 /** Raised when a provider's API key is absent — surfaced as a 503 to the client
@@ -28,4 +29,23 @@ export class ProviderError extends Error {
 export interface ProviderStreamChunk {
   text?: string;
   usage?: { tokenIn: number; tokenOut: number };
+}
+
+/** Per-request tuning an adapter may honor. `thinkingLevel` is the user's
+ *  selection from the composer's thinking selector — already validated by the
+ *  route against TARGET_THINKING_LEVELS, so an adapter can translate it onto
+ *  its provider's parameter without re-checking. Absent = provider default. */
+export interface ProviderRequestOptions {
+  thinkingLevel?: ThinkingLevel;
+}
+
+/** Narrow the app-wide level onto the values the OpenAI SDK types accept —
+ *  TARGET_THINKING_LEVELS only offers this trio for the GPT and Grok targets,
+ *  and the guard keeps the wire value inside the typed set if that drifts. */
+export function toReasoningEffort(
+  level: string | undefined,
+): "low" | "medium" | "high" | undefined {
+  return level === "low" || level === "medium" || level === "high"
+    ? level
+    : undefined;
 }

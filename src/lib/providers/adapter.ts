@@ -1,6 +1,10 @@
 import "server-only";
-import type { ModeId, TargetModelId } from "@/lib/constants";
-import { TARGETS, computeCost } from "@/lib/providers/config";
+import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
+import { TARGETS, computeCost, type Provider } from "@/lib/providers/config";
+import type {
+  ProviderRequestOptions,
+  ProviderStreamChunk,
+} from "@/lib/providers/errors";
 import { buildSystemPrompt, parseEnhancePayload } from "@/lib/providers/formatters";
 import { createEnvelopeScanner } from "@/lib/providers/json-stream";
 import { streamAnthropic } from "@/lib/providers/anthropic";
@@ -22,6 +26,9 @@ export interface EnhanceArgs {
   input: string;
   mode: ModeId;
   target: TargetModelId;
+  /** User-selected reasoning depth (validated by the route against
+   *  TARGET_THINKING_LEVELS). Absent = the provider's own default. */
+  thinkingLevel?: ThinkingLevel;
 }
 
 export interface EnhanceOutput {
@@ -41,6 +48,16 @@ export type AdapterStreamEvent =
   | { type: "usage"; tokenIn: number; tokenOut: number }
   | { type: "done"; result: EnhanceOutput };
 
+/** The shape every provider adapter satisfies. `opts` is optional, so the
+ *  adapters that take no request tuning stay three-parameter functions — TS
+ *  accepts a narrower function where a wider signature is expected. */
+type ProviderStream = (
+  system: string,
+  input: string,
+  model: string,
+  opts?: ProviderRequestOptions,
+) => AsyncGenerator<ProviderStreamChunk>;
+
 /**
  * The provider adapter (FINAL_PLAN D9), streaming form. A single
  * `enhanceStream(input, mode, target)` fans out to the model-specific raw
@@ -53,11 +70,12 @@ export async function* enhanceStream({
   input,
   mode,
   target,
+  thinkingLevel,
 }: EnhanceArgs): AsyncGenerator<AdapterStreamEvent> {
   const cfg = TARGETS[target];
   const system = buildSystemPrompt(mode, target);
 
-  const streams = {
+  const streams: Record<Provider, ProviderStream> = {
     anthropic: streamAnthropic,
     openai: streamOpenAI,
     deepseek: streamDeepSeek,
@@ -70,14 +88,16 @@ export async function* enhanceStream({
     qwen: streamQwen,
     xai: streamXAI,
     zai: streamZai,
-  } as const;
+  };
 
   const scanner = createEnvelopeScanner("output");
   let raw = "";
   let tokenIn = 0;
   let tokenOut = 0;
 
-  for await (const chunk of streams[cfg.provider](system, input, cfg.model)) {
+  for await (const chunk of streams[cfg.provider](system, input, cfg.model, {
+    thinkingLevel,
+  })) {
     if (chunk.text) {
       raw += chunk.text;
       const decoded = scanner.push(chunk.text);

@@ -64,7 +64,7 @@ export const TARGET_MODELS = [
   { id: "gpt_5_6_luna", label: "GPT-5.6 Luna", developer: "openai" },
   { id: "gpt_5_6_terra", label: "GPT-5.6 Terra", developer: "openai" },
   { id: "deepseek_v4", label: "DeepSeek V4", developer: "deepseek" },
-  { id: "gemini_3_5_thinking", label: "Gemini 3.5 Flash", developer: "google" },
+  { id: "gemini_3_6_flash", label: "Gemini 3.6 Flash", developer: "google" },
   { id: "muse_spark_1_1", label: "Muse Spark 1.1", developer: "meta" },
   { id: "minimax_m3", label: "MiniMax M3", developer: "minimax" },
   { id: "mistral_large_3", label: "Mistral Large 3", developer: "mistral" },
@@ -83,17 +83,63 @@ export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
  *  `/api/enhance`. Order is migration order, oldest first. */
 export const LEGACY_TARGET_IDS: Record<string, TargetModelId> = {
   gpt_5_5: "gpt_5_6_sol",
-  gemini_pro_3_1: "gemini_3_5_thinking",
+  // Renamed twice (gemini_pro_3_1 → gemini_3_5_thinking → gemini_3_6_flash).
+  // Every link in a rename chain points at the CURRENT id, not the next hop —
+  // a value that is no longer a live target fails the enum contract test.
+  gemini_pro_3_1: "gemini_3_6_flash",
   opus_4_8: "opus_5",
   llama_4_maverick: "muse_spark_1_1",
   minimax_m2_7: "minimax_m3",
   kimi_k2_6: "kimi_k3",
+  gemini_3_5_thinking: "gemini_3_6_flash",
 };
 
 /** Developer for a target id (for the model picker + result chips). */
 export const TARGET_DEVELOPER: Record<TargetModelId, Developer> = Object.fromEntries(
   TARGET_MODELS.map((m) => [m.id, m.developer]),
 ) as Record<TargetModelId, Developer>;
+
+/** The reasoning-depth ladder, weakest first. A single app-wide vocabulary:
+ *  each provider's API accepts a subset of it under its own parameter
+ *  (Anthropic `output_config.effort` · OpenAI/xAI `reasoning_effort` ·
+ *  Gemini `generationConfig.thinkingConfig.thinkingLevel`). */
+export const THINKING_LEVELS = [
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
+export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
+
+export const THINKING_LEVEL_LABEL: Record<ThinkingLevel, string> = {
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "Extra High",
+  max: "Max",
+};
+
+/** Per-target thinking levels, exactly as each provider's API accepts them —
+ *  a vendor app's picker names (Gemini "Thinking"/"Fast", ChatGPT "Ultra"…)
+ *  are NOT API values; only what's listed here goes on the wire. A target
+ *  with no entry has no per-request knob, so the composer shows no selector;
+ *  leaving the selector on "Auto" sends nothing and the provider's own
+ *  default applies. The OpenAI/xAI trio is the set their SDK types accept. */
+export const TARGET_THINKING_LEVELS: Partial<
+  Record<TargetModelId, readonly ThinkingLevel[]>
+> = {
+  fable_5: ["low", "medium", "high", "xhigh", "max"],
+  opus_5: ["low", "medium", "high", "xhigh", "max"],
+  sonnet_5: ["low", "medium", "high", "xhigh", "max"],
+  gpt_5_6_sol: ["low", "medium", "high"],
+  gpt_5_6_luna: ["low", "medium", "high"],
+  gpt_5_6_terra: ["low", "medium", "high"],
+  gemini_3_6_flash: ["minimal", "low", "medium", "high"],
+  grok_4_5: ["low", "medium", "high"],
+};
 
 /** localStorage key for the UI store. Local cache is convenience only —
  *  the server is the source of truth for anything that matters. */

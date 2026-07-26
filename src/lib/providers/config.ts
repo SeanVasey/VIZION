@@ -79,11 +79,15 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_DEEPSEEK_IN", 0.45),
     priceOut: numEnv("PRICE_DEEPSEEK_OUT", 0.9),
   },
-  gemini_3_5_thinking: {
+  gemini_3_6_flash: {
     provider: "google",
-    model: process.env.MODEL_GEMINI ?? "gemini-3.5-flash",
-    priceIn: numEnv("PRICE_GEMINI_IN", 0.3),
-    priceOut: numEnv("PRICE_GEMINI_OUT", 1.2),
+    // "Thinking" and "Fast" in Gemini's app are thinkingLevel values on this
+    // ONE model — there is no `gemini-3.6-thinking` model string (it would
+    // 404). Reasoning depth rides the per-request thinking selector
+    // (EnhanceArgs.thinkingLevel), not a second roster entry.
+    model: process.env.MODEL_GEMINI ?? "gemini-3.6-flash",
+    priceIn: numEnv("PRICE_GEMINI_IN", 1.5),
+    priceOut: numEnv("PRICE_GEMINI_OUT", 7.5),
   },
   muse_spark_1_1: {
     provider: "meta",

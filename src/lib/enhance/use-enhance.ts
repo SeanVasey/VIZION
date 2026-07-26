@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import type { ModeId, TargetModelId } from "@/lib/constants";
+import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
 import { parseSseStream, type EnhanceResult } from "@/lib/enhance/stream-events";
 
 /** The final result shape (unchanged from the buffered route). */
@@ -12,6 +12,8 @@ export interface EnhanceRequest {
   input: string;
   mode: ModeId;
   target: TargetModelId;
+  /** Reasoning depth for targets that take one; omitted = provider default. */
+  thinkingLevel?: ThinkingLevel;
 }
 
 class EnhanceError extends Error {
