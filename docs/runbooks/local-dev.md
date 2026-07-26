@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node ≥ 20 (CI uses Node 20). npm ≥ 10.
+- Node ≥ 20 (CI uses Node 22). npm ≥ 10.
 
 ## First run
 

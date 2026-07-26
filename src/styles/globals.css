@@ -16,6 +16,42 @@
        background extending under the notch / home indicator. */
     background-color: var(--bg);
     -webkit-text-size-adjust: 100%;
+    /* iOS: no grey tap flash — active:scale / hover tokens carry the feedback. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* iOS Safari waits ~300ms on tappable elements to rule out a double-tap
+     zoom; `manipulation` keeps pan + pinch but drops that wait, so taps on
+     nav tabs / buttons commit immediately. */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* iOS Safari zooms the whole page when a focused control's computed
+     font-size is under 16px — and rarely zooms back out on blur. Scoped to
+     iOS via -webkit-touch-callout (an iOS-only property) so desktop/Android
+     keep the designed sizes; !important because the sub-16px utilities
+     (text-sm / text-xs) sit on the controls themselves and out-specify any
+     base-layer rule. max() leaves controls already at/above 1rem alone. */
+  @supports (-webkit-touch-callout: none) {
+    input,
+    select,
+    textarea {
+      font-size: max(1rem, 1em) !important;
+    }
+  }
+
+  /* One-shot controls: a long-press should press (or cancel), never pop the
+     text-selection loupe on the label. Inputs/textareas stay selectable. */
+  button,
+  [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   :root {
@@ -97,30 +133,49 @@
     border: 1px solid var(--hair);
   }
 
-  /* Translucent chrome — the top header. Thinner fill + a touch of saturation
-     so the ambient aurora glow blooms through the bar (the glass panels stay on
-     the denser --glass tier).  Mirrors the bottom nav: no hard hairline edge,
-     softly rounded at the bottom, with a gentle downward shadow that lifts the
-     bar off the canvas so it reads as a floating sheet rather than a bordered
-     strip. */
-  .glass-chrome {
+  /* Translucent chrome — the top header and bottom nav. Thinner fill + a touch
+     of saturation so the ambient aurora glow blooms through the bar (the glass
+     panels stay on the denser --glass tier).  No hard hairline edge; a gentle
+     shadow lifts each bar off the canvas so it reads as a floating sheet
+     rather than a bordered strip.
+
+     iOS/WebKit constraint: `backdrop-filter` directly on a fixed/sticky bar
+     makes WebKit's async scrolling detach the bar from the viewport edge —
+     the bottom nav floated mid-screen over the footer. The tint + blur
+     therefore live on a ::before layer, and the bar itself is promoted to its
+     own composited layer, which keeps it glued to the viewport edge and stops
+     the blur re-rasterizing on every scroll frame.
+
+     Side effect of transform/will-change: both bars are now CONTAINING BLOCKS
+     for position:fixed descendants — any future overlay (dropdown, menu,
+     tooltip) rendered inside them must be portaled to <body>, or it will
+     anchor to the bar instead of the viewport. */
+  .glass-chrome,
+  .glass-nav {
+    border: none;
+    /* The transform alone would be enough, but the nav's keyboard slide swaps
+       it via Tailwind translate utilities — will-change keeps the promoted
+       layer through that override. */
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  .glass-chrome::before,
+  .glass-nav::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
     background: var(--chrome);
     backdrop-filter: blur(18px) saturate(1.4);
     -webkit-backdrop-filter: blur(18px) saturate(1.4);
-    border: none;
+  }
+  .glass-chrome {
     border-bottom-left-radius: 20px;
     border-bottom-right-radius: 20px;
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
   }
-
-  /* Bottom-nav chrome — same frosted glass as the header, but softly rounded at
-     the top with no hard hairline edge.  A gentle upward shadow lifts the bar off
-     the canvas so it reads as a floating sheet rather than a bordered strip. */
   .glass-nav {
-    background: var(--chrome);
-    backdrop-filter: blur(18px) saturate(1.4);
-    -webkit-backdrop-filter: blur(18px) saturate(1.4);
-    border: none;
     border-top-left-radius: 20px;
     border-top-right-radius: 20px;
     box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28);
@@ -196,6 +251,25 @@
   .mono {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Invisible 44pt hit-area extender for visually compact controls (filter
+     chips, mode chips, tag removers). Apple's HIG asks 44pt; the locked pill
+     visuals are ~30px. The pseudo hit-tests for its element but paints
+     nothing, so the look is untouched. Works on real elements only — replaced
+     elements (select, input) can't host pseudos. Adjacent extended areas may
+     overlap; the later sibling wins, matching the visual stacking. */
+  .tap-44 {
+    position: relative;
+  }
+  .tap-44::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height: max(100%, 44px);
+    width: max(100%, 44px);
+    transform: translate(-50%, -50%);
   }
 }
 

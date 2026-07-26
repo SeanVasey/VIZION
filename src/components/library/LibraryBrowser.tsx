@@ -56,6 +56,12 @@ export function LibraryBrowser({ prompts }: { prompts: PromptCard[] }) {
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        // Filtering is live, so return has nothing to submit — dismiss the
+        // iOS keyboard instead, revealing the results it was covering.
+        enterKeyHint="search"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
         placeholder="Search prompts…"
         className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-base text-text placeholder:text-muted focus:outline-none"
       />
@@ -152,7 +158,8 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={[
-        "font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
+        // tap-44 extends the hit box to 44pt without touching the pill visual.
+        "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
         active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
       ].join(" ")}
     >

@@ -437,9 +437,19 @@ export function MediaStudio() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => void removeStored(asset)}
+                  onClick={() => {
+                    // Permanent (storage object + DB row) — same confirm gate
+                    // as prompt delete; a mis-tap must not cost a file.
+                    if (
+                      window.confirm(
+                        `Remove ${asset.storage_path.split("/").pop()}? This deletes the stored file.`,
+                      )
+                    ) {
+                      void removeStored(asset);
+                    }
+                  }}
                   aria-label={`Remove ${asset.storage_path.split("/").pop()}`}
-                  className="-my-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-silver transition-colors hover:text-flare"
+                  className="-my-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-silver transition-colors hover:text-flare"
                 >
                   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4">
                     <path

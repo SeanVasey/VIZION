@@ -134,11 +134,20 @@ export const ModeRig = memo(function ModeRig({
         id="mode-help-strip"
         className="relative rounded-xl border border-hair bg-onyx px-4 py-2.5"
       >
+        {/* Caret rail: full strip width, so the translateX percentage measures
+            the strip (translateX % on the caret itself would measure its own
+            8px). Translating the rail keeps the 300ms glide compositor-only —
+            same idiom as the lens-lock indicator above (animating `left`
+            forces layout every frame). */}
         <span
           aria-hidden="true"
-          className="absolute -top-1 h-2 w-2 rotate-45 border-l border-t border-hair bg-onyx transition-[left] duration-300 ease-out"
-          style={{ left: `calc(${shownIndex + 0.5} * (100% / 6) - 4px)` }}
-        />
+          className="pointer-events-none absolute inset-x-0 -top-1 h-2 transition-transform duration-300 ease-out"
+          style={{
+            transform: `translateX(calc(${shownIndex + 0.5} * (100% / 6) - 4px))`,
+          }}
+        >
+          <span className="absolute left-0 h-2 w-2 rotate-45 border-l border-t border-hair bg-onyx" />
+        </span>
         {/* Blurbs are set in the display-caps voice (font-display + uppercase
             guard, text-sm) in the theme-aware brand green (--accent-ink — AA
             on --onyx in both themes).  items-center + cap-trim + text-balance

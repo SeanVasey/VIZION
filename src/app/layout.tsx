@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s · VIZ(IO)N",
   },
   description:
-    "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts for Fable, Opus, GPT, Gemini, Mistral, and Grok.",
+    "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

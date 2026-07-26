@@ -196,6 +196,11 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="unique handle"
             autoComplete="username"
+            // A unique handle — iOS must not capitalize it or "fix" it into a
+            // dictionary word (the trimmed value persists verbatim).
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             className="font-body w-full rounded-lg bg-transparent text-right text-text placeholder:text-muted focus:outline-none"
           />
         </Field>
@@ -238,7 +243,7 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
               id="default-model"
               value={defaultModel}
               onChange={(e) => changeDefaultModel(e.target.value as TargetModelId)}
-              className={`font-body w-full cursor-pointer appearance-none rounded-xl bg-transparent py-2 pr-8 text-sm text-text focus:outline-none ${
+              className={`font-body min-h-[44px] w-full cursor-pointer appearance-none rounded-xl bg-transparent py-2 pr-8 text-sm text-text focus:outline-none ${
                 TARGET_DEVELOPER[defaultModel] ? "pl-9" : "pl-3"
               }`}
             >
@@ -300,21 +305,31 @@ export function ProfilePanel({ profile, email }: { profile: Profile; email: stri
           compiled to nothing, leaving the backdrop fully transparent.
           Modal contract: aria-modal (on the cropper), the scrim is clickable,
           Escape dismisses via the window listener above (kept off this
-          presentation element), and focus moves into the dialog on open. */}
+          presentation element), and focus moves into the dialog on open.
+          The scrim scrolls (landscape phones are shorter than the dialog) and
+          pads with the safe-area insets so the dialog never sits under the
+          notch or home indicator; overscroll-contain stops drags on the scrim
+          from scroll-chaining to the page behind it. */}
       {pickedFile && (
-        <div
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !avatarBusy) setPickedFile(null);
-          }}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[color-mix(in_srgb,var(--void)_80%,transparent)] p-6"
-        >
-          <AvatarCropper
-            file={pickedFile}
-            busy={avatarBusy}
-            onCancel={() => setPickedFile(null)}
-            onCropped={onAvatarCropped}
-          />
+        <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-[color-mix(in_srgb,var(--void)_80%,transparent)]">
+          <div
+            role="presentation"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !avatarBusy) setPickedFile(null);
+            }}
+            className="flex min-h-full items-center justify-center"
+            style={{
+              padding:
+                "max(1.5rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left))",
+            }}
+          >
+            <AvatarCropper
+              file={pickedFile}
+              busy={avatarBusy}
+              onCancel={() => setPickedFile(null)}
+              onCropped={onAvatarCropped}
+            />
+          </div>
         </div>
       )}
     </div>
