@@ -312,6 +312,7 @@ export async function POST(request: NextRequest) {
             ...(result.assumptions ? { assumptions: result.assumptions } : {}),
             ...(result.targetNotes ? { targetNotes: result.targetNotes } : {}),
             ...(result.title ? { title: result.title } : {}),
+            ...(result.questions ? { questions: result.questions } : {}),
             ...(result.salvaged ? { salvaged: true } : {}),
             // Routing provenance — only on an auto-routed run, so its presence
             // is the signal. The client shouldn't have to diff the result

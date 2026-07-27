@@ -234,6 +234,37 @@ export function EnhanceComposer() {
     );
   }
 
+  /** Clarify's answered re-run. NOT a refinement of the output — a redo of
+   *  the ORIGINAL request with the model's own questions answered, so `input`
+   *  is the author's text and the Q&A rides in `baseInput` (the tone
+   *  precedent). One round: the answered pass is told not to ask again. */
+  function handleAnswer(questions: string[], answers: string[]) {
+    if (!view || enhanceMutation.isPending) return;
+    const v = view;
+    const block = questions
+      .map((q, i) => `Q: ${q}\nA: ${answers[i]?.trim() || "(no answer given)"}`)
+      .join("\n\n");
+    const answeredTarget = v.result.resolvedTarget ?? v.submitted.target;
+    const ladder = TARGET_THINKING_LEVELS[answeredTarget];
+    const stored = thinkingLevels[answeredTarget];
+    const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
+    enhanceMutation.mutate(
+      {
+        input: v.submitted.input,
+        mode: v.submitted.mode,
+        target: answeredTarget,
+        ...(level ? { thinkingLevel: level } : {}),
+        refine: { kind: "answers", baseInput: block },
+      },
+      {
+        // `refined` stays false: this is the original request answered, not a
+        // pass over a previous output, so the diff's input side is still the
+        // author's own text and must keep saying "original".
+        onSuccess: (result) => setView({ submitted: v.submitted, result }),
+      },
+    );
+  }
+
   return (
     <section className="flex flex-col gap-5">
       {/* Mode instrument — full-width grid with the sliding lens-lock. */}
@@ -565,6 +596,7 @@ export function EnhanceComposer() {
           refinePending={enhanceMutation.isPending}
           onUse={handleUse}
           onRefine={handleRefine}
+          onAnswer={handleAnswer}
         />
       )}
 

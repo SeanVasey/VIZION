@@ -51,6 +51,8 @@ export interface EnhanceOutput {
   assumptions?: string[];
   targetNotes?: string;
   title?: string;
+  /** Clarify only — questions that would sharpen an ambiguous request. */
+  questions?: string[];
   tokenIn: number;
   tokenOut: number;
   modelUsed: string;

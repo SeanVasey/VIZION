@@ -64,13 +64,19 @@ export function isShapePreserving(mode: ModeId): boolean {
   return SHAPE_PRESERVING.has(mode);
 }
 
-/** Refinement passes the result view offers on a finished enhancement. */
-export const REFINE_KINDS = ["shorter", "detail", "tone"] as const;
+/**
+ * Refinement passes. The first three are chips on a finished enhancement;
+ * `answers` is different in kind — it is a *re-run of the original request*
+ * with the user's replies attached, offered by the Clarify questions card
+ * rather than the chip row.
+ */
+export const REFINE_KINDS = ["shorter", "detail", "tone", "answers"] as const;
 export type RefineKind = (typeof REFINE_KINDS)[number];
 
 export interface EnhanceRefine {
   kind: RefineKind;
-  /** The author's ORIGINAL input — required context for the `tone` pass. */
+  /** Extra context the pass needs: the author's ORIGINAL for `tone`, the
+   *  fenced Q&A block for `answers`. */
   baseInput?: string;
 }
 
@@ -80,15 +86,25 @@ const REFINE_INSTRUCTIONS: Record<RefineKind, string> = {
   detail:
     "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Add depth — concrete constraints, examples, and acceptance criteria it still lacks. Do not remove or weaken existing instructions.",
   tone: "REFINEMENT PASS: The input you receive is an already-enhanced prompt that drifted from the author's voice. Rewrite it so the voice, phrasing habits, and register match the AUTHOR'S ORIGINAL below, while keeping the improvements.",
+  // Deliberately does NOT open with "the input you receive is an
+  // already-enhanced prompt" like its three siblings: for this pass the input
+  // is the author's ORIGINAL request, and the answers are the new material.
+  // Copying the sibling framing would tell the model something false about
+  // what it is holding.
+  answers:
+    "ANSWERED PASS: The input you receive is the author's ORIGINAL request, and below it are questions you asked about it together with their answers. Redo the enhancement from scratch using those answers as established fact — they are no longer assumptions. Do not ask further questions and do not return a `questions` field on this pass.",
 };
 
 /** The refine block appended after the mode instruction (empty when no
- *  refinement). Tone wraps the author's original in explicit delimiters. */
+ *  refinement). Tone and answers wrap their extra context in delimiters. */
 function refineBlock(refine?: EnhanceRefine): string[] {
   if (!refine) return [];
   const lines = [REFINE_INSTRUCTIONS[refine.kind]];
   if (refine.kind === "tone" && refine.baseInput) {
     lines.push("AUTHOR'S ORIGINAL:", "<original>", refine.baseInput, "</original>");
+  }
+  if (refine.kind === "answers" && refine.baseInput) {
+    lines.push("QUESTIONS AND ANSWERS:", "<answers>", refine.baseInput, "</answers>");
   }
   return ["", lines.join("\n")];
 }
@@ -189,6 +205,11 @@ export function buildSystemPrompt(opts: SystemPromptOptions): string {
     '- "assumptions" (optional, array of strings): assumptions you made to fill gaps in the request, one short line each. Omit the field entirely if you made none.',
     '- "targetNotes" (optional, string): one sentence naming any changes made specifically for the target engine. Omit if none.',
     '- "title" (optional, string): a short semantic name for this prompt (max 60 characters, no quotes), suitable as a library entry title.',
+    ...(mode === "clarify"
+      ? [
+          '- "questions" (optional, array of strings): up to 3 short questions whose answers would let you sharpen this request further. Ask only when the ambiguity genuinely changes the result. This NEVER replaces "output" — return your best-effort enhancement either way. Omit the field entirely if you have no real question.',
+        ]
+      : []),
     "Do not wrap the JSON in markdown fences. Do not include any other text. Return this JSON envelope on every pass, including refinement passes.",
   ].join("\n");
 }
@@ -202,10 +223,21 @@ export interface EnhancePayload {
   targetNotes?: string;
   /** Short semantic name for the prompt (library title seed) — optional. */
   title?: string;
+  /**
+   * Clarify only — questions the model would ask to sharpen an ambiguous
+   * request. OPTIONAL and never a substitute for `output`: the model still
+   * returns its best-effort enhancement, and may additionally ask. Making
+   * output conditional on the absence of questions would turn a required
+   * contract into a negotiable one.
+   */
+  questions?: string[];
 }
 
 /** Most assumptions a payload may carry — anything longer is noise. */
 const MAX_ASSUMPTIONS = 6;
+/** Questions are answered by hand in a form, so the cap is what a person
+ *  will actually fill in — lower than the assumptions cap on purpose. */
+const MAX_QUESTIONS = 3;
 const MAX_TITLE_CHARS = 60;
 
 /**
@@ -294,6 +326,16 @@ export function parseEnhancePayload(raw: string): EnhancePayload {
       .map((a) => a.trim())
       .slice(0, MAX_ASSUMPTIONS);
     if (assumptions.length > 0) payload.assumptions = assumptions;
+  }
+  // Exactly the assumptions tolerance: string-filtered, blanks rejected,
+  // trimmed, capped, key omitted when empty, NEVER fatal. A malformed
+  // questions field must not cost the user a paid, otherwise-valid run.
+  if (Array.isArray(rec.questions)) {
+    const questions = rec.questions
+      .filter((q): q is string => typeof q === "string" && q.trim() !== "")
+      .map((q) => q.trim())
+      .slice(0, MAX_QUESTIONS);
+    if (questions.length > 0) payload.questions = questions;
   }
   if (typeof rec.targetNotes === "string" && rec.targetNotes.trim() !== "") {
     payload.targetNotes = rec.targetNotes.trim();

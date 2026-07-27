@@ -62,6 +62,7 @@ export function TransformationDiff({
   refinePending = false,
   onUse,
   onRefine,
+  onAnswer,
 }: {
   input: string;
   mode: ModeId;
@@ -73,6 +74,9 @@ export function TransformationDiff({
   refinePending?: boolean;
   onUse?: (text: string) => void;
   onRefine?: (kind: RefineKind, currentOutput: string) => void;
+  /** Clarify's answered re-run. Absent = the questions card isn't offered
+   *  (the library's re-enhance has no follow-up loop). */
+  onAnswer?: (questions: string[], answers: string[]) => void;
 }) {
   const { copied, copy } = useCopy();
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -104,6 +108,9 @@ export function TransformationDiff({
 
   // Per-change decisions (Polish only): hunk ids the user reverted.
   const [rejected, setRejected] = useState<ReadonlySet<number>>(new Set());
+  // Clarify's answers, positional against result.questions.
+  const [answers, setAnswers] = useState<string[]>([]);
+  const answeredCount = answers.filter((a) => a.trim() !== "").length;
   const hunks = useMemo(() => toHunks(result.diff), [result]);
   const hunkOf = useMemo(() => assignHunks(result.diff), [result]);
   const reviewable = mode === "polish" && hunks.length > 0;
@@ -575,6 +582,64 @@ export function TransformationDiff({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* 7b · Clarify's questions. The enhancement above is already the
+          model's best effort — these are what it would ask to do better, not
+          a blocker. Answering re-runs the ORIGINAL request with the answers
+          attached, which is a second billed run, so the card says so rather
+          than letting the button imply it's free.
+
+          Deliberately no role="status": the result view already has exactly
+          one and result-view.test.tsx queries it singular. */}
+      {onAnswer && result.questions && result.questions.length > 0 && (
+        <div className="rounded-2xl border border-hair p-4">
+          <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
+            Questions that would sharpen this
+          </p>
+          <ul className="flex flex-col gap-3">
+            {result.questions.map((q, i) => (
+              <li key={i} className="flex flex-col gap-1">
+                <label
+                  htmlFor={`clarify-answer-${i}`}
+                  className="font-body text-sm text-text"
+                >
+                  <span aria-hidden="true" className="text-accent">
+                    ▸{" "}
+                  </span>
+                  {q}
+                </label>
+                <input
+                  id={`clarify-answer-${i}`}
+                  type="text"
+                  value={answers[i] ?? ""}
+                  onChange={(e) =>
+                    setAnswers((prev) => {
+                      const next = [...prev];
+                      next[i] = e.target.value;
+                      return next;
+                    })
+                  }
+                  placeholder="Your answer (optional)"
+                  className="glass font-body w-full rounded-xl bg-transparent px-3 py-2.5 text-base text-text placeholder:text-muted focus:outline-none"
+                />
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            disabled={refinePending || answeredCount === 0}
+            onClick={() => onAnswer(result.questions!, answers)}
+            className="btn-laser font-body mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm disabled:opacity-60"
+          >
+            {refinePending ? "Re-running…" : "Answer & re-run"}
+          </button>
+          <p className="font-body mt-2 text-xs text-silver">
+            {answeredCount === 0
+              ? "Answer at least one question to re-run."
+              : "Re-runs the original prompt with your answers — a second billed run."}
+          </p>
         </div>
       )}
 
