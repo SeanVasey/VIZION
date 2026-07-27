@@ -31,6 +31,11 @@ above it. Running a prompt meant dismissing the keyboard first.
   plastic. All three are tokens, so both themes stay honest — and the grain
   answers to **Reduced effects**, enforced by a new contract test that
   enumerates every ambient layer behind that switch.
+- **The glass sheen never costs a focus ring.** `.glass` sits on buttons,
+  links and inputs; a panel shadow on those would have replaced the Laser
+  focus ring outright, and several of them suppress the outline too — so a
+  keyboard user would have had no focus indicator at all. The ring is now a
+  composable token and glass surfaces draw both.
 - **A running ENHANCE shows a spinner** beside its label. The label change is
   load-bearing: reduced-motion freezes the ring, so the meaning lives in the
   text.

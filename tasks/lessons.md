@@ -931,3 +931,14 @@ whole paid run over it.
   hole. Bonus: nothing is cut from the middle any more, so the gap-closing
   whitespace collapse (which had been flattening real paragraph breaks)
   simply went away.
+- **A component-layer `box-shadow` silently eats the focus ring.** Adding the
+  glass sheen replaced the base-layer `:focus-visible` ring on every `.glass`
+  button, link and input — and because several of them also carry
+  `focus:outline-none`, that left keyboard users with *no* focus indicator
+  (WCAG 2.4.7). It was invisible in review because cascade LAYERS decided it,
+  not specificity: no selector looked stronger, the later layer simply won.
+  `box-shadow` is one property, so decorative shadows on interactive surfaces
+  must COMPOSE with the ring, never replace it — hence `--focus-ring` as a
+  token and `.glass:focus-visible` re-including it. Only a real engine
+  resolves layers, so the guard has to be e2e; the spec was proven red with
+  the rule removed before being trusted green.

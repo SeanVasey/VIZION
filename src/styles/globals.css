@@ -87,12 +87,24 @@
      laser as a 1px stroke on a light surface is the 1.09:1 contrast-law FAIL
      (§6) — accent-ink keeps it Laser on dark and deep green on light.
      Utilities like focus-visible:shadow-none still override this by cascade
-     (utilities layer + higher specificity). */
-  :focus-visible {
-    outline: none;
-    box-shadow:
+     (utilities layer + higher specificity).
+
+     Named so it can be COMPOSED. box-shadow is a single property, so any
+     later-layer rule that sets one on a focusable element replaces the ring
+     outright and leaves a keyboard user with nothing — cascade layers make
+     that a layer-order win, not a specificity fight, so it happens silently.
+     Every such rule must re-include var(--focus-ring) in its own
+     :focus-visible; the e2e focus-ring spec is what keeps that honest.
+     (The vars inside resolve at the point of USE, so a composed ring still
+     picks up the focused element's own theme.) */
+  :root {
+    --focus-ring:
       0 0 0 1px var(--accent-ink),
       0 0 24px var(--laser-glow);
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
     border-radius: 8px;
   }
 
@@ -142,6 +154,19 @@
     -webkit-backdrop-filter: blur(16px) saturate(1.25);
     border: 1px solid var(--hair);
     box-shadow: var(--glass-sheen);
+  }
+
+  /* The sheen must not cost a keyboard user their focus ring. `.glass` sits on
+     buttons, links and inputs — several of which also carry
+     `focus:outline-none` — and a components-layer box-shadow beats the
+     base-layer :focus-visible ring on layer order alone, so focusing them
+     showed the sheen and nothing else (WCAG 2.4.7). Compose instead of
+     replace: ring first so it draws outside the sheen. Utilities still win
+     over this, so `focus-visible:shadow-none` (Sheet) keeps working. */
+  .glass:focus-visible {
+    box-shadow:
+      var(--focus-ring),
+      var(--glass-sheen);
   }
 
   /* Translucent chrome — the top header and bottom nav. Thinner fill + a touch
