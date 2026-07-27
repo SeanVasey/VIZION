@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { needsPasswordOnboarding } from "@/lib/auth/onboarding";
 import { ProfileHydrator } from "@/components/ProfileHydrator";
 import { OutboxFlusher } from "@/components/pwa/OutboxFlusher";
+import { ToastProvider } from "@/components/ui/Toast";
 
 /**
  * Authenticated app shell. Middleware guarantees a session here; this layout
@@ -27,13 +28,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (needsPasswordOnboarding(profile)) redirect("/set-password");
 
   return (
-    <>
+    <ToastProvider>
       <ProfileHydrator
         theme={profile?.theme ?? "system"}
         defaultModel={profile?.default_model ?? "opus_5"}
       />
       <OutboxFlusher />
       {children}
-    </>
+    </ToastProvider>
   );
 }

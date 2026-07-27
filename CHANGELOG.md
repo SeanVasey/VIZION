@@ -6,6 +6,22 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — Sheet, Toast, and ConfirmSheet UI primitives
+
+The app's first shared overlay primitives (`src/components/ui/`), seeding the
+UX-audit remediation:
+
+- **`Sheet`** — a bottom sheet portaled to `<body>` (the frosted chrome bars
+  are containing blocks for fixed descendants, so overlays must escape them),
+  with focus trap + restore, Escape/scrim dismiss, body scroll lock,
+  safe-area padding, and a reduced-motion-safe entry animation.
+- **`Toast`** (+ `useToast`) — one transient toast at a time with an optional
+  action button (the Undo pattern), anchored above the bottom nav via the
+  shared `--bottom-nav-h` token.
+- **`ConfirmSheet`** — the sheet-based replacement for `window.confirm` on
+  destructive actions; first consumer of the previously unused
+  `.btn-secondary`.
+
 ### Fixed — the bottom nav detached from the screen edge on iOS
 
 On iOS the fixed bottom nav could float mid-screen — no longer flush with the

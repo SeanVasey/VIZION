@@ -1,0 +1,115 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+
+export interface ToastOptions {
+  text: string;
+  /** Optional action (e.g. Undo). Runs, then dismisses the toast. */
+  action?: { label: string; onAction: () => void };
+  tone?: "default" | "error";
+  durationMs?: number;
+}
+
+interface ToastContextValue {
+  toast: (opts: ToastOptions) => void;
+}
+
+const ToastContext = createContext<ToastContextValue | null>(null);
+
+export function useToast(): ToastContextValue {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error("useToast must be used within <ToastProvider>");
+  return ctx;
+}
+
+const DEFAULT_DURATION_MS = 6000;
+
+/**
+ * One transient toast at a time (newest wins — queueing stale confirmations
+ * helps nobody). Portaled to <body> and anchored above the bottom nav via the
+ * shared --bottom-nav-h token, so clearance tracks the nav by construction.
+ */
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [current, setCurrent] = useState<(ToastOptions & { id: number }) | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idRef = useRef(0);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const dismiss = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setCurrent(null);
+  }, []);
+
+  const toast = useCallback(
+    (opts: ToastOptions) => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      idRef.current += 1;
+      setCurrent({ ...opts, id: idRef.current });
+      timerRef.current = setTimeout(dismiss, opts.durationMs ?? DEFAULT_DURATION_MS);
+    },
+    [dismiss],
+  );
+
+  // Clear any pending timer on unmount.
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  const value = useMemo(() => ({ toast }), [toast]);
+
+  return (
+    <ToastContext.Provider value={value}>
+      {children}
+      {mounted &&
+        current &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed inset-x-4 z-[80] flex justify-center"
+            style={{
+              bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 12px)",
+            }}
+          >
+            <div
+              role={current.tone === "error" ? "alert" : "status"}
+              className="glass sheet-in pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl py-2 pl-4 pr-2"
+            >
+              <p
+                className={`font-body min-w-0 grow text-sm ${
+                  current.tone === "error" ? "text-flare" : "text-text"
+                }`}
+              >
+                {current.text}
+              </p>
+              {current.action && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    current.action?.onAction();
+                    dismiss();
+                  }}
+                  className="font-body flex min-h-[44px] shrink-0 items-center rounded-lg px-3 text-sm font-semibold text-accent transition-colors hover:text-chalk"
+                >
+                  {current.action.label}
+                </button>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </ToastContext.Provider>
+  );
+}
