@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MODES, MODE_LABEL, type ModeId, type TargetModelId } from "@/lib/constants";
-import { diffWords, countChanges, type DiffSegment } from "@/lib/enhance/diff";
+import { diffWords, countChangedSections, type DiffSegment } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
 import { useEnhance } from "@/lib/enhance/use-enhance";
 import { StreamingResult } from "@/components/diff/StreamingResult";
@@ -191,7 +191,8 @@ export function PromptDetail({
               label="Compare to version"
             />
             <span className="font-body ml-auto text-xs tabular-nums text-accent">
-              {countChanges(segments)} change{countChanges(segments) === 1 ? "" : "s"}
+              {countChangedSections(segments)} changed section
+              {countChangedSections(segments) === 1 ? "" : "s"}
             </span>
           </div>
         )}

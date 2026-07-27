@@ -5,7 +5,7 @@ import Link from "next/link";
 import { TARGET_DEVELOPER, type ModeId, type TargetModelId } from "@/lib/constants";
 import type { EnhanceResponse } from "@/lib/enhance/use-enhance";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
-import { countChanges } from "@/lib/enhance/diff";
+import { countChangedSections } from "@/lib/enhance/diff";
 import { EXPORTERS, type ExportData, type ExportFormat } from "@/lib/enhance/export";
 import { savePromptAction, logShareAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
@@ -31,7 +31,7 @@ export function TransformationDiff({
   const [queued, setQueued] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, startSave] = useTransition();
-  const changes = countChanges(result.diff);
+  const changes = countChangedSections(result.diff);
 
   function save() {
     setSaveError(null);
@@ -142,7 +142,7 @@ export function TransformationDiff({
           </p>
           <div className="flex items-center gap-2.5">
             <p className="font-body text-xs text-accent">
-              {changes} change{changes === 1 ? "" : "s"}
+              {changes} changed section{changes === 1 ? "" : "s"}
             </p>
             {/* Quick copy — a 44px tap target that doesn't inflate the header row. */}
             <button

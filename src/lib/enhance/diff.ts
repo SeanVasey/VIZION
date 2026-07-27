@@ -77,7 +77,28 @@ function mergeAdjacent(segments: DiffSegment[]): DiffSegment[] {
   return out;
 }
 
-/** Count of changed (non-equal) segments — used for a quick "N changes" readout. */
-export function countChanges(segments: DiffSegment[]): number {
-  return segments.filter((s) => s.op !== "equal" && s.text.trim() !== "").length;
+/**
+ * Count of changed SECTIONS — the user-meaningful readout. A run of adjacent
+ * non-equal segments counts once (a replaced phrase is removed+added = ONE
+ * section, where the old per-segment count said two). Whitespace-only equal
+ * segments don't break a run — a replaced word-pair separated by a space still
+ * reads as one section — and runs containing only whitespace don't count.
+ */
+export function countChangedSections(segments: DiffSegment[]): number {
+  let sections = 0;
+  let inRun = false;
+  let runHasInk = false;
+  for (const seg of segments) {
+    if (seg.op === "equal") {
+      if (seg.text.trim() === "") continue; // whitespace bridge, run continues
+      if (inRun && runHasInk) sections++;
+      inRun = false;
+      runHasInk = false;
+    } else {
+      inRun = true;
+      if (seg.text.trim() !== "") runHasInk = true;
+    }
+  }
+  if (inRun && runHasInk) sections++;
+  return sections;
 }
