@@ -23,6 +23,7 @@ import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
 import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
+import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
 
 /** Frozen option list for the format rail — built once, not per render. */
 const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
@@ -43,6 +44,8 @@ export function EnhanceComposer() {
   const autoTarget = useUIStore((s) => s.autoTarget);
   const reformatFormat = useUIStore((s) => s.reformatFormat);
   const setReformatFormat = useUIStore((s) => s.setReformatFormat);
+  const lengthByMode = useUIStore((s) => s.lengthByMode);
+  const setLengthForMode = useUIStore((s) => s.setLengthForMode);
   const setAutoTarget = useUIStore((s) => s.setAutoTarget);
   const setTargetModel = useUIStore((s) => s.setTargetModel);
   const thinkingLevels = useUIStore((s) => s.thinkingLevels);
@@ -59,6 +62,16 @@ export function EnhanceComposer() {
     levelOptions && storedLevel && levelOptions.includes(storedLevel)
       ? storedLevel
       : undefined;
+
+  // The current mode's length dial, if it has one — and its stored value
+  // re-validated against that mode's options, the same discipline the
+  // thinking rail applies to a stale persisted level.
+  const lengthChoices = lengthOptions(activeMode);
+  const storedLength = lengthByMode[activeMode];
+  const activeLength =
+    lengthChoices && storedLength && LENGTHS.includes(storedLength)
+      ? storedLength
+      : null;
 
   const enhanceMutation = useEnhance();
   const { toast } = useToast();
@@ -134,6 +147,7 @@ export function EnhanceComposer() {
         ...(activeMode === "reformat" && reformatFormat
           ? { format: reformatFormat }
           : {}),
+        ...(activeLength ? { length: activeLength } : {}),
         ...(thinkingLevel ? { thinkingLevel } : {}),
         ...(mediaContext.length > 0 ? { mediaContext } : {}),
       },
@@ -349,6 +363,28 @@ export function EnhanceComposer() {
                 // competing for width on a 390px screen.
                 onChange={(next) =>
                   setReformatFormat(next === reformatFormat ? null : next)
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Length rail — Condense and Expand only. The dial is shared but the
+            LABELS are per mode: the aggressive end of Condense is the smallest
+            output and the aggressive end of Expand is the largest, so one set
+            of words would read as a lie on one of the two. */}
+        {lengthChoices && (
+          <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
+            <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+              Depth
+            </span>
+            <div className="min-w-0 overflow-x-auto">
+              <Segmented
+                label="Length"
+                options={lengthChoices}
+                value={activeLength}
+                onChange={(next) =>
+                  setLengthForMode(activeMode, next === activeLength ? null : next)
                 }
               />
             </div>

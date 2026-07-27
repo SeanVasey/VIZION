@@ -23,6 +23,7 @@ import { rateLimit } from "@/lib/security/rate-limit";
 import { diffWords } from "@/lib/enhance/diff";
 import { resolveAutoTarget } from "@/lib/enhance/auto-target";
 import { isFormatId, type FormatId } from "@/lib/enhance/formats";
+import { isLengthId, type LengthId } from "@/lib/enhance/lengths";
 import {
   encodeSseEvent,
   STREAM_STEPS,
@@ -71,13 +72,23 @@ export async function POST(request: NextRequest) {
     return err(400, "Invalid JSON body.");
   }
 
-  const { input, mode, target, auto, format, thinkingLevel, refine, mediaContext } =
-    (body ?? {}) as {
+  const {
+    input,
+    mode,
+    target,
+    auto,
+    format,
+    length,
+    thinkingLevel,
+    refine,
+    mediaContext,
+  } = (body ?? {}) as {
       input?: unknown;
       mode?: unknown;
       target?: unknown;
       auto?: unknown;
       format?: unknown;
+      length?: unknown;
       thinkingLevel?: unknown;
       refine?: unknown;
       mediaContext?: unknown;
@@ -133,6 +144,10 @@ export async function POST(request: NextRequest) {
   // argues with itself.
   if (format !== undefined && !isFormatId(format)) {
     return err(400, "Unknown output format.");
+  }
+  // Condense/Expand depth — same story: legality only, mode-gated downstream.
+  if (length !== undefined && !isLengthId(length)) {
+    return err(400, "Unknown length setting.");
   }
 
   // Optional refinement pass — validated to the same standard as the other
@@ -249,6 +264,7 @@ export async function POST(request: NextRequest) {
           thinkingLevel: typedThinkingLevel,
           refine: typedRefine,
           format: format as FormatId | undefined,
+          length: length as LengthId | undefined,
         })) {
           if (event.type === "delta") {
             if (!generating) {

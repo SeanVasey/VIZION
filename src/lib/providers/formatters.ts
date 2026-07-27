@@ -1,6 +1,7 @@
 import { TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
 import { MODE_INSTRUCTIONS } from "@/lib/enhance/modes";
 import { FORMAT_INSTRUCTIONS, type FormatId } from "@/lib/enhance/formats";
+import { LENGTH_INSTRUCTIONS, type LengthId } from "@/lib/enhance/lengths";
 
 /**
  * Per-target idiomatic conventions VIZ(IO)N applies (product-spec §4.3). The
@@ -120,6 +121,8 @@ export interface SystemPromptOptions {
   refine?: EnhanceRefine;
   /** Reformat only — the explicit output shape. */
   format?: FormatId;
+  /** Condense/Expand only — how far to take it. */
+  length?: LengthId;
 }
 
 /**
@@ -130,7 +133,13 @@ export interface SystemPromptOptions {
  * this a legal value" and means a stale client — or a mode switched between
  * composing and sending — can never produce a self-contradictory prompt.
  */
-function knobBlock({ mode, format }: SystemPromptOptions): string[] {
+function knobBlock({ mode, format, length }: SystemPromptOptions): string[] {
+  if (length) {
+    // LENGTH_INSTRUCTIONS is keyed by mode, so a length sent with a mode that
+    // has no dial finds nothing and contributes nothing.
+    const instruction = LENGTH_INSTRUCTIONS[mode]?.[length];
+    if (instruction) return ["", instruction];
+  }
   if (mode === "reformat" && format) {
     // The mode instruction offers the model a choice of shapes ("whichever
     // best fits the task"). Once the user has made that choice the offer has

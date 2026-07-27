@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
 import type { EnhanceRefine } from "@/lib/providers/formatters";
 import type { FormatId } from "@/lib/enhance/formats";
+import type { LengthId } from "@/lib/enhance/lengths";
 import { parseSseStream, type EnhanceResult } from "@/lib/enhance/stream-events";
 
 /** The final result shape (unchanged from the buffered route). */
@@ -22,6 +23,8 @@ export interface EnhanceRequest {
   /** Reformat's explicit output shape. Inert in any other mode — the system
    *  prompt builder gates it, so the route validates legality only. */
   format?: FormatId;
+  /** Condense/Expand depth. Same gating story as `format`. */
+  length?: LengthId;
   /** Reasoning depth for targets that take one; omitted = provider default. */
   thinkingLevel?: ThinkingLevel;
   /** Refinement pass over an already-enhanced prompt (input = prior output). */

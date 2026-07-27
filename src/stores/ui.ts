@@ -13,6 +13,7 @@ import {
   type ThinkingLevel,
 } from "@/lib/constants";
 import type { FormatId } from "@/lib/enhance/formats";
+import type { LengthId } from "@/lib/enhance/lengths";
 
 /**
  * A localStorage adapter that debounces writes. The editor draft persists on
@@ -93,6 +94,10 @@ interface UIState {
   /** Reformat's chosen output shape. `null` = "whichever fits", the behaviour
    *  before the rail existed. */
   reformatFormat: FormatId | null;
+  /** How far Condense / Expand should go. Keyed by mode like thinkingLevels
+   *  is keyed by target: the two modes' dials mean opposite things, so they
+   *  must not share one stored value. */
+  lengthByMode: Partial<Record<ModeId, LengthId>>;
 
   setTheme: (theme: Theme) => void;
   setActiveMode: (mode: ModeId) => void;
@@ -105,6 +110,8 @@ interface UIState {
   setReducedEffects: (v: boolean) => void;
   setAutoTarget: (v: boolean) => void;
   setReformatFormat: (v: FormatId | null) => void;
+  /** `null` clears back to the mode's own default. */
+  setLengthForMode: (mode: ModeId, length: LengthId | null) => void;
 }
 
 /**
@@ -124,6 +131,7 @@ export const useUIStore = create<UIState>()(
       reducedEffects: false,
       autoTarget: false,
       reformatFormat: null,
+      lengthByMode: {},
 
       setTheme: (theme) => set({ theme }),
       setActiveMode: (activeMode) => set({ activeMode }),
@@ -142,6 +150,13 @@ export const useUIStore = create<UIState>()(
       setReducedEffects: (reducedEffects) => set({ reducedEffects }),
       setAutoTarget: (autoTarget) => set({ autoTarget }),
       setReformatFormat: (reformatFormat) => set({ reformatFormat }),
+      setLengthForMode: (mode, length) =>
+        set((s) => {
+          const lengthByMode = { ...s.lengthByMode };
+          if (length === null) delete lengthByMode[mode];
+          else lengthByMode[mode] = length;
+          return { lengthByMode };
+        }),
     }),
     {
       name: UI_STORE_KEY,
@@ -202,6 +217,8 @@ export const useUIStore = create<UIState>()(
         autoTarget: state.autoTarget,
         // Same shallow-merge story as autoTarget: absent key -> initial null.
         reformatFormat: state.reformatFormat,
+        // Absent key -> initial {} under the shallow merge, same as above.
+        lengthByMode: state.lengthByMode,
       }),
     },
   ),
