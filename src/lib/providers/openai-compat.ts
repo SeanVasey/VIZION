@@ -67,6 +67,8 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
         let text = chunk.choices[0]?.delta?.content ?? "";
         if (text && filter) text = filter.push(text);
         if (text) yield { text };
+        const finish = chunk.choices[0]?.finish_reason;
+        if (finish) yield { stopReason: finish };
         if (chunk.usage) {
           yield {
             usage: {

@@ -29,6 +29,10 @@ export class ProviderError extends Error {
 export interface ProviderStreamChunk {
   text?: string;
   usage?: { tokenIn: number; tokenOut: number };
+  /** Provider-reported stop/finish reason, raw wire value ("max_tokens",
+   *  "length", "MAX_TOKENS", …). Lets the adapter tell "hit the output
+   *  ceiling" apart from "returned a malformed envelope". */
+  stopReason?: string;
 }
 
 /** Per-request tuning an adapter may honor. `thinkingLevel` is the user's

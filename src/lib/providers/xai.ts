@@ -48,6 +48,8 @@ export async function* streamXAI(
     for await (const chunk of stream) {
       const text = chunk.choices[0]?.delta?.content;
       if (text) yield { text };
+      const finish = chunk.choices[0]?.finish_reason;
+      if (finish) yield { stopReason: finish };
       if (chunk.usage) {
         yield {
           usage: {

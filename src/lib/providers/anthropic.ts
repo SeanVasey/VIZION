@@ -61,7 +61,10 @@ export async function* streamAnthropic(
       ) {
         yield { text: event.delta.text };
       } else if (event.type === "message_delta") {
-        yield { usage: { tokenIn, tokenOut: event.usage.output_tokens } };
+        yield {
+          usage: { tokenIn, tokenOut: event.usage.output_tokens },
+          ...(event.delta.stop_reason ? { stopReason: event.delta.stop_reason } : {}),
+        };
       }
     }
   } catch (error) {
