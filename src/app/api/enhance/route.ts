@@ -18,6 +18,7 @@ import {
   COST_CAP_USD_PER_DAY,
 } from "@/lib/providers/config";
 import { ProviderNotConfiguredError } from "@/lib/providers/errors";
+import { REFINE_KINDS, type EnhanceRefine, type RefineKind } from "@/lib/providers/formatters";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { diffWords } from "@/lib/enhance/diff";
 import {
@@ -30,6 +31,7 @@ import {
 const MAX_INPUT_CHARS = 20_000;
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
+const REFINE_KIND_IDS = new Set<string>(REFINE_KINDS);
 
 /** Streaming can outlive the default function window on long enhancements. */
 export const maxDuration = 60;
@@ -67,11 +69,12 @@ export async function POST(request: NextRequest) {
     return err(400, "Invalid JSON body.");
   }
 
-  const { input, mode, target, thinkingLevel } = (body ?? {}) as {
+  const { input, mode, target, thinkingLevel, refine } = (body ?? {}) as {
     input?: unknown;
     mode?: unknown;
     target?: unknown;
     thinkingLevel?: unknown;
+    refine?: unknown;
   };
 
   if (typeof input !== "string" || input.trim() === "") {
@@ -97,6 +100,28 @@ export async function POST(request: NextRequest) {
       !(allowedLevels as readonly string[]).includes(thinkingLevel))
   ) {
     return err(400, "That thinking level isn't available for this model.");
+  }
+  // Optional refinement pass — validated to the same standard as the other
+  // knobs so an invented kind or oversized base can never reach a provider.
+  let typedRefine: EnhanceRefine | undefined;
+  if (refine !== undefined) {
+    if (typeof refine !== "object" || refine === null) {
+      return err(400, "Unknown refinement.");
+    }
+    const { kind, baseInput } = refine as { kind?: unknown; baseInput?: unknown };
+    if (typeof kind !== "string" || !REFINE_KIND_IDS.has(kind)) {
+      return err(400, "Unknown refinement.");
+    }
+    if (baseInput !== undefined && typeof baseInput !== "string") {
+      return err(400, "Unknown refinement.");
+    }
+    if (typeof baseInput === "string" && baseInput.length > MAX_INPUT_CHARS) {
+      return err(413, `Prompt is too long (max ${MAX_INPUT_CHARS} characters).`);
+    }
+    typedRefine = {
+      kind: kind as RefineKind,
+      ...(typeof baseInput === "string" ? { baseInput } : {}),
+    };
   }
   // Missing keys fail closed as a plain pre-stream 503 (the documented
   // contract) instead of being discovered only after SSE headers are sent.
@@ -158,6 +183,7 @@ export async function POST(request: NextRequest) {
           mode: typedMode,
           target: typedTarget,
           thinkingLevel: typedThinkingLevel,
+          refine: typedRefine,
         })) {
           if (event.type === "delta") {
             if (!generating) {

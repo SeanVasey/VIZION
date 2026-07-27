@@ -56,6 +56,41 @@ export const TARGET_LABEL: Record<TargetModelId, string> = Object.fromEntries(
  */
 const SHAPE_PRESERVING = new Set<ModeId>(["polish", "clarify"]);
 
+/** True when the mode keeps the input's shape — for these the destination
+ *  affects only routing/cost, never formatting (the UI says so honestly). */
+export function isShapePreserving(mode: ModeId): boolean {
+  return SHAPE_PRESERVING.has(mode);
+}
+
+/** Refinement passes the result view offers on a finished enhancement. */
+export const REFINE_KINDS = ["shorter", "detail", "tone"] as const;
+export type RefineKind = (typeof REFINE_KINDS)[number];
+
+export interface EnhanceRefine {
+  kind: RefineKind;
+  /** The author's ORIGINAL input — required context for the `tone` pass. */
+  baseInput?: string;
+}
+
+const REFINE_INSTRUCTIONS: Record<RefineKind, string> = {
+  shorter:
+    "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Make it meaningfully shorter while keeping every load-bearing instruction and constraint. Do not add new content.",
+  detail:
+    "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Add depth — concrete constraints, examples, and acceptance criteria it still lacks. Do not remove or weaken existing instructions.",
+  tone: "REFINEMENT PASS: The input you receive is an already-enhanced prompt that drifted from the author's voice. Rewrite it so the voice, phrasing habits, and register match the AUTHOR'S ORIGINAL below, while keeping the improvements.",
+};
+
+/** The refine block appended after the mode instruction (empty when no
+ *  refinement). Tone wraps the author's original in explicit delimiters. */
+function refineBlock(refine?: EnhanceRefine): string[] {
+  if (!refine) return [];
+  const lines = [REFINE_INSTRUCTIONS[refine.kind]];
+  if (refine.kind === "tone" && refine.baseInput) {
+    lines.push("AUTHOR'S ORIGINAL:", "<original>", refine.baseInput, "</original>");
+  }
+  return ["", lines.join("\n")];
+}
+
 const FORMAT_PRESERVATION =
   'OUTPUT SHAPE — CRITICAL: This governs the transformed prompt only (the "output" field), not the JSON envelope you must return. Preserve the input\'s existing format, voice, and length. If the input is a single sentence or a plain paragraph, keep the output a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use into the transformed prompt, and do NOT expand a short prose prompt into a structured document. The output will be pasted into the target engine — keep it clean, plain text unless the original was already structured.';
 
@@ -83,7 +118,11 @@ const OUTPUT_STRUCTURE_FORBIDDEN =
  * prompt for the given mode + target. Pure and deterministic so it can be
  * unit-tested and so the prompt prefix stays cache-friendly.
  */
-export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
+export function buildSystemPrompt(
+  mode: ModeId,
+  target: TargetModelId,
+  refine?: EnhanceRefine,
+): string {
   const shapePreserving = SHAPE_PRESERVING.has(mode);
   const conventions = shapePreserving ? FORMAT_PRESERVATION : TARGET_CONVENTIONS[target];
   const outputContract = `${OUTPUT_CONTRACT_BASE} ${
@@ -93,6 +132,7 @@ export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
     "You are VIZ(IO)N, a precise prompt engineer. You transform a user's prompt; you never answer or execute it.",
     "",
     MODE_INSTRUCTIONS[mode],
+    ...refineBlock(refine),
     "",
     conventions,
     "",

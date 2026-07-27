@@ -6,6 +6,7 @@ import { MODES, MODE_LABEL, type ModeId, type TargetModelId } from "@/lib/consta
 import { diffWords, countChangedSections, type DiffSegment } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
 import { useEnhance } from "@/lib/enhance/use-enhance";
+import { useToast } from "@/components/ui/Toast";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
 import {
@@ -44,6 +45,7 @@ export function PromptDetail({
   versions: Version[];
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [pending, startTransition] = useTransition();
   // Server-action failures were previously swallowed — every mutation on this
   // screen reports here.
@@ -101,7 +103,11 @@ export function PromptDetail({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard unavailable; no-op */
+      // Surfacing beats silence: tell the user copy did NOT happen.
+      toast({
+        tone: "error",
+        text: "Couldn't copy — your browser blocked clipboard access. Select the text and copy manually.",
+      });
     }
   }
 

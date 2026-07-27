@@ -12,6 +12,7 @@ import {
   type ThinkingLevel,
 } from "@/lib/constants";
 import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
+import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
@@ -61,6 +62,9 @@ export function EnhanceComposer() {
   const [view, setView] = useState<{
     submitted: { input: string; mode: ModeId; target: TargetModelId };
     result: EnhanceResponse;
+    /** True once a refinement pass replaced the result — the diff's input
+     *  side is then the previous result, not the author's original. */
+    refined?: boolean;
   } | null>(null);
   const [confirmStopOpen, setConfirmStopOpen] = useState(false);
 
@@ -117,6 +121,48 @@ export function EnhanceComposer() {
       return;
     }
     performClear();
+  }
+
+  /** "Use as draft" — replace the editor draft with the result, undoably. */
+  function handleUse(text: string) {
+    const prior = editorDraft;
+    setEditorDraft(text);
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document
+      .getElementById("prompt-input")
+      ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
+    if (prior.trim() !== "" && prior !== text) {
+      toast({
+        text: "Draft replaced",
+        action: { label: "Undo", onAction: () => setEditorDraft(prior) },
+      });
+    }
+  }
+
+  /** Refinement pass — seeded from the CURRENT output (with any per-change
+   *  decisions applied), keeping the original submitted input for saves. */
+  function handleRefine(kind: RefineKind, currentOutput: string) {
+    if (!view || enhanceMutation.isPending) return;
+    const v = view;
+    const ladder = TARGET_THINKING_LEVELS[v.submitted.target];
+    const stored = thinkingLevels[v.submitted.target];
+    const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
+    enhanceMutation.mutate(
+      {
+        input: currentOutput,
+        mode: v.submitted.mode,
+        target: v.submitted.target,
+        ...(level ? { thinkingLevel: level } : {}),
+        // Tone needs the author's ORIGINAL voice as reference material.
+        refine: kind === "tone" ? { kind, baseInput: v.submitted.input } : { kind },
+      },
+      {
+        onSuccess: (result) =>
+          setView({ submitted: v.submitted, result, refined: true }),
+      },
+    );
   }
 
   return (
@@ -327,6 +373,10 @@ export function EnhanceComposer() {
           mode={view.submitted.mode}
           target={view.submitted.target}
           result={view.result}
+          refined={view.refined ?? false}
+          refinePending={enhanceMutation.isPending}
+          onUse={handleUse}
+          onRefine={handleRefine}
         />
       )}
 

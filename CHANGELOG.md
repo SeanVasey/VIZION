@@ -6,6 +6,45 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — mobile-first result view: Enhanced leads, Compare is a sheet
+
+The transformation diff made the improved prompt the *last* thing you reached:
+Original card first, no way to adopt the result, diagnostics inline. Rebuilt:
+
+- **Enhanced first**, with **Copy** (primary) and **Use as draft** directly
+  beneath it. Use as draft replaces the composer draft (undoable via toast)
+  and scrolls back to the editor.
+- **Original collapses by default** for long prompts (> 400 chars of diff
+  input) behind a "Show original (N words)" toggle.
+- **Compare is a bottom sheet** — the full two-pane diff read moved there,
+  keeping the inline cards clean.
+- **Assumptions and destination-specific changes render separately** from the
+  rationale (from the new envelope fields). For the shape-preserving modes
+  (Clarify/Polish) the view now states honestly that no destination-specific
+  formatting was applied — the target only ran the rewrite.
+- **Copy failure is surfaced** as an error toast (result view and prompt
+  detail) instead of silently doing nothing.
+
+### Added — refinement chips: Make shorter · More detail · Keep my tone
+
+One-tap follow-up passes on a finished result, seeded from the **current
+output** (per-change decisions included). "Keep my tone" sends the author's
+original as reference material. A refine run is a normal billed run (same
+rate limit + cost cap); the diff after a refine reads previous result →
+refined result, while saves and exports keep the author's original input as
+provenance. The `/api/enhance` contract gains an optional validated
+`refine: { kind, baseInput? }`.
+
+### Added — per-change accept/reject for Polish
+
+Polish results now list every change as a reviewable hunk (adjacent
+removed+added runs, whitespace-bridged) with Keep/Revert toggles plus
+Keep all / Revert all. The Enhanced card re-renders from the decisions, and
+Copy, Use as draft, Save, Share, and every export consume the
+decision-applied text. Reconstruction is exact by construction (unit-tested
+invariants: nothing rejected ⇒ the model output; everything rejected ⇒ the
+original).
+
 ### Changed — "N changes" now counts changed sections
 
 The result header's counter counted merged diff *segments*: one replaced

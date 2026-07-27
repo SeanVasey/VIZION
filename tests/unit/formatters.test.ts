@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt, parseEnhancePayload } from "@/lib/providers/formatters";
+import {
+  buildSystemPrompt,
+  parseEnhancePayload,
+  REFINE_KINDS,
+} from "@/lib/providers/formatters";
 import { MODES, TARGET_MODELS } from "@/lib/constants";
 
 describe("buildSystemPrompt", () => {
@@ -96,6 +100,33 @@ describe("buildSystemPrompt", () => {
     const p = buildSystemPrompt("clarify", "gpt_5_6_sol");
     expect(p).not.toContain("JSON-mode");
     expect(p).toMatch(/preserve the input's existing format/i);
+  });
+
+  it("appends a refinement pass only when requested", () => {
+    expect(buildSystemPrompt("condense", "opus_5")).not.toContain("REFINEMENT PASS");
+    const p = buildSystemPrompt("condense", "opus_5", { kind: "shorter" });
+    expect(p).toContain("REFINEMENT PASS");
+    expect(p).toContain("meaningfully shorter");
+  });
+
+  it("the tone refinement wraps the author's original in delimiters", () => {
+    const p = buildSystemPrompt("clarify", "opus_5", {
+      kind: "tone",
+      baseInput: "my casual original words",
+    });
+    expect(p).toContain("AUTHOR'S ORIGINAL:");
+    expect(p).toContain("<original>\nmy casual original words\n</original>");
+  });
+
+  it("refinement never reintroduces role framing, any kind × mode", () => {
+    for (const kind of REFINE_KINDS) {
+      for (const mode of MODES) {
+        const p = buildSystemPrompt(mode.id, "gpt_5_6_sol", { kind, baseInput: "x" });
+        expect(p).toContain("THE OUTPUT IS THE PROMPT ITSELF");
+        expect(p).not.toContain("system/user separation");
+        expect(p).not.toContain("system-instruction block");
+      }
+    }
   });
 });
 

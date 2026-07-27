@@ -24,6 +24,9 @@ interface VersionInput {
   modelUsed: string;
   tokenIn: number;
   tokenOut: number;
+  /** Model-suggested semantic title (envelope `title`) — rides inside the
+   *  payload so the offline outbox replay keeps it too. */
+  title?: string;
 }
 
 function validate(v: VersionInput): string | null {
@@ -48,7 +51,7 @@ export async function savePromptAction(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
 
-  const promptTitle = title?.trim() || deriveTitle(v.input);
+  const promptTitle = title?.trim() || v.title?.trim() || deriveTitle(v.input);
 
   const { data: prompt, error: pErr } = await supabase
     .from("prompts")
