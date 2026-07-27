@@ -12,8 +12,8 @@ import { AvatarCropper } from "@/components/avatar-crop/AvatarCropper";
 import { Sheet } from "@/components/ui/Sheet";
 import { updateProfileAction, updateEmailAction } from "@/lib/profile/actions";
 import { setPasswordAction } from "@/app/(auth)/actions";
-import { TARGET_MODELS, TARGET_DEVELOPER, type TargetModelId } from "@/lib/constants";
-import { DeveloperIcon } from "@/components/models/DeveloperIcon";
+import { type TargetModelId } from "@/lib/constants";
+import { TargetPicker } from "@/components/models/TargetPicker";
 import {
   Field,
   Divider,
@@ -337,45 +337,14 @@ export function SettingsPanel({
       {/* Defaults. */}
       <SettingsSection title="Defaults">
         <Field label="Default model">
-          <div className="glass relative flex items-center rounded-xl">
-            <label htmlFor="default-model" className="sr-only">
-              Default model
-            </label>
-            {TARGET_DEVELOPER[defaultModel] && (
-              <DeveloperIcon
-                developer={TARGET_DEVELOPER[defaultModel]}
-                className="pointer-events-none absolute left-3 h-4 w-4 text-accent"
-              />
-            )}
-            <select
-              id="default-model"
-              value={defaultModel}
-              onChange={(e) => changeDefaultModel(e.target.value as TargetModelId)}
-              className={`font-body min-h-[44px] w-full cursor-pointer appearance-none rounded-xl bg-transparent py-2 pr-8 text-sm text-text focus:outline-none ${
-                TARGET_DEVELOPER[defaultModel] ? "pl-9" : "pl-3"
-              }`}
-            >
-              {TARGET_MODELS.map((m) => (
-                <option key={m.id} value={m.id} className="bg-onyx text-chalk">
-                  {m.label}
-                </option>
-              ))}
-            </select>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="pointer-events-none absolute right-2.5 h-4 w-4 text-silver"
-            >
-              <path
-                d="M8 10l4 4 4-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          {/* Same grouped sheet as the composer's target rail — one picker, so
+              the two surfaces can't drift in ordering or grouping. */}
+          <TargetPicker
+            label="Default model"
+            value={defaultModel}
+            onChange={changeDefaultModel}
+            triggerClassName="glass font-body flex min-h-[44px] w-full items-center gap-2 rounded-xl px-3 text-sm text-text hover-hair transition-colors"
+          />
         </Field>
         <FieldStatus status={status.default_model} />
       </SettingsSection>

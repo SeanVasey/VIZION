@@ -3,8 +3,6 @@
 import { useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import {
-  TARGET_MODELS,
-  TARGET_DEVELOPER,
   TARGET_THINKING_LEVELS,
   THINKING_LEVEL_LABEL,
   type ModeId,
@@ -14,7 +12,7 @@ import {
 import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
-import { DeveloperIcon } from "@/components/models/DeveloperIcon";
+import { TargetPicker } from "@/components/models/TargetPicker";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
@@ -241,49 +239,20 @@ export function EnhanceComposer() {
           intakeRef.current?.(e.dataTransfer.files);
         }}
       >
-        {/* Top rail — model target, nested under the rounded top corners. */}
+        {/* Top rail — model target, nested under the rounded top corners.
+            A sheet rather than a native select: sixteen models across twelve
+            developers need the grouping, and an <option> can't carry the
+            developer mark. */}
         <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
-          <label
-            htmlFor="target-model"
-            className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver"
-          >
+          <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
             Target
-          </label>
-          <div className="relative inline-flex items-center">
-            {/* Native <option> can't render SVG, so the selected model's
-                developer mark sits on the select's left edge (the mirror of
-                the chevron on the right). */}
-            <DeveloperIcon
-              developer={TARGET_DEVELOPER[targetModel]}
-              className="pointer-events-none absolute left-3 h-4 w-4 text-accent"
-            />
-            <select
-              id="target-model"
-              value={targetModel}
-              onChange={(e) => setTargetModel(e.target.value as typeof targetModel)}
-              className="font-body cursor-pointer appearance-none rounded-full bg-surface py-1.5 pl-9 pr-8 text-sm text-text focus:outline-none focus-visible:shadow-none"
-            >
-              {TARGET_MODELS.map((m) => (
-                <option key={m.id} value={m.id} className="bg-onyx text-chalk">
-                  {m.label}
-                </option>
-              ))}
-            </select>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="pointer-events-none absolute right-2.5 h-4 w-4 text-silver"
-            >
-              <path
-                d="M8 10l4 4 4-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          </span>
+          <TargetPicker
+            label="Target model"
+            value={targetModel}
+            onChange={setTargetModel}
+            triggerClassName="font-body inline-flex min-h-[44px] items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-2.5 text-sm text-text transition-colors hover:text-chalk"
+          />
         </div>
 
         {/* Thinking rail — reasoning depth, only for targets whose provider
