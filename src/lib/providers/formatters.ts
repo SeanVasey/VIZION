@@ -1,5 +1,7 @@
 import { TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
 import { MODE_INSTRUCTIONS } from "@/lib/enhance/modes";
+import { FORMAT_INSTRUCTIONS, type FormatId } from "@/lib/enhance/formats";
+import { LENGTH_INSTRUCTIONS, type LengthId } from "@/lib/enhance/lengths";
 
 /**
  * Per-target idiomatic conventions VIZ(IO)N applies (product-spec §4.3). The
@@ -62,13 +64,19 @@ export function isShapePreserving(mode: ModeId): boolean {
   return SHAPE_PRESERVING.has(mode);
 }
 
-/** Refinement passes the result view offers on a finished enhancement. */
-export const REFINE_KINDS = ["shorter", "detail", "tone"] as const;
+/**
+ * Refinement passes. The first three are chips on a finished enhancement;
+ * `answers` is different in kind — it is a *re-run of the original request*
+ * with the user's replies attached, offered by the Clarify questions card
+ * rather than the chip row.
+ */
+export const REFINE_KINDS = ["shorter", "detail", "tone", "answers"] as const;
 export type RefineKind = (typeof REFINE_KINDS)[number];
 
 export interface EnhanceRefine {
   kind: RefineKind;
-  /** The author's ORIGINAL input — required context for the `tone` pass. */
+  /** Extra context the pass needs: the author's ORIGINAL for `tone`, the
+   *  fenced Q&A block for `answers`. */
   baseInput?: string;
 }
 
@@ -78,15 +86,25 @@ const REFINE_INSTRUCTIONS: Record<RefineKind, string> = {
   detail:
     "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Add depth — concrete constraints, examples, and acceptance criteria it still lacks. Do not remove or weaken existing instructions.",
   tone: "REFINEMENT PASS: The input you receive is an already-enhanced prompt that drifted from the author's voice. Rewrite it so the voice, phrasing habits, and register match the AUTHOR'S ORIGINAL below, while keeping the improvements.",
+  // Deliberately does NOT open with "the input you receive is an
+  // already-enhanced prompt" like its three siblings: for this pass the input
+  // is the author's ORIGINAL request, and the answers are the new material.
+  // Copying the sibling framing would tell the model something false about
+  // what it is holding.
+  answers:
+    "ANSWERED PASS: The input you receive is the author's ORIGINAL request, and below it are questions you asked about it together with their answers. Redo the enhancement from scratch using those answers as established fact — they are no longer assumptions. Do not ask further questions and do not return a `questions` field on this pass.",
 };
 
 /** The refine block appended after the mode instruction (empty when no
- *  refinement). Tone wraps the author's original in explicit delimiters. */
+ *  refinement). Tone and answers wrap their extra context in delimiters. */
 function refineBlock(refine?: EnhanceRefine): string[] {
   if (!refine) return [];
   const lines = [REFINE_INSTRUCTIONS[refine.kind]];
   if (refine.kind === "tone" && refine.baseInput) {
     lines.push("AUTHOR'S ORIGINAL:", "<original>", refine.baseInput, "</original>");
+  }
+  if (refine.kind === "answers" && refine.baseInput) {
+    lines.push("QUESTIONS AND ANSWERS:", "<answers>", refine.baseInput, "</answers>");
   }
   return ["", lines.join("\n")];
 }
@@ -113,16 +131,55 @@ const OUTPUT_STRUCTURE_ALLOWED =
 const OUTPUT_STRUCTURE_FORBIDDEN =
   "This mode preserves the input's shape — the OUTPUT SHAPE rule above stands: do not introduce sections, tags, or lists the author did not already use.";
 
+export interface SystemPromptOptions {
+  mode: ModeId;
+  target: TargetModelId;
+  refine?: EnhanceRefine;
+  /** Reformat only — the explicit output shape. */
+  format?: FormatId;
+  /** Condense/Expand only — how far to take it. */
+  length?: LengthId;
+}
+
+/**
+ * Per-mode knobs, gated HERE rather than at the wire.
+ *
+ * A knob that doesn't apply to the current mode is inert, not an error: the
+ * builder simply doesn't read it. That keeps the route's validation to "is
+ * this a legal value" and means a stale client — or a mode switched between
+ * composing and sending — can never produce a self-contradictory prompt.
+ */
+function knobBlock({ mode, format, length }: SystemPromptOptions): string[] {
+  if (length) {
+    // LENGTH_INSTRUCTIONS is keyed by mode, so a length sent with a mode that
+    // has no dial finds nothing and contributes nothing.
+    const instruction = LENGTH_INSTRUCTIONS[mode]?.[length];
+    if (instruction) return ["", instruction];
+  }
+  if (mode === "reformat" && format) {
+    // The mode instruction offers the model a choice of shapes ("whichever
+    // best fits the task"). Once the user has made that choice the offer has
+    // to be withdrawn explicitly, or the two lines argue.
+    return [
+      "",
+      `${FORMAT_INSTRUCTIONS[format]} This shape is chosen — it replaces the "whichever fits" latitude above; do not substitute a different structure.`,
+    ];
+  }
+  return [];
+}
+
 /**
  * Build the system prompt that instructs the model to transform the user's
  * prompt for the given mode + target. Pure and deterministic so it can be
  * unit-tested and so the prompt prefix stays cache-friendly.
+ *
+ * Takes an options object rather than positionals: the knob count is growing
+ * past the point where call sites can be read at a glance, and a boolean or
+ * string in the wrong slot would be silently accepted by a positional
+ * signature.
  */
-export function buildSystemPrompt(
-  mode: ModeId,
-  target: TargetModelId,
-  refine?: EnhanceRefine,
-): string {
+export function buildSystemPrompt(opts: SystemPromptOptions): string {
+  const { mode, target, refine } = opts;
   const shapePreserving = SHAPE_PRESERVING.has(mode);
   const conventions = shapePreserving ? FORMAT_PRESERVATION : TARGET_CONVENTIONS[target];
   const outputContract = `${OUTPUT_CONTRACT_BASE} ${
@@ -132,6 +189,7 @@ export function buildSystemPrompt(
     "You are VIZ(IO)N, a precise prompt engineer. You transform a user's prompt; you never answer or execute it.",
     "",
     MODE_INSTRUCTIONS[mode],
+    ...knobBlock(opts),
     ...refineBlock(refine),
     "",
     conventions,
@@ -147,6 +205,11 @@ export function buildSystemPrompt(
     '- "assumptions" (optional, array of strings): assumptions you made to fill gaps in the request, one short line each. Omit the field entirely if you made none.',
     '- "targetNotes" (optional, string): one sentence naming any changes made specifically for the target engine. Omit if none.',
     '- "title" (optional, string): a short semantic name for this prompt (max 60 characters, no quotes), suitable as a library entry title.',
+    ...(mode === "clarify"
+      ? [
+          '- "questions" (optional, array of strings): up to 3 short questions whose answers would let you sharpen this request further. Ask only when the ambiguity genuinely changes the result. This NEVER replaces "output" — return your best-effort enhancement either way. Omit the field entirely if you have no real question.',
+        ]
+      : []),
     "Do not wrap the JSON in markdown fences. Do not include any other text. Return this JSON envelope on every pass, including refinement passes.",
   ].join("\n");
 }
@@ -160,10 +223,21 @@ export interface EnhancePayload {
   targetNotes?: string;
   /** Short semantic name for the prompt (library title seed) — optional. */
   title?: string;
+  /**
+   * Clarify only — questions the model would ask to sharpen an ambiguous
+   * request. OPTIONAL and never a substitute for `output`: the model still
+   * returns its best-effort enhancement, and may additionally ask. Making
+   * output conditional on the absence of questions would turn a required
+   * contract into a negotiable one.
+   */
+  questions?: string[];
 }
 
 /** Most assumptions a payload may carry — anything longer is noise. */
 const MAX_ASSUMPTIONS = 6;
+/** Questions are answered by hand in a form, so the cap is what a person
+ *  will actually fill in — lower than the assumptions cap on purpose. */
+const MAX_QUESTIONS = 3;
 const MAX_TITLE_CHARS = 60;
 
 /**
@@ -252,6 +326,16 @@ export function parseEnhancePayload(raw: string): EnhancePayload {
       .map((a) => a.trim())
       .slice(0, MAX_ASSUMPTIONS);
     if (assumptions.length > 0) payload.assumptions = assumptions;
+  }
+  // Exactly the assumptions tolerance: string-filtered, blanks rejected,
+  // trimmed, capped, key omitted when empty, NEVER fatal. A malformed
+  // questions field must not cost the user a paid, otherwise-valid run.
+  if (Array.isArray(rec.questions)) {
+    const questions = rec.questions
+      .filter((q): q is string => typeof q === "string" && q.trim() !== "")
+      .map((q) => q.trim())
+      .slice(0, MAX_QUESTIONS);
+    if (questions.length > 0) payload.questions = questions;
   }
   if (typeof rec.targetNotes === "string" && rec.targetNotes.trim() !== "") {
     payload.targetNotes = rec.targetNotes.trim();

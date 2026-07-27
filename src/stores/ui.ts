@@ -12,6 +12,8 @@ import {
   type Theme,
   type ThinkingLevel,
 } from "@/lib/constants";
+import type { FormatId } from "@/lib/enhance/formats";
+import type { LengthId } from "@/lib/enhance/lengths";
 
 /**
  * A localStorage adapter that debounces writes. The editor draft persists on
@@ -85,6 +87,17 @@ interface UIState {
   /** Suppress the ambient effects (mesh canvas, auroras, shimmer) on this
    *  device — a performance/comfort knob independent of reduced-motion. */
   reducedEffects: boolean;
+  /** Let the server pick the model per run. `targetModel` stays whatever the
+   *  user last chose and rides along as the fallback — turning Auto off must
+   *  return them to their own pick, not to a default. */
+  autoTarget: boolean;
+  /** Reformat's chosen output shape. `null` = "whichever fits", the behaviour
+   *  before the rail existed. */
+  reformatFormat: FormatId | null;
+  /** How far Condense / Expand should go. Keyed by mode like thinkingLevels
+   *  is keyed by target: the two modes' dials mean opposite things, so they
+   *  must not share one stored value. */
+  lengthByMode: Partial<Record<ModeId, LengthId>>;
 
   setTheme: (theme: Theme) => void;
   setActiveMode: (mode: ModeId) => void;
@@ -95,6 +108,10 @@ interface UIState {
   setMediaNoticeAcknowledged: (v: boolean) => void;
   setMediaStoreByDefault: (v: boolean) => void;
   setReducedEffects: (v: boolean) => void;
+  setAutoTarget: (v: boolean) => void;
+  setReformatFormat: (v: FormatId | null) => void;
+  /** `null` clears back to the mode's own default. */
+  setLengthForMode: (mode: ModeId, length: LengthId | null) => void;
 }
 
 /**
@@ -112,6 +129,9 @@ export const useUIStore = create<UIState>()(
       mediaNoticeAcknowledged: false,
       mediaStoreByDefault: true,
       reducedEffects: false,
+      autoTarget: false,
+      reformatFormat: null,
+      lengthByMode: {},
 
       setTheme: (theme) => set({ theme }),
       setActiveMode: (activeMode) => set({ activeMode }),
@@ -128,6 +148,15 @@ export const useUIStore = create<UIState>()(
         set({ mediaNoticeAcknowledged }),
       setMediaStoreByDefault: (mediaStoreByDefault) => set({ mediaStoreByDefault }),
       setReducedEffects: (reducedEffects) => set({ reducedEffects }),
+      setAutoTarget: (autoTarget) => set({ autoTarget }),
+      setReformatFormat: (reformatFormat) => set({ reformatFormat }),
+      setLengthForMode: (mode, length) =>
+        set((s) => {
+          const lengthByMode = { ...s.lengthByMode };
+          if (length === null) delete lengthByMode[mode];
+          else lengthByMode[mode] = length;
+          return { lengthByMode };
+        }),
     }),
     {
       name: UI_STORE_KEY,
@@ -182,6 +211,14 @@ export const useUIStore = create<UIState>()(
         // reducedEffects rides the shallow merge: a persisted state without
         // the key falls back to the initial `false` — no version bump needed.
         reducedEffects: state.reducedEffects,
+        // autoTarget follows the reducedEffects precedent: a persisted state
+        // without the key falls back to the initial `false`, so no version
+        // bump. Off by default — routing is opt-in, never a surprise.
+        autoTarget: state.autoTarget,
+        // Same shallow-merge story as autoTarget: absent key -> initial null.
+        reformatFormat: state.reformatFormat,
+        // Absent key -> initial {} under the shallow merge, same as above.
+        lengthByMode: state.lengthByMode,
       }),
     },
   ),

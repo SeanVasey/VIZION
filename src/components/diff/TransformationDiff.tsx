@@ -62,6 +62,7 @@ export function TransformationDiff({
   refinePending = false,
   onUse,
   onRefine,
+  onAnswer,
 }: {
   input: string;
   mode: ModeId;
@@ -73,6 +74,9 @@ export function TransformationDiff({
   refinePending?: boolean;
   onUse?: (text: string) => void;
   onRefine?: (kind: RefineKind, currentOutput: string) => void;
+  /** Clarify's answered re-run. Absent = the questions card isn't offered
+   *  (the library's re-enhance has no follow-up loop). */
+  onAnswer?: (questions: string[], answers: string[]) => void;
 }) {
   const { copied, copy } = useCopy();
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -104,6 +108,9 @@ export function TransformationDiff({
 
   // Per-change decisions (Polish only): hunk ids the user reverted.
   const [rejected, setRejected] = useState<ReadonlySet<number>>(new Set());
+  // Clarify's answers, positional against result.questions.
+  const [answers, setAnswers] = useState<string[]>([]);
+  const answeredCount = answers.filter((a) => a.trim() !== "").length;
   const hunks = useMemo(() => toHunks(result.diff), [result]);
   const hunkOf = useMemo(() => assignHunks(result.diff), [result]);
   const reviewable = mode === "polish" && hunks.length > 0;
@@ -118,6 +125,12 @@ export function TransformationDiff({
         : result.output,
     [reviewable, rejected, result],
   );
+
+  /** The model that ACTUALLY ran. Under Auto the prop is only the fallback the
+   *  client sent; the server reports what it resolved to. Everything
+   *  user-facing or persisted reads this, so the library records the model
+   *  that produced the text rather than the one nobody chose. */
+  const effectiveTarget = result.resolvedTarget ?? target;
 
   // The diff's input side (= the author's original, or the previous result on
   // a refine run) — drives the collapse threshold and the word count honestly.
@@ -155,7 +168,7 @@ export function TransformationDiff({
       output: effectiveOutput,
       rationale: result.rationale,
       mode,
-      target,
+      target: effectiveTarget,
       modelUsed: result.modelUsed,
       tokenIn: result.tokenIn,
       tokenOut: result.tokenOut,
@@ -191,7 +204,7 @@ export function TransformationDiff({
         output: effectiveOutput,
         rationale: result.rationale,
         mode,
-        target,
+        target: effectiveTarget,
         modelUsed: result.modelUsed,
         tokenIn: result.tokenIn,
         tokenOut: result.tokenOut,
@@ -210,7 +223,7 @@ export function TransformationDiff({
     output: effectiveOutput,
     rationale: result.rationale,
     mode,
-    target,
+    target: effectiveTarget,
     modelUsed: result.modelUsed,
   };
 
@@ -539,9 +552,15 @@ export function TransformationDiff({
         ) : null}
         <p className="font-body mt-3 flex items-center gap-1.5 text-xs tabular-nums text-silver">
           <DeveloperIcon
-            developer={TARGET_DEVELOPER[target]}
+            developer={TARGET_DEVELOPER[effectiveTarget]}
             className="h-3.5 w-3.5 shrink-0 text-accent"
           />
+          {/* Routing provenance: an auto-routed run says which model it chose,
+              because "Auto" alone tells the user nothing about what they just
+              paid for. */}
+          {result.resolvedTarget && (
+            <span>Auto → {TARGET_LABEL[result.resolvedTarget]} · </span>
+          )}
           {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok · $
           {result.costUsd.toFixed(4)}
         </p>
@@ -566,20 +585,78 @@ export function TransformationDiff({
         </div>
       )}
 
+      {/* 7b · Clarify's questions. The enhancement above is already the
+          model's best effort — these are what it would ask to do better, not
+          a blocker. Answering re-runs the ORIGINAL request with the answers
+          attached, which is a second billed run, so the card says so rather
+          than letting the button imply it's free.
+
+          Deliberately no role="status": the result view already has exactly
+          one and result-view.test.tsx queries it singular. */}
+      {onAnswer && result.questions && result.questions.length > 0 && (
+        <div className="rounded-2xl border border-hair p-4">
+          <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
+            Questions that would sharpen this
+          </p>
+          <ul className="flex flex-col gap-3">
+            {result.questions.map((q, i) => (
+              <li key={i} className="flex flex-col gap-1">
+                <label
+                  htmlFor={`clarify-answer-${i}`}
+                  className="font-body text-sm text-text"
+                >
+                  <span aria-hidden="true" className="text-accent">
+                    ▸{" "}
+                  </span>
+                  {q}
+                </label>
+                <input
+                  id={`clarify-answer-${i}`}
+                  type="text"
+                  value={answers[i] ?? ""}
+                  onChange={(e) =>
+                    setAnswers((prev) => {
+                      const next = [...prev];
+                      next[i] = e.target.value;
+                      return next;
+                    })
+                  }
+                  placeholder="Your answer (optional)"
+                  className="glass font-body w-full rounded-xl bg-transparent px-3 py-2.5 text-base text-text placeholder:text-muted focus:outline-none"
+                />
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            disabled={refinePending || answeredCount === 0}
+            onClick={() => onAnswer(result.questions!, answers)}
+            className="btn-laser font-body mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm disabled:opacity-60"
+          >
+            {refinePending ? "Re-running…" : "Answer & re-run"}
+          </button>
+          <p className="font-body mt-2 text-xs text-silver">
+            {answeredCount === 0
+              ? "Answer at least one question to re-run."
+              : "Re-runs the original prompt with your answers — a second billed run."}
+          </p>
+        </div>
+      )}
+
       {/* 8 · Destination-specific changes — or the honest line for the
           shape-preserving modes, where the destination affects routing/cost
           only and nothing in the output is destination-formatted. */}
       {result.targetNotes ? (
         <div className="rounded-2xl border border-hair p-4">
           <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
-            For {TARGET_LABEL[target]}
+            For {TARGET_LABEL[effectiveTarget]}
           </p>
           <p className="font-body text-sm text-text">{result.targetNotes}</p>
         </div>
       ) : isShapePreserving(mode) ? (
         <p className="font-body text-center text-xs text-silver">
-          {MODE_LABEL[mode]} keeps your prompt&apos;s shape — {TARGET_LABEL[target]} ran
-          the rewrite, but no {TARGET_LABEL[target]}-specific formatting was applied.
+          {MODE_LABEL[mode]} keeps your prompt&apos;s shape — {TARGET_LABEL[effectiveTarget]} ran
+          the rewrite, but no {TARGET_LABEL[effectiveTarget]}-specific formatting was applied.
         </p>
       ) : null}
 

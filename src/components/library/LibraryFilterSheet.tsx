@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/ui/Sheet";
 import { MODES, TARGET_MODELS } from "@/lib/constants";
@@ -14,8 +14,53 @@ import {
   type LibraryView,
 } from "@/lib/library/paging";
 import type { LibraryFacets } from "@/lib/library/queries";
+import { groupModelFacets, type FacetModel } from "@/lib/library/model-facets";
 
 const MODEL_META = new Map(TARGET_MODELS.map((m) => [m.id, m]));
+
+/** Module scope so the chip renderer below can share it with the sheet. */
+const chipClass = (active: boolean) =>
+  [
+    "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
+    active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
+  ].join(" ");
+
+/** Decorate a bare facet for the flat (ungrouped) path, so both paths render
+ *  through the same chip. */
+function decorate(m: { id: string; count: number }): FacetModel {
+  const meta = MODEL_META.get(m.id as (typeof TARGET_MODELS)[number]["id"]);
+  return { ...m, label: meta?.label ?? m.id, developer: meta?.developer ?? null };
+}
+
+function ModelChip({
+  model,
+  active,
+  onPick,
+}: {
+  model: FacetModel;
+  active: boolean;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={() => onPick(model.id)}
+      className={chipClass(active)}
+    >
+      {/* On a Laser fill the chip's own `text-on-laser` ink governs the mark
+          (guardrail §6), so the accent tint is dropped when active. */}
+      {model.developer && (
+        <DeveloperIcon
+          developer={model.developer}
+          className={`h-3.5 w-3.5 shrink-0 ${active ? "" : "text-accent"}`}
+        />
+      )}
+      {model.label}
+      <span className={active ? "opacity-80" : "opacity-60"}>{model.count}</span>
+    </button>
+  );
+}
 
 const VIEW_LABEL: Record<LibraryView, string> = {
   all: "All",
@@ -62,11 +107,14 @@ export function LibraryFilterSheet({
   }
 
   const section = "font-body text-xs uppercase tracking-wider text-silver";
-  const chip = (active: boolean) =>
-    [
-      "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
-      active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
-    ].join(" ");
+  const chip = chipClass;
+
+  const modelGroups = useMemo(
+    () => groupModelFacets(facets.models),
+    [facets.models],
+  );
+  const pickModel = (id: string) =>
+    setPending((p) => ({ ...p, model: id as LibraryFilter["model"] }));
 
   return (
     <Sheet
@@ -134,37 +182,37 @@ export function LibraryFilterSheet({
               >
                 Any
               </button>
-              {facets.models.map((m) => {
-                const meta = MODEL_META.get(m.id as (typeof TARGET_MODELS)[number]["id"]);
-                const active = pending.model === m.id;
-                return (
-                  <button
+              {modelGroups === null &&
+                facets.models.map((m) => (
+                  <ModelChip
                     key={m.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() =>
-                      setPending((p) => ({
-                        ...p,
-                        model: meta?.id ?? (m.id as LibraryFilter["model"]),
-                      }))
-                    }
-                    className={chip(active)}
-                  >
-                    {meta && (
-                      <DeveloperIcon
-                        developer={meta.developer}
-                        className={`h-3.5 w-3.5 shrink-0 ${active ? "" : "text-accent"}`}
-                      />
-                    )}
-                    {meta?.label ?? m.id}
-                    <span className={active ? "opacity-80" : "opacity-60"}>
-                      {m.count}
-                    </span>
-                  </button>
-                );
-              })}
+                    model={decorate(m)}
+                    active={pending.model === m.id}
+                    onPick={pickModel}
+                  />
+                ))}
             </div>
           )}
+          {/* Grouped only when the library spans more than one developer —
+              headers over a single-developer library would say the same thing
+              twice. groupModelFacets owns that rule; null means "stay flat". */}
+          {modelGroups?.map((group) => (
+            <div key={group.label} className="flex flex-col gap-1.5">
+              <p className="font-body px-0.5 text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {group.models.map((m) => (
+                  <ModelChip
+                    key={m.id}
+                    model={m}
+                    active={pending.model === m.id}
+                    onPick={pickModel}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
 
         {/* Mode. */}

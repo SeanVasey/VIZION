@@ -219,7 +219,11 @@ describe("duplicate detection at save", () => {
       "href",
       "/library/p9",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Save as new version" }));
+    // findBy, not getBy: the button's label is `saving ? "Saving…" : …`, and
+    // the save transition can still be pending when the duplicate banner
+    // commits — so the settled label has to be waited for, not assumed. A
+    // getBy here passes on an idle machine and flakes under suite load.
+    fireEvent.click(await screen.findByRole("button", { name: "Save as new version" }));
     expect(addVersionAction).toHaveBeenCalledWith(
       "p9",
       expect.objectContaining({ output: "write a concise summary" }),

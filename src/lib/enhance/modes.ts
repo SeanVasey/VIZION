@@ -10,7 +10,7 @@ export const MODE_INSTRUCTIONS: Record<ModeId, string> = {
   polish:
     "POLISH: Return the prompt as close to the original as possible while correcting only spelling, grammar, and punctuation, and making the smallest wording or word-order changes needed for it to read clearly and correctly. Preserve the author's exact vocabulary, tone, structure, and intent. Do NOT add, remove, reorder, or elaborate on ideas; do NOT restructure prose into bullet points, numbered lists, headings, or markdown; do NOT answer or expand the prompt. When in doubt, keep the original phrasing.",
   clarify:
-    "CLARIFY: Resolve ambiguity and fix intent. Tighten scope and make implicit assumptions explicit, WITHOUT changing what the user is asking for. Do not add new requirements — only sharpen the existing ask. Keep the input's original form: if it is a sentence or a paragraph, return prose — do not convert it into bullet points, numbered lists, headings, or markdown the author did not already use.",
+    "CLARIFY: Resolve ambiguity and fix intent. Tighten scope and make implicit assumptions explicit, WITHOUT changing what the user is asking for. Do not add new requirements — only sharpen the existing ask. Keep the input's original form: if it is a sentence or a paragraph, return prose — do not convert it into bullet points, numbered lists, headings, or markdown the author did not already use. If the request is too ambiguous to sharpen confidently, still return your best-effort output, and additionally list up to 3 short questions in `questions` whose answers would resolve the ambiguity.",
   expand:
     "EXPAND: Add the structure, constraints, examples, and missing specificity the prompt needs to succeed. Increase precision per line — more signal, not more padding. Surface edge cases and acceptance criteria the user implied but didn't state.",
   condense:
@@ -29,6 +29,8 @@ export const MODE_BLURB: Record<ModeId, string> = {
   clarify: "Sharpens what you're asking for — same request, no ambiguity.",
   expand: "Adds the detail, structure, and constraints your prompt is missing.",
   condense: "Trims your prompt to the essentials without losing instructions.",
-  reformat: "Restructures your prompt into a cleaner, better-organized shape.",
+  // Reformat is about SHAPE, Adapt is about the engine's IDIOM — the two used
+  // to be a sentence apart, which left neither predictable.
+  reformat: "Restructures your prompt into a shape you choose — JSON, steps, XML.",
   target: "Adapts your prompt to the selected model's preferred style.",
 };

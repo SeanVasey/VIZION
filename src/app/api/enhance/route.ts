@@ -21,6 +21,9 @@ import { ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { REFINE_KINDS, type EnhanceRefine, type RefineKind } from "@/lib/providers/formatters";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { diffWords } from "@/lib/enhance/diff";
+import { resolveAutoTarget } from "@/lib/enhance/auto-target";
+import { isFormatId, type FormatId } from "@/lib/enhance/formats";
+import { isLengthId, type LengthId } from "@/lib/enhance/lengths";
 import {
   encodeSseEvent,
   STREAM_STEPS,
@@ -69,15 +72,27 @@ export async function POST(request: NextRequest) {
     return err(400, "Invalid JSON body.");
   }
 
-  const { input, mode, target, thinkingLevel, refine, mediaContext } = (body ??
-    {}) as {
-    input?: unknown;
-    mode?: unknown;
-    target?: unknown;
-    thinkingLevel?: unknown;
-    refine?: unknown;
-    mediaContext?: unknown;
-  };
+  const {
+    input,
+    mode,
+    target,
+    auto,
+    format,
+    length,
+    thinkingLevel,
+    refine,
+    mediaContext,
+  } = (body ?? {}) as {
+      input?: unknown;
+      mode?: unknown;
+      target?: unknown;
+      auto?: unknown;
+      format?: unknown;
+      length?: unknown;
+      thinkingLevel?: unknown;
+      refine?: unknown;
+      mediaContext?: unknown;
+    };
 
   if (typeof input !== "string" || input.trim() === "") {
     return err(400, "Provide a prompt to enhance.");
@@ -91,10 +106,30 @@ export async function POST(request: NextRequest) {
   if (typeof target !== "string" || !TARGET_IDS.has(target)) {
     return err(400, "Unknown target model.");
   }
+  if (auto !== undefined && typeof auto !== "boolean") {
+    return err(400, "Unknown routing mode.");
+  }
+  const typedMode = mode as ModeId;
+  // Auto routing resolves HERE — after the target gate that guarantees a real
+  // fallback id, and before every gate below that reads the target. The
+  // thinking gate indexes TARGET_THINKING_LEVELS by target, so resolving later
+  // would validate the dial against a model the user isn't going to get.
+  //
+  // Routing only needs to know WHETHER media is attached, so the cheap shape
+  // check is enough; the array's full validation still runs below and still
+  // 400s, before any provider is called.
+  const typedTarget: TargetModelId = auto
+    ? resolveAutoTarget(
+        typedMode,
+        input.length,
+        Array.isArray(mediaContext) && mediaContext.length > 0,
+      )
+    : (target as TargetModelId);
+
   // Optional per-request reasoning depth — only the exact values the target's
   // provider accepts (TARGET_THINKING_LEVELS); anything else is a 400, so an
   // invented level can never reach a provider as a bad wire value.
-  const allowedLevels = TARGET_THINKING_LEVELS[target as TargetModelId];
+  const allowedLevels = TARGET_THINKING_LEVELS[typedTarget];
   if (
     thinkingLevel !== undefined &&
     (typeof thinkingLevel !== "string" ||
@@ -103,6 +138,18 @@ export async function POST(request: NextRequest) {
   ) {
     return err(400, "That thinking level isn't available for this model.");
   }
+  // Reformat's output shape. Validated for legality only — buildSystemPrompt
+  // gates it by mode, so a format sent alongside any other mode is inert
+  // rather than contradictory, and a stale client can't produce a prompt that
+  // argues with itself.
+  if (format !== undefined && !isFormatId(format)) {
+    return err(400, "Unknown output format.");
+  }
+  // Condense/Expand depth — same story: legality only, mode-gated downstream.
+  if (length !== undefined && !isLengthId(length)) {
+    return err(400, "Unknown length setting.");
+  }
+
   // Optional refinement pass — validated to the same standard as the other
   // knobs so an invented kind or oversized base can never reach a provider.
   let typedRefine: EnhanceRefine | undefined;
@@ -146,10 +193,10 @@ export async function POST(request: NextRequest) {
   }
   // Missing keys fail closed as a plain pre-stream 503 (the documented
   // contract) instead of being discovered only after SSE headers are sent.
-  if (!isProviderConfigured(target as TargetModelId)) {
+  if (!isProviderConfigured(typedTarget)) {
     return err(
       503,
-      `The ${TARGETS[target as TargetModelId].provider} provider is not configured on the server.`,
+      `The ${TARGETS[typedTarget].provider} provider is not configured on the server.`,
       { notConfigured: true },
     );
   }
@@ -171,8 +218,6 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const typedTarget = target as TargetModelId;
-  const typedMode = mode as ModeId;
   const typedThinkingLevel = thinkingLevel as ThinkingLevel | undefined;
   // The provider sees the user's prompt plus any reference context, clearly
   // fenced and explicitly NOT a generation request; the diff below still
@@ -218,6 +263,8 @@ export async function POST(request: NextRequest) {
           target: typedTarget,
           thinkingLevel: typedThinkingLevel,
           refine: typedRefine,
+          format: format as FormatId | undefined,
+          length: length as LengthId | undefined,
         })) {
           if (event.type === "delta") {
             if (!generating) {
@@ -265,7 +312,12 @@ export async function POST(request: NextRequest) {
             ...(result.assumptions ? { assumptions: result.assumptions } : {}),
             ...(result.targetNotes ? { targetNotes: result.targetNotes } : {}),
             ...(result.title ? { title: result.title } : {}),
+            ...(result.questions ? { questions: result.questions } : {}),
             ...(result.salvaged ? { salvaged: true } : {}),
+            // Routing provenance — only on an auto-routed run, so its presence
+            // is the signal. The client shouldn't have to diff the result
+            // against its own request to learn which model it actually got.
+            ...(auto ? { resolvedTarget: typedTarget } : {}),
           },
         });
         if (result.salvaged) {

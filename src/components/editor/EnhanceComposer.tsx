@@ -3,8 +3,6 @@
 import { useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import {
-  TARGET_MODELS,
-  TARGET_DEVELOPER,
   TARGET_THINKING_LEVELS,
   THINKING_LEVEL_LABEL,
   type ModeId,
@@ -14,7 +12,7 @@ import {
 import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
-import { DeveloperIcon } from "@/components/models/DeveloperIcon";
+import { TargetPicker } from "@/components/models/TargetPicker";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
@@ -23,6 +21,12 @@ import { useToast } from "@/components/ui/Toast";
 import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
+import { Segmented } from "@/components/ui/Segmented";
+import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
+import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
+
+/** Frozen option list for the format rail — built once, not per render. */
+const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -37,6 +41,12 @@ export function EnhanceComposer() {
   const activeMode = useUIStore((s) => s.activeMode);
   const setActiveMode = useUIStore((s) => s.setActiveMode);
   const targetModel = useUIStore((s) => s.targetModel);
+  const autoTarget = useUIStore((s) => s.autoTarget);
+  const reformatFormat = useUIStore((s) => s.reformatFormat);
+  const setReformatFormat = useUIStore((s) => s.setReformatFormat);
+  const lengthByMode = useUIStore((s) => s.lengthByMode);
+  const setLengthForMode = useUIStore((s) => s.setLengthForMode);
+  const setAutoTarget = useUIStore((s) => s.setAutoTarget);
   const setTargetModel = useUIStore((s) => s.setTargetModel);
   const thinkingLevels = useUIStore((s) => s.thinkingLevels);
   const setThinkingLevel = useUIStore((s) => s.setThinkingLevel);
@@ -52,6 +62,16 @@ export function EnhanceComposer() {
     levelOptions && storedLevel && levelOptions.includes(storedLevel)
       ? storedLevel
       : undefined;
+
+  // The current mode's length dial, if it has one — and its stored value
+  // re-validated against that mode's options, the same discipline the
+  // thinking rail applies to a stale persisted level.
+  const lengthChoices = lengthOptions(activeMode);
+  const storedLength = lengthByMode[activeMode];
+  const activeLength =
+    lengthChoices && storedLength && LENGTHS.includes(storedLength)
+      ? storedLength
+      : null;
 
   const enhanceMutation = useEnhance();
   const { toast } = useToast();
@@ -119,7 +139,15 @@ export function EnhanceComposer() {
       {
         input,
         mode: activeMode,
+        // Under Auto this is the FALLBACK — the server resolves the real
+        // target and reports it back. "auto" is never a target id: it has
+        // nowhere to live in the model_target enum.
         target: targetModel,
+        ...(autoTarget ? { auto: true as const } : {}),
+        ...(activeMode === "reformat" && reformatFormat
+          ? { format: reformatFormat }
+          : {}),
+        ...(activeLength ? { length: activeLength } : {}),
         ...(thinkingLevel ? { thinkingLevel } : {}),
         ...(mediaContext.length > 0 ? { mediaContext } : {}),
       },
@@ -182,14 +210,19 @@ export function EnhanceComposer() {
   function handleRefine(kind: RefineKind, currentOutput: string) {
     if (!view || enhanceMutation.isPending) return;
     const v = view;
-    const ladder = TARGET_THINKING_LEVELS[v.submitted.target];
-    const stored = thinkingLevels[v.submitted.target];
+    // A refine sticks to the model that produced this output. Under Auto that
+    // is the RESOLVED target, not the fallback — re-routing halfway through an
+    // iteration would change voice mid-conversation, and `auto` is deliberately
+    // not re-sent: the routing decision was already made for this result.
+    const refineTarget = v.result.resolvedTarget ?? v.submitted.target;
+    const ladder = TARGET_THINKING_LEVELS[refineTarget];
+    const stored = thinkingLevels[refineTarget];
     const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
     enhanceMutation.mutate(
       {
         input: currentOutput,
         mode: v.submitted.mode,
-        target: v.submitted.target,
+        target: refineTarget,
         ...(level ? { thinkingLevel: level } : {}),
         // Tone needs the author's ORIGINAL voice as reference material.
         refine: kind === "tone" ? { kind, baseInput: v.submitted.input } : { kind },
@@ -197,6 +230,37 @@ export function EnhanceComposer() {
       {
         onSuccess: (result) =>
           setView({ submitted: v.submitted, result, refined: true }),
+      },
+    );
+  }
+
+  /** Clarify's answered re-run. NOT a refinement of the output — a redo of
+   *  the ORIGINAL request with the model's own questions answered, so `input`
+   *  is the author's text and the Q&A rides in `baseInput` (the tone
+   *  precedent). One round: the answered pass is told not to ask again. */
+  function handleAnswer(questions: string[], answers: string[]) {
+    if (!view || enhanceMutation.isPending) return;
+    const v = view;
+    const block = questions
+      .map((q, i) => `Q: ${q}\nA: ${answers[i]?.trim() || "(no answer given)"}`)
+      .join("\n\n");
+    const answeredTarget = v.result.resolvedTarget ?? v.submitted.target;
+    const ladder = TARGET_THINKING_LEVELS[answeredTarget];
+    const stored = thinkingLevels[answeredTarget];
+    const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
+    enhanceMutation.mutate(
+      {
+        input: v.submitted.input,
+        mode: v.submitted.mode,
+        target: answeredTarget,
+        ...(level ? { thinkingLevel: level } : {}),
+        refine: { kind: "answers", baseInput: block },
+      },
+      {
+        // `refined` stays false: this is the original request answered, not a
+        // pass over a previous output, so the diff's input side is still the
+        // author's own text and must keep saying "original".
+        onSuccess: (result) => setView({ submitted: v.submitted, result }),
       },
     );
   }
@@ -241,49 +305,22 @@ export function EnhanceComposer() {
           intakeRef.current?.(e.dataTransfer.files);
         }}
       >
-        {/* Top rail — model target, nested under the rounded top corners. */}
+        {/* Top rail — model target, nested under the rounded top corners.
+            A sheet rather than a native select: sixteen models across twelve
+            developers need the grouping, and an <option> can't carry the
+            developer mark. */}
         <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
-          <label
-            htmlFor="target-model"
-            className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver"
-          >
+          <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
             Target
-          </label>
-          <div className="relative inline-flex items-center">
-            {/* Native <option> can't render SVG, so the selected model's
-                developer mark sits on the select's left edge (the mirror of
-                the chevron on the right). */}
-            <DeveloperIcon
-              developer={TARGET_DEVELOPER[targetModel]}
-              className="pointer-events-none absolute left-3 h-4 w-4 text-accent"
-            />
-            <select
-              id="target-model"
-              value={targetModel}
-              onChange={(e) => setTargetModel(e.target.value as typeof targetModel)}
-              className="font-body cursor-pointer appearance-none rounded-full bg-surface py-1.5 pl-9 pr-8 text-sm text-text focus:outline-none focus-visible:shadow-none"
-            >
-              {TARGET_MODELS.map((m) => (
-                <option key={m.id} value={m.id} className="bg-onyx text-chalk">
-                  {m.label}
-                </option>
-              ))}
-            </select>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="pointer-events-none absolute right-2.5 h-4 w-4 text-silver"
-            >
-              <path
-                d="M8 10l4 4 4-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          </span>
+          <TargetPicker
+            label="Target model"
+            value={targetModel}
+            onChange={setTargetModel}
+            auto={autoTarget}
+            onAutoChange={setAutoTarget}
+            triggerClassName="font-body inline-flex min-h-[44px] items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-2.5 text-sm text-text transition-colors hover:text-chalk"
+          />
         </div>
 
         {/* Thinking rail — reasoning depth, only for targets whose provider
@@ -333,6 +370,54 @@ export function EnhanceComposer() {
                   strokeLinejoin="round"
                 />
               </svg>
+            </div>
+          </div>
+        )}
+
+        {/* Format rail — Reformat only. Naming the shape is what separates
+            Reformat (SHAPE) from Adapt (ENGINE IDIOM); leaving it unset keeps
+            the old "whichever fits the task" behaviour, so the rail adds
+            control without removing the shortcut. Segmented buttons rather
+            than a select: the rails stay outside the iOS focus-zoom rule. */}
+        {activeMode === "reformat" && (
+          <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
+            <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+              Shape
+            </span>
+            <div className="min-w-0 overflow-x-auto">
+              <Segmented
+                label="Output shape"
+                options={FORMAT_OPTIONS}
+                value={reformatFormat}
+                // Re-picking the active shape clears it, which is the only way
+                // back to "whichever fits" without a separate Auto segment
+                // competing for width on a 390px screen.
+                onChange={(next) =>
+                  setReformatFormat(next === reformatFormat ? null : next)
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Length rail — Condense and Expand only. The dial is shared but the
+            LABELS are per mode: the aggressive end of Condense is the smallest
+            output and the aggressive end of Expand is the largest, so one set
+            of words would read as a lie on one of the two. */}
+        {lengthChoices && (
+          <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
+            <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+              Depth
+            </span>
+            <div className="min-w-0 overflow-x-auto">
+              <Segmented
+                label="Length"
+                options={lengthChoices}
+                value={activeLength}
+                onChange={(next) =>
+                  setLengthForMode(activeMode, next === activeLength ? null : next)
+                }
+              />
             </div>
           </div>
         )}
@@ -511,6 +596,7 @@ export function EnhanceComposer() {
           refinePending={enhanceMutation.isPending}
           onUse={handleUse}
           onRefine={handleRefine}
+          onAnswer={handleAnswer}
         />
       )}
 

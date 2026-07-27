@@ -3,6 +3,7 @@
 import { useUIStore } from "@/stores/ui";
 import { useSetTheme } from "@/lib/profile/use-theme-preference";
 import { THEMES, type Theme } from "@/lib/constants";
+import { Segmented } from "@/components/ui/Segmented";
 
 const NEXT: Record<Theme, Theme> = {
   dark: "light",
@@ -45,24 +46,17 @@ export function ThemeSegmented({
   const setTheme = useSetTheme(onResult);
 
   return (
-    // A group of toggle buttons, not role="radiogroup": radios promise an
-    // arrow-key roving-tabindex contract these plain tab stops don't implement;
-    // aria-pressed matches the actual Tab+Enter behavior (WCAG AA).
-    <div role="group" aria-label="Theme" className="glass inline-flex rounded-xl p-1">
-      {THEMES.map((t) => (
-        <button
-          key={t}
-          type="button"
-          aria-pressed={theme === t}
-          onClick={() => setTheme(t)}
-          className={[
-            "rounded-lg px-3 py-2 text-sm capitalize transition-colors",
-            theme === t ? "bg-laser text-on-laser" : "text-silver hover:text-chalk",
-          ].join(" ")}
-        >
-          {t}
-        </button>
-      ))}
-    </div>
+    <Segmented
+      label="Theme"
+      options={THEME_OPTIONS}
+      value={theme}
+      onChange={setTheme}
+      className="capitalize"
+    />
   );
 }
+
+/** THEMES carries ids only; Segmented wants labels. Theme ids read as their
+ *  own labels (dark/light/system), hence the `capitalize` above rather than a
+ *  second copy of the words. */
+const THEME_OPTIONS = THEMES.map((t) => ({ id: t, label: t }));
