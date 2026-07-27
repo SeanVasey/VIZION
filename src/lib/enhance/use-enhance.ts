@@ -17,6 +17,8 @@ export interface EnhanceRequest {
   thinkingLevel?: ThinkingLevel;
   /** Refinement pass over an already-enhanced prompt (input = prior output). */
   refine?: EnhanceRefine;
+  /** Reference-attachment context blocks (visual context for the text task). */
+  mediaContext?: string[];
 }
 
 class EnhanceError extends Error {

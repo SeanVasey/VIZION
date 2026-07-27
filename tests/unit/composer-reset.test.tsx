@@ -31,6 +31,10 @@ vi.mock("@/components/diff/TransformationDiff", () => ({
     <div data-testid="result-view">{input}</div>
   ),
 }));
+// The tray hits Supabase at mount — out of scope for composer tests.
+vi.mock("@/components/media/AttachmentTray", () => ({
+  AttachmentTray: () => null,
+}));
 
 import { EnhanceComposer } from "@/components/editor/EnhanceComposer";
 

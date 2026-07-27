@@ -21,6 +21,11 @@ const UI_ONLY_FILES = [
   "src/components/ui/Sheet.tsx",
   "src/components/ui/Toast.tsx",
   "src/components/ui/ConfirmSheet.tsx",
+  // Tray/manager/privacy are UI chrome; the details + generate sheets carry
+  // mono OUTPUT regions (descriptions, generation prompts) and stay off.
+  "src/components/media/AttachmentTray.tsx",
+  "src/components/media/MediaManager.tsx",
+  "src/components/media/MediaPrivacySheet.tsx",
 ];
 
 // Matches the `mono` Tailwind utility as a standalone class token.

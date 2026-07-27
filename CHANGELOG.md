@@ -6,6 +6,41 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — media moved into the composer as a role-based attachment tray
+
+The below-the-fold "Media reference" studio (with its own competing prompt
+textarea, auto-inferred generation destinations, and a storage manager that
+only appeared near 80% of quota) is gone. In its place:
+
+- **A compact attachment tray inside the composer** — thumbnail, sanitized
+  original file name, per-kind processing line, storage note, analysis
+  status, and a remove control per attachment. Subject/composition/palette/
+  lighting diagnostics live behind a "Details" sheet, never above the
+  primary result.
+- **Explicit attachment roles** — Reference (default: visual context for the
+  text task, flowing into the enhance request as bounded, fenced context
+  blocks), Extract text (faithful transcription with an editable insert),
+  Describe (editable description insert), Style reference (style-only read +
+  insert), and Generate similar. **"Generate" is never inferred from a
+  file's mere presence** — attaching a screenshot as evidence no longer
+  produces a Midjourney prompt.
+- **An explicit engine picker** for Generate similar — Midjourney, Runway,
+  **Sora and Kling (previously defined but unreachable)**, and the audio
+  spec are all selectable, with the per-kind default merely preselected.
+- **Honest capability labels** — "First-frame visual reference" for video,
+  "Audio file metadata only" for audio; the attach hint says exactly what
+  each kind contributes (the old copy claimed "Photos are analyzed" while
+  accepting all three).
+- **Privacy before upload** — a first-attach disclosure covers storage,
+  model processing, cost-cap billing, and retention, and offers **"Analyze
+  without keeping"**: an ephemeral path that never uploads (the vision proxy
+  takes a data URL). The storage default is a visible tray toggle.
+- **The media manager is always available** — mounted unconditionally in the
+  upcoming Settings → Data & privacy and surfaced in the tray as the budget
+  tightens, showing original names, a byte meter at any usage level, and
+  "incomplete upload" badges for reservation rows whose object never
+  arrived.
+
 ### Added — media provenance columns + atomic server-side quota (migration)
 
 `supabase/migrations/20260727120000_media_roles_and_reservation.sql`

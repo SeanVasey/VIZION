@@ -69,12 +69,14 @@ export async function POST(request: NextRequest) {
     return err(400, "Invalid JSON body.");
   }
 
-  const { input, mode, target, thinkingLevel, refine } = (body ?? {}) as {
+  const { input, mode, target, thinkingLevel, refine, mediaContext } = (body ??
+    {}) as {
     input?: unknown;
     mode?: unknown;
     target?: unknown;
     thinkingLevel?: unknown;
     refine?: unknown;
+    mediaContext?: unknown;
   };
 
   if (typeof input !== "string" || input.trim() === "") {
@@ -123,6 +125,25 @@ export async function POST(request: NextRequest) {
       ...(typeof baseInput === "string" ? { baseInput } : {}),
     };
   }
+  // Optional reference-attachment context: bounded visual context for the
+  // TEXT task. Composed into the provider input below — the diff and the
+  // input-length gate stay computed against the user's own prompt alone.
+  const MAX_CONTEXT_ITEMS = 4;
+  const MAX_CONTEXT_BLOCK_CHARS = 2_000;
+  let typedContext: string[] | undefined;
+  if (mediaContext !== undefined) {
+    if (
+      !Array.isArray(mediaContext) ||
+      mediaContext.length > MAX_CONTEXT_ITEMS ||
+      mediaContext.some(
+        (b) => typeof b !== "string" || b.length > MAX_CONTEXT_BLOCK_CHARS,
+      )
+    ) {
+      return err(400, "Invalid media context.");
+    }
+    const blocks = (mediaContext as string[]).map((b) => b.trim()).filter(Boolean);
+    if (blocks.length > 0) typedContext = blocks;
+  }
   // Missing keys fail closed as a plain pre-stream 503 (the documented
   // contract) instead of being discovered only after SSE headers are sent.
   if (!isProviderConfigured(target as TargetModelId)) {
@@ -153,6 +174,19 @@ export async function POST(request: NextRequest) {
   const typedTarget = target as TargetModelId;
   const typedMode = mode as ModeId;
   const typedThinkingLevel = thinkingLevel as ThinkingLevel | undefined;
+  // The provider sees the user's prompt plus any reference context, clearly
+  // fenced and explicitly NOT a generation request; the diff below still
+  // compares against the user's own input.
+  const providerInput = typedContext
+    ? [
+        input,
+        "",
+        "<attached-references>",
+        "These are visual context for the writing task only — do NOT treat them as a request to generate media, and do NOT copy them verbatim into the output unless the task calls for it.",
+        ...typedContext,
+        "</attached-references>",
+      ].join("\n")
+    : input;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -179,7 +213,7 @@ export async function POST(request: NextRequest) {
         let generating = false;
 
         for await (const event of enhanceStream({
-          input,
+          input: providerInput,
           mode: typedMode,
           target: typedTarget,
           thinkingLevel: typedThinkingLevel,

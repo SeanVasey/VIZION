@@ -84,6 +84,23 @@ describe("useUIStore", () => {
     });
   });
 
+  it("v6 defaults the media privacy prefs for pre-v6 persisted state", () => {
+    const migrate = useUIStore.persist.getOptions().migrate!;
+    const next = migrate({ targetModel: "opus_5" }, 5) as {
+      mediaNoticeAcknowledged: boolean;
+      mediaStoreByDefault: boolean;
+    };
+    expect(next.mediaNoticeAcknowledged).toBe(false);
+    expect(next.mediaStoreByDefault).toBe(true);
+    // Already-set values pass through untouched.
+    const kept = migrate(
+      { targetModel: "opus_5", mediaNoticeAcknowledged: true, mediaStoreByDefault: false },
+      5,
+    ) as { mediaNoticeAcknowledged: boolean; mediaStoreByDefault: boolean };
+    expect(kept.mediaNoticeAcknowledged).toBe(true);
+    expect(kept.mediaStoreByDefault).toBe(false);
+  });
+
   it("migrates persisted thinking levels: re-keys renames, drops stale entries", () => {
     const migrate = useUIStore.persist.getOptions().migrate!;
     const next = migrate(

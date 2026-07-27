@@ -29,6 +29,10 @@ vi.mock("@/lib/library/actions", () => ({
 vi.mock("@/lib/pwa/outbox", () => ({
   enqueueOutbox: vi.fn(async () => {}),
 }));
+// The tray hits Supabase at mount — out of scope for refine tests.
+vi.mock("@/components/media/AttachmentTray", () => ({
+  AttachmentTray: () => null,
+}));
 
 import { EnhanceComposer } from "@/components/editor/EnhanceComposer";
 

@@ -20,6 +20,7 @@ import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
+import { AttachmentTray } from "@/components/media/AttachmentTray";
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -67,6 +68,9 @@ export function EnhanceComposer() {
     refined?: boolean;
   } | null>(null);
   const [confirmStopOpen, setConfirmStopOpen] = useState(false);
+  // Reference-role attachment context (built by the tray) — visual context
+  // for the text task, sent alongside the enhance request.
+  const [mediaContext, setMediaContext] = useState<string[]>([]);
 
   // Cheap, deterministic token estimate (~4 chars/token) for the readout.
   const approxTokens = editorDraft.trim()
@@ -86,6 +90,7 @@ export function EnhanceComposer() {
         mode: activeMode,
         target: targetModel,
         ...(thinkingLevel ? { thinkingLevel } : {}),
+        ...(mediaContext.length > 0 ? { mediaContext } : {}),
       },
       // mutate-level callbacks only fire for the latest call, so a stale
       // run that settles late can never overwrite a newer view.
@@ -283,13 +288,14 @@ export function EnhanceComposer() {
           className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
         />
 
-        {/* Bottom rail — readouts + reset / Enhance, nested under the rounded
+        {/* Attachment tray — media lives INSIDE the composer (2026-07 audit);
+            reference-role context flows into the enhance request above. */}
+        <AttachmentTray onContextChange={setMediaContext} />
+
+        {/* Bottom rail — readouts + clear / Enhance, nested under the rounded
             bottom corners so the whole composer reads as one object. */}
         <div className="flex items-center justify-between gap-2 border-t border-hair px-2.5 py-2">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="font-body shrink-0 text-xs text-silver">
-              <span aria-hidden="true">📎 </span>Media below
-            </span>
             {/* No aria-live: the count changes per keystroke and would flood
                 screen readers — it's a passive visual readout. */}
             <span className="font-body shrink-0 text-xs tabular-nums text-silver">

@@ -8,6 +8,8 @@ const item = (over: Partial<MediaItem> = {}): MediaItem => ({
   kind: "image",
   sizeBytes: 1000,
   status: "queued",
+  role: "reference",
+  ephemeral: false,
   ...over,
 });
 
@@ -68,6 +70,9 @@ describe("admitFiles", () => {
 describe("itemStepLabel", () => {
   it("labels each stage, naming the model during analysis", () => {
     expect(itemStepLabel(item({ status: "queued" }), "Fable 5")).toBe("Waiting…");
+    expect(itemStepLabel(item({ status: "reserving" }), "Fable 5")).toBe(
+      "Reserving storage…",
+    );
     expect(itemStepLabel(item({ status: "uploading" }), "Fable 5")).toBe("Uploading…");
     expect(itemStepLabel(item({ status: "analyzing" }), "Fable 5")).toBe(
       "Analyzing with Fable 5…",

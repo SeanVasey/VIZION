@@ -62,9 +62,11 @@ export function classifyReserveError(message: string): "quota" | "invalid" | "re
 export async function storeAttachment(
   deps: MediaStoreDeps,
   file: StoreFileInput,
+  onStage?: (stage: "reserving" | "uploading") => void,
 ): Promise<StoreOutcome> {
   let reserved: { id: string; storagePath: string };
   try {
+    onStage?.("reserving");
     reserved = await deps.reserve({
       kind: file.kind,
       sizeBytes: file.sizeBytes,
@@ -89,6 +91,7 @@ export async function storeAttachment(
   }
 
   try {
+    onStage?.("uploading");
     await deps.uploadObject(reserved.storagePath, file.blob, file.mimeType);
   } catch (e) {
     // The reservation must not keep charging quota for bytes that never
