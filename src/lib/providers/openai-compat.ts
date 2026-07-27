@@ -20,7 +20,7 @@ import {
  *   the final chunk; when none arrives the adapter falls back to its ~4
  *   chars/token estimate.
  * - Classic `max_tokens` (not `max_completion_tokens`) — the widest-supported
- *   output-ceiling field across compat APIs. 16k for adapter parity.
+ *   output-ceiling field across compat APIs. 16k keeps runaways bounded.
  */
 interface CompatOptions {
   provider: Provider;

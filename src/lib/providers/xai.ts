@@ -34,7 +34,7 @@ export async function* streamXAI(
   try {
     const stream = await client.chat.completions.create({
       model,
-      // Output ceiling for adapter parity (Anthropic caps at 16k).
+      // Output ceiling: a runaway generation must stay bounded.
       max_tokens: 16_000,
       messages: [
         { role: "system", content: system },

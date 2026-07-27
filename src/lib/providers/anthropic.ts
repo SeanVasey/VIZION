@@ -15,14 +15,37 @@ type AnthropicStreamParams = Parameters<Anthropic["messages"]["stream"]>[0] & {
 };
 
 /**
+ * Pure request-params builder (exported for tests — no SDK mocking needed).
+ *
+ * max_tokens is a ceiling, not a target: the Claude 5 family thinks by
+ * default and bills thinking as output against it, so the UNSET-effort path
+ * needs the same headroom as an explicit mid effort — a distinct 16k default
+ * tier once made Auto the tightest path in the fleet, truncating envelopes
+ * exactly when no thinking level was chosen. The daily cost cap and the
+ * route's maxDuration still bound the true worst case.
+ */
+export function buildAnthropicParams(
+  model: string,
+  system: string,
+  input: string,
+  effort?: string,
+): AnthropicStreamParams {
+  return {
+    model,
+    max_tokens: effort === "xhigh" || effort === "max" ? 64_000 : 32_000,
+    system,
+    messages: [{ role: "user", content: input }],
+    ...(effort ? { output_config: { effort } } : {}),
+  };
+}
+
+/**
  * Streaming Anthropic call: yields raw response-text deltas plus cumulative
  * usage snapshots (input tokens from message_start, output tokens updated by
  * each message_delta). The adapter decodes the JSON envelope centrally.
  *
- * `opts.thinkingLevel` maps onto `output_config.effort` (low…max). The Claude
- * 5 family thinks by default and bills thinking as output tokens against
- * `max_tokens`, so the higher efforts get output headroom — a deep reasoning
- * pass inside a tight cap would truncate the JSON envelope mid-stream.
+ * `opts.thinkingLevel` maps onto `output_config.effort` (low…max); the token
+ * ceiling per effort lives in buildAnthropicParams.
  */
 export async function* streamAnthropic(
   system: string,
@@ -38,19 +61,7 @@ export async function* streamAnthropic(
   const effort = opts.thinkingLevel;
 
   try {
-    const params: AnthropicStreamParams = {
-      model,
-      max_tokens:
-        effort === "xhigh" || effort === "max"
-          ? 64_000
-          : effort === "high"
-            ? 32_000
-            : 16_000,
-      system,
-      messages: [{ role: "user", content: input }],
-      ...(effort ? { output_config: { effort } } : {}),
-    };
-    const stream = client.messages.stream(params);
+    const stream = client.messages.stream(buildAnthropicParams(model, system, input, effort));
     for await (const event of stream) {
       if (event.type === "message_start") {
         tokenIn = event.message.usage.input_tokens;
