@@ -6,6 +6,25 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — Reset demoted to a tertiary Clear with Undo
+
+RESET sat beside ENHANCE as an identical filled-Laser pill — a button that
+destroys a pasted draft (and aborts an in-flight paid run) looked exactly as
+recommended as the primary action. Now:
+
+- **ENHANCE is the only filled primary in the composer.** Clear is a quiet
+  text/icon action (44 pt hit area via `.tap-44`).
+- **Clearing is recoverable.** A non-empty draft (or a finished result)
+  clears immediately with a toast whose **Undo** restores both — the result
+  now lives in a composer-held snapshot instead of the mutation cache, which
+  is what makes restoring it possible.
+- **Clearing mid-run asks first.** A ConfirmSheet ("Stop this run?") gates
+  aborting an in-flight enhancement, since that cancels a billed request.
+
+This supersedes the 2026-07 owner direction that Reset mirror the submit
+button's style — the UX audit's finding (equal visual weight makes a
+destructive action read as recommended) won out; noted in `tasks/lessons.md`.
+
 ### Changed — the "Target" mode is now "Adapt"; the mode helper is plain text
 
 - **"Target" → "Adapt" (label only).** The sixth mode's display name no longer
