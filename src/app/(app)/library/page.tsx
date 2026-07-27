@@ -1,25 +1,43 @@
 import type { Metadata } from "next";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/server";
-import { LibraryBrowser, type PromptCard } from "@/components/library/LibraryBrowser";
+import { LibraryBrowser } from "@/components/library/LibraryBrowser";
 import { ActivityFeed } from "@/components/library/ActivityFeed";
 import { Footer } from "@/components/Footer";
+import { libraryHref, parseLibraryParams } from "@/lib/library/paging";
+import {
+  queryLibraryFacets,
+  queryLibraryPage,
+  type LibraryFacets,
+  type PromptCard,
+} from "@/lib/library/queries";
 
 export const metadata: Metadata = { title: "Library" };
 
-/** Library — saved prompts with tags/search/model filter + the activity feed
- *  (product-spec §4.4). Server state via Supabase, scoped by RLS. */
-export default async function LibraryPage() {
+/**
+ * Library — saved prompts with server-side search/filter/sort via URL params
+ * and keyset cursor pagination (2026-07 UX audit), plus the activity feed.
+ * Server state via Supabase, scoped by RLS.
+ */
+export default async function LibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filter = parseLibraryParams(await searchParams);
   const supabase = await createClient();
 
-  const { data: prompts, error: promptsError } = await supabase
-    .from("prompts")
-    .select("id, title, target_model, tags, updated_at")
-    .order("updated_at", { ascending: false });
-
-  // A failed query must not masquerade as "Nothing saved yet" — the user's
-  // library still exists on the server.
-  if (promptsError) {
+  let cards: PromptCard[];
+  let nextCursor: string | null;
+  let facets: LibraryFacets;
+  try {
+    [{ cards, nextCursor }, facets] = await Promise.all([
+      queryLibraryPage(supabase, filter),
+      queryLibraryFacets(supabase),
+    ]);
+  } catch {
+    // A failed query must not masquerade as "Nothing saved yet" — the user's
+    // library still exists on the server.
     return (
       <>
         <ScreenHeader title="Library" />
@@ -29,37 +47,13 @@ export default async function LibraryPage() {
               Couldn&apos;t load your library
             </p>
             <p className="font-body mt-2 text-sm text-muted">
-              Your prompts are safe on the server — check your connection and
-              reload.
+              Your prompts are safe on the server — check your connection and reload.
             </p>
           </div>
         </div>
       </>
     );
   }
-
-  const ids = (prompts ?? []).map((p) => p.id);
-
-  // Version counts (light: ids only) keyed by prompt.
-  const counts = new Map<string, number>();
-  if (ids.length) {
-    const { data: vers } = await supabase
-      .from("prompt_versions")
-      .select("prompt_id")
-      .in("prompt_id", ids);
-    for (const v of vers ?? []) {
-      counts.set(v.prompt_id, (counts.get(v.prompt_id) ?? 0) + 1);
-    }
-  }
-
-  const cards: PromptCard[] = (prompts ?? []).map((p) => ({
-    id: p.id,
-    title: p.title,
-    target_model: p.target_model,
-    tags: p.tags,
-    updated_at: p.updated_at,
-    versions: counts.get(p.id) ?? 1,
-  }));
 
   const { data: activity } = await supabase
     .from("activity_events")
@@ -71,7 +65,15 @@ export default async function LibraryPage() {
     <>
       <ScreenHeader title="Library" />
       <div className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5">
-        <LibraryBrowser prompts={cards} />
+        {/* Keyed by the filter URL so client-accumulated pages reset when the
+            filter changes (a stale page 2 from another filter must not leak). */}
+        <LibraryBrowser
+          key={libraryHref(filter)}
+          initialCards={cards}
+          nextCursor={nextCursor}
+          filter={filter}
+          facets={facets}
+        />
         <ActivityFeed events={activity ?? []} />
         <Footer inset />
       </div>

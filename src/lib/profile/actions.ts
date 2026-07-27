@@ -71,7 +71,8 @@ export async function updateProfileAction(patch: ProfilePatch): Promise<ActionRe
 
 /**
  * Change the account email. Supabase sends a confirmation to the new address;
- * the change applies once confirmed.
+ * the change applies once confirmed — a distinct VERIFIED workflow, no longer
+ * batched into the identity save (2026-07 UX audit).
  */
 export async function updateEmailAction(email: string): Promise<ActionResult> {
   const trimmed = email.trim();
@@ -81,4 +82,55 @@ export async function updateEmailAction(email: string): Promise<ActionResult> {
   const { error } = await supabase.auth.updateUser({ email: trimmed });
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+/**
+ * Export the user's data as JSON (Settings → Data & privacy): profile,
+ * prompts + all versions, and media METADATA (the objects themselves stay in
+ * storage — the export lists what exists, not the bytes). RLS scopes every
+ * query to the owner.
+ */
+export async function exportDataAction(): Promise<{
+  ok: boolean;
+  json?: string;
+  error?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Your session expired — sign in again." };
+
+  const [profile, prompts, versions, media] = await Promise.all([
+    supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+    supabase.from("prompts").select("*").order("created_at", { ascending: true }),
+    supabase
+      .from("prompt_versions")
+      .select("*")
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("media_assets")
+      .select(
+        "id, storage_path, kind, size_bytes, created_at, original_name, mime_type, role, status",
+      )
+      .order("created_at", { ascending: true }),
+  ]);
+  const failed =
+    profile.error ?? prompts.error ?? versions.error ?? media.error ?? null;
+  if (failed) return { ok: false, error: failed.message };
+
+  return {
+    ok: true,
+    json: JSON.stringify(
+      {
+        exportedAt: new Date().toISOString(),
+        profile: profile.data,
+        prompts: prompts.data,
+        prompt_versions: versions.data,
+        media_assets: media.data,
+      },
+      null,
+      2,
+    ),
+  };
 }

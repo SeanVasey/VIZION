@@ -6,6 +6,288 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — Profile is now Settings, with one persistence model
+
+The screen was preferences and account management, not a profile — it now
+says so (tab, header, and title read **Settings**; the `/profile` route is
+unchanged). Information architecture: **Identity · Account · Defaults ·
+Appearance · Data & privacy · About**. Account deletion is deferred (owner
+decision) — the Data & privacy section leaves a clean seam.
+
+- **One persistence path.** Every durable setting writes through a shared
+  `useSettingWrite` hook over server actions, with optimistic apply,
+  rollback on failure, and **status rendered next to the control that
+  changed** ("Saving… / Saved ✓ / error") — replacing the old three-idiom
+  split (batched identity save · immediate action · raw fire-and-forget
+  theme write, which surfaced no errors at all).
+- **Identity is form-commit done right**: visible input boundaries, live
+  display-name validation (3–24 lowercase chars), and **Save disabled until
+  dirty AND valid** (it used to be always-armed and re-submit identical
+  values).
+- **Email is a distinct verified workflow** — read-only display + a
+  "Change email" sheet that states the confirmation contract, a pending
+  chip for an unconfirmed `new_email` with Resend, and no more
+  partial-commit (names saved, email failed) inside one batched save.
+- **Data & privacy**: the stored-media manager mounted unconditionally
+  (no quota gate), clear-local-draft with Undo, a written retention story,
+  and **Export my data** (profile + prompts + versions + media metadata as
+  JSON).
+- **Appearance** gains a **Reduced effects** toggle — a device-local switch
+  that silences the ambient mesh/aurora/shimmer layers independently of the
+  OS reduced-motion preference.
+- **About**: single-sourced version, acknowledgements, license pointers.
+
+### Fixed — revise integrity + prompt-detail scale
+
+- **Revise seeds from the current OUTPUT** — the editor previously started
+  from the current version's original *input*, so "revise" silently re-ran
+  the original instead of iterating on the result.
+- **Save persists the request snapshot** (the composer's R8 pattern,
+  mirrored): submitting captures `{input, mode, target}`; editing the draft
+  or flipping a mode pill after the run can no longer relabel the stored
+  version, and the preview labels the mismatch — *"Result from previous
+  settings — re-enhance to match your edits."*
+- **Lazy version bodies** — the detail page ships version metadata plus only
+  the default compare pair's bodies; other versions load on demand. A
+  50-version prompt no longer downloads 50 full input/output/rationale
+  bodies to show two.
+- **Bounded, memoized diff** — the O(n·m) word-diff was recomputed on every
+  keystroke in the revise textarea with no size limit; it is now memoized on
+  the compared bodies and bounded at 2,000 tokens/side (over-budget pairs
+  show the selected version plain with a "too long to diff" note).
+
+### Added — card actions, duplicate detection, and undoable delete
+
+- **Rename, favorite, archive, delete** — every card gets a ⋯ action sheet
+  (a sibling of the link, so no interactive nesting). Titles were immutable
+  first-line derivations; they can now be renamed (and new saves default to
+  the model's semantic `title` from the envelope before falling back to the
+  derivation).
+- **Delete is soft + undoable** everywhere users delete day-to-day: the card
+  sheet and the prompt detail both soft-delete with an Undo toast, replacing
+  the blocking `confirm()` + irreversible cascade. Permanent delete survives
+  only for archived prompts, behind a ConfirmSheet.
+- **Exact-duplicate detection at save** — saving content that already exists
+  (same input+output+mode, by content hash) offers *"Already in your library
+  as '…'"* with **Open** and **Save as new version** instead of minting a
+  second identical card; appending an identical version to a prompt is
+  refused. Saves now also maintain the card's `preview` and `current_mode`
+  (and restore re-derives them).
+
+### Changed — library: saved work leads; filters are summoned; queries scale
+
+The sixteen-model chip wall (the full global roster rendered above the first
+prompt, filtering an already-fully-downloaded list) is gone:
+
+- **Search field + one Filter button.** The button (with an active-count
+  badge) opens a bottom sheet: View (All/Favorites/Archived) · Model —
+  **only models actually present in the library, with counts** · Mode · Tag
+  · Sort (edited/created/title). Exactly two quick chips (Recent, Favorites)
+  live outside the sheet. A reserved Collections section sits behind a
+  ready-flag (deferred by owner decision).
+- **Server-side filtering + keyset cursor pagination** driven by URL
+  searchParams (shareable, back-button-friendly): 30 cards per page with
+  "Load more", replacing load-every-prompt.
+- **Database-side version counts** via the embedded
+  `prompt_versions!prompt_id(count)` aggregate — the old one-row-per-version
+  transfer (1,000 rows to count 100 integers) is deleted.
+- **Recognition-first cards**: title, mode, model, a two-line output
+  preview, favorite star, and human time — **"Now" / "1 min ago" /
+  "Yesterday"**, killing the "0m" the 45–59-second window used to render.
+- Search is honest about scope ("looks at titles"); empty-with-filters and
+  truly-empty states are distinct.
+
+### Added — library organization schema (migration)
+
+`supabase/migrations/20260727130000_library_organization.sql`
+(**applied to the hosted project 2026-07-27**, advisors clean):
+
+- `prompts` gains `favorite`, `archived_at`, `deleted_at` (soft delete),
+  `preview` (current output's first 200 chars for cards), and
+  `current_mode` — backfilled from each prompt's current version.
+- `prompt_versions` gains `content_hash` (sha256 over
+  input∥US∥output∥US∥mode) for exact-duplicate detection, backfilled for
+  every existing version; the Node helper (`src/lib/library/hash.ts`) is
+  pinned byte-for-byte against a live DB digest fixture.
+- Keyset-pagination index on `(user_id, updated_at desc, id desc) where
+  deleted_at is null`, plus a hash index.
+- The schema preflight now probes all six new columns. The generated-types
+  mirror also restores the FK `Relationships` entries (needed by the
+  upcoming embedded version-count query).
+
+### Changed — media moved into the composer as a role-based attachment tray
+
+The below-the-fold "Media reference" studio (with its own competing prompt
+textarea, auto-inferred generation destinations, and a storage manager that
+only appeared near 80% of quota) is gone. In its place:
+
+- **A compact attachment tray inside the composer** — thumbnail, sanitized
+  original file name, per-kind processing line, storage note, analysis
+  status, and a remove control per attachment. Subject/composition/palette/
+  lighting diagnostics live behind a "Details" sheet, never above the
+  primary result.
+- **Explicit attachment roles** — Reference (default: visual context for the
+  text task, flowing into the enhance request as bounded, fenced context
+  blocks), Extract text (faithful transcription with an editable insert),
+  Describe (editable description insert), Style reference (style-only read +
+  insert), and Generate similar. **"Generate" is never inferred from a
+  file's mere presence** — attaching a screenshot as evidence no longer
+  produces a Midjourney prompt.
+- **An explicit engine picker** for Generate similar — Midjourney, Runway,
+  **Sora and Kling (previously defined but unreachable)**, and the audio
+  spec are all selectable, with the per-kind default merely preselected.
+- **Honest capability labels** — "First-frame visual reference" for video,
+  "Audio file metadata only" for audio; the attach hint says exactly what
+  each kind contributes (the old copy claimed "Photos are analyzed" while
+  accepting all three).
+- **Privacy before upload** — a first-attach disclosure covers storage,
+  model processing, cost-cap billing, and retention, and offers **"Analyze
+  without keeping"**: an ephemeral path that never uploads (the vision proxy
+  takes a data URL). The storage default is a visible tray toggle.
+- **The media manager is always available** — mounted unconditionally in the
+  upcoming Settings → Data & privacy and surfaced in the tray as the budget
+  tightens, showing original names, a byte meter at any usage level, and
+  "incomplete upload" badges for reservation rows whose object never
+  arrived.
+
+### Added — media provenance columns + atomic server-side quota (migration)
+
+`supabase/migrations/20260727120000_media_roles_and_reservation.sql`
+(**applied to the hosted project 2026-07-27**, advisors clean):
+
+- `media_assets` gains `original_name`, `mime_type`, `role`
+  (reference/extract/describe/style/generate) and `status`
+  (pending/ready/failed) — additive, no enum surgery, no deploy-order hazard.
+- **`media_reserve()`** — the atomic quota gate. The 50 MB limit was a pure
+  client-side check the browser could simply bypass (it writes straight to
+  Storage); now the client must reserve a `pending` row first, and
+  reservations serialize per user on a transaction-scoped advisory lock.
+  SECURITY INVOKER (RLS applies), `search_path` pinned, EXECUTE revoked from
+  anon.
+- New pure pipeline core (`src/lib/media/pipeline.ts`): reserve → upload →
+  ready, with every failure direction landing safe — an upload failure
+  deletes (or visibly fails) the pending row instead of orphaning an
+  invisible storage object, and asset removal converges on retry instead of
+  stranding rows. Fully unit-tested over injected deps.
+- `npm run check:db-enum` now also probes the migrated columns and the
+  `media_reserve` RPC through PostgREST — the same committed-but-unapplied
+  drift class the enum probe already catches.
+
+### Changed — mobile-first result view: Enhanced leads, Compare is a sheet
+
+The transformation diff made the improved prompt the *last* thing you reached:
+Original card first, no way to adopt the result, diagnostics inline. Rebuilt:
+
+- **Enhanced first**, with **Copy** (primary) and **Use as draft** directly
+  beneath it. Use as draft replaces the composer draft (undoable via toast)
+  and scrolls back to the editor.
+- **Original collapses by default** for long prompts (> 400 chars of diff
+  input) behind a "Show original (N words)" toggle.
+- **Compare is a bottom sheet** — the full two-pane diff read moved there,
+  keeping the inline cards clean.
+- **Assumptions and destination-specific changes render separately** from the
+  rationale (from the new envelope fields). For the shape-preserving modes
+  (Clarify/Polish) the view now states honestly that no destination-specific
+  formatting was applied — the target only ran the rewrite.
+- **Copy failure is surfaced** as an error toast (result view and prompt
+  detail) instead of silently doing nothing.
+
+### Added — refinement chips: Make shorter · More detail · Keep my tone
+
+One-tap follow-up passes on a finished result, seeded from the **current
+output** (per-change decisions included). "Keep my tone" sends the author's
+original as reference material. A refine run is a normal billed run (same
+rate limit + cost cap); the diff after a refine reads previous result →
+refined result, while saves and exports keep the author's original input as
+provenance. The `/api/enhance` contract gains an optional validated
+`refine: { kind, baseInput? }`.
+
+### Added — per-change accept/reject for Polish
+
+Polish results now list every change as a reviewable hunk (adjacent
+removed+added runs, whitespace-bridged) with Keep/Revert toggles plus
+Keep all / Revert all. The Enhanced card re-renders from the decisions, and
+Copy, Use as draft, Save, Share, and every export consume the
+decision-applied text. Reconstruction is exact by construction (unit-tested
+invariants: nothing rejected ⇒ the model output; everything rejected ⇒ the
+original).
+
+### Changed — "N changes" now counts changed sections
+
+The result header's counter counted merged diff *segments*: one replaced
+phrase (a removed run + an added run) read as "2 changes", and a single large
+insertion as "1 change" — neither matched what a user calls an edit. The new
+`countChangedSections` counts a run of adjacent non-equal segments once
+(whitespace between them doesn't split a run; whitespace-only churn counts
+zero), and the copy now reads **"N changed sections"** — honest about what is
+being counted. Applied to both the live result view and version compare.
+
+### Added — the enhance envelope can carry assumptions, target notes, and a title
+
+`{output, rationale}` gains three OPTIONAL fields, parsed tolerantly (junk
+shapes are dropped, never fatal; older/disobedient models can't fail a run):
+
+- `assumptions` — up to six short lines on gaps the model filled, for the
+  result view to surface separately from the rationale.
+- `targetNotes` — one sentence naming destination-specific changes.
+- `title` — a ≤60-char semantic name that will seed library titles.
+
+The contract text now also pins `"output"` as the FIRST field — the streaming
+scanner decodes it incrementally, so ordering only affects streaming latency,
+never parsing. The SSE `done` event passes the new fields through untouched.
+
+### Changed — Reset demoted to a tertiary Clear with Undo
+
+RESET sat beside ENHANCE as an identical filled-Laser pill — a button that
+destroys a pasted draft (and aborts an in-flight paid run) looked exactly as
+recommended as the primary action. Now:
+
+- **ENHANCE is the only filled primary in the composer.** Clear is a quiet
+  text/icon action (44 pt hit area via `.tap-44`).
+- **Clearing is recoverable.** A non-empty draft (or a finished result)
+  clears immediately with a toast whose **Undo** restores both — the result
+  now lives in a composer-held snapshot instead of the mutation cache, which
+  is what makes restoring it possible.
+- **Clearing mid-run asks first.** A ConfirmSheet ("Stop this run?") gates
+  aborting an in-flight enhancement, since that cancels a billed request.
+
+This supersedes the 2026-07 owner direction that Reset mirror the submit
+button's style — the UX audit's finding (equal visual weight makes a
+destructive action read as recommended) won out; noted in `tasks/lessons.md`.
+
+### Changed — the "Target" mode is now "Adapt"; the mode helper is plain text
+
+- **"Target" → "Adapt" (label only).** The sixth mode's display name no longer
+  collides with the target-model picker or read as jargon. The persisted id
+  stays `target` (it lives in the `enhance_mode` DB enum, localStorage, the
+  offline outbox, and the `/api/enhance` contract — an enum rename is a
+  migration-class change with a deploy-order hazard this rename deliberately
+  avoids). A new `MODE_LABEL` map is the single sanctioned way to render a
+  stored mode id; saved version history now renders labels ("Adapt") instead
+  of raw ids ("target"), and the markdown export heading follows. The JSON
+  export keeps the raw id (machine artifact).
+- **Mode helper text instead of an explanation card.** The always-present onyx
+  strip under the mode grid (fixed to the tallest of six display-caps blurbs,
+  with a tracking caret) is now one line of quiet secondary text. Same
+  zero-layout-shift technique (all six blurbs stacked in one grid cell), a
+  fraction of the visual weight, no permanent card.
+
+### Added — Sheet, Toast, and ConfirmSheet UI primitives
+
+The app's first shared overlay primitives (`src/components/ui/`), seeding the
+UX-audit remediation:
+
+- **`Sheet`** — a bottom sheet portaled to `<body>` (the frosted chrome bars
+  are containing blocks for fixed descendants, so overlays must escape them),
+  with focus trap + restore, Escape/scrim dismiss, body scroll lock,
+  safe-area padding, and a reduced-motion-safe entry animation.
+- **`Toast`** (+ `useToast`) — one transient toast at a time with an optional
+  action button (the Undo pattern), anchored above the bottom nav via the
+  shared `--bottom-nav-h` token.
+- **`ConfirmSheet`** — the sheet-based replacement for `window.confirm` on
+  destructive actions; first consumer of the previously unused
+  `.btn-secondary`.
+
 ### Fixed — the bottom nav detached from the screen edge on iOS
 
 On iOS the fixed bottom nav could float mid-screen — no longer flush with the

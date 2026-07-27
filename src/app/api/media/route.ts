@@ -8,7 +8,12 @@ import {
   supportsVision,
   visionFallbackTarget,
 } from "@/lib/providers/vision";
-import { parseDataUrl } from "@/lib/media/extract";
+import {
+  MEDIA_EXTRACT_SYSTEM,
+  MEDIA_OCR_SYSTEM,
+  MEDIA_STYLE_SYSTEM,
+  parseDataUrl,
+} from "@/lib/media/extract";
 import {
   TARGETS,
   computeCost,
@@ -20,6 +25,17 @@ import { rateLimit } from "@/lib/security/rate-limit";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
+
+/** Analysis intents (2026-07 attachment roles). `reference` and `describe`
+ *  share the full attribute extraction; `style` reads only how it looks;
+ *  `extract_text` transcribes. Default = reference (older clients send none). */
+const INTENTS = {
+  reference: { system: MEDIA_EXTRACT_SYSTEM, expect: "attributes" },
+  describe: { system: MEDIA_EXTRACT_SYSTEM, expect: "attributes" },
+  style: { system: MEDIA_STYLE_SYSTEM, expect: "attributes" },
+  extract_text: { system: MEDIA_OCR_SYSTEM, expect: "text" },
+} as const;
+type Intent = keyof typeof INTENTS;
 
 /** Same window as the sibling model route: a slow vision call plus the
  *  cross-provider fallback retry can exceed the default serverless budget. */
@@ -69,7 +85,11 @@ export async function POST(request: NextRequest) {
   } catch {
     return err(400, "Invalid JSON body.");
   }
-  const { dataUrl, target } = (body ?? {}) as { dataUrl?: unknown; target?: unknown };
+  const { dataUrl, target, intent } = (body ?? {}) as {
+    dataUrl?: unknown;
+    target?: unknown;
+    intent?: unknown;
+  };
   if (typeof dataUrl !== "string") return err(400, "Missing image data.");
   // Analysis runs on the user's selected target model; older clients that
   // send no target keep the original Opus behavior.
@@ -77,6 +97,11 @@ export async function POST(request: NextRequest) {
     return err(400, "Unknown target model.");
   }
   const typedTarget = (target as TargetModelId | undefined) ?? "opus_5";
+  if (intent !== undefined && (typeof intent !== "string" || !(intent in INTENTS))) {
+    return err(400, "Unknown analysis intent.");
+  }
+  const typedIntent = (intent as Intent | undefined) ?? "reference";
+  const intentSpec = INTENTS[typedIntent];
 
   const parsed = parseDataUrl(dataUrl);
   if (!parsed || !parsed.mediaType.startsWith("image/")) {
@@ -117,9 +142,15 @@ export async function POST(request: NextRequest) {
     }
     usedTarget = redirect;
   }
+  const visionOpts = { system: intentSpec.system, expect: intentSpec.expect };
   let extracted;
   try {
-    extracted = await describeImage(parsed.base64, parsed.mediaType, usedTarget);
+    extracted = await describeImage(
+      parsed.base64,
+      parsed.mediaType,
+      usedTarget,
+      visionOpts,
+    );
   } catch (e) {
     const fallback = isVisionConfigError(e) ? visionFallbackTarget(usedTarget) : null;
     if (!fallback) return visionError(e);
@@ -127,7 +158,12 @@ export async function POST(request: NextRequest) {
       `[media] vision on ${usedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
     );
     try {
-      extracted = await describeImage(parsed.base64, parsed.mediaType, fallback);
+      extracted = await describeImage(
+        parsed.base64,
+        parsed.mediaType,
+        fallback,
+        visionOpts,
+      );
       usedTarget = fallback;
     } catch (e2) {
       return visionError(e2);
@@ -150,19 +186,33 @@ export async function POST(request: NextRequest) {
     console.error(writeErrorLogLine("media", "usage ledger write", ledgerError));
   }
 
+  const usage = {
+    target: usedTarget,
+    tokenIn: extracted.tokenIn,
+    tokenOut: extracted.tokenOut,
+    costUsd,
+    todayCost: Number(win.today_cost) + costUsd,
+    capUsd: COST_CAP_USD_PER_DAY,
+  };
+
+  // Transcription intent: the payload is the text, not attributes.
+  if (typedIntent === "extract_text") {
+    return NextResponse.json({
+      intent: typedIntent,
+      text: extracted.text ?? "",
+      modelUsed: cfg.model,
+      ...(usedTarget !== typedTarget ? { fallbackFrom: typedTarget } : {}),
+      usage,
+    });
+  }
+
   const { description, ...attrs } = extracted.attrs;
   return NextResponse.json({
+    intent: typedIntent,
     attributes: { ...attrs, source: "proxy" },
     description: description ?? null,
     modelUsed: cfg.model,
     ...(usedTarget !== typedTarget ? { fallbackFrom: typedTarget } : {}),
-    usage: {
-      target: usedTarget,
-      tokenIn: extracted.tokenIn,
-      tokenOut: extracted.tokenOut,
-      costUsd,
-      todayCost: Number(win.today_cost) + costUsd,
-      capUsd: COST_CAP_USD_PER_DAY,
-    },
+    usage,
   });
 }

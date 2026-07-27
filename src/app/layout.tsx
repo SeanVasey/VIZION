@@ -4,6 +4,7 @@ import { bebasNeue, redditSans, jetBrainsMono } from "@/app/fonts";
 import { UI_STORE_KEY } from "@/lib/constants";
 import { QueryProvider } from "@/lib/query/provider";
 import { ThemeManager } from "@/components/ThemeManager";
+import { ReducedEffectsManager } from "@/components/ReducedEffectsManager";
 import { NeuralMeshBackground } from "@/components/NeuralMeshBackground";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <QueryProvider>
           <ThemeManager />
+          <ReducedEffectsManager />
           <NeuralMeshBackground />
           <SafeAreaProvider>{children}</SafeAreaProvider>
           <BottomNav />

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
+import type { EnhanceRefine } from "@/lib/providers/formatters";
 import { parseSseStream, type EnhanceResult } from "@/lib/enhance/stream-events";
 
 /** The final result shape (unchanged from the buffered route). */
@@ -14,6 +15,10 @@ export interface EnhanceRequest {
   target: TargetModelId;
   /** Reasoning depth for targets that take one; omitted = provider default. */
   thinkingLevel?: ThinkingLevel;
+  /** Refinement pass over an already-enhanced prompt (input = prior output). */
+  refine?: EnhanceRefine;
+  /** Reference-attachment context blocks (visual context for the text task). */
+  mediaContext?: string[];
 }
 
 class EnhanceError extends Error {

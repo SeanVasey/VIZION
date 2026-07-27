@@ -797,3 +797,54 @@ went frosted-glass. What broke, what changed, what to avoid:
   chips stay visually intact behind `.tap-44`, an invisible hit-area-extending
   pseudo — but pseudos don't render on replaced elements, so selects need
   `min-h-[44px]` instead.
+
+## 2026-07-27 — UX-audit remediation (Adapt · tray roles · library scale · Settings)
+
+- **Owner direction superseded again — record the reversal chain.** The Reset
+  button had been styled as a second Laser fill at explicit owner request
+  (see the earlier "Owner direction beats an earlier style rationale" entry);
+  the 2026-07 UX audit reversed that: a destructive action must not share the
+  primary's filled treatment. ENHANCE is now the composer's only `btn-laser`,
+  pinned by a unit test, and Clear is tertiary with an Undo toast. When
+  direction flips twice, the changelog must narrate both hops or the next
+  session "fixes" it back.
+- **`pkill -f <name>` can match the shell that runs it.** A compound command
+  containing `pkill -f next-server` died with exit 144 — the pattern matched
+  the shell's own command line. Use a self-excluding bracket pattern
+  (`pkill -f 'next-serve[r]'`).
+- **PostgREST PGRST202 means "no function with THESE parameters", not "no
+  function".** An RPC probe with an empty `{}` body reads a live function as
+  missing. Probe with the real named args — anon's `42501 permission denied`
+  is the cheap existence proof.
+- **Two FK paths make embedded selects ambiguous (HTTP 300).** With both
+  `prompt_versions.prompt_id -> prompts` and `prompts.current_ver ->
+  prompt_versions`, `prompt_versions(count)` answers 300 — disambiguate as
+  `prompt_versions!prompt_id(count)`. Probe embedded shapes against the live
+  API before writing the query code.
+- **Top-level PostgREST aggregates are disabled on Supabase (PGRST123).**
+  `select=target_model,count()` is rejected; embedded `(count)` still works.
+  Facet counts fall back to a capped column-only select reduced in JS — cap
+  it and say so in a comment.
+- **Generated source can smuggle literal control bytes.** A U+001F cursor
+  separator and a control-char-stripping regex were emitted as RAW bytes,
+  turning source files "binary" for grep/diff (and even the first draft of
+  THIS lessons entry tripped the harness's control-character guard). After
+  writing any file that mentions control characters, `cat -v` it and rewrite
+  with `\uXXXX` escapes; a `file`-says-text check before commit is cheap.
+- **Pin a cross-runtime hash with a live fixture, not by reading both
+  implementations.** The duplicate-detection sha256 must byte-match the SQL
+  backfill; one `select encode(digest(...), 'hex')` against the hosted DB
+  became the unit-test fixture, making drift impossible to miss.
+- **`vi.mock` factories can't close over file-level consts — use
+  `vi.hoisted`.** The mock factory is hoisted above the declaration
+  ("Cannot access before initialization"); `const m = vi.hoisted(() => ...)`
+  is the sanctioned escape.
+- **Playwright browser lag, part 3:** with CDN egress available,
+  `npx playwright install chromium` cleanly fetched the 1223 build this
+  repo's 1.60 pin wants — the fastest of the three fixes tried across
+  sessions. WebKit still can't run here; say which leg ran where.
+- **The tray inherits every composer contract.** Moving media into the
+  composer put `AttachmentTray` inside the mono-scoping test's blast radius
+  and under the 16px-iOS-input rule — new files in a governed region must be
+  added to the governing test's list in the same commit, or the contract
+  silently stops covering them.

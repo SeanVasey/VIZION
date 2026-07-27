@@ -27,6 +27,10 @@ export type Database = {
           size_bytes: number;
           extracted: Json | null;
           created_at: string;
+          original_name: string | null;
+          mime_type: string | null;
+          role: string | null;
+          status: string;
         };
         Insert: {
           id?: string;
@@ -37,6 +41,10 @@ export type Database = {
           size_bytes?: number;
           extracted?: Json | null;
           created_at?: string;
+          original_name?: string | null;
+          mime_type?: string | null;
+          role?: string | null;
+          status?: string;
         };
         Update: {
           id?: string;
@@ -47,6 +55,10 @@ export type Database = {
           size_bytes?: number;
           extracted?: Json | null;
           created_at?: string;
+          original_name?: string | null;
+          mime_type?: string | null;
+          role?: string | null;
+          status?: string;
         };
         Relationships: [];
       };
@@ -60,6 +72,11 @@ export type Database = {
           tags: string[];
           created_at: string;
           updated_at: string;
+          favorite: boolean;
+          archived_at: string | null;
+          deleted_at: string | null;
+          preview: string | null;
+          current_mode: Database["public"]["Enums"]["enhance_mode"] | null;
         };
         Insert: {
           id?: string;
@@ -70,6 +87,11 @@ export type Database = {
           tags?: string[];
           created_at?: string;
           updated_at?: string;
+          favorite?: boolean;
+          archived_at?: string | null;
+          deleted_at?: string | null;
+          preview?: string | null;
+          current_mode?: Database["public"]["Enums"]["enhance_mode"] | null;
         };
         Update: {
           id?: string;
@@ -80,8 +102,21 @@ export type Database = {
           tags?: string[];
           created_at?: string;
           updated_at?: string;
+          favorite?: boolean;
+          archived_at?: string | null;
+          deleted_at?: string | null;
+          preview?: string | null;
+          current_mode?: Database["public"]["Enums"]["enhance_mode"] | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "prompts_current_ver_fkey";
+            columns: ["current_ver"];
+            isOneToOne: false;
+            referencedRelation: "prompt_versions";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       prompt_versions: {
         Row: {
@@ -96,6 +131,7 @@ export type Database = {
           token_in: number;
           token_out: number;
           created_at: string;
+          content_hash: string | null;
         };
         Insert: {
           id?: string;
@@ -109,6 +145,7 @@ export type Database = {
           token_in?: number;
           token_out?: number;
           created_at?: string;
+          content_hash?: string | null;
         };
         Update: {
           id?: string;
@@ -122,8 +159,24 @@ export type Database = {
           token_in?: number;
           token_out?: number;
           created_at?: string;
+          content_hash?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "prompt_versions_parent_ver_fkey";
+            columns: ["parent_ver"];
+            isOneToOne: false;
+            referencedRelation: "prompt_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "prompt_versions_prompt_id_fkey";
+            columns: ["prompt_id"];
+            isOneToOne: false;
+            referencedRelation: "prompts";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       activity_events: {
         Row: {
@@ -262,6 +315,17 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      media_reserve: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["media_kind"];
+          p_size_bytes: number;
+          p_original_name: string;
+          p_mime_type: string;
+          p_ext: string;
+          p_role?: string;
+        };
+        Returns: { id: string; storage_path: string }[];
+      };
       usage_window: {
         Args: { p_rate_seconds: number };
         Returns: { recent_count: number; today_cost: number }[];

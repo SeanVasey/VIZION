@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/server";
-import { ProfilePanel } from "@/components/profile/ProfilePanel";
+import { SettingsPanel } from "@/components/settings/SettingsPanel";
 
-export const metadata: Metadata = { title: "Profile" };
+export const metadata: Metadata = { title: "Settings" };
 
-/** Profile screen — real account data (product-spec §3.3). Auth is guaranteed
- *  by middleware + the (app) layout. */
-export default async function ProfilePage() {
+/** Settings screen (2026-07 UX audit — formerly "Profile": the content was
+ *  preferences and account management, so the screen now says so). The route
+ *  stays /profile to avoid URL churn. Auth is guaranteed by middleware + the
+ *  (app) layout. */
+export default async function SettingsPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -21,13 +23,17 @@ export default async function ProfilePage() {
 
   return (
     <>
-      <ScreenHeader title="Profile" />
+      <ScreenHeader title="Settings" />
       <div className="mx-auto max-w-screen-sm px-4 py-6">
         {profile ? (
-          <ProfilePanel profile={profile} email={user!.email ?? ""} />
+          <SettingsPanel
+            profile={profile}
+            email={user!.email ?? ""}
+            pendingEmail={user!.new_email ?? null}
+          />
         ) : (
           <p className="glass rounded-2xl p-5 text-center text-sm text-muted">
-            We couldn&apos;t load your profile. Try refreshing.
+            We couldn&apos;t load your settings. Try refreshing.
           </p>
         )}
       </div>

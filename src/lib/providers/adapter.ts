@@ -5,7 +5,11 @@ import type {
   ProviderRequestOptions,
   ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { buildSystemPrompt, parseEnhancePayload } from "@/lib/providers/formatters";
+import {
+  buildSystemPrompt,
+  parseEnhancePayload,
+  type EnhanceRefine,
+} from "@/lib/providers/formatters";
 import { createEnvelopeScanner } from "@/lib/providers/json-stream";
 import { streamAnthropic } from "@/lib/providers/anthropic";
 import { streamOpenAI } from "@/lib/providers/openai";
@@ -29,11 +33,17 @@ export interface EnhanceArgs {
   /** User-selected reasoning depth (validated by the route against
    *  TARGET_THINKING_LEVELS). Absent = the provider's own default. */
   thinkingLevel?: ThinkingLevel;
+  /** Refinement pass over an already-enhanced prompt (validated by the route). */
+  refine?: EnhanceRefine;
 }
 
 export interface EnhanceOutput {
   output: string;
   rationale: string;
+  /** Optional envelope extensions (parsed tolerantly — see EnhancePayload). */
+  assumptions?: string[];
+  targetNotes?: string;
+  title?: string;
   tokenIn: number;
   tokenOut: number;
   modelUsed: string;
@@ -71,9 +81,10 @@ export async function* enhanceStream({
   mode,
   target,
   thinkingLevel,
+  refine,
 }: EnhanceArgs): AsyncGenerator<AdapterStreamEvent> {
   const cfg = TARGETS[target];
-  const system = buildSystemPrompt(mode, target);
+  const system = buildSystemPrompt(mode, target, refine);
 
   const streams: Record<Provider, ProviderStream> = {
     anthropic: streamAnthropic,

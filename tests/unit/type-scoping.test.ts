@@ -14,10 +14,21 @@ const UI_ONLY_FILES = [
   "src/components/editor/ModeRig.tsx",
   "src/components/auth/SignInForm.tsx",
   "src/components/nav/BottomNav.tsx",
-  "src/components/profile/ProfilePanel.tsx",
+  "src/components/settings/SettingsPanel.tsx",
+  "src/components/settings/DataPrivacySection.tsx",
+  "src/components/settings/AboutSection.tsx",
+  "src/components/settings/Field.tsx",
   "src/components/library/LibraryBrowser.tsx",
   "src/components/library/ActivityFeed.tsx",
   "src/components/Wordmark.tsx",
+  "src/components/ui/Sheet.tsx",
+  "src/components/ui/Toast.tsx",
+  "src/components/ui/ConfirmSheet.tsx",
+  // Tray/manager/privacy are UI chrome; the details + generate sheets carry
+  // mono OUTPUT regions (descriptions, generation prompts) and stay off.
+  "src/components/media/AttachmentTray.tsx",
+  "src/components/media/MediaManager.tsx",
+  "src/components/media/MediaPrivacySheet.tsx",
 ];
 
 // Matches the `mono` Tailwind utility as a standalone class token.

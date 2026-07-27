@@ -11,12 +11,16 @@ import {
   type TargetModelId,
   type ThinkingLevel,
 } from "@/lib/constants";
-import { useEnhance } from "@/lib/enhance/use-enhance";
+import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
+import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
+import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { useToast } from "@/components/ui/Toast";
+import { AttachmentTray } from "@/components/media/AttachmentTray";
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -48,16 +52,25 @@ export function EnhanceComposer() {
       : undefined;
 
   const enhanceMutation = useEnhance();
-  const result = enhanceMutation.data;
-  // Snapshot of what was actually SUBMITTED — input AND mode AND target.
-  // The result tree must read these, not the live store values: flipping the
-  // mode grid or target select after a run must not relabel the save payload,
-  // the exports, or the developer chip (R8).
-  const [submitted, setSubmitted] = useState<{
-    input: string;
-    mode: ModeId;
-    target: TargetModelId;
+  const { toast } = useToast();
+  // The rendered result + the snapshot of what was actually SUBMITTED — input
+  // AND mode AND target. The result tree must read these, not the live store
+  // values: flipping the mode grid or target select after a run must not
+  // relabel the save payload, the exports, or the developer chip (R8).
+  // Holding the result here (rather than reading enhanceMutation.data) is
+  // what makes Clear undoable: mutation.reset() wipes the mutation, not the
+  // snapshot we can restore.
+  const [view, setView] = useState<{
+    submitted: { input: string; mode: ModeId; target: TargetModelId };
+    result: EnhanceResponse;
+    /** True once a refinement pass replaced the result — the diff's input
+     *  side is then the previous result, not the author's original. */
+    refined?: boolean;
   } | null>(null);
+  const [confirmStopOpen, setConfirmStopOpen] = useState(false);
+  // Reference-role attachment context (built by the tray) — visual context
+  // for the text task, sent alongside the enhance request.
+  const [mediaContext, setMediaContext] = useState<string[]>([]);
 
   // Cheap, deterministic token estimate (~4 chars/token) for the readout.
   const approxTokens = editorDraft.trim()
@@ -69,18 +82,92 @@ export function EnhanceComposer() {
   function runEnhance() {
     const input = editorDraft.trim();
     if (!input) return;
-    setSubmitted({ input, mode: activeMode, target: targetModel });
-    enhanceMutation.mutate({
-      input,
-      mode: activeMode,
-      target: targetModel,
-      ...(thinkingLevel ? { thinkingLevel } : {}),
-    });
+    const submitted = { input, mode: activeMode, target: targetModel };
+    setView(null);
+    enhanceMutation.mutate(
+      {
+        input,
+        mode: activeMode,
+        target: targetModel,
+        ...(thinkingLevel ? { thinkingLevel } : {}),
+        ...(mediaContext.length > 0 ? { mediaContext } : {}),
+      },
+      // mutate-level callbacks only fire for the latest call, so a stale
+      // run that settles late can never overwrite a newer view.
+      { onSuccess: (result) => setView({ submitted, result }) },
+    );
   }
 
-  function resetComposer() {
+  /** Clear the draft + result. A pasted draft (or a finished result) is real
+   *  work — the toast's Undo restores both. */
+  function performClear() {
+    const snapshot = { draft: editorDraft, view };
     setEditorDraft("");
-    enhanceMutation.reset();
+    setView(null);
+    enhanceMutation.reset(); // aborts an in-flight stream + clears error state
+    if (snapshot.draft.trim() !== "" || snapshot.view) {
+      toast({
+        text: "Composer cleared",
+        action: {
+          label: "Undo",
+          onAction: () => {
+            setEditorDraft(snapshot.draft);
+            setView(snapshot.view);
+          },
+        },
+      });
+    }
+  }
+
+  function onClear() {
+    // Clearing mid-run cancels a paid request — that deserves a confirm.
+    if (enhanceMutation.isPending) {
+      setConfirmStopOpen(true);
+      return;
+    }
+    performClear();
+  }
+
+  /** "Use as draft" — replace the editor draft with the result, undoably. */
+  function handleUse(text: string) {
+    const prior = editorDraft;
+    setEditorDraft(text);
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document
+      .getElementById("prompt-input")
+      ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
+    if (prior.trim() !== "" && prior !== text) {
+      toast({
+        text: "Draft replaced",
+        action: { label: "Undo", onAction: () => setEditorDraft(prior) },
+      });
+    }
+  }
+
+  /** Refinement pass — seeded from the CURRENT output (with any per-change
+   *  decisions applied), keeping the original submitted input for saves. */
+  function handleRefine(kind: RefineKind, currentOutput: string) {
+    if (!view || enhanceMutation.isPending) return;
+    const v = view;
+    const ladder = TARGET_THINKING_LEVELS[v.submitted.target];
+    const stored = thinkingLevels[v.submitted.target];
+    const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
+    enhanceMutation.mutate(
+      {
+        input: currentOutput,
+        mode: v.submitted.mode,
+        target: v.submitted.target,
+        ...(level ? { thinkingLevel: level } : {}),
+        // Tone needs the author's ORIGINAL voice as reference material.
+        refine: kind === "tone" ? { kind, baseInput: v.submitted.input } : { kind },
+      },
+      {
+        onSuccess: (result) =>
+          setView({ submitted: v.submitted, result, refined: true }),
+      },
+    );
   }
 
   return (
@@ -201,13 +288,14 @@ export function EnhanceComposer() {
           className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
         />
 
-        {/* Bottom rail — readouts + reset / Enhance, nested under the rounded
+        {/* Attachment tray — media lives INSIDE the composer (2026-07 audit);
+            reference-role context flows into the enhance request above. */}
+        <AttachmentTray onContextChange={setMediaContext} />
+
+        {/* Bottom rail — readouts + clear / Enhance, nested under the rounded
             bottom corners so the whole composer reads as one object. */}
         <div className="flex items-center justify-between gap-2 border-t border-hair px-2.5 py-2">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="font-body shrink-0 text-xs text-silver">
-              <span aria-hidden="true">📎 </span>Media below
-            </span>
             {/* No aria-live: the count changes per keystroke and would flood
                 screen readers — it's a passive visual readout. */}
             <span className="font-body shrink-0 text-xs tabular-nums text-silver">
@@ -215,17 +303,21 @@ export function EnhanceComposer() {
               {approxTokens} tokens
             </span>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {/* h-11 (44px tap target) with -my-1 so the rail keeps its height. */}
-            {/* RESET stays live during a run — it aborts the stream. */}
+          <div className="flex shrink-0 items-center gap-3">
+            {/* Clear is deliberately tertiary (2026-07 UX audit): it destroys a
+                pasted draft, so it must not share ENHANCE's filled-primary
+                treatment. It stays live during a run (aborting the stream)
+                behind a confirm; otherwise it clears with an Undo toast. */}
             <button
               type="button"
-              onClick={resetComposer}
-              disabled={!enhanceMutation.isPending && isEmpty && !result}
-              className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
+              onClick={onClear}
+              disabled={!enhanceMutation.isPending && isEmpty && !view}
+              className="tap-44 font-body flex items-center gap-1 px-1 text-xs text-silver transition-colors hover:text-chalk disabled:opacity-50"
             >
-              <span aria-hidden="true">↺</span> RESET
+              <span aria-hidden="true">↺</span> Clear
             </button>
+            {/* h-11 (44px tap target) with -my-1 so the rail keeps its height.
+                ENHANCE is the ONLY filled-Laser primary in the composer. */}
             <button
               type="button"
               onClick={runEnhance}
@@ -262,16 +354,16 @@ export function EnhanceComposer() {
       )}
 
       {/* Amber storage/quota-style warning as the daily cap approaches. */}
-      {result && result.usage.todayCost >= result.usage.capUsd * 0.8 && (
+      {view && view.result.usage.todayCost >= view.result.usage.capUsd * 0.8 && (
         <p className="font-body text-center text-xs text-amber" role="status">
-          ⚠ ${result.usage.todayCost.toFixed(2)} of ${result.usage.capUsd.toFixed(2)}{" "}
-          daily cap used
+          ⚠ ${view.result.usage.todayCost.toFixed(2)} of $
+          {view.result.usage.capUsd.toFixed(2)} daily cap used
         </p>
       )}
 
       {/* Live stream surface while the run is in flight; the finished diff
           replaces it in the same footprint on done. */}
-      {enhanceMutation.stream.active && !result && (
+      {enhanceMutation.stream.active && !view && (
         <StreamingResult
           step={enhanceMutation.stream.step}
           partialOutput={enhanceMutation.stream.partialOutput}
@@ -281,14 +373,28 @@ export function EnhanceComposer() {
         />
       )}
 
-      {result && submitted && (
+      {view && (
         <TransformationDiff
-          input={submitted.input}
-          mode={submitted.mode}
-          target={submitted.target}
-          result={result}
+          input={view.submitted.input}
+          mode={view.submitted.mode}
+          target={view.submitted.target}
+          result={view.result}
+          refined={view.refined ?? false}
+          refinePending={enhanceMutation.isPending}
+          onUse={handleUse}
+          onRefine={handleRefine}
         />
       )}
+
+      <ConfirmSheet
+        open={confirmStopOpen}
+        onClose={() => setConfirmStopOpen(false)}
+        title="Stop this run?"
+        body="This cancels the enhancement in progress and clears your draft."
+        confirmLabel="Stop & clear"
+        destructive
+        onConfirm={performClear}
+      />
     </section>
   );
 }

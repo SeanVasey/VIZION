@@ -12,9 +12,19 @@ export const MODES = [
   { id: "expand", label: "Expand" },
   { id: "condense", label: "Condense" },
   { id: "reformat", label: "Reformat" },
-  { id: "target", label: "Target" },
+  // Label renamed from "Target" (2026-07 UX audit) — the id stays `target`
+  // because it is persisted in the enhance_mode DB enum, localStorage, the
+  // offline outbox, and the /api/enhance wire contract. Render stored ids
+  // through MODE_LABEL, never raw.
+  { id: "target", label: "Adapt" },
 ] as const;
 export type ModeId = (typeof MODES)[number]["id"];
+
+/** Display label for a mode id — the only sanctioned way to render a stored
+ *  mode value (ids and labels can diverge, e.g. `target` → "Adapt"). */
+export const MODE_LABEL: Record<ModeId, string> = Object.fromEntries(
+  MODES.map((m) => [m.id, m.label]),
+) as Record<ModeId, string>;
 
 /** Model developers, in locked display order: Anthropic and OpenAI always
  *  first, the rest alphabetical. `DEVELOPER_ORDER` is the single source the

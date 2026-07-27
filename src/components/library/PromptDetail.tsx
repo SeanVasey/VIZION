@@ -1,25 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MODES, type ModeId, type TargetModelId } from "@/lib/constants";
-import { diffWords, countChanges, type DiffSegment } from "@/lib/enhance/diff";
+import { MODES, MODE_LABEL, type ModeId, type TargetModelId } from "@/lib/constants";
+import { boundedDiffWords, countChangedSections } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
-import { useEnhance } from "@/lib/enhance/use-enhance";
+import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
+import { useToast } from "@/components/ui/Toast";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
 import {
   addVersionAction,
   restoreVersionAction,
-  deletePromptAction,
+  softDeletePromptAction,
+  undoDeletePromptAction,
   updateTagsAction,
+  getVersionBodyAction,
+  type VersionBody,
 } from "@/lib/library/actions";
 
-interface Version {
+/** Version metadata — bodies (input/output/rationale) load lazily. */
+interface VersionMeta {
   id: string;
-  input_text: string;
-  output_text: string;
-  rationale: string | null;
   mode: ModeId;
   model_used: string;
   token_in: number;
@@ -39,16 +41,55 @@ interface PromptHead {
 export function PromptDetail({
   prompt,
   versions,
+  initialBodies,
 }: {
   prompt: PromptHead;
-  versions: Version[];
+  versions: VersionMeta[];
+  initialBodies: VersionBody[];
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [pending, startTransition] = useTransition();
   // Server-action failures were previously swallowed — every mutation on this
   // screen reports here.
   const [actionError, setActionError] = useState<string | null>(null);
   const target = prompt.target_model as TargetModelId;
+
+  // Lazy version bodies: seeded with the server-shipped compare pair, grown
+  // on demand as the selects (or history) touch other versions.
+  const [bodies, setBodies] = useState<ReadonlyMap<string, VersionBody>>(
+    () => new Map(initialBodies.map((b) => [b.id, b])),
+  );
+  const [loadingBodies, setLoadingBodies] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    // router.refresh() after a save ships fresh seed bodies — merge them in.
+    setBodies((prev) => {
+      const next = new Map(prev);
+      for (const b of initialBodies) next.set(b.id, b);
+      return next;
+    });
+  }, [initialBodies]);
+
+  const ensureBody = useCallback(
+    (versionId: string | null | undefined) => {
+      if (!versionId || bodies.has(versionId) || loadingBodies.has(versionId)) return;
+      setLoadingBodies((prev) => new Set(prev).add(versionId));
+      void getVersionBodyAction(prompt.id, versionId).then((res) => {
+        setLoadingBodies((prev) => {
+          const next = new Set(prev);
+          next.delete(versionId);
+          return next;
+        });
+        if (res.ok && res.body) {
+          const body = res.body;
+          setBodies((prev) => new Map(prev).set(body.id, body));
+        } else {
+          setActionError(res.error ?? "Couldn't load that version.");
+        }
+      });
+    },
+    [bodies, loadingBodies, prompt.id],
+  );
 
   // Newest first for display; keep a label v1..vN by chronological order.
   const labelOf = useMemo(() => {
@@ -68,10 +109,29 @@ export function PromptDetail({
   const [aId, setAId] = useState(defaultA);
   const [bId, setBId] = useState(defaultB);
 
-  // Re-seed the compare selects whenever the CURRENT version moves (save-as-
-  // new-version, restore): router.refresh() delivers new props to the same
-  // client instance, so state seeded at first render would keep labeling a
-  // superseded version as the current output (and copy the stale text).
+  // The revise editor seeds from the current version's OUTPUT (2026-07 UX
+  // audit: revision iterates on the result, not the original input).
+  const currentBody = currentId ? bodies.get(currentId) : undefined;
+  const [draft, setDraft] = useState(currentBody?.output_text ?? "");
+  const [mode, setMode] = useState<ModeId>(current?.mode ?? "clarify");
+  const enhanceMutation = useEnhance();
+
+  // The R8 request snapshot (mirrors EnhanceComposer): Save reads ONLY what
+  // was actually submitted — editing the draft or flipping a mode pill after
+  // a run can never relabel the stored version.
+  const [reviseView, setReviseView] = useState<{
+    submitted: { input: string; mode: ModeId; target: TargetModelId };
+    result: EnhanceResponse;
+  } | null>(null);
+  const revised = reviseView?.result ?? null;
+  const reviseStale =
+    reviseView !== null &&
+    (draft.trim() !== reviseView.submitted.input || mode !== reviseView.submitted.mode);
+
+  // Re-seed the compare selects AND the revise editor whenever the CURRENT
+  // version moves (save-as-new-version, restore): router.refresh() delivers
+  // new props to the same client instance, so state seeded at first render
+  // would keep labeling a superseded version as the current output.
   const seededFor = useRef(currentId);
   useEffect(() => {
     if (seededFor.current === currentId || !currentId) return;
@@ -79,48 +139,76 @@ export function PromptDetail({
     const cur = versions.find((v) => v.id === currentId);
     setBId(currentId);
     setAId(cur?.parent_ver ?? currentId);
-  }, [currentId, versions]);
+    setDraft(bodies.get(currentId)?.output_text ?? "");
+    setMode(cur?.mode ?? "clarify");
+    setReviseView(null);
+  }, [currentId, versions, bodies]);
 
-  const a = versions.find((v) => v.id === aId);
-  const b = versions.find((v) => v.id === bId);
-  const segments: DiffSegment[] = a && b ? diffWords(a.output_text, b.output_text) : [];
+  // Compare bodies load on demand as the selects move.
+  useEffect(() => ensureBody(aId), [aId, ensureBody]);
+  useEffect(() => ensureBody(bId), [bId, ensureBody]);
+
+  const aBody = bodies.get(aId);
+  const bBody = bodies.get(bId);
+  const compareLoading =
+    (!aBody && loadingBodies.has(aId)) || (!bBody && loadingBodies.has(bId));
+
+  // Bounded + memoized: the old unbounded call re-ran the O(n·m) LCS on
+  // every keystroke in the revise textarea. `null` = too long to diff.
+  const segments = useMemo(
+    () => (aBody && bBody ? boundedDiffWords(aBody.output_text, bBody.output_text) : []),
+    [aBody, bBody],
+  );
 
   const [copied, setCopied] = useState(false);
 
-  // Revise → re-enhance → append a new version.
-  const [draft, setDraft] = useState(current?.input_text ?? "");
-  const [mode, setMode] = useState<ModeId>(current?.mode ?? "clarify");
-  const enhanceMutation = useEnhance();
-  const revised = enhanceMutation.data;
-
   async function copyCurrent() {
-    const text = (b ?? current)?.output_text;
+    const text = (bBody ?? currentBody)?.output_text;
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard unavailable; no-op */
+      // Surfacing beats silence: tell the user copy did NOT happen.
+      toast({
+        tone: "error",
+        text: "Couldn't copy — your browser blocked clipboard access. Select the text and copy manually.",
+      });
     }
   }
 
+  function runRevise() {
+    const input = draft.trim();
+    if (!input) return;
+    const submitted = { input, mode, target };
+    setReviseView(null);
+    enhanceMutation.mutate(submitted, {
+      // mutate-level callbacks fire only for the latest call — a stale run
+      // can never overwrite a newer snapshot.
+      onSuccess: (result) => setReviseView({ submitted, result }),
+    });
+  }
+
   function saveVersion() {
-    if (!revised) return;
+    // Save persists the SNAPSHOT tied to the run — never live editor state.
+    if (!reviseView) return;
+    const v = reviseView;
     setActionError(null);
     startTransition(async () => {
       const res = await addVersionAction(prompt.id, {
-        input: draft.trim(),
-        output: revised.output,
-        rationale: revised.rationale,
-        mode,
-        target,
-        modelUsed: revised.modelUsed,
-        tokenIn: revised.tokenIn,
-        tokenOut: revised.tokenOut,
+        input: v.submitted.input,
+        output: v.result.output,
+        rationale: v.result.rationale,
+        mode: v.submitted.mode,
+        target: v.submitted.target,
+        modelUsed: v.result.modelUsed,
+        tokenIn: v.result.tokenIn,
+        tokenOut: v.result.tokenOut,
       });
       if (res.ok) {
         enhanceMutation.reset();
+        setReviseView(null);
         router.refresh();
       } else {
         setActionError(res.error ?? "Couldn't save the new version.");
@@ -138,12 +226,26 @@ export function PromptDetail({
   }
 
   function remove() {
-    if (!confirm("Delete this prompt and all its versions?")) return;
+    // Soft delete + Undo toast (2026-07 UX audit) — no blocking confirm, no
+    // irreversible cascade from the everyday delete path.
     setActionError(null);
+    const id = prompt.id;
     startTransition(async () => {
-      const res = await deletePromptAction(prompt.id);
-      if (res.ok) router.push("/library");
-      else setActionError(res.error ?? "Couldn't delete the prompt.");
+      const res = await softDeletePromptAction(id);
+      if (!res.ok) {
+        setActionError(res.error ?? "Couldn't delete the prompt.");
+        return;
+      }
+      router.push("/library");
+      toast({
+        text: "Prompt deleted",
+        action: {
+          label: "Undo",
+          onAction: () => {
+            void undoDeletePromptAction(id).then(() => router.refresh());
+          },
+        },
+      });
     });
   }
 
@@ -191,7 +293,11 @@ export function PromptDetail({
               label="Compare to version"
             />
             <span className="font-body ml-auto text-xs tabular-nums text-accent">
-              {countChanges(segments)} change{countChanges(segments) === 1 ? "" : "s"}
+              {segments === null
+                ? "too long to diff"
+                : `${countChangedSections(segments)} changed section${
+                    countChangedSections(segments) === 1 ? "" : "s"
+                  }`}
             </span>
           </div>
         )}
@@ -243,24 +349,38 @@ export function PromptDetail({
               )}
             </button>
           </div>
-          {/* OUTPUT REGION: prompt/diff body renders in mono (JetBrains). */}
-          <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
-            {versions.length >= 2 ? (
-              segments.map((seg, i) =>
-                seg.op === "removed" ? (
-                  <span key={i} className="text-flare line-through opacity-70">
-                    {seg.text}
-                  </span>
-                ) : (
-                  <span key={i} className={seg.op === "added" ? "text-accent" : undefined}>
-                    {seg.text}
-                  </span>
-                ),
-              )
-            ) : (
-              <>{current?.output_text}</>
-            )}
-          </p>
+          {compareLoading ? (
+            <p className="font-body text-sm text-silver" role="status">
+              Loading version…
+            </p>
+          ) : (
+            /* OUTPUT REGION: prompt/diff body renders in mono (JetBrains). */
+            <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
+              {versions.length >= 2 && segments && segments.length > 0 ? (
+                segments.map((seg, i) =>
+                  seg.op === "removed" ? (
+                    <span key={i} className="text-flare line-through opacity-70">
+                      {seg.text}
+                    </span>
+                  ) : (
+                    <span
+                      key={i}
+                      className={seg.op === "added" ? "text-accent" : undefined}
+                    >
+                      {seg.text}
+                    </span>
+                  ),
+                )
+              ) : (
+                <>{(bBody ?? currentBody)?.output_text}</>
+              )}
+            </p>
+          )}
+          {segments === null && (
+            <p className="font-body mt-2 text-xs text-silver" role="status">
+              These versions are too long to diff — showing the selected version.
+            </p>
+          )}
         </div>
       </section>
 
@@ -274,7 +394,7 @@ export function PromptDetail({
             <li key={v.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="font-body text-sm text-text">
-                  v{labelOf.get(v.id)} · {v.mode}
+                  v{labelOf.get(v.id)} · {MODE_LABEL[v.mode] ?? v.mode}
                   {v.id === currentId ? (
                     <span className="font-body ml-2 text-xs text-accent">current</span>
                   ) : null}
@@ -334,7 +454,7 @@ export function PromptDetail({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => enhanceMutation.mutate({ input: draft.trim(), mode, target })}
+            onClick={runRevise}
             disabled={enhanceMutation.isPending || draft.trim() === ""}
             className="btn-laser min-h-[44px] rounded-xl px-4 text-sm disabled:opacity-60"
           >
@@ -398,6 +518,14 @@ export function PromptDetail({
             <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
               Re-enhanced preview
             </p>
+            {/* Editing the draft or flipping the mode after the run doesn't
+                change what Save stores — label the mismatch honestly. */}
+            {reviseStale && (
+              <p className="font-body mb-2 text-xs text-amber" role="status">
+                Result from previous settings — re-enhance to match your edits.
+                Saving keeps the settings this result actually came from.
+              </p>
+            )}
             {/* OUTPUT REGION: re-enhanced result body in mono (JetBrains). */}
             <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
               {revised.output}
@@ -527,7 +655,7 @@ function VersionSelect({
 }: {
   value: string;
   onChange: (id: string) => void;
-  versions: Version[];
+  versions: VersionMeta[];
   labelOf: Map<string, number>;
   label: string;
 }) {
@@ -541,7 +669,7 @@ function VersionSelect({
       >
         {versions.map((v) => (
           <option key={v.id} value={v.id} className="bg-onyx text-chalk">
-            v{labelOf.get(v.id)} · {v.mode}
+            v{labelOf.get(v.id)} · {MODE_LABEL[v.mode] ?? v.mode}
           </option>
         ))}
       </select>

@@ -420,6 +420,38 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* Reduced effects (Settings → Appearance): a device-local comfort/perf
+     knob that silences the AMBIENT layers — mesh canvas, aurora blooms, the
+     result shimmer — while leaving functional motion (sheets, progress)
+     governed by the OS reduced-motion preference. Applied as a root
+     attribute by ReducedEffectsManager. */
+  [data-reduced-effects] .bg-aurora,
+  [data-reduced-effects] .mesh-canvas,
+  [data-reduced-effects] .result-shimmer::before {
+    display: none;
+  }
+  [data-reduced-effects] .flow-glow,
+  [data-reduced-effects] .flow-line {
+    animation: none;
+  }
+
+  /* Bottom-sheet / toast entry — a short rise-and-fade whose END state is the
+     element's natural resting position, so the global reduced-motion collapse
+     (which snaps to the final frame) leaves the overlay fully visible. */
+  .sheet-in {
+    animation: sheet-in 200ms ease-out;
+  }
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   /* Top-edge Laser shimmer for the active result surface (R4). */
   .result-shimmer {
     position: relative;

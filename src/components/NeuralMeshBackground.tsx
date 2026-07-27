@@ -260,7 +260,7 @@ export function NeuralMeshBackground() {
       {/* Drifting Laser glow — the top bloom shows through the header chrome. */}
       <div className="bg-aurora bg-aurora-top" />
       <div className="bg-aurora bg-aurora-drift" />
-      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+      <canvas ref={canvasRef} className="mesh-canvas absolute inset-0 h-full w-full" />
     </div>
   );
 }

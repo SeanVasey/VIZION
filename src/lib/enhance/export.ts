@@ -1,4 +1,4 @@
-import type { ModeId, TargetModelId } from "@/lib/constants";
+import { MODE_LABEL, type ModeId, type TargetModelId } from "@/lib/constants";
 import { TARGET_LABEL } from "@/lib/providers/formatters";
 
 export interface ExportData {
@@ -10,10 +10,12 @@ export interface ExportData {
   modelUsed: string;
 }
 
-/** Markdown export (product-spec §4.4). Pure + testable. */
+/** Markdown export (product-spec §4.4). Pure + testable. The human-facing
+ *  heading uses the mode LABEL; the JSON export keeps the raw id (a machine
+ *  artifact whose stability outlives label renames). */
 export function toMarkdown(d: ExportData): string {
   return [
-    `# VIZ(IO)N — ${d.mode} → ${TARGET_LABEL[d.target]}`,
+    `# VIZ(IO)N — ${MODE_LABEL[d.mode]} → ${TARGET_LABEL[d.target]}`,
     "",
     "## Input",
     "",

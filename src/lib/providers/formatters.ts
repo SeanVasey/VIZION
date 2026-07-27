@@ -56,6 +56,41 @@ export const TARGET_LABEL: Record<TargetModelId, string> = Object.fromEntries(
  */
 const SHAPE_PRESERVING = new Set<ModeId>(["polish", "clarify"]);
 
+/** True when the mode keeps the input's shape — for these the destination
+ *  affects only routing/cost, never formatting (the UI says so honestly). */
+export function isShapePreserving(mode: ModeId): boolean {
+  return SHAPE_PRESERVING.has(mode);
+}
+
+/** Refinement passes the result view offers on a finished enhancement. */
+export const REFINE_KINDS = ["shorter", "detail", "tone"] as const;
+export type RefineKind = (typeof REFINE_KINDS)[number];
+
+export interface EnhanceRefine {
+  kind: RefineKind;
+  /** The author's ORIGINAL input — required context for the `tone` pass. */
+  baseInput?: string;
+}
+
+const REFINE_INSTRUCTIONS: Record<RefineKind, string> = {
+  shorter:
+    "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Make it meaningfully shorter while keeping every load-bearing instruction and constraint. Do not add new content.",
+  detail:
+    "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Add depth — concrete constraints, examples, and acceptance criteria it still lacks. Do not remove or weaken existing instructions.",
+  tone: "REFINEMENT PASS: The input you receive is an already-enhanced prompt that drifted from the author's voice. Rewrite it so the voice, phrasing habits, and register match the AUTHOR'S ORIGINAL below, while keeping the improvements.",
+};
+
+/** The refine block appended after the mode instruction (empty when no
+ *  refinement). Tone wraps the author's original in explicit delimiters. */
+function refineBlock(refine?: EnhanceRefine): string[] {
+  if (!refine) return [];
+  const lines = [REFINE_INSTRUCTIONS[refine.kind]];
+  if (refine.kind === "tone" && refine.baseInput) {
+    lines.push("AUTHOR'S ORIGINAL:", "<original>", refine.baseInput, "</original>");
+  }
+  return ["", lines.join("\n")];
+}
+
 const FORMAT_PRESERVATION =
   'OUTPUT SHAPE — CRITICAL: This governs the transformed prompt only (the "output" field), not the JSON envelope you must return. Preserve the input\'s existing format, voice, and length. If the input is a single sentence or a plain paragraph, keep the output a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use into the transformed prompt, and do NOT expand a short prose prompt into a structured document. The output will be pasted into the target engine — keep it clean, plain text unless the original was already structured.';
 
@@ -83,7 +118,11 @@ const OUTPUT_STRUCTURE_FORBIDDEN =
  * prompt for the given mode + target. Pure and deterministic so it can be
  * unit-tested and so the prompt prefix stays cache-friendly.
  */
-export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
+export function buildSystemPrompt(
+  mode: ModeId,
+  target: TargetModelId,
+  refine?: EnhanceRefine,
+): string {
   const shapePreserving = SHAPE_PRESERVING.has(mode);
   const conventions = shapePreserving ? FORMAT_PRESERVATION : TARGET_CONVENTIONS[target];
   const outputContract = `${OUTPUT_CONTRACT_BASE} ${
@@ -93,14 +132,21 @@ export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
     "You are VIZ(IO)N, a precise prompt engineer. You transform a user's prompt; you never answer or execute it.",
     "",
     MODE_INSTRUCTIONS[mode],
+    ...refineBlock(refine),
     "",
     conventions,
     "",
     outputContract,
     "",
-    "Return ONLY a JSON object with two string fields:",
-    '- "output": the transformed prompt, ready to paste into the target engine.',
-    '- "rationale": a short, plain-language explanation of what you changed and why (2-4 sentences).',
+    // "output" first is load-bearing: the streaming scanner decodes the
+    // output string incrementally, so a model that reorders fields only
+    // delays streaming — it never breaks parsing.
+    'Return ONLY a JSON object. Field order matters — "output" MUST be the first field:',
+    '- "output" (required, string): the transformed prompt, ready to paste into the target engine.',
+    '- "rationale" (required, string): a short, plain-language explanation of what you changed and why (2-4 sentences).',
+    '- "assumptions" (optional, array of strings): assumptions you made to fill gaps in the request, one short line each. Omit the field entirely if you made none.',
+    '- "targetNotes" (optional, string): one sentence naming any changes made specifically for the target engine. Omit if none.',
+    '- "title" (optional, string): a short semantic name for this prompt (max 60 characters, no quotes), suitable as a library entry title.',
     "Do not wrap the JSON in markdown fences. Do not include any other text.",
   ].join("\n");
 }
@@ -108,9 +154,24 @@ export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
 export interface EnhancePayload {
   output: string;
   rationale: string;
+  /** Assumptions the model made to fill gaps — optional, capped, tolerant. */
+  assumptions?: string[];
+  /** One sentence on target-engine-specific changes — optional. */
+  targetNotes?: string;
+  /** Short semantic name for the prompt (library title seed) — optional. */
+  title?: string;
 }
 
-/** Parse + validate a provider's raw text response into the enhance payload. */
+/** Most assumptions a payload may carry — anything longer is noise. */
+const MAX_ASSUMPTIONS = 6;
+const MAX_TITLE_CHARS = 60;
+
+/**
+ * Parse + validate a provider's raw text response into the enhance payload.
+ * `output`/`rationale` stay REQUIRED (the battle-scarred contract); the newer
+ * fields are optional and parsed tolerantly — junk shapes are dropped, never
+ * fatal, so an older or disobedient model can't fail a run over them.
+ */
 export function parseEnhancePayload(raw: string): EnhancePayload {
   let data: unknown;
   try {
@@ -126,6 +187,24 @@ export function parseEnhancePayload(raw: string): EnhancePayload {
   ) {
     throw new Error("The model response was missing the expected fields.");
   }
-  const { output, rationale } = data as EnhancePayload;
-  return { output: output.trim(), rationale: rationale.trim() };
+  const rec = data as Record<string, unknown>;
+  const payload: EnhancePayload = {
+    output: (rec.output as string).trim(),
+    rationale: (rec.rationale as string).trim(),
+  };
+
+  if (Array.isArray(rec.assumptions)) {
+    const assumptions = rec.assumptions
+      .filter((a): a is string => typeof a === "string" && a.trim() !== "")
+      .map((a) => a.trim())
+      .slice(0, MAX_ASSUMPTIONS);
+    if (assumptions.length > 0) payload.assumptions = assumptions;
+  }
+  if (typeof rec.targetNotes === "string" && rec.targetNotes.trim() !== "") {
+    payload.targetNotes = rec.targetNotes.trim();
+  }
+  if (typeof rec.title === "string" && rec.title.trim() !== "") {
+    payload.title = rec.title.trim().slice(0, MAX_TITLE_CHARS);
+  }
+  return payload;
 }

@@ -77,6 +77,14 @@ interface UIState {
   thinkingLevels: Partial<Record<TargetModelId, ThinkingLevel>>;
   /** In-progress editor text, preserved across nav (product-spec §2.4). */
   editorDraft: string;
+  /** The media privacy notice has been acknowledged on this device. */
+  mediaNoticeAcknowledged: boolean;
+  /** Whether new attachments upload to storage (false = analyze without
+   *  keeping — the ephemeral path never uploads). */
+  mediaStoreByDefault: boolean;
+  /** Suppress the ambient effects (mesh canvas, auroras, shimmer) on this
+   *  device — a performance/comfort knob independent of reduced-motion. */
+  reducedEffects: boolean;
 
   setTheme: (theme: Theme) => void;
   setActiveMode: (mode: ModeId) => void;
@@ -84,6 +92,9 @@ interface UIState {
   /** `null` clears back to Auto. */
   setThinkingLevel: (target: TargetModelId, level: ThinkingLevel | null) => void;
   setEditorDraft: (draft: string) => void;
+  setMediaNoticeAcknowledged: (v: boolean) => void;
+  setMediaStoreByDefault: (v: boolean) => void;
+  setReducedEffects: (v: boolean) => void;
 }
 
 /**
@@ -98,6 +109,9 @@ export const useUIStore = create<UIState>()(
       targetModel: "opus_5",
       thinkingLevels: {},
       editorDraft: "",
+      mediaNoticeAcknowledged: false,
+      mediaStoreByDefault: true,
+      reducedEffects: false,
 
       setTheme: (theme) => set({ theme }),
       setActiveMode: (activeMode) => set({ activeMode }),
@@ -110,6 +124,10 @@ export const useUIStore = create<UIState>()(
           return { thinkingLevels };
         }),
       setEditorDraft: (editorDraft) => set({ editorDraft }),
+      setMediaNoticeAcknowledged: (mediaNoticeAcknowledged) =>
+        set({ mediaNoticeAcknowledged }),
+      setMediaStoreByDefault: (mediaStoreByDefault) => set({ mediaStoreByDefault }),
+      setReducedEffects: (reducedEffects) => set({ reducedEffects }),
     }),
     {
       name: UI_STORE_KEY,
@@ -121,7 +139,9 @@ export const useUIStore = create<UIState>()(
       // gemini_3_6_flash + per-target thinkingLevels. A stale persisted ID
       // would 400 on /api/enhance, so map legacy values and fall back to the
       // default; stale thinking selections are re-keyed or dropped the same way.
-      version: 5,
+      // v6: media privacy prefs (mediaNoticeAcknowledged, mediaStoreByDefault)
+      // — pass-through defaults, no re-keying.
+      version: 6,
       migrate: (persisted) => {
         const s = (persisted ?? {}) as Partial<UIState>;
         const valid = new Set<string>(TARGET_MODELS.map((m) => m.id));
@@ -145,6 +165,8 @@ export const useUIStore = create<UIState>()(
               ? (t as TargetModelId)
               : ((t && LEGACY_TARGET_IDS[t]) ?? "opus_5"),
           thinkingLevels,
+          mediaNoticeAcknowledged: s.mediaNoticeAcknowledged ?? false,
+          mediaStoreByDefault: s.mediaStoreByDefault ?? true,
         };
       },
       // Draft is intentionally NOT persisted as the only copy — it is a
@@ -155,6 +177,11 @@ export const useUIStore = create<UIState>()(
         targetModel: state.targetModel,
         thinkingLevels: state.thinkingLevels,
         editorDraft: state.editorDraft,
+        mediaNoticeAcknowledged: state.mediaNoticeAcknowledged,
+        mediaStoreByDefault: state.mediaStoreByDefault,
+        // reducedEffects rides the shallow merge: a persisted state without
+        // the key falls back to the initial `false` — no version bump needed.
+        reducedEffects: state.reducedEffects,
       }),
     },
   ),

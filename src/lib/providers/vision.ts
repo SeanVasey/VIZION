@@ -4,23 +4,47 @@ import OpenAI from "openai";
 import type { TargetModelId } from "@/lib/constants";
 import { TARGETS, PROVIDER_KEY_ENV, type Provider } from "@/lib/providers/config";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
-import { MEDIA_EXTRACT_SYSTEM, parseMediaAttributes } from "@/lib/media/extract";
+import {
+  MEDIA_EXTRACT_SYSTEM,
+  parseMediaAttributes,
+  parseMediaText,
+} from "@/lib/media/extract";
 import type { MediaAttributes } from "@/lib/media/types";
 
 /**
  * Vision analysis by the user's SELECTED target model — one `describeImage`
- * fanning out per provider, mirroring the enhance adapter. Every path sends
- * MEDIA_EXTRACT_SYSTEM and parses the same JSON (attributes + the prose
- * `description` for the media content box). Server-side only.
+ * fanning out per provider, mirroring the enhance adapter. The system prompt
+ * and expected response shape vary by analysis INTENT (attribute extraction,
+ * style-only, faithful transcription) — every provider path sends the same
+ * spec and the parse happens once at the tail. Server-side only.
  */
 
 export interface VisionResult {
   attrs: Partial<MediaAttributes>;
+  /** Transcription — present only for `expect: "text"` analyses. */
+  text?: string;
   tokenIn: number;
   tokenOut: number;
 }
 
-const USER_TEXT = "Extract the attributes as JSON.";
+export interface VisionOptions {
+  /** System prompt override (defaults to MEDIA_EXTRACT_SYSTEM). */
+  system?: string;
+  /** What the response parses as (defaults to "attributes"). */
+  expect?: "attributes" | "text";
+}
+
+interface VisionSpec {
+  system: string;
+  userText: string;
+}
+
+/** Raw provider response — parsed once by describeImage. */
+interface RawVision {
+  raw: string;
+  tokenIn: number;
+  tokenOut: number;
+}
 
 type AnthropicImageMediaType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
 
@@ -28,7 +52,8 @@ async function describeAnthropic(
   base64: string,
   mediaType: string,
   model: string,
-): Promise<VisionResult> {
+  spec: VisionSpec,
+): Promise<RawVision> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("anthropic");
 
@@ -36,7 +61,7 @@ async function describeAnthropic(
   const response = await client.messages.create({
     model,
     max_tokens: 1024,
-    system: MEDIA_EXTRACT_SYSTEM,
+    system: spec.system,
     messages: [
       {
         role: "user",
@@ -49,7 +74,7 @@ async function describeAnthropic(
               data: base64,
             },
           },
-          { type: "text", text: USER_TEXT },
+          { type: "text", text: spec.userText },
         ],
       },
     ],
@@ -59,7 +84,7 @@ async function describeAnthropic(
     .map((b) => b.text)
     .join("");
   return {
-    attrs: parseMediaAttributes(text),
+    raw: text,
     tokenIn: response.usage.input_tokens,
     tokenOut: response.usage.output_tokens,
   };
@@ -76,19 +101,20 @@ async function describeOpenAICompatible(
   base64: string,
   mediaType: string,
   model: string,
+  spec: VisionSpec,
   tokenCap: { max_tokens: number } | { max_completion_tokens: number },
   // Perplexity takes json_schema, not json_object (and Meta keeps the same
   // conservative carve-out on the new Meta Model API) — for those the prompt
-  // alone pins JSON and parseMediaAttributes tolerates a miss.
+  // alone pins JSON and the tolerant parsers absorb a miss.
   jsonMode = true,
-): Promise<VisionResult> {
+): Promise<RawVision> {
   const client = new OpenAI({ apiKey, baseURL });
   const response = await client.chat.completions.create({
     model,
     ...tokenCap,
     ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
     messages: [
-      { role: "system", content: MEDIA_EXTRACT_SYSTEM },
+      { role: "system", content: spec.system },
       {
         role: "user",
         content: [
@@ -96,13 +122,13 @@ async function describeOpenAICompatible(
             type: "image_url",
             image_url: { url: `data:${mediaType};base64,${base64}` },
           },
-          { type: "text", text: USER_TEXT },
+          { type: "text", text: spec.userText },
         ],
       },
     ],
   });
   return {
-    attrs: parseMediaAttributes(response.choices[0]?.message?.content ?? ""),
+    raw: response.choices[0]?.message?.content ?? "",
     tokenIn: response.usage?.prompt_tokens ?? 0,
     tokenOut: response.usage?.completion_tokens ?? 0,
   };
@@ -123,7 +149,8 @@ async function describeGoogle(
   base64: string,
   mediaType: string,
   model: string,
-): Promise<VisionResult> {
+  spec: VisionSpec,
+): Promise<RawVision> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("google");
 
@@ -134,13 +161,13 @@ async function describeGoogle(
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: MEDIA_EXTRACT_SYSTEM }] },
+      systemInstruction: { parts: [{ text: spec.system }] },
       contents: [
         {
           role: "user",
           parts: [
             { inline_data: { mime_type: mediaType, data: base64 } },
-            { text: USER_TEXT },
+            { text: spec.userText },
           ],
         },
       ],
@@ -166,7 +193,7 @@ async function describeGoogle(
     .map((p) => p.text ?? "")
     .join("");
   return {
-    attrs: parseMediaAttributes(text),
+    raw: text,
     tokenIn: data.usageMetadata?.promptTokenCount ?? 0,
     // Thinking tokens are billed as output — dropping them undercounts the cap.
     tokenOut:
@@ -235,86 +262,119 @@ export function visionFallbackTarget(failed: TargetModelId): TargetModelId | nul
   return null;
 }
 
-/** Analyze an image with the given target model's provider. */
+/** Analyze an image with the given target model's provider. `opts` selects
+ *  the analysis intent (attribute extraction by default; style-only or
+ *  faithful transcription via system/expect). */
 export async function describeImage(
   base64: string,
   mediaType: string,
   target: TargetModelId,
+  opts?: VisionOptions,
 ): Promise<VisionResult> {
   const cfg = TARGETS[target];
+  const expect = opts?.expect ?? "attributes";
+  const spec: VisionSpec = {
+    system: opts?.system ?? MEDIA_EXTRACT_SYSTEM,
+    userText:
+      expect === "text"
+        ? "Transcribe the legible text as JSON."
+        : "Extract the attributes as JSON.",
+  };
   const requireKey = (env: string) => {
     const key = process.env[env];
     if (!key) throw new ProviderNotConfiguredError(cfg.provider);
     return key;
   };
+  const finish = (r: RawVision): VisionResult =>
+    expect === "text"
+      ? { attrs: {}, text: parseMediaText(r.raw), tokenIn: r.tokenIn, tokenOut: r.tokenOut }
+      : { attrs: parseMediaAttributes(r.raw), tokenIn: r.tokenIn, tokenOut: r.tokenOut };
 
   try {
     switch (cfg.provider) {
       case "anthropic":
-        return await describeAnthropic(base64, mediaType, cfg.model);
+        return finish(await describeAnthropic(base64, mediaType, cfg.model, spec));
       case "openai":
         // 4096, not 1024: reasoning-class models spend completion budget on
         // reasoning tokens first — a tight cap can be consumed before any
         // JSON is emitted, silently returning empty attributes.
-        return await describeOpenAICompatible(
-          requireKey("OPENAI_API_KEY"),
-          undefined,
-          base64,
-          mediaType,
-          cfg.model,
-          { max_completion_tokens: 4096 },
+        return finish(
+          await describeOpenAICompatible(
+            requireKey("OPENAI_API_KEY"),
+            undefined,
+            base64,
+            mediaType,
+            cfg.model,
+            spec,
+            { max_completion_tokens: 4096 },
+          ),
         );
       case "xai":
         // Grok-class models reason unconditionally — same headroom as OpenAI.
-        return await describeOpenAICompatible(
-          requireKey("XAI_API_KEY"),
-          "https://api.x.ai/v1",
-          base64,
-          mediaType,
-          cfg.model,
-          { max_tokens: 4096 },
+        return finish(
+          await describeOpenAICompatible(
+            requireKey("XAI_API_KEY"),
+            "https://api.x.ai/v1",
+            base64,
+            mediaType,
+            cfg.model,
+            spec,
+            { max_tokens: 4096 },
+          ),
         );
       case "mistral":
-        return await describeOpenAICompatible(
-          requireKey("MISTRAL_API_KEY"),
-          "https://api.mistral.ai/v1",
-          base64,
-          mediaType,
-          cfg.model,
-          { max_tokens: 1024 },
+        return finish(
+          await describeOpenAICompatible(
+            requireKey("MISTRAL_API_KEY"),
+            "https://api.mistral.ai/v1",
+            base64,
+            mediaType,
+            cfg.model,
+            spec,
+            { max_tokens: 1024 },
+          ),
         );
       case "meta":
-        return await describeOpenAICompatible(
-          requireKey("META_API_KEY"),
-          "https://api.meta.ai/v1",
-          base64,
-          mediaType,
-          cfg.model,
-          { max_tokens: 1024 },
-          false,
+        return finish(
+          await describeOpenAICompatible(
+            requireKey("META_API_KEY"),
+            "https://api.meta.ai/v1",
+            base64,
+            mediaType,
+            cfg.model,
+            spec,
+            { max_tokens: 1024 },
+            false,
+          ),
         );
       case "moonshot":
-        return await describeOpenAICompatible(
-          requireKey("MOONSHOT_API_KEY"),
-          "https://api.moonshot.ai/v1",
-          base64,
-          mediaType,
-          cfg.model,
-          { max_tokens: 1024 },
+        return finish(
+          await describeOpenAICompatible(
+            requireKey("MOONSHOT_API_KEY"),
+            "https://api.moonshot.ai/v1",
+            base64,
+            mediaType,
+            cfg.model,
+            spec,
+            { max_tokens: 1024 },
+          ),
         );
       case "perplexity":
         // Sonar reasons before answering — same headroom as OpenAI.
-        return await describeOpenAICompatible(
-          requireKey("PERPLEXITY_API_KEY"),
-          "https://api.perplexity.ai",
-          base64,
-          mediaType,
-          cfg.model,
-          { max_tokens: 4096 },
-          false,
+        return finish(
+          await describeOpenAICompatible(
+            requireKey("PERPLEXITY_API_KEY"),
+            "https://api.perplexity.ai",
+            base64,
+            mediaType,
+            cfg.model,
+            spec,
+            { max_tokens: 4096 },
+            false,
+          ),
         );
       case "google":
-        return await describeGoogle(base64, mediaType, cfg.model);
+        return finish(await describeGoogle(base64, mediaType, cfg.model, spec));
       case "deepseek":
       case "minimax":
       case "qwen":

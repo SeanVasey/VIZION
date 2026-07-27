@@ -34,10 +34,15 @@ export function ThemeToggle() {
   );
 }
 
-/** Inline segmented control used on the Profile screen. */
-export function ThemeSegmented() {
+/** Inline segmented control used on the Settings screen. `onResult` surfaces
+ *  the sync outcome next to the control (the settings write path). */
+export function ThemeSegmented({
+  onResult,
+}: {
+  onResult?: (res: { ok: boolean; error?: string }) => void;
+} = {}) {
   const theme = useUIStore((s) => s.theme);
-  const setTheme = useSetTheme();
+  const setTheme = useSetTheme(onResult);
 
   return (
     // A group of toggle buttons, not role="radiogroup": radios promise an

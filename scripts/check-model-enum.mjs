@@ -55,6 +55,49 @@ function readRosterIds() {
 
 const MISSING_ENUM_RE = /invalid input value for enum model_target/i;
 
+/**
+ * Columns the app's queries select that arrived via later migrations — the
+ * same committed-but-unapplied drift class as the enum, probed the same
+ * read-only way (`?select=<col>&limit=0` → 200 present / 400 42703 missing).
+ * Append here whenever a migration adds a column the client selects.
+ */
+const COLUMN_PROBES = [
+  {
+    table: "media_assets",
+    columns: ["original_name", "mime_type", "role", "status"],
+    migration: "20260727120000_media_roles_and_reservation.sql",
+  },
+  {
+    table: "prompts",
+    columns: ["favorite", "archived_at", "deleted_at", "preview", "current_mode"],
+    migration: "20260727130000_library_organization.sql",
+  },
+  {
+    table: "prompt_versions",
+    columns: ["content_hash"],
+    migration: "20260727130000_library_organization.sql",
+  },
+];
+
+/** RPC functions the app calls — a missing function is PostgREST PGRST202.
+ *  `args` must match the real signature: PGRST202 means "no function with
+ *  THESE parameters", so an empty body would read as missing even when the
+ *  function exists. The probe values never execute — anon lacks EXECUTE
+ *  (42501) and an authenticated caller would fail validation first. */
+const FUNCTION_PROBES = [
+  {
+    fn: "media_reserve",
+    args: {
+      p_kind: "image",
+      p_size_bytes: 1,
+      p_original_name: "probe",
+      p_mime_type: "probe",
+      p_ext: "bin",
+    },
+    migration: "20260727120000_media_roles_and_reservation.sql",
+  },
+];
+
 /** `present` | `missing` | `{ error }` for one label. */
 async function probe(baseUrl, key, id) {
   const url = `${baseUrl}/rest/v1/prompts?select=id&limit=0&target_model=eq.${encodeURIComponent(id)}`;
@@ -65,6 +108,41 @@ async function probe(baseUrl, key, id) {
   const body = await res.text();
   if (MISSING_ENUM_RE.test(body)) return "missing";
   return { error: `HTTP ${res.status}: ${body.slice(0, 300)}` };
+}
+
+/** `present` | `missing` | `{ error }` for a table's migrated columns. */
+async function probeColumns(baseUrl, key, { table, columns }) {
+  const url = `${baseUrl}/rest/v1/${table}?select=${columns.join(",")}&limit=0`;
+  const res = await fetch(url, {
+    headers: { apikey: key, authorization: `Bearer ${key}` },
+  });
+  if (res.ok) return "present";
+  const body = await res.text();
+  // 42703 = undefined column — the unapplied-migration signature.
+  if (res.status === 400 && /does not exist|42703/i.test(body)) return "missing";
+  return { error: `HTTP ${res.status}: ${body.slice(0, 300)}` };
+}
+
+/** `present` | `missing` | `{ error }` for an RPC function — only PGRST202
+ *  ("could not find the function … with these parameters") means the
+ *  migration wasn't applied; any other rejection (permission denied,
+ *  validation) proves it exists, which is all this probe asserts. */
+async function probeFunction(baseUrl, key, { fn, args }) {
+  const res = await fetch(`${baseUrl}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      authorization: `Bearer ${key}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(args ?? {}),
+  });
+  if (res.ok) return "present";
+  const body = await res.text();
+  if (res.status === 404 && /PGRST202|could not find the function/i.test(body)) {
+    return "missing";
+  }
+  return "present";
 }
 
 async function main() {
@@ -113,6 +191,37 @@ async function main() {
   }
 
   console.log(`✓ hosted 'model_target' enum knows all ${ids.length} roster targets.`);
+
+  // --- Migrated columns + RPC functions (same drift class, same probe). ---
+  let drifted = false;
+  for (const cp of COLUMN_PROBES) {
+    const outcome = await probeColumns(baseUrl, key, cp);
+    if (outcome === "present") {
+      console.log(`✓ hosted '${cp.table}' has ${cp.columns.join(", ")}.`);
+    } else if (outcome === "missing") {
+      drifted = true;
+      console.error(
+        `✗ SCHEMA DRIFT — '${cp.table}' is missing migrated column(s) ` +
+          `${cp.columns.join(", ")}.\n  Fix: apply supabase/migrations/${cp.migration}.`,
+      );
+    } else {
+      console.error(`✗ column probe for '${cp.table}' failed: ${outcome.error}`);
+      process.exit(1);
+    }
+  }
+  for (const fp of FUNCTION_PROBES) {
+    const outcome = await probeFunction(baseUrl, key, fp);
+    if (outcome === "present") {
+      console.log(`✓ hosted function '${fp.fn}' exists.`);
+    } else {
+      drifted = true;
+      console.error(
+        `✗ SCHEMA DRIFT — RPC function '${fp.fn}' is missing.\n` +
+          `  Fix: apply supabase/migrations/${fp.migration}.`,
+      );
+    }
+  }
+  if (drifted) process.exit(1);
 }
 
 main().catch((e) => {

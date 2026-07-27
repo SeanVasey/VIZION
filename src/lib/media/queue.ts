@@ -1,13 +1,25 @@
-import type { MediaAttributes, MediaKind } from "@/lib/media/types";
+import type {
+  AttachmentRole,
+  GenTargetId,
+  MediaAttributes,
+  MediaKind,
+} from "@/lib/media/types";
 import type { TargetModelId } from "@/lib/constants";
 
 /**
- * Pure state helpers for the multi-photo queue (unit-tested; the component
- * keeps only thin async glue). Files process sequentially — kinder to the
- * burst limiter, the daily cost cap, and a mobile radio than a parallel fan-out.
+ * Pure state helpers for the attachment tray's queue (unit-tested; the
+ * component keeps only thin async glue). Files process sequentially — kinder
+ * to the burst limiter, the daily cost cap, and a mobile radio than a
+ * parallel fan-out.
  */
 
-export type MediaItemStatus = "queued" | "uploading" | "analyzing" | "ready" | "error";
+export type MediaItemStatus =
+  | "queued"
+  | "reserving"
+  | "uploading"
+  | "analyzing"
+  | "ready"
+  | "error";
 
 export interface AnalysisUsage {
   tokenIn: number;
@@ -26,15 +38,29 @@ export interface MediaItem {
   thumbUrl?: string;
   status: MediaItemStatus;
   error?: string;
+  /** Why this attachment exists — never inferred to "generate". */
+  role: AttachmentRole;
+  /** True = analyze without keeping: no upload, no DB row, session-only. */
+  ephemeral: boolean;
+  /** The stored media_assets row (absent for ephemeral attachments). */
+  assetId?: string;
+  storagePath?: string;
   attrs?: MediaAttributes;
   description?: string;
+  /** Faithful transcription (the extract role). */
+  extractedText?: string;
   usage?: AnalysisUsage;
-  /** The description has been inserted into the prompt draft. */
+  /** The description/text has been inserted into the prompt draft. */
   inserted?: boolean;
   /** Target captured when the file was picked — the analysis request uses
    *  this, so progress labels must too (the live selection can change
    *  mid-queue). */
   analysisTarget?: TargetModelId;
+  /** Which analysis intent produced the current attrs/text (role changes
+   *  between intent families re-analyze). */
+  analyzedIntent?: "reference" | "style" | "extract_text";
+  /** Engine choice for the generate role (explicit, per attachment). */
+  genTarget?: GenTargetId;
 }
 
 /** Immutable single-item patch. */
@@ -87,6 +113,8 @@ export function itemStepLabel(item: MediaItem, modelLabel: string): string {
   switch (item.status) {
     case "queued":
       return "Waiting…";
+    case "reserving":
+      return "Reserving storage…";
     case "uploading":
       return "Uploading…";
     case "analyzing":
