@@ -11,6 +11,7 @@ import { useCopy } from "@/components/ui/use-copy";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
 import { ComparisonSegments } from "@/components/diff/segments";
+import { Skeleton } from "@/components/ui/Skeleton";
 import {
   addVersionAction,
   restoreVersionAction,
@@ -342,9 +343,11 @@ export function PromptDetail({
             </button>
           </div>
           {compareLoading ? (
-            <p className="font-body text-sm text-silver" role="status">
-              Loading version…
-            </p>
+            /* A shape where the version body will land, so the panel doesn't
+               collapse and re-expand as it arrives. */
+            <div role="status" aria-label="Loading version">
+              <Skeleton lines={4} />
+            </div>
           ) : (
             /* OUTPUT REGION: prompt/diff body renders in mono (JetBrains). */
             <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">

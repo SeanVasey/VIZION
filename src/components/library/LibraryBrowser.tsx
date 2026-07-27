@@ -203,7 +203,7 @@ export function LibraryBrowser({
           disabled={loadingMore}
           className="glass font-body min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
         >
-          {loadingMore ? "Loading…" : "Load more"}
+          {loadingMore ? "Loading more…" : "Load more"}
         </button>
       )}
       {loadError && (

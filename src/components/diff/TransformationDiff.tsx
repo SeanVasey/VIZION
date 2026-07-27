@@ -36,9 +36,10 @@ import {
 } from "@/components/diff/segments";
 import { CompareSheet } from "@/components/diff/CompareSheet";
 
-/** Inputs longer than this start with the original collapsed (mobile-first:
- *  the improved prompt is the primary object, not the diff diagnostics). */
-const COLLAPSE_THRESHOLD_CHARS = 400;
+/** The original always starts collapsed (2026-07 product review): the improved
+ *  prompt is the primary object, and on a phone even a short original pushes
+ *  the rationale and actions down a screen. One tap reveals it. */
+const ORIGINAL_STARTS_OPEN = false;
 
 const REFINE_CHIPS: { kind: RefineKind; label: string }[] = [
   { kind: "shorter", label: "Make shorter" },
@@ -128,9 +129,7 @@ export function TransformationDiff({
         .join(""),
     [result],
   );
-  const [showOriginal, setShowOriginal] = useState(
-    diffInput.length <= COLLAPSE_THRESHOLD_CHARS,
-  );
+  const [showOriginal, setShowOriginal] = useState(ORIGINAL_STARTS_OPEN);
 
   // A new result (fresh run or refine) resets every per-result decision.
   useEffect(() => {
@@ -141,11 +140,7 @@ export function TransformationDiff({
     setDuplicate(null);
     // `copied` self-clears on its own timer inside useCopy.
     setCompareOpen(false);
-    setShowOriginal(
-      result.diff
-        .filter((s) => s.op !== "added")
-        .reduce((n, s) => n + s.text.length, 0) <= COLLAPSE_THRESHOLD_CHARS,
-    );
+    setShowOriginal(ORIGINAL_STARTS_OPEN);
   }, [result]);
 
   const changes = countChangedSections(result.diff);

@@ -447,8 +447,22 @@
     background-image: none;
   }
   [data-reduced-effects] .flow-glow,
-  [data-reduced-effects] .flow-line {
+  [data-reduced-effects] .flow-line,
+  [data-reduced-effects] .skeleton {
     animation: none;
+  }
+
+  /* Loading placeholder. The pulse is ambient decoration, so it answers to
+     BOTH the OS reduced-motion preference (via the global collapse) and the
+     Reduced-effects switch — a static block still reads as "pending". */
+  @keyframes skeleton-pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .skeleton {
+    background: var(--surface);
+    animation: skeleton-pulse 1.6s ease-in-out infinite;
   }
 
   /* Inline activity spinner for a button that is mid-run. An open ring that
