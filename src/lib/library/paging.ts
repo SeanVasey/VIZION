@@ -21,6 +21,10 @@ export interface LibraryFilter {
   model?: TargetModelId;
   mode?: ModeId;
   tag?: string;
+  /** Collection id (uuid). Unlike model/mode, the valid set is per-user and
+   *  dynamic — only the SHAPE is validated here; an unknown id simply
+   *  matches nothing (RLS scopes the rows anyway). */
+  collection?: string;
   view: LibraryView;
   sort: LibrarySort;
 }
@@ -29,6 +33,7 @@ const MODEL_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
 const VIEW_IDS = new Set<string>(LIBRARY_VIEWS);
 const SORT_IDS = new Set<string>(LIBRARY_SORTS);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Parse raw searchParams tolerantly — garbage falls back to defaults. */
 export function parseLibraryParams(
@@ -40,6 +45,7 @@ export function parseLibraryParams(
   const model = one(sp?.model);
   const mode = one(sp?.mode);
   const tag = one(sp?.tag)?.trim().slice(0, 60);
+  const collection = one(sp?.collection)?.trim();
   const view = one(sp?.view);
   const sort = one(sp?.sort);
   return {
@@ -47,6 +53,7 @@ export function parseLibraryParams(
     ...(model && MODEL_IDS.has(model) ? { model: model as TargetModelId } : {}),
     ...(mode && MODE_IDS.has(mode) ? { mode: mode as ModeId } : {}),
     ...(tag ? { tag } : {}),
+    ...(collection && UUID_RE.test(collection) ? { collection } : {}),
     view: view && VIEW_IDS.has(view) ? (view as LibraryView) : "all",
     sort: sort && SORT_IDS.has(sort) ? (sort as LibrarySort) : "updated",
   };
@@ -59,6 +66,7 @@ export function libraryHref(filter: LibraryFilter): string {
   if (filter.model) params.set("model", filter.model);
   if (filter.mode) params.set("mode", filter.mode);
   if (filter.tag) params.set("tag", filter.tag);
+  if (filter.collection) params.set("collection", filter.collection);
   if (filter.view !== "all") params.set("view", filter.view);
   if (filter.sort !== "updated") params.set("sort", filter.sort);
   const s = params.toString();
@@ -72,6 +80,7 @@ export function countActiveFilters(filter: LibraryFilter): number {
     filter.model,
     filter.mode,
     filter.tag,
+    filter.collection,
     filter.view !== "all" ? "view" : undefined,
     filter.sort !== "updated" ? "sort" : undefined,
   ].filter(Boolean).length;

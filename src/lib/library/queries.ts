@@ -23,6 +23,16 @@ export interface PromptCard {
   preview: string | null;
   mode: string | null;
   versions: number;
+  collection_id: string | null;
+}
+
+/** One collection with its (non-deleted) prompt count. Zero-count
+ *  collections are included — the Move sheet lists them all, and one facet
+ *  source serves both surfaces. */
+export interface CollectionFacet {
+  id: string;
+  name: string;
+  count: number;
 }
 
 export interface LibraryFacets {
@@ -30,6 +40,7 @@ export interface LibraryFacets {
    *  the filter sheet shows ONLY these, never the full global roster. */
   models: { id: string; count: number }[];
   tags: string[];
+  collections: CollectionFacet[];
 }
 
 const SORT_SPEC: Record<
@@ -63,6 +74,7 @@ interface PageRow {
   archived_at: string | null;
   preview: string | null;
   current_mode: string | null;
+  collection_id: string | null;
   prompt_versions: { count: number }[] | null;
 }
 
@@ -81,7 +93,7 @@ export async function queryLibraryPage(
   let q = supabase
     .from("prompts")
     .select(
-      "id, title, target_model, tags, created_at, updated_at, favorite, archived_at, preview, current_mode, prompt_versions!prompt_id(count)",
+      "id, title, target_model, tags, created_at, updated_at, favorite, archived_at, preview, current_mode, collection_id, prompt_versions!prompt_id(count)",
     )
     .is("deleted_at", null);
 
@@ -91,6 +103,7 @@ export async function queryLibraryPage(
   if (filter.model) q = q.eq("target_model", filter.model);
   if (filter.mode) q = q.eq("current_mode", filter.mode);
   if (filter.tag) q = q.contains("tags", [filter.tag]);
+  if (filter.collection) q = q.eq("collection_id", filter.collection);
   if (filter.q) q = q.ilike("title", `%${escapeLike(filter.q)}%`);
 
   const cursor = cursorRaw ? decodeCursor(cursorRaw) : null;
@@ -120,6 +133,7 @@ export async function queryLibraryPage(
     preview: row.preview,
     mode: row.current_mode,
     versions: row.prompt_versions?.[0]?.count ?? 1,
+    collection_id: row.collection_id,
   }));
   const last = page[page.length - 1];
   const nextCursor =
@@ -131,23 +145,40 @@ export async function queryLibraryPage(
 
 /** Facets for the filter sheet. PostgREST aggregates are disabled on the
  *  hosted project (PGRST123 — probed 2026-07-27), so this reduces a capped
- *  column-only select instead of a grouped count. */
+ *  column-only select instead of a grouped count. Collection names come from
+ *  a second plain select and join in JS — no embeds (prompts carries three
+ *  FK edges now; embeds are the HTTP 300 ambiguity class). */
 export async function queryLibraryFacets(supabase: Supabase): Promise<LibraryFacets> {
-  const { data } = await supabase
-    .from("prompts")
-    .select("target_model, tags")
-    .is("deleted_at", null)
-    .limit(1000);
+  const [{ data }, { data: collectionRows }] = await Promise.all([
+    supabase
+      .from("prompts")
+      .select("target_model, tags, collection_id")
+      .is("deleted_at", null)
+      .limit(1000),
+    supabase.from("collections").select("id, name").order("name"),
+  ]);
   const counts = new Map<string, number>();
   const tags = new Set<string>();
+  const collectionCounts = new Map<string, number>();
   for (const row of data ?? []) {
     counts.set(row.target_model, (counts.get(row.target_model) ?? 0) + 1);
     for (const t of row.tags ?? []) tags.add(t);
+    if (row.collection_id) {
+      collectionCounts.set(
+        row.collection_id,
+        (collectionCounts.get(row.collection_id) ?? 0) + 1,
+      );
+    }
   }
   return {
     models: [...counts.entries()]
       .map(([id, count]) => ({ id, count }))
       .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id)),
     tags: [...tags].sort(),
+    collections: (collectionRows ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      count: collectionCounts.get(c.id) ?? 0,
+    })),
   };
 }

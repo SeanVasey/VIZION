@@ -15,10 +15,6 @@ import {
 } from "@/lib/library/paging";
 import type { LibraryFacets } from "@/lib/library/queries";
 
-/** Collections/Folders are deferred (owner decision, 2026-07) — the section
- *  slot is reserved behind this flag, the BRAND_MONOGRAMS_READY idiom. */
-const COLLECTIONS_READY = false;
-
 const MODEL_META = new Map(TARGET_MODELS.map((m) => [m.id, m]));
 
 const VIEW_LABEL: Record<LibraryView, string> = {
@@ -255,10 +251,43 @@ export function LibraryFilterSheet({
           </div>
         </section>
 
-        {COLLECTIONS_READY && (
-          <section aria-label="Collections" className="flex flex-col gap-2">
-            <p className={section}>Collections</p>
-            {/* Reserved: lands with the collections migration. */}
+        {/* Collections — the user's folders, with counts. Hidden until one
+            exists (created from a card's "Move to collection…"). */}
+        {facets.collections.length > 0 && (
+          <section aria-label="Collection" className="flex flex-col gap-2">
+            <p className={section}>Collection</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                aria-pressed={!pending.collection}
+                onClick={() =>
+                  setPending((p) => {
+                    const next = { ...p };
+                    delete next.collection;
+                    return next;
+                  })
+                }
+                className={chip(!pending.collection)}
+              >
+                Any
+              </button>
+              {facets.collections.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={pending.collection === c.id}
+                  onClick={() => setPending((p) => ({ ...p, collection: c.id }))}
+                  className={chip(pending.collection === c.id)}
+                >
+                  {c.name}
+                  <span
+                    className={pending.collection === c.id ? "opacity-80" : "opacity-60"}
+                  >
+                    {c.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </section>
         )}
       </div>

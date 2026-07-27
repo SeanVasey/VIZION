@@ -47,6 +47,15 @@ describe("parseLibraryParams", () => {
     const f = parseLibraryParams({ q: "x".repeat(500) });
     expect(f.q!.length).toBe(200);
   });
+
+  it("accepts a uuid-shaped collection and drops anything else", () => {
+    const id = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+    expect(parseLibraryParams({ collection: id }).collection).toBe(id);
+    // Injection-shaped and truncated values never reach the query layer.
+    expect(parseLibraryParams({ collection: "DROP TABLE prompts" }).collection)
+      .toBeUndefined();
+    expect(parseLibraryParams({ collection: "3fa85f64" }).collection).toBeUndefined();
+  });
 });
 
 describe("libraryHref", () => {
@@ -58,12 +67,17 @@ describe("libraryHref", () => {
     const filter = {
       q: "spec",
       model: "gpt_5_6_sol" as const,
+      collection: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
       view: "favorites" as const,
       sort: "title" as const,
     };
     const href = libraryHref(filter);
     const sp = Object.fromEntries(new URL(`https://x${href}`).searchParams.entries());
     expect(parseLibraryParams(sp)).toEqual(filter);
+  });
+
+  it("omits the collection param when absent", () => {
+    expect(libraryHref({ view: "all", sort: "updated" })).not.toContain("collection");
   });
 });
 
@@ -77,8 +91,9 @@ describe("countActiveFilters", () => {
         model: "opus_5",
         mode: "polish",
         tag: "x",
+        collection: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
       }),
-    ).toBe(5);
+    ).toBe(6);
   });
 });
 

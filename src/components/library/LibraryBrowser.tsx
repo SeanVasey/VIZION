@@ -75,6 +75,7 @@ export function LibraryBrowser({
       model: filter.model,
       mode: filter.mode,
       tag: filter.tag,
+      collection: filter.collection,
       view: filter.view,
       sort: filter.sort,
     };
