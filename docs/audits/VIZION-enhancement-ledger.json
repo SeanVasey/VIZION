@@ -1,0 +1,2200 @@
+{
+  "auditDate": "2026-07-27",
+  "repositoryCommit": "3d32cd95e85c1c3077e46364521fe148cbbc5aa4",
+  "productionRevision": "dpl_EZ7D8SESK48iApNetb7yN7TX6sVE",
+  "productVersion": "0.2.1",
+  "proposals": [
+    {
+      "id": "SAFE-01",
+      "title": "Account-scope local state",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "One global localStorage key `vizion.ui.v1` persists `editorDraft` (raw prompt text), theme, mode, target, thinkingLevels. IndexedDB `vizion-outbox` items carry no userId. Cache Storage `vizion-shell` is global. Sign-out clears cookies only.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P0 \u2014 release blocker",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "src/lib/constants.ts:146 \u2014 UI_STORE_KEY is a hardcoded global constant",
+        "src/stores/ui.ts:152-158 \u2014 partialize persists editorDraft",
+        "src/app/auth/sign-out/route.ts:5-11 \u2014 signOut() + redirect; no local purge",
+        "src/lib/pwa/outbox.ts:9-14 \u2014 OutboxItem has no userId field",
+        "src/lib/library/actions.ts:45-55 \u2014 savePromptAction stamps user_id from the CURRENT session",
+        "src/components/pwa/OutboxFlusher.tsx:39-44 \u2014 flushes on mount/online/visibilitychange",
+        "src/components/ProfileHydrator.tsx:22-26 \u2014 resets only theme + targetModel on sign-in"
+      ],
+      "argumentFor": "Cross-account data leak and cross-account WRITE on any shared device. User A queues a save offline and signs out; User B signs in; OutboxFlusher replays A's payload and savePromptAction writes it into B's library. B also inherits A's draft prompt text in the composer.",
+      "argumentAgainst": "Requires a shared device; single-user installs are unaffected. Partitioning keys is a migration that can strand existing drafts.",
+      "simplerAlternative": "Ship the purge first (clear store + outbox + caches on sign-out) \u2014 that alone closes the write path \u2014 then add userId scoping and owner-checked replay.",
+      "evidenceThatWouldChangeDecision": "A test signing in as two users and asserting zero carry-over of draft, outbox, and cache. If replay were already owner-checked this would drop to P1.",
+      "scores": {
+        "userImpact": 5,
+        "reach": 5,
+        "riskReduction": 5,
+        "strategicFit": 4,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 3,
+        "priorityIndex": 8.5
+      }
+    },
+    {
+      "id": "SAFE-02",
+      "title": "Truthful offline queue status",
+      "sourcesCovered": ["Y-10 (queue-status half)"],
+      "problemVerified": true,
+      "currentState": "`enqueueOutbox` returns Promise<void> and swallows every failure. TransformationDiff sets queued=true unconditionally and renders 'Queued \u2014 syncs when online'. Its catch is not offline-gated, so online failures also report 'Queued'. MediaStudio's sibling path IS correctly gated \u2014 the two disagree.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P0 \u2014 release blocker",
+      "confidence": "High",
+      "dependencies": ["SAFE-01"],
+      "evidence": [
+        "src/lib/pwa/outbox.ts:102-118 \u2014 `catch {}` with the comment 'never throws'",
+        "src/components/diff/TransformationDiff.tsx:48-63 \u2014 setQueued(true) on both branches",
+        "src/components/diff/TransformationDiff.tsx:230-233 \u2014 renders 'Queued \u2014 syncs when online'",
+        "src/components/media/MediaStudio.tsx:386 \u2014 the corrected sibling, gated on navigator.onLine"
+      ],
+      "argumentFor": "The app tells the user their prompt is safe when it may have been silently dropped \u2014 private mode, quota pressure, or eviction all fail identically to success. SECURITY.md's 'never the only copy' claim is untrue for drafts.",
+      "argumentAgainst": "IndexedDB failures are rare on the happy path; the fix touches user-facing copy that must not become alarmist.",
+      "simplerAlternative": "Make enqueueOutbox return boolean and drive the chip from it; align TransformationDiff's catch with MediaStudio's existing gated shape.",
+      "evidenceThatWouldChangeDecision": "A test forcing an IDB put rejection and asserting the UI reports failure rather than 'Queued'.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 5,
+        "strategicFit": 4,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 11.25
+      }
+    },
+    {
+      "id": "COST-01",
+      "title": "Atomic spend enforcement",
+      "sourcesCovered": ["R-07 (transaction semantics)"],
+      "problemVerified": true,
+      "currentState": "Cap is a read-then-act: `usage_window` RPC reads settled today_cost, compares to COST_CAP_USD_PER_DAY, then the provider runs ~30 lines later. Ledger insert happens in `finally` AFTER the run. No reservation, no lock, no per-request maximum, no idempotency key.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P0 \u2014 release blocker",
+      "confidence": "High",
+      "dependencies": ["DB-01", "DB-02"],
+      "evidence": [
+        "src/app/api/enhance/route.ts:111-126 \u2014 the read-then-act check, quoted in the report",
+        "src/app/api/enhance/route.ts:156 \u2014 provider first touched here",
+        "src/app/api/enhance/route.ts:236-244 \u2014 ledger INSERT inside finally",
+        "src/app/api/media/route.ts:90-101 \u2014 identical shape",
+        "src/lib/security/rate-limit.ts:7-8 \u2014 in-memory limiter self-documented as not authoritative across instances",
+        "tasks/lessons.md \u2014 a prior 22P02 incident already made ledger writes fail silently, disabling the cap for 4 models"
+      ],
+      "argumentFor": "Billing exposure. With the $2 default cap at $1.99 spent, N concurrent requests all read $1.99 and all proceed; a fable_5 run at $50/1M out against a 64k ceiling is ~$3.20, so a 20-request burst can settle ~$64 against a $2 cap (~32x). A single request is never bounded against remaining headroom either.",
+      "argumentAgainst": "Real-world concurrency for one user is low, and Vercel's per-instance limiter incidentally dampens it. Atomic reservation adds a write to the hot path and needs refund logic.",
+      "simplerAlternative": "Add a per-request projected-cost ceiling and reject when today_cost + maxProjected > cap. That bounds worst case without a full reservation ledger; two-phase reservation is the complete fix.",
+      "evidenceThatWouldChangeDecision": "A concurrency test firing N simultaneous requests near the cap and asserting total settled spend stays within cap + one max-request.",
+      "scores": {
+        "userImpact": 5,
+        "reach": 4,
+        "riskReduction": 5,
+        "strategicFit": 4,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 5,
+        "implementationEffort": 4,
+        "changeRisk": 3,
+        "priorityIndex": 6.86
+      }
+    },
+    {
+      "id": "META-01",
+      "title": "Versioned provider metadata",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "TargetConfig has exactly four fields (provider, model, priceIn, priceOut). No lastVerifiedAt, no availability, no context limits, no capability flags. Four targets priced from explicitly guessed rates; four pinned to floating aliases. Pricing IS correctly single-sourced for display and ledger via computeCost.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["PROD-05"],
+      "evidence": [
+        "src/lib/providers/config.ts:17-24 \u2014 the four-field interface",
+        "src/lib/providers/config.ts:146-148 \u2014 'GLM-5.2 list rates are unpublished at launch'",
+        "src/lib/providers/config.ts:102-103, 118-119, 54-56 \u2014 three more guessed-rate comments",
+        "src/lib/providers/config.ts:76-78,110-112,132-134 \u2014 floating aliases (deepseek-chat, mistral-large-latest, qwen-max)",
+        "src/lib/providers/config.ts:162-171 \u2014 computeCost, the single pricing consumer",
+        "tasks/lessons.md \u2014 'A price change is a cost-cap change': a stale Vercel PRICE_GEMINI_OUT under-counts the cap 6x"
+      ],
+      "argumentFor": "Prices set the cost cap. A silently stale price or a floating alias that moves under a pinned price makes the cap wrong in a direction nobody notices until the invoice.",
+      "argumentAgainst": "Adding metadata fields is cheap but keeping them honest is a recurring human chore; a lastVerifiedAt that nobody updates is worse than none.",
+      "simplerAlternative": "Add lastVerifiedAt + a CI warning when any entry exceeds N days, and pin the four floating aliases. Full capability manifest can wait for PROD-05.",
+      "evidenceThatWouldChangeDecision": "Confirmation that deployed PRICE_* env overrides match the registry defaults would narrow this to the alias-pinning half.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 4,
+        "riskReduction": 4,
+        "strategicFit": 4,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 7.8
+      }
+    },
+    {
+      "id": "DIFF-01",
+      "title": "Bound quadratic diffing",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "diffWords is a full dynamic-programming LCS materializing an (n+1)x(m+1) number table. No token cap, no fallback, no worker. Runs synchronously on the server event loop and unmemoized in a client render body.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P0 \u2014 release blocker",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "src/lib/enhance/diff.ts:35-37 \u2014 Array.from({length:n+1}) of Array(m+1), full table",
+        "src/lib/enhance/diff.ts:23-27 \u2014 self-described 'O(n\u00b7m) which is fine for prompt-sized inputs'",
+        "src/lib/enhance/diff.ts:19-21 \u2014 tokenizer keeps whitespace as tokens, ~2x n and m",
+        "src/app/api/enhance/route.ts:190-199 \u2014 called synchronously inside the SSE start callback",
+        "src/components/library/PromptDetail.tsx:86 \u2014 called in render body, NOT memoized",
+        "src/app/api/enhance/route.ts:30 \u2014 MAX_INPUT_CHARS=20_000 bounds input only; output is unbounded",
+        "tests/unit/diff.test.ts \u2014 correctness only, no size or timing test"
+      ],
+      "argumentFor": "A legal 20k-char input against a 16k-token output builds a table on the order of 10^8 cells across thousands of Array objects \u2014 hundreds of MB and many seconds \u2014 while blocking the serverless event loop. In the library, diffWords runs on EVERY keystroke in the revise textarea.",
+      "argumentAgainst": "Typical prompts are small, so the ceiling is rarely reached in practice; the useMemo half is a one-line fix that removes most real-world pain.",
+      "simplerAlternative": "Wrap the client call in useMemo (one line, immediate) and add an n*m ceiling that falls back to line-level diff above the bound. Worker execution only if profiling still shows a problem.",
+      "evidenceThatWouldChangeDecision": "A benchmark at 20k x 16k showing acceptable time and memory would downgrade this; measured multi-second blocking confirms it.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 3,
+        "riskReduction": 5,
+        "strategicFit": 3,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 10.5
+      }
+    },
+    {
+      "id": "CACHE-01",
+      "title": "No private authenticated HTML in caches",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "The service worker's single runtime route matches same-origin navigations under StaleWhileRevalidate, so authenticated HTML for /enhance, /library, /library/[id], /profile is written to the `vizion-shell` cache and served stale-first on later navigations. Purge fires only when /sign-in loads as a fresh navigation.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P0 \u2014 release blocker",
+      "confidence": "High",
+      "dependencies": ["SAFE-01"],
+      "evidence": [
+        "src/lib/pwa/sw-src.js:72-76 \u2014 isShellAsset returns true for request.mode === 'navigate'",
+        "src/lib/pwa/sw-src.js:78-87 \u2014 StaleWhileRevalidate into SHELL_CACHE",
+        "src/lib/pwa/register-sw.ts:43-51 \u2014 purge only when location.pathname === '/sign-in'",
+        "src/middleware.ts \u2014 every app route is auth-gated, so all cached navigations are private",
+        "RSC (?_rsc=) requests fall through to network \u2014 destination '' and mode !== navigate"
+      ],
+      "argumentFor": "Another user of the same device can be served the previous user's rendered Library and Profile HTML from Cache Storage before any revalidation completes. The purge depends on a full-page load of /sign-in and does not fire on a client-side route change or a silently expired session.",
+      "argumentAgainst": "The stale window is short and revalidation corrects it; removing navigation caching costs the offline-reopen behavior for authenticated pages.",
+      "simplerAlternative": "Network-first (or no-store) for navigations, keeping SWR for script/style/font/image only; purge the shell cache from the sign-out path directly rather than inferring it from a pathname.",
+      "evidenceThatWouldChangeDecision": "Evidence that navigations are already excluded, or that the purge fires reliably on every sign-out path including expiry.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 5,
+        "strategicFit": 4,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 11.75
+      }
+    },
+    {
+      "id": "DB-01",
+      "title": "Reproducible database baseline",
+      "sourcesCovered": ["standing 22P02 discipline"],
+      "problemVerified": true,
+      "currentState": "All 7 migrations are single-statement ALTER TYPE. The repository contains zero CREATE TABLE, zero CREATE POLICY, zero ENABLE ROW LEVEL SECURITY, zero storage policy, and zero CREATE FUNCTION \u2014 including `usage_window`, which is the only durable spend and rate guardrail. A fresh rebuild fails on migration 1 because the enum it alters was never created.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P0 \u2014 release blocker",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "supabase/migrations/ \u2014 7 files, every one a single ALTER TYPE",
+        "grep across supabase/ for CREATE TABLE|CREATE POLICY|ROW LEVEL SECURITY|CREATE FUNCTION returns nothing",
+        "docs/runbooks/migrations.md:23-30 \u2014 states the P2-P5 base schema 'exists only in its migration ledger' on the hosted project",
+        "src/lib/supabase/database.types.ts:264-269 \u2014 usage_window declared in types, body nowhere in repo",
+        "docs/runbooks/hardening.md:6-8 \u2014 RLS asserted in prose only",
+        "docs/architecture.md:95 \u2014 claims policy shape auth.uid() = user_id, but prompt_versions has no user_id column"
+      ],
+      "argumentFor": "There is no disaster-recovery path from source control and no way to stand up a test environment. RLS \u2014 the entire authorization model \u2014 is unreviewable, untestable, and unversioned. The documented policy shape cannot even express ownership for prompt_versions or media_assets.",
+      "argumentAgainst": "The hosted project works today and Supabase PITR exists, so this is latent rather than actively breaking.",
+      "simplerAlternative": "Dump the hosted schema (pg_dump --schema-only including policies and functions) into a baseline migration, then add an ephemeral rebuild + RLS assertion job to CI.",
+      "evidenceThatWouldChangeDecision": "A successful fresh-project rebuild from supabase/migrations alone would overturn this outright.",
+      "scores": {
+        "userImpact": 5,
+        "reach": 5,
+        "riskReduction": 5,
+        "strategicFit": 5,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 4,
+        "changeRisk": 2,
+        "priorityIndex": 8.5
+      }
+    },
+    {
+      "id": "DB-02",
+      "title": "Transactional Library mutations",
+      "sourcesCovered": ["R-01 (data-track adjacency)"],
+      "problemVerified": true,
+      "currentState": "All six library server actions are sequences of independent statements with no transaction. savePromptAction discards the return of the current_ver UPDATE and the activity inserts. addVersionAction reads current_ver then writes it as parent_ver in a separate round trip. restoreVersionAction never validates that versionId belongs to promptId.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["DB-01"],
+      "evidence": [
+        "src/lib/library/actions.ts:53-91 \u2014 savePromptAction, 4 unguarded statements",
+        "src/lib/library/actions.ts:82 \u2014 UPDATE current_ver, return value discarded",
+        "src/lib/library/actions.ts:111-131 \u2014 read-then-write race on parent_ver",
+        "src/lib/library/actions.ts:160-165 \u2014 restore updates current_ver with an unvalidated versionId",
+        "src/lib/library/actions.ts:181-191, 210-216 \u2014 updateTags/delete never call auth.getUser()",
+        "src/lib/supabase/database.types.ts \u2014 Relationships: [] on all seven tables (no declared FKs)"
+      ],
+      "argumentFor": "Partial failure leaves orphan prompts with current_ver NULL that the user retries into duplicates; concurrent revisions fork the version DAG silently; restore can point prompt A at a version of prompt B unless an FK that the generated types say does not exist actually does.",
+      "argumentAgainst": "RLS still scopes every row to the owner, so this is integrity damage rather than a cross-account breach.",
+      "simplerAlternative": "Move each mutation into a single Postgres function with ownership checks and stable result codes \u2014 which requires DB-01's baseline to exist first.",
+      "evidenceThatWouldChangeDecision": "Confirmation that FK constraints exist in the hosted DB would defuse the restore path; the orphan and race paths stand regardless.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 4,
+        "strategicFit": 4,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 3,
+        "priorityIndex": 7.0
+      }
+    },
+    {
+      "id": "REV-01",
+      "title": "Revision/run integrity",
+      "sourcesCovered": ["Y-06", "X-C1 (lineage)"],
+      "problemVerified": true,
+      "currentState": "Save correctly uses a submitted snapshot, not the live draft \u2014 EnhanceComposer captures {input, mode, target} at request time. But Revise seeds its textarea from current.input_text (the ORIGINAL prompt), not the improved output, and useState never re-seeds after a save or restore. There are no immutable run IDs.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "src/components/editor/EnhanceComposer.tsx:56-64 \u2014 submitted snapshot captured at request time (this half is correct)",
+        "src/components/library/PromptDetail.tsx:91 \u2014 useState(current?.input_text) seeds Revise from the original",
+        "src/components/library/PromptDetail.tsx:97 \u2014 the sibling copy action uses output_text, so the distinction is deliberate",
+        "src/components/library/PromptDetail.tsx:76-82 \u2014 re-seed effect updates only aId/bId, never draft/mode",
+        "No run_id column exists on prompt_versions"
+      ],
+      "argumentFor": "The prompt's stated north star is 'revise' the improvement. Today Revise re-runs the original with different settings, and after saving a revision the textarea still holds the previous version's input \u2014 a stale-state bug independent of the semantic question.",
+      "argumentAgainst": "Re-running the original is a defensible product choice (it produces siblings, not a degrading chain); changing it silently would alter existing user expectations.",
+      "simplerAlternative": "Fix the non-controversial half first: re-seed draft/mode when current changes. Then offer an explicit 'start from improved output' toggle rather than switching the default.",
+      "evidenceThatWouldChangeDecision": "A product decision that sibling-branching is intended would reduce this to the re-seed bug alone.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 3,
+        "riskReduction": 3,
+        "strategicFit": 4,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 7.6
+      }
+    },
+    {
+      "id": "MEDIA-01",
+      "title": "Trustworthy media retention/quota",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "The 50 MB quota is enforced only in client-side JS; there is no server upload route \u2014 the browser writes straight to Supabase Storage. No retention, TTL, or cleanup of any kind. Delete removes the storage object first, then the row; a row-delete failure leaves an orphan row whose bytes count against quota forever. File extension is taken unsanitised from user input. The avatars bucket is public.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["DB-01"],
+      "evidence": [
+        "src/lib/media/formatters.ts:103 \u2014 MEDIA_QUOTA_BYTES = 50MB",
+        "src/lib/media/queue.ts:59-83 \u2014 admitFiles, a pure client-side function",
+        "src/components/media/MediaStudio.tsx:207-241 \u2014 direct client upload; ext from file.name.split('.').pop() unsanitised",
+        "src/components/media/MediaStudio.tsx:107-126 \u2014 storage delete then row delete, early return on row failure",
+        "src/components/profile/ProfilePanel.tsx:83-88 \u2014 avatars bucket written then read via getPublicUrl",
+        "No cron, scheduled function, or TTL anywhere in the repo"
+      ],
+      "argumentFor": "A client-only quota is not a quota \u2014 any direct storage call with the user's own session bypasses it, so storage cost is unbounded per user. Orphan rows permanently consume the user's visible quota with no repair path.",
+      "argumentAgainst": "The media bucket is private and path-prefixed, so the exposure is cost and hygiene rather than confidentiality. Avatars being public is arguably intended.",
+      "simplerAlternative": "Enforce the quota in a storage RLS policy or a signed-upload route; make delete idempotent and row-first so a failure cannot orphan.",
+      "evidenceThatWouldChangeDecision": "A storage policy that caps per-user bytes would resolve the quota half; documented intent would resolve the public-avatar question.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 3,
+        "riskReduction": 4,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 3,
+        "priorityIndex": 6.33
+      }
+    },
+    {
+      "id": "PROD-01",
+      "title": "Separate the overloaded 'Target'",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "One `target` field simultaneously selects the optimizer model, the destination idiom, and the pricing row. formatters.ts substitutes TARGET_CONVENTIONS[target] as destination guidance while config.ts uses the same id to choose the executing provider. For polish/clarify the conventions are dropped entirely, so the target then affects only cost and routing.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "src/lib/providers/formatters.ts:86-106 \u2014 buildSystemPrompt uses `target` for conventions",
+        "src/lib/providers/config.ts:33-153 \u2014 the same id selects provider, model, and price",
+        "src/lib/providers/formatters.ts:86-92 \u2014 shape-preserving modes substitute conventions OUT, so target becomes optimizer-only",
+        "src/lib/supabase/database.types.ts \u2014 prompts.target_model and usage_events.target both store the conflated id"
+      ],
+      "argumentFor": "Every downstream feature (Auto optimizer, destination variants, capability manifest, picker redesign) is blocked on separating these concepts. The conflation is already visible as an inconsistency: the same control means different things depending on mode.",
+      "argumentAgainst": "This is a schema + enum + UI + formatter change touching the model_target enum, which lessons.md documents as the single most incident-prone surface in the codebase. Very high change risk.",
+      "simplerAlternative": "Introduce `destination` as a NEW nullable column defaulting to the existing target, leaving model_target untouched \u2014 additive, reversible, no enum rename.",
+      "evidenceThatWouldChangeDecision": "Evidence that users deliberately use target as a single 'where this is going' concept would argue for clarifying copy instead of splitting the model.",
+      "scores": {
+        "userImpact": 5,
+        "reach": 5,
+        "riskReduction": 3,
+        "strategicFit": 5,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 5,
+        "implementationEffort": 5,
+        "changeRisk": 5,
+        "priorityIndex": 4.8
+      }
+    },
+    {
+      "id": "PROD-02",
+      "title": "Default to Auto with expert controls",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "No Auto exists. The composer requires an explicit choice from 16 targets; the default comes from profiles.default_model. Thinking level defaults to 'Auto' (empty) but only 8 of 16 targets expose a ladder at all.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["PROD-01", "PROD-05"],
+      "evidence": [
+        "src/components/editor/EnhanceComposer.tsx:96-138 \u2014 the 16-option target select is mandatory",
+        "src/lib/constants.ts:131-142 \u2014 TARGET_THINKING_LEVELS covers 8 of 16 targets",
+        "src/components/editor/EnhanceComposer.tsx:144-189 \u2014 the thinking rail renders only when a ladder exists"
+      ],
+      "argumentFor": "The north star says basic success must not require model expertise. Choosing among 16 models from 12 developers is precisely the expertise tax that should be optional.",
+      "argumentAgainst": "Auto needs a routing policy grounded in capability and availability data that does not exist yet, and a bad Auto is worse than an honest picker.",
+      "simplerAlternative": "Ship a 'Recommended' default that simply pins one good general model, surfaced as a labelled first option \u2014 no routing engine required.",
+      "evidenceThatWouldChangeDecision": "Telemetry showing most users never change the default would raise this; showing deliberate per-task model switching would lower it.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 2,
+        "strategicFit": 5,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 4,
+        "implementationEffort": 4,
+        "changeRisk": 3,
+        "priorityIndex": 5.71
+      }
+    },
+    {
+      "id": "PROD-03",
+      "title": "Conditional clarification",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "No clarification step exists \u2014 every run goes straight to the provider. The eval confirms the model sometimes builds clarifying questions INTO the output prompt instead (the expand/short case produced 'ask me 7 questions'), which is a different thing.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["PROD-01"],
+      "evidence": [
+        "src/app/api/enhance/route.ts \u2014 single-shot request, no interstitial",
+        "PROD-04 harness, expand/short case \u2014 the model embeds clarifying questions in the output rather than asking the user"
+      ],
+      "argumentFor": "For genuinely underspecified input ('fix this', 'make me a logo') the tool must either ask or state assumptions; today it silently invents a direction the user never sees.",
+      "argumentAgainst": "An interstitial interrupts the one-action promise and risks becoming a form. Most inputs do not need it.",
+      "simplerAlternative": "Ship the assumptions half only: have the model list the assumptions it made and render them above the result. No round trip, no interruption.",
+      "evidenceThatWouldChangeDecision": "Eval evidence that assumption-listing alone resolves user confusion would make the question flow unnecessary.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 2,
+        "strategicFit": 4,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 4,
+        "implementationEffort": 4,
+        "changeRisk": 3,
+        "priorityIndex": 5.29
+      }
+    },
+    {
+      "id": "PROD-04",
+      "title": "Semantic quality evaluation gate",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "No eval set, rubric, or semantic gate exists in the repo or CI. The contract itself is defended by negative-substring unit tests only. This audit ran a 20-call harness against the real buildSystemPrompt output and the real production model: 0 envelope failures, 0 assertion failures.",
+      "validityVerdict": "Already implemented but needs hardening",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "tests/unit/formatters.test.ts \u2014 negative substring assertions per mode x target (the existing net)",
+        "Stage-1 harness, 2026-07-27, model gpt-5.6-sol, 20 calls, 9,002 in / 3,980 out tokens, $0.1047",
+        "Harness result: 0/20 envelope failures, 0 assertion failures across no-role-labels, shape-preservation, injection resistance, does-not-answer",
+        "Qualitative: polish returned already-structured input byte-identical (161->161); 'What is the capital of France?' was returned unchanged, not answered; Spanish preserved with word-order fix only",
+        "No eval harness, rubric, or semantic job exists in .github/workflows/ci.yml"
+      ],
+      "argumentFor": "The contract is good and currently holds \u2014 which is exactly what makes the absence of a regression net expensive. lessons.md records two production incidents (role framing, shape destruction) caused by contract edits; nothing today would catch a third.",
+      "argumentAgainst": "Model-graded evals are non-deterministic and cost money per CI run; a flaky quality gate erodes trust in the pipeline.",
+      "simplerAlternative": "Promote this audit's deterministic harness into tests/ and run it on a schedule (not per-PR) against a cheap model, keeping the assertions deterministic and leaving rubric grading manual.",
+      "evidenceThatWouldChangeDecision": "Nothing found here suggests present breakage \u2014 the decision rests on regression risk, so evidence that the contract text is now frozen would lower it.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 4,
+        "strategicFit": 5,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 1,
+        "priorityIndex": 11.0
+      }
+    },
+    {
+      "id": "PROD-05",
+      "title": "Provider capability/availability manifest",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "Per-model capability data is scattered across four sources with no single record: pricing/model in config.ts, vision capability in vision.ts, thinking ladders in constants.ts, JSON-mode flags in openai-compat.ts. Context limits do not exist anywhere \u2014 a flat MAX_INPUT_CHARS=20_000 applies to all 16 models. Availability is checked only at request time, returning 503.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["META-01"],
+      "evidence": [
+        "src/lib/providers/config.ts:17-24 \u2014 no capability fields",
+        "src/lib/providers/vision.ts:195-204 \u2014 VISION_CAPABLE_PROVIDERS, a separate hardcoded set",
+        "src/lib/constants.ts:131-142 \u2014 TARGET_THINKING_LEVELS, a third source",
+        "src/lib/providers/openai-compat.ts:194 \u2014 jsonMode flag, a fourth source",
+        "src/app/api/enhance/route.ts:103-109 \u2014 isProviderConfigured returns 503 only after the user has committed"
+      ],
+      "argumentFor": "The user can pick a model that cannot run, and only learns after pressing Enhance. Four scattered sources guarantee they drift \u2014 lessons.md already records a case where a wrong model string would have silently fallen back and 'appeared to work'.",
+      "argumentAgainst": "Consolidation is a refactor with no user-visible payoff on its own; the 503 path is honest today.",
+      "simplerAlternative": "Derive one server-side manifest from the existing four sources and expose configured/unavailable in the picker. No new data required, just one record.",
+      "evidenceThatWouldChangeDecision": "Evidence that unavailable models are rare in practice would lower the urgency, not the correctness.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 4,
+        "strategicFit": 4,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 8.6
+      }
+    },
+    {
+      "id": "PROD-06",
+      "title": "Structured output + error taxonomy",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "Raw upstream provider text reaches the browser verbatim through the SSE error event for all 12 providers \u2014 each adapter interpolates the SDK's own message. There are no stable public error codes. The structured-output layer itself is strong: json_object enforcement plus a hand-rolled scanner plus authoritative parseEnhancePayload.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "src/app/api/enhance/route.ts:205-219 \u2014 sends e.message straight to the client",
+        "src/lib/providers/anthropic.ts:70-74, openai.ts:64, google.ts:69-73, xai.ts:63, mistral.ts:58-62, openai-compat.ts:88-92 \u2014 all interpolate the upstream string",
+        "src/app/api/media/route.ts:38-44 \u2014 appends to the raw upstream message",
+        "src/lib/providers/formatters.ts:114-131 \u2014 parseEnhancePayload, the authoritative validation (this half is sound)",
+        "src/lib/providers/json-stream.ts:67 \u2014 seek buffer truncated to field.length+16, a latent streaming fragility"
+      ],
+      "argumentFor": "Upstream messages can carry org identifiers, project names, quota details, and internal model strings. There is no redaction layer and no stable code the UI can branch on.",
+      "argumentAgainst": "docs/runbooks/media.md deliberately surfaces provider errors as a troubleshooting affordance, and that has real diagnostic value.",
+      "simplerAlternative": "Map upstream errors to a small set of public codes with friendly copy, and keep the raw text server-side in logs \u2014 preserving diagnosis without the disclosure.",
+      "evidenceThatWouldChangeDecision": "A review confirming no provider ever returns identifying detail in error messages would reduce this to a UX polish item.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 4,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 8.75
+      }
+    },
+    {
+      "id": "PROD-07",
+      "title": "Accurate media capability claims",
+      "sourcesCovered": ["Y-L4 (dependency)"],
+      "problemVerified": true,
+      "currentState": "Video analysis is first-frame-only: captureFrameDataUrl waits for onloadeddata and draws frame 0, with no seeking or sampling. Audio is duration-only via preload='metadata'. The tempo and timbre fields exist in the type and parser but are never populated \u2014 the extraction system prompt is image-only. The attach button offers 'images, video, or audio' without qualification.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "src/lib/media/ondevice.ts:120-168 \u2014 captureFrameDataUrl draws a single frame, no seek",
+        "src/lib/media/ondevice.ts:53-56 \u2014 audio branch returns only durationSec",
+        "src/lib/media/ondevice.ts:170-187 \u2014 audioDuration via preload='metadata'",
+        "src/app/api/media/route.ts:82-84 \u2014 proxy path rejects anything not image/*",
+        "src/lib/media/types.ts:14-15 and src/lib/media/extract.ts:42-43 \u2014 tempo/timbre parsed but never produced",
+        "src/components/media/MediaStudio.tsx:489-500 \u2014 button copy: 'Attach images, video, or audio'"
+      ],
+      "argumentFor": "The interface claims a capability class the implementation does not have. A user attaching a video reasonably expects the content to be understood, not one frame; a user attaching audio gets nothing semantic at all.",
+      "argumentAgainst": "First-frame analysis is genuinely useful for many videos, and duration is honest metadata \u2014 the code is not wrong, only the framing.",
+      "simplerAlternative": "Change the copy and per-item labels to state exactly what happens ('first frame analysed', 'duration only'), and delete the dead tempo/timbre schema. Near-zero risk, immediate honesty.",
+      "evidenceThatWouldChangeDecision": "A decision to actually implement temporal sampling would convert this from a copy fix into a feature.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 3,
+        "riskReduction": 3,
+        "strategicFit": 4,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 9.5
+      }
+    },
+    {
+      "id": "PROD-08",
+      "title": "First-run value + privacy onboarding",
+      "sourcesCovered": ["Y-01", "Y-L5"],
+      "problemVerified": true,
+      "currentState": "Production / issues a 307 to /sign-in. There is no demo, no precomputed showcase, and no explanation of which providers see the prompt before the user commits an account. Verified against the live deployment.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["PROD-05"],
+      "evidence": [
+        "curl -I https://vizion-io.vercel.app/ -> HTTP 307, location: /sign-in (2026-07-27)",
+        "src/middleware.ts:66-70 \u2014 unauthenticated non-public routes redirect to /sign-in",
+        "src/app/page.tsx \u2014 redirect('/enhance'), itself behind the auth gate",
+        "No provider/data disclosure exists on the sign-in surface"
+      ],
+      "argumentFor": "A prompt-improvement tool has to demonstrate value in one action. Requiring an account before any value is visible is the highest-leverage funnel problem, and users pasting prompts deserve to know which third parties receive them before they sign up.",
+      "argumentAgainst": "Anonymous compute costs money and invites abuse; PR-6 requires any live trial to ride Supabase anonymous sign-in so RLS and the ledger still apply.",
+      "simplerAlternative": "Ship a precomputed showcase \u2014 a real before/after pair rendered statically with no model call. Zero cost, zero abuse surface, and it evaluates independently of a live trial.",
+      "evidenceThatWouldChangeDecision": "Funnel data showing sign-in is not where users drop would lower this.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 5,
+        "riskReduction": 2,
+        "strategicFit": 4,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 8.2
+      }
+    },
+    {
+      "id": "UX-01",
+      "title": "Editor first",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "Order on /enhance is ScreenHeader, decorative PromptFlow emblem, ModeRig (six-cell), target rail, conditional thinking rail, then the textarea. The composer sits behind two selector rails and a decorative hero before any typing surface.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["PROD-01", "UX-02"],
+      "evidence": [
+        "src/app/(app)/enhance/page.tsx:22-36 \u2014 screen composition order",
+        "src/components/editor/EnhanceComposer.tsx:87-202 \u2014 ModeRig, target rail, thinking rail, then textarea at :195",
+        "src/components/editor/PromptFlow.tsx \u2014 decorative emblem above the composer",
+        "src/components/media/MediaStudio.tsx \u2014 a separate section below, not inside the composer"
+      ],
+      "argumentFor": "The editor and the result are supposed to be the primary objects. On a phone the primary input is pushed below chrome the user does not need before typing.",
+      "argumentAgainst": "The mode rig is genuinely the second most important control, and the current layout is coherent and well-built; reordering risks the locked visual spec.",
+      "simplerAlternative": "Move only the thinking rail into the Advanced disclosure and let the textarea rise \u2014 a smaller change than a full recomposition.",
+      "evidenceThatWouldChangeDecision": "A 375px screenshot showing the textarea above the fold would weaken this; measurement is currently missing.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 5,
+        "riskReduction": 1,
+        "strategicFit": 4,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 4,
+        "implementationEffort": 4,
+        "changeRisk": 3,
+        "priorityIndex": 5.57
+      }
+    },
+    {
+      "id": "UX-02",
+      "title": "Simplify transformation modes",
+      "sourcesCovered": ["R-10", "Y-04 (education adjacency)"],
+      "problemVerified": true,
+      "currentState": "Six modes render as a single six-column grid with a persistent help strip below. PR-7 makes the taxonomy immutable without explicit approval of this ID. At 375px each cell is roughly 58px wide before padding.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["A11Y-01"],
+      "evidence": [
+        "src/components/editor/ModeRig.tsx:54-56 \u2014 role='radiogroup', grid-cols-6",
+        "src/components/editor/ModeRig.tsx:133-174 \u2014 persistent help strip, all six blurbs stacked in one grid cell",
+        "src/lib/constants.ts:9-16 \u2014 the locked six-mode order",
+        "PR-7 \u2014 taxonomy immutable absent explicit approval of UX-02/PROD-01"
+      ],
+      "argumentFor": "Six targets in one row on a 375px screen is a density problem, and the always-on explanatory strip spends permanent vertical space on information most users need once.",
+      "argumentAgainst": "The rig is carefully engineered (roving tabindex, sliding lens-lock, fixed-height strip) and the taxonomy is locked for good reasons. Renaming Target to Adapt collides with PROD-01's larger question.",
+      "simplerAlternative": "Keep all six but make the help strip reveal on focus/long-press instead of persisting \u2014 recovers vertical space without touching the taxonomy.",
+      "evidenceThatWouldChangeDecision": "Measured 44px-minimum compliance at 320-375px would settle the density half objectively.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 4,
+        "riskReduction": 1,
+        "strategicFit": 3,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 3,
+        "implementationEffort": 3,
+        "changeRisk": 4,
+        "priorityIndex": 4.43
+      }
+    },
+    {
+      "id": "UX-03",
+      "title": "Streaming into view",
+      "sourcesCovered": ["X-A3"],
+      "problemVerified": true,
+      "currentState": "There is no scroll-padding-top anywhere despite a sticky top-0 z-40 header on every screen, and StreamingResult has no scrollIntoView. The one programmatic scroll in the app (MediaStudio) uses block:'center' explicitly to work around the missing scroll-padding.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["A11Y-02"],
+      "evidence": [
+        "grep across src/ \u2014 zero scroll-padding, scroll-margin, scroll-mt declarations",
+        "src/components/ScreenHeader.tsx:25 \u2014 sticky top-0 z-40 on every screen",
+        "src/components/diff/StreamingResult.tsx \u2014 no scrollIntoView call",
+        "src/components/media/MediaStudio.tsx:351-353 \u2014 block:'center' workaround",
+        "src/components/editor/EnhanceComposer.tsx:274-282 \u2014 StreamingResult renders below the composer"
+      ],
+      "argumentFor": "On a phone with the keyboard open, the stream begins below the fold and nothing brings it into view, so the primary output of the primary action is invisible while it happens.",
+      "argumentAgainst": "Force-scrolling a user who deliberately scrolled away is worse than not scrolling; the correct fix needs user-scroll cancellation and reduced-motion handling.",
+      "simplerAlternative": "Add scroll-padding-top matching the sticky header height \u2014 one declaration that fixes anchor positioning globally \u2014 before any programmatic scrolling.",
+      "evidenceThatWouldChangeDecision": "Device capture showing the stream already lands in view on iPhone would overturn this; not testable here.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 2,
+        "strategicFit": 3,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 4,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 9.5
+      }
+    },
+    {
+      "id": "UX-04",
+      "title": "Reset != Enhance",
+      "sourcesCovered": ["X-A4", "R-09 (partial)"],
+      "problemVerified": true,
+      "currentState": "Reset and Enhance sit adjacent in the bottom rail. Reset stays enabled during a run and aborts the stream, and clears the draft with no confirmation and no undo. Both are text-label buttons in the same rail.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": [],
+      "evidence": [
+        "src/components/editor/EnhanceComposer.tsx:221-228 \u2014 Reset, disabled only when idle+empty+no result",
+        "src/components/editor/EnhanceComposer.tsx:229-236 \u2014 Enhance, the laser primary",
+        "src/lib/enhance/use-enhance.ts:198-203 \u2014 reset() aborts the in-flight stream",
+        "No confirmation dialog or undo path exists for Reset"
+      ],
+      "argumentFor": "One mistap during a run both cancels the request the user paid for and destroys the draft, with no recovery. The dual purpose (abort + clear) is not signalled.",
+      "argumentAgainst": "The visual hierarchy already differs (Reset is not a filled laser button), and a confirm dialog on every reset is friction for the common empty case.",
+      "simplerAlternative": "Keep Reset instant when the draft is trivial; add a brief Undo affordance only when a substantial draft or a result is destroyed.",
+      "evidenceThatWouldChangeDecision": "Analytics on accidental-reset frequency would size this precisely; none exists.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 3,
+        "strategicFit": 3,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 4,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 8.25
+      }
+    },
+    {
+      "id": "UX-05",
+      "title": "Destination/model selection",
+      "sourcesCovered": ["X-A5"],
+      "problemVerified": true,
+      "currentState": "A native <select> lists all 16 targets flat, with a DeveloperIcon rendered outside the select. There is no optgroup grouping by developer, no search, no recents or favourites.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["PROD-01", "PROD-05"],
+      "evidence": [
+        "src/components/editor/EnhanceComposer.tsx:96-138 \u2014 flat native select over TARGET_MODELS",
+        "src/lib/constants.ts:59 \u2014 16 entries",
+        "src/components/models/DeveloperIcon.tsx \u2014 icon rendered adjacent, not inside the option"
+      ],
+      "argumentFor": "Sixteen flat options from twelve developers is a scanning problem on a phone, and the developer icon cannot follow the selection into the native picker.",
+      "argumentAgainst": "Explicitly blocked by PROD-01 \u2014 optimising a picker whose semantics are unresolved would have to be redone. Native selects also give free iOS accessibility and familiarity that custom sheets routinely lose.",
+      "simplerAlternative": "Add <optgroup> by developer \u2014 the minimum change that adds structure while keeping the native control and its accessibility for free.",
+      "evidenceThatWouldChangeDecision": "PROD-01 resolving in favour of separate optimizer/destination controls changes what this picker even contains.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 4,
+        "riskReduction": 1,
+        "strategicFit": 3,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 4,
+        "implementationEffort": 3,
+        "changeRisk": 3,
+        "priorityIndex": 5.5
+      }
+    },
+    {
+      "id": "UX-06",
+      "title": "Result as centerpiece",
+      "sourcesCovered": ["Y-05", "Y-06 (chips split to EXP-02)"],
+      "problemVerified": true,
+      "currentState": "The result already leads with the enhanced output, offers Copy, Save, Share, and md/json/txt export, and shows rationale plus model and cost. navigator.share is present and correctly feature-detected with a clipboard fallback. Missing: explicit assumptions, collapsed original for long prompts, refinement chips, and copy-failure status.",
+      "validityVerdict": "Already implemented but needs hardening",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["EXP-02", "A11Y-02"],
+      "evidence": [
+        "src/components/diff/TransformationDiff.tsx:138-199 \u2014 enhanced card leads",
+        "src/components/diff/TransformationDiff.tsx:222-258 \u2014 Save/Copy/Share action grid",
+        "src/components/diff/TransformationDiff.tsx:264-278 \u2014 md/json/txt export already ships",
+        "src/components/diff/TransformationDiff.tsx:85-100 \u2014 navigator.share behind 'share' in navigator, falls back to copy",
+        "src/components/diff/TransformationDiff.tsx:77 \u2014 clipboard write in a bare try/catch, failure is silent",
+        "Y-05's export and share asks are ALREADY IMPLEMENTED \u2014 do not build twice"
+      ],
+      "argumentFor": "Most of Y-05 already exists; the genuine remaining gaps are a silent copy failure and the absence of stated assumptions, both small.",
+      "argumentAgainst": "Adding assumptions requires the model to emit them, which touches the locked OUTPUT_CONTRACT envelope.",
+      "simplerAlternative": "Fix the silent clipboard failure first \u2014 a status message on catch is a few lines and removes a real dead-end.",
+      "evidenceThatWouldChangeDecision": "Nothing here is speculative; the split between shipped and missing is verified in source.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 4,
+        "riskReduction": 2,
+        "strategicFit": 4,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 7.4
+      }
+    },
+    {
+      "id": "UX-07",
+      "title": "Media in the composer",
+      "sourcesCovered": ["Y-08", "Y-03", "X-T3 (intake adjacency)"],
+      "problemVerified": true,
+      "currentState": "MediaStudio is a separate section below the composer, not an attachment tray inside it. It does show thumbnails, per-item progress, detected attributes, and a delete control. There is no explicit per-attachment ROLE \u2014 the extracted description is inserted into the prompt manually via 'Insert into prompt'. No retention note is shown.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["PROD-07", "UX-01", "MEDIA-01"],
+      "evidence": [
+        "src/components/media/MediaStudio.tsx:404-729 \u2014 full studio section, rendered below the composer",
+        "src/components/media/MediaStudio.tsx:589 \u2014 'Insert into prompt' is the only role mechanism",
+        "src/components/media/MediaStudio.tsx:510-605 \u2014 per-item cards with thumb and progress",
+        "No retention or processing-disclosure copy anywhere in the media surface"
+      ],
+      "argumentFor": "Because the media panel is a sibling rather than part of the composer, the relationship between an attachment and the prompt is manual and easy to miss; nothing tells the user the file is uploaded and retained indefinitely.",
+      "argumentAgainst": "The explicit 'Insert into prompt' step is arguably clearer than implicit role inference, and it already satisfies the rule that attachments must never silently change the output class.",
+      "simplerAlternative": "Add the retention/processing note and per-item role labels in place; defer relocating the tray into the composer until UX-01 is settled.",
+      "evidenceThatWouldChangeDecision": "PROD-07 must resolve first \u2014 labelling a role for a capability that does not exist would compound the inaccuracy.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 3,
+        "strategicFit": 3,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 4,
+        "implementationEffort": 4,
+        "changeRisk": 3,
+        "priorityIndex": 4.71
+      }
+    },
+    {
+      "id": "UX-08",
+      "title": "Navigation and chrome",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "The half-circle control is ThemeToggle, cycling dark/light/system via the glyphs U+25D0/U+25D1/U+25D3, present in every ScreenHeader while Profile also owns a ThemeSegmented \u2014 two appearance controls in one app. No scroll-padding-bottom. The NeuralMeshBackground draws accent-glow nodes that can read as status indicators.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["UX-03", "A11Y-01"],
+      "evidence": [
+        "src/components/ThemeToggle.tsx:13-17 \u2014 GLYPH map, the half-circle control",
+        "src/components/ScreenHeader.tsx \u2014 ThemeToggle rendered on every screen",
+        "src/components/profile/ProfilePanel.tsx:229-278 \u2014 ThemeSegmented, the second appearance control",
+        "grep \u2014 no scroll-padding-bottom anywhere",
+        "src/components/NeuralMeshBackground.tsx:75-78 \u2014 1-in-7 nodes get an accent glow"
+      ],
+      "argumentFor": "Appearance is owned in two places, and a per-screen toggle spends permanent header space on a setting changed rarely. The glyph itself carries no affordance for what it does.",
+      "argumentAgainst": "The toggle is genuinely convenient and correctly labelled via aria-label; removing it is a preference change, not a defect fix.",
+      "simplerAlternative": "Keep one owner \u2014 the Profile segmented control \u2014 and drop the header toggle, recovering header space on every screen.",
+      "evidenceThatWouldChangeDecision": "Usage data showing frequent header-toggle use would argue for keeping it.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 4,
+        "riskReduction": 1,
+        "strategicFit": 3,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 4,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 6.4
+      }
+    },
+    {
+      "id": "LIB-01",
+      "title": "Replace the filter-chip wall",
+      "sourcesCovered": ["X-A2"],
+      "problemVerified": true,
+      "currentState": "LibraryBrowser renders an 'All models' chip plus one chip for every one of the 16 targets, unconditionally \u2014 regardless of whether the user has any prompt using that model \u2014 then a second row of tag chips.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["LIB-03"],
+      "evidence": [
+        "src/components/library/LibraryBrowser.tsx:70-87 \u2014 chips mapped over all 16 TARGET_MODELS, not over models present",
+        "src/components/library/LibraryBrowser.tsx:90-102 \u2014 tag chips derived from actual data (this half is already correct)",
+        "src/components/library/LibraryBrowser.tsx:146-168 \u2014 FilterChip with tap-44"
+      ],
+      "argumentFor": "Seventeen model chips consume most of the first viewport on a phone before any saved prompt is visible, and most of them match nothing. The tag row already does the right thing by deriving from data \u2014 the model row does not.",
+      "argumentAgainst": "Chips are discoverable and already have correct 44px hit areas via tap-44.",
+      "simplerAlternative": "Render only models actually represented, with counts \u2014 a one-line change to the same map, mirroring what the tag row already does.",
+      "evidenceThatWouldChangeDecision": "First-viewport measurement at 375px would quantify the cost; the only-represented fix is correct regardless.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 1,
+        "strategicFit": 3,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 9.0
+      }
+    },
+    {
+      "id": "LIB-02",
+      "title": "Duplicate saves",
+      "sourcesCovered": ["R-01", "X-B3"],
+      "problemVerified": true,
+      "currentState": "No content-hash dedupe, no idempotency key, no unique constraint. savePromptAction is explicitly documented as non-idempotent and is retried by the outbox, guarded only by an in-process boolean that does not survive a reload. A partial failure mid-save also drives the user to retry into a second orphan.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["DB-02", "SAFE-02"],
+      "evidence": [
+        "src/components/pwa/OutboxFlusher.tsx:22-26 \u2014 comment: 'savePromptAction is not idempotent'",
+        "src/lib/library/actions.ts:37-95 \u2014 no dedupe, no idempotency key",
+        "grep for hash|dedupe|digest across src/ \u2014 no content hashing exists",
+        "src/lib/library/actions.ts:53-61 \u2014 a failure after the prompts INSERT strands an orphan and invites retry"
+      ],
+      "argumentFor": "The most likely duplicate source is mechanical (outbox replay, retry after partial failure), not user intent \u2014 so the cause is fixable at the source rather than by merging after the fact.",
+      "argumentAgainst": "Deliberate experiments across models/modes are legitimate duplicates; content-hash merging would destroy them, which is why the prompt calls hashing advisory only.",
+      "simplerAlternative": "Give each save a client-generated idempotency key and make the insert conflict-tolerant \u2014 fixes the mechanical cause without any merge heuristic.",
+      "evidenceThatWouldChangeDecision": "Data showing duplicates are mostly user-initiated would shift this toward lineage UI instead.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 3,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 3,
+        "priorityIndex": 5.5
+      }
+    },
+    {
+      "id": "LIB-03",
+      "title": "Library recognition",
+      "sourcesCovered": ["R-03 (title surface)"],
+      "problemVerified": true,
+      "currentState": "Titles come from deriveTitle, a 60-char truncation of the input text \u2014 so a broken prompt yields a broken title, which is exactly the input class VIZION exists to fix. Rows show title, model, relative time, version count, tags. There is no rename, no favourite, no archive, no output preview, and delete has no undo.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["LIB-01"],
+      "evidence": [
+        "src/lib/library/util.ts:20-25 \u2014 deriveTitle truncates input to 60 chars",
+        "src/components/library/LibraryBrowser.tsx:120-144 \u2014 PromptRow contents",
+        "src/components/library/PromptDetail.tsx \u2014 no rename control",
+        "src/components/library/PromptDetail.tsx:141 \u2014 delete behind window.confirm(), no undo"
+      ],
+      "argumentFor": "Naming a saved item after the unimproved input is self-defeating for a tool whose whole premise is that the input is poor. Users will not recognise their own prompts.",
+      "argumentAgainst": "Truncated input is at least faithful and needs no model call; a generated title costs tokens or adds a dependency.",
+      "simplerAlternative": "Title from the IMPROVED output instead of the input \u2014 same truncation, no new cost, immediately better \u2014 plus a rename control.",
+      "evidenceThatWouldChangeDecision": "Nothing contested here; the fix is cheap and the current behaviour is verified.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 2,
+        "strategicFit": 4,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 7.6
+      }
+    },
+    {
+      "id": "LIB-04",
+      "title": "Library scale",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "The library page selects all prompts with no limit and no cursor, then issues a second query for every version row of every prompt and tallies counts in JS. Only activity_events is capped, at 20.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["DB-01"],
+      "evidence": [
+        "src/app/(app)/library/page.tsx:16-18 \u2014 .select().order() with no .limit()",
+        "src/app/(app)/library/page.tsx:44-53 \u2014 second query over all version rows, counted in a JS Map",
+        "src/app/(app)/library/page.tsx:64-68 \u2014 activity_events is the only limited query"
+      ],
+      "argumentFor": "Both queries grow without bound with the user's library, and the version-count query fetches one row per version purely to count them. Payload and render time degrade linearly forever.",
+      "argumentAgainst": "No user has a large library yet, so this is latent; server components hide the cost from the client bundle.",
+      "simplerAlternative": "Add cursor pagination and move the version count into the database as an aggregate \u2014 the count fix alone removes the larger query.",
+      "evidenceThatWouldChangeDecision": "A p75 render measurement at 100 and 1,000 prompts would size it; the aggregate fix is correct regardless.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 3,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 6.6
+      }
+    },
+    {
+      "id": "LIB-05",
+      "title": "Version-to-version comparison",
+      "sourcesCovered": ["X-C1"],
+      "problemVerified": true,
+      "currentState": "Arbitrary version-to-version comparison ALREADY EXISTS \u2014 PromptDetail renders two version selects joined by an arrow with a change count, whenever two or more versions exist. This directly contradicts the proposal that it is missing. It inherits DIFF-01's unbounded diff and uses a different removed-token colour than TransformationDiff.",
+      "validityVerdict": "Already implemented and adequate",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "High",
+      "dependencies": ["DIFF-01"],
+      "evidence": [
+        "src/components/library/PromptDetail.tsx:174-197 \u2014 two VersionSelects, arrow, change count",
+        "src/components/library/PromptDetail.tsx:247-263 \u2014 the diff body",
+        "src/components/library/PromptDetail.tsx:286-295 \u2014 per-version Restore",
+        "src/components/library/PromptDetail.tsx:251 vs TransformationDiff.tsx:129 \u2014 inconsistent removed-token styling"
+      ],
+      "argumentFor": "The feature is built and working; only the styling inconsistency and the shared diff bound are real.",
+      "argumentAgainst": "Building it again would duplicate working code \u2014 the exact failure the audit exists to prevent.",
+      "simplerAlternative": "Reconcile the two diff colour conventions; the comparison itself needs nothing.",
+      "evidenceThatWouldChangeDecision": "None \u2014 the feature's existence is verified in source.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 5.5
+      }
+    },
+    {
+      "id": "SET-01",
+      "title": "Structured Settings",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "ProfilePanel is a single scrolling column: identity header with avatar, editable fields, preferences, conditional password change, notice, sign out, footer. There are no named sections such as Data & Privacy or About, and no account-level data controls.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["SET-04"],
+      "evidence": [
+        "src/components/profile/ProfilePanel.tsx:133-301 \u2014 full single-column composition",
+        "src/components/profile/ProfilePanel.tsx:292-299 \u2014 sign out, max-w-[260px]",
+        "No Data & Privacy, Connections, or About grouping exists"
+      ],
+      "argumentFor": "As settings grow (export, deletion, retention, connections) an unsectioned column stops scaling, and the decorative identity header consumes significant height on compact screens.",
+      "argumentAgainst": "The current panel is short enough to scan today; sectioning is preparation rather than a present defect.",
+      "simplerAlternative": "Add section headings within the existing column \u2014 no restructuring, and it creates the slots SET-04's controls need.",
+      "evidenceThatWouldChangeDecision": "This is a container for SET-04; if SET-04 is deferred, so is most of the value here.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 1,
+        "strategicFit": 3,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 4,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 5.8
+      }
+    },
+    {
+      "id": "SET-02",
+      "title": "Dirty-state affordances",
+      "sourcesCovered": ["X-B4"],
+      "problemVerified": true,
+      "currentState": "Save changes is disabled only while a request is pending \u2014 there is no comparison against the incoming profile props, so pressing it with zero edits still fires updateProfileAction and flashes 'Profile saved.' Email is the one guarded field, updated only when it actually changed.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["SET-03"],
+      "evidence": [
+        "src/components/profile/ProfilePanel.tsx:218-225 \u2014 disabled={pending} only",
+        "src/components/profile/ProfilePanel.tsx:102-119 \u2014 action fires regardless of dirtiness",
+        "src/components/profile/ProfilePanel.tsx:110 \u2014 email guarded by an explicit inequality check"
+      ],
+      "argumentFor": "A save button that is always live and always reports success teaches users the control is meaningless, and it issues pointless writes.",
+      "argumentAgainst": "Harmless in effect \u2014 the write is idempotent.",
+      "simplerAlternative": "Compare the three fields against props and disable when clean. A few lines, no risk, and the email check shows the pattern is already understood in this file.",
+      "evidenceThatWouldChangeDecision": "None \u2014 the behaviour is verified and the fix is trivial.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 2,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 1,
+        "changeRisk": 1,
+        "priorityIndex": 15.5
+      }
+    },
+    {
+      "id": "SET-03",
+      "title": "Coherent persistence model",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "Three different persistence models coexist: identity fields batch-save behind a button, default model and theme autosave on change, and the avatar saves on crop-confirm. A single global notice line reports results detached from the control that changed.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["SET-02"],
+      "evidence": [
+        "src/components/profile/ProfilePanel.tsx:218-225 \u2014 batch save for identity",
+        "src/components/profile/ProfilePanel.tsx:121-128 \u2014 changeDefaultModel autosaves and writes through to the UI store",
+        "src/components/profile/ProfilePanel.tsx \u2014 useSetTheme() autosaves theme",
+        "src/components/profile/ProfilePanel.tsx:282-289 \u2014 one global notice line for all of it"
+      ],
+      "argumentFor": "The user cannot predict which changes need saving. A global 'Profile saved.' after an autosaved theme change is actively misleading about what was persisted.",
+      "argumentAgainst": "Autosave for preferences is a defensible pattern in isolation; only the mixture is the problem.",
+      "simplerAlternative": "Keep autosave for preferences and move status reporting next to each control, so the notice always names what changed.",
+      "evidenceThatWouldChangeDecision": "None contested; this is a consistency judgement supported by the source.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 2,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 7.75
+      }
+    },
+    {
+      "id": "SET-04",
+      "title": "Always-available data controls",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "There is no account deletion, no data export, no retention control, and no way to see or clear stored media from Settings. Media deletion lives only on the Enhance screen. Per-result export exists (md/json/txt) but there is no account-level export.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["SET-01", "MEDIA-01"],
+      "evidence": [
+        "src/components/profile/ProfilePanel.tsx \u2014 no delete-account or export control",
+        "src/components/media/MediaStudio.tsx:107-126 \u2014 media deletion lives on Enhance, not Settings",
+        "src/components/diff/TransformationDiff.tsx:264-278 \u2014 per-result export only",
+        "No retention policy or control exists anywhere"
+      ],
+      "argumentFor": "Users store prompt text, media, and version history with no way to take it out or delete the account. Combined with MEDIA-01's absent retention, data accumulates indefinitely with no user-facing lever.",
+      "argumentAgainst": "Account deletion needs careful cascade handling that DB-01's missing schema baseline makes hard to verify.",
+      "simplerAlternative": "Ship export first \u2014 it reuses the existing per-result exporters over a full query and carries no destructive risk.",
+      "evidenceThatWouldChangeDecision": "None \u2014 the absence is verified; only sequencing is open.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 4,
+        "strategicFit": 4,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 8.4
+      }
+    },
+    {
+      "id": "APPLE-01",
+      "title": "Link + validate iOS splash",
+      "sourcesCovered": ["X-A1", "G7"],
+      "problemVerified": true,
+      "currentState": "Ten splash PNGs are generated and shipped, and ZERO are referenced. There is no startupImage array in the Next metadata and no manual link tag anywhere in src/. Confirmed absent from the deployed production HTML, not merely from source. The assets are also excluded from the SW precache glob, and there are no light/dark variants.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["RELEASE-01"],
+      "evidence": [
+        "Production HTML at dpl_EZ7D8SESK48iApNetb7yN7TX6sVE \u2014 'startup-image' occurs 0 times",
+        "src/app/layout.tsx:22-26 \u2014 appleWebApp declares capable/title/statusBarStyle only, no startupImage",
+        "grep across src/ public/ scripts/ for apple-touch-startup-image \u2014 zero matches",
+        "public/splash/ \u2014 10 PNGs, 828x1792 through 2048x2732",
+        "scripts/build-sw.mjs:56-57 \u2014 precache glob omits splash/**",
+        "src/middleware.ts:15 \u2014 whitelists splash/ so the unreferenced files stay reachable"
+      ],
+      "argumentFor": "The work is already done and delivers nothing \u2014 iOS shows the flat background_color on launch. Linking generated assets is among the cheapest Apple-platform wins available, and the effort is already sunk.",
+      "argumentAgainst": "Per PR-5 every link needs a correct device media query or it silently no-ops, and the matrix is a maintenance burden; iOS caches launch assets, so validation requires reinstall.",
+      "simplerAlternative": "Link the existing ten with correct media queries and add the CI link-to-asset parity check so the set cannot drift back to zero.",
+      "evidenceThatWouldChangeDecision": "Device validation is required to confirm the media queries actually match \u2014 untestable in this environment.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 2,
+        "strategicFit": 3,
+        "applePlatformValue": 5,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 1,
+        "priorityIndex": 11.67
+      }
+    },
+    {
+      "id": "APPLE-02",
+      "title": "Viewport-unit strategy",
+      "sourcesCovered": ["R-06"],
+      "problemVerified": true,
+      "currentState": "The codebase uses 100dvh exclusively at four sites. There is no 100vh, no svh, no lvh, and no -webkit-fill-available anywhere. dvh tracks the dynamic viewport, so a full-height shell resizes as the iOS URL bar shows and hides.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["UX-03"],
+      "evidence": [
+        "src/styles/globals.css:80 \u2014 body { min-height: 100dvh }",
+        "src/components/nav/SafeAreaProvider.tsx:26 \u2014 min-h-[100dvh]",
+        "src/app/(auth)/sign-in/page.tsx:23 and set-password/page.tsx:30 \u2014 min-h-[100dvh]",
+        "grep \u2014 zero occurrences of 100vh, svh, lvh, -webkit-fill-available"
+      ],
+      "argumentFor": "The proposal assumes a messy mixture to clean up; the reality is a single consistent unit. The only genuine question is whether dvh (which tracks toolbar changes) or svh (stable) is right for a fixed shell.",
+      "argumentAgainst": "dvh on min-height is largely benign \u2014 it can cause the shell to resize during scroll, but there is no reported symptom and no measurement.",
+      "simplerAlternative": "Swap the two auth-page shells to svh if reflow is observed; otherwise leave it alone.",
+      "evidenceThatWouldChangeDecision": "Device capture showing shell reflow as the URL bar collapses would raise this; without it, it stays speculative.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 4,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 6.0
+      }
+    },
+    {
+      "id": "PWA-01",
+      "title": "Harden existing offline",
+      "sourcesCovered": ["X-T1 (premise corrected)"],
+      "problemVerified": true,
+      "currentState": "A service worker and IndexedDB outbox already exist \u2014 X-T1's 'add a service worker' premise is wrong. The real gaps are CACHE-01 (private HTML cached), SAFE-01/02 (unscoped, untruthful outbox), no cache-first tier for immutable /_next/static, and splash/** outside the precache glob. Background Sync is genuinely absent on Apple platforms, confirmed against BCD.",
+      "validityVerdict": "Already implemented but needs hardening",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["CACHE-01", "SAFE-01", "SAFE-02"],
+      "evidence": [
+        "src/lib/pwa/sw-src.js \u2014 one StaleWhileRevalidate route plus precache and catch handler",
+        "src/lib/pwa/outbox.ts \u2014 the outbox already exists",
+        "MDN BCD 8.0.8 (2026-07-27): SyncManager safari=false safari_ios=false; PeriodicSyncManager safari=false safari_ios=false",
+        "docs/architecture.md:26-33 \u2014 documents four caches and Background Sync that do not exist (doc drift)",
+        "scripts/build-sw.mjs:56-57 \u2014 precache glob"
+      ],
+      "argumentFor": "Hardening what exists is strictly cheaper and safer than building a second offline system, and three of its sub-parts are already P0 for independent reasons.",
+      "argumentAgainst": "Largely a rollup of CACHE-01, SAFE-01, and SAFE-02 \u2014 its independent content is the static-asset tier and doc correction.",
+      "simplerAlternative": "Treat this as the umbrella and ship the three P0s underneath it; separately correct architecture.md, which currently describes a service worker that does not exist.",
+      "evidenceThatWouldChangeDecision": "None \u2014 the SW's contents are fully verified in source.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 4,
+        "strategicFit": 4,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 9.0
+      }
+    },
+    {
+      "id": "PWA-02",
+      "title": "Share/clipboard intake",
+      "sourcesCovered": ["X-C2", "X-T2"],
+      "problemVerified": true,
+      "currentState": "No share_target in the manifest and no receiver route. Confirmed against BCD: share_target is Chromium-only (Chrome 89 desktop, 76 Android); safari and safari_ios are both false. So on the primary target platform this cannot work at all.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["PWA-05"],
+      "evidence": [
+        "public/manifest.webmanifest \u2014 no share_target key",
+        "MDN BCD 8.0.8 (2026-07-27): manifests.webapp.share_target safari=false, safari_ios=false, chrome=89, chrome_android=76",
+        "webkit.org bug 194593 \u2014 the standing open request cited by PR-2"
+      ],
+      "argumentFor": "On Android/Chromium it is a genuine progressive enhancement at low cost.",
+      "argumentAgainst": "VIZION's stated primary surface is iPhone Safari and the installed iOS web app, where this is unavailable. Building intake that cannot serve the primary platform inverts the priorities.",
+      "simplerAlternative": "Ship PWA-05's paste affordance instead \u2014 it works on every platform including iOS, and addresses the same underlying job of getting text in quickly.",
+      "evidenceThatWouldChangeDecision": "WebKit shipping Web Share Target would move this up substantially; PR-2 stands confirmed as of this audit.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 3,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 4.8
+      }
+    },
+    {
+      "id": "PWA-03",
+      "title": "Drag-and-drop intake",
+      "sourcesCovered": ["X-T3"],
+      "problemVerified": true,
+      "currentState": "No drop-zone handlers exist. Intake is the hidden file input plus its attach button; there is no paste handler and no drop target.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["UX-07", "PWA-05"],
+      "evidence": [
+        "src/components/media/MediaStudio.tsx:478-500 \u2014 hidden file input plus attach button, the only intake path",
+        "grep \u2014 no onDrop, onDragOver, or DataTransfer usage anywhere"
+      ],
+      "argumentFor": "On macOS and iPadOS, dragging a file onto the composer is the expected gesture, and its absence is felt.",
+      "argumentAgainst": "Desktop is explicitly the progressive-enhancement tier, not the primary surface, and a drop zone must never replace the attachment button.",
+      "simplerAlternative": "Add drop handling to the existing media section as an additive listener, keeping every current path intact.",
+      "evidenceThatWouldChangeDecision": "Usage data showing meaningful desktop traffic would raise this above P3.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 4.8
+      }
+    },
+    {
+      "id": "PWA-04",
+      "title": "Keyboard shortcuts",
+      "sourcesCovered": ["X-C4"],
+      "problemVerified": true,
+      "currentState": "No keyboard shortcut handlers exist anywhere. There is no Cmd+Enter submit, which is the single most expected shortcut in any textarea-driven tool.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["A11Y-02"],
+      "evidence": [
+        "grep \u2014 no keydown handler for Enter/metaKey outside ModeRig's arrow-key navigation",
+        "src/components/editor/EnhanceComposer.tsx:195-202 \u2014 the textarea has no submit shortcut",
+        "src/components/editor/ModeRig.tsx:57-85 \u2014 the only keyboard handling in the app"
+      ],
+      "argumentFor": "Cmd/Ctrl+Enter to submit is a near-universal convention and costs very little; on iPad and macOS it materially speeds the core loop.",
+      "argumentAgainst": "Must guard event.isComposing for IME users and avoid double-submit, and shortcuts need discoverability or they are invisible.",
+      "simplerAlternative": "Ship Cmd/Ctrl+Enter alone, with an isComposing guard and the existing pending check preventing double submit. Defer the rest of the palette.",
+      "evidenceThatWouldChangeDecision": "None \u2014 the absence is verified; scope is the only question.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 1,
+        "strategicFit": 3,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 7.75
+      }
+    },
+    {
+      "id": "PWA-05",
+      "title": "Paste affordance",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "There are four clipboard WRITE call sites and zero reads. There is no visible paste affordance, which matters because the product's core scenario is 'a user pastes an imperfect prompt'.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": [],
+      "evidence": [
+        "src/components/diff/TransformationDiff.tsx:77, library/PromptDetail.tsx:100, media/MediaStudio.tsx:85 \u2014 writeText only",
+        "grep \u2014 no readText, no ClipboardItem, no paste handler",
+        "The north star scenario begins with pasting a prompt"
+      ],
+      "argumentFor": "It serves the product's opening move on every platform including iOS, unlike PWA-02, and needs no manifest or platform support.",
+      "argumentAgainst": "Never auto-read the clipboard \u2014 the affordance must be an explicit user action, and readText prompts for permission on some browsers.",
+      "simplerAlternative": "A 'Paste' button next to the textarea that calls readText on click only; ordinary Cmd+V continues to work untouched.",
+      "evidenceThatWouldChangeDecision": "None \u2014 this is additive and low-risk.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 4,
+        "riskReduction": 1,
+        "strategicFit": 4,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 9.0
+      }
+    },
+    {
+      "id": "PWA-06",
+      "title": "Orientation",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "The manifest declares orientation: 'portrait'. In an installed PWA this locks orientation, which is in tension with WCAG 2.2 SC 1.3.4 Orientation and directly harms the iPad surface the product claims to target.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["PWA-07", "A11Y-01"],
+      "evidence": [
+        "public/manifest.webmanifest:9 \u2014 \"orientation\": \"portrait\"",
+        "WCAG 2.2 SC 1.3.4 (Level AA) \u2014 content must not restrict its view to a single display orientation unless essential",
+        "The product spec names iPadOS portrait, landscape, and multitasking as target surfaces"
+      ],
+      "argumentFor": "A prompt studio has no essential-orientation justification, and portrait-locking an installed app on iPad is a direct contradiction of a stated target surface. Removing one manifest line fixes it.",
+      "argumentAgainst": "Portrait is where the phone layout is tuned, and unlocking exposes untested landscape layouts.",
+      "simplerAlternative": "Change orientation to 'any' and verify the existing layouts in landscape \u2014 the layouts are max-w-screen-sm centred columns, so they should tolerate it.",
+      "evidenceThatWouldChangeDecision": "Landscape capture showing broken layout would argue for fixing layout first, then unlocking.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 3,
+        "riskReduction": 3,
+        "strategicFit": 3,
+        "applePlatformValue": 5,
+        "evidenceConfidence": 5,
+        "implementationEffort": 1,
+        "changeRisk": 2,
+        "priorityIndex": 12.33
+      }
+    },
+    {
+      "id": "PWA-07",
+      "title": "iPad/macOS workspace",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "Every screen is a single max-w-screen-sm centred column with no breakpoint beyond it. Playwright tests only mobile-safari (iPhone 14 Pro) and mobile-chrome (Pixel 7) \u2014 there is no desktop project at all.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["PWA-06", "UX-01"],
+      "evidence": [
+        "src/app/(app)/enhance/page.tsx:23 \u2014 max-w-screen-sm",
+        "playwright.config.ts \u2014 only mobile-safari and mobile-chrome projects",
+        "No lg: or xl: breakpoint layouts exist in the app shell"
+      ],
+      "argumentFor": "On iPad and macOS the app is a phone column in a large window, wasting the space where side-by-side source and result would genuinely help.",
+      "argumentAgainst": "Large effort for the explicitly secondary surface, and it multiplies the layout matrix that A11Y-01 must then cover.",
+      "simplerAlternative": "Add a desktop Playwright project first so the surface is at least observed, before designing for it.",
+      "evidenceThatWouldChangeDecision": "Traffic data showing meaningful iPad/desktop usage would raise this materially.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 3,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 5,
+        "implementationEffort": 5,
+        "changeRisk": 3,
+        "priorityIndex": 3.75
+      }
+    },
+    {
+      "id": "PWA-08",
+      "title": "Static first-paint theme color",
+      "sourcesCovered": ["X-B6", "R-02 (theme-color subset)"],
+      "problemVerified": true,
+      "currentState": "One static theme-color (#0F1012, dark) is emitted with no media-qualified light variant, confirmed in production HTML. ThemeManager mutates that same tag at runtime after hydration. So a light-theme user gets dark browser chrome until hydration completes. The pre-paint script sets data-theme correctly but does not touch theme-color.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["UX-08"],
+      "evidence": [
+        "Production HTML: <meta name=\"theme-color\" content=\"#0F1012\"/> in head, single value, no media attribute",
+        "src/app/layout.tsx:31 \u2014 themeColor: '#0F1012' in the viewport export",
+        "src/components/ThemeManager.tsx:49 \u2014 setMeta('theme-color', surface) at runtime",
+        "src/components/ThemeManager.tsx:66-74 \u2014 setMeta mutates the existing tag in place (single owner, so no duplicate-tag conflict)",
+        "src/app/layout.tsx:39 \u2014 the pre-paint script sets data-theme only"
+      ],
+      "argumentFor": "A one-line addition of a media-qualified light variant fixes a visible flash of wrong browser chrome for every light-theme user on every cold load.",
+      "argumentAgainst": "Two static tags plus a runtime mutator needs a clear ownership rule so the runtime updater does not fight the media-qualified pair.",
+      "simplerAlternative": "Add the light-media variant and have ThemeManager mutate only on an explicit user override, leaving OS preference to CSS media.",
+      "evidenceThatWouldChangeDecision": "None \u2014 the production markup is verified; only the ownership rule needs deciding.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 3,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 5,
+        "implementationEffort": 1,
+        "changeRisk": 1,
+        "priorityIndex": 13.5
+      }
+    },
+    {
+      "id": "PWA-09",
+      "title": "Web Push ADR",
+      "sourcesCovered": ["R-12"],
+      "problemVerified": false,
+      "currentState": "No push code, no PushManager usage, no notification permission request anywhere. Confirmed available on the platform: PushManager safari 16 / safari_ios 16.4, Notification safari_ios 16.4 \u2014 matching PR-9's stated iOS home-screen-install constraint.",
+      "validityVerdict": "Not currently worth developing",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "High",
+      "dependencies": ["PROD-08"],
+      "evidence": [
+        "grep \u2014 no PushManager, no requestPermission, no VAPID config",
+        "MDN BCD 8.0.8: api.PushManager safari=16, safari_ios=16.4; api.Notification safari_ios=16.4"
+      ],
+      "argumentFor": "The platform constraint the ADR needs to document is now verified, so writing it is cheap.",
+      "argumentAgainst": "VIZION has no notification-worthy events \u2014 enhancement is synchronous and completes in the foreground. There is nothing to push.",
+      "simplerAlternative": "Write the ADR recording the constraint and the decision NOT to build it; revisit only if async/queued enhancement ever ships.",
+      "evidenceThatWouldChangeDecision": "A background or queued enhancement feature would create the first genuine use case.",
+      "scores": {
+        "userImpact": 1,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 4.2
+      }
+    },
+    {
+      "id": "A11Y-01",
+      "title": "Reflow, labels, contrast, targets",
+      "sourcesCovered": ["Y-11", "R-11", "R-05 (audit surface)"],
+      "problemVerified": true,
+      "currentState": "No automated a11y tooling exists \u2014 @axe-core/playwright is not a dependency and the only a11y assertion is a skip-link presence check. The token system does encode the contrast law correctly and safe-area.test.ts unit-tests contrastRatio including the prohibited Laser-on-Chalk pair, but nothing checks rendered pixels, reflow at 320px, or 200% zoom.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["UX-02", "UX-08", "PWA-06"],
+      "evidence": [
+        "package.json \u2014 no axe dependency",
+        "tests/e2e/shell.spec.ts:66-69 \u2014 skip-link check is the only a11y assertion",
+        "tests/unit/safe-area.test.ts \u2014 contrastRatio math including the Laser-on-Chalk FAIL case (the good half)",
+        "src/styles/tokens.css:4-7 \u2014 contrast law stated and theme-swapped ink tokens implemented",
+        "src/components/editor/ModeRig.tsx:56 \u2014 six-column grid, density unmeasured at 320-375px",
+        "tasks/lessons.md \u2014 'every gate stayed green because nothing asserts pixels'"
+      ],
+      "argumentFor": "WCAG AA is a stated v1.0 requirement and there is no measurement of it. lessons.md already records a bug where an animation ran invisibly for weeks precisely because nothing asserted rendered output.",
+      "argumentAgainst": "Broad scope; adding axe to CI will surface a backlog that must then be triaged rather than ignored.",
+      "simplerAlternative": "Add @axe-core/playwright to the existing e2e run and a 320px viewport project \u2014 this measures the problem before committing to fixes.",
+      "evidenceThatWouldChangeDecision": "An axe run is the evidence; everything specific here is currently unmeasured by design.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 5,
+        "riskReduction": 4,
+        "strategicFit": 4,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 4,
+        "implementationEffort": 4,
+        "changeRisk": 2,
+        "priorityIndex": 7.67
+      }
+    },
+    {
+      "id": "A11Y-02",
+      "title": "Dialogs and status",
+      "sourcesCovered": ["Y-12 (partial)"],
+      "problemVerified": true,
+      "currentState": "Streaming status is announced correctly via role=status aria-live=polite on the step label. The avatar-crop modal handles Escape but there is no focus trap and no background inerting. Copy failures are silent. Decorative-glyph aria-hidden is applied inconsistently \u2014 the composer hides some marks but the play, warning, check, and arrow marks are announced.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["POLISH-01", "UX-06"],
+      "evidence": [
+        "src/components/feedback/StreamProgress.tsx:39 \u2014 role='status' aria-live='polite' (correct)",
+        "src/components/profile/ProfilePanel.tsx:64-71 \u2014 Escape via window listener; no focus trap, no inert",
+        "src/components/diff/TransformationDiff.tsx:77 \u2014 clipboard failure swallowed silently",
+        "src/components/editor/EnhanceComposer.tsx:209,214,227 \u2014 aria-hidden applied",
+        "src/components/editor/EnhanceComposer.tsx:235,267 and StreamProgress.tsx:44 \u2014 NOT aria-hidden, so screen readers announce the glyphs"
+      ],
+      "argumentFor": "A modal without a focus trap is a well-known keyboard and screen-reader dead end, and a silent copy failure leaves the user believing they hold text they do not.",
+      "argumentAgainst": "The hardest parts (streaming announcements) are already right, so this is targeted cleanup rather than a rebuild.",
+      "simplerAlternative": "Fix the silent copy failure and the aria-hidden inconsistency first \u2014 both are small and independently valuable \u2014 then add the focus trap.",
+      "evidenceThatWouldChangeDecision": "None \u2014 each gap is verified in source.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 4,
+        "riskReduction": 3,
+        "strategicFit": 3,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 7.6
+      }
+    },
+    {
+      "id": "POLISH-01",
+      "title": "Replace emoji glyphs",
+      "sourcesCovered": ["X-B1"],
+      "problemVerified": true,
+      "currentState": "Emoji and symbol glyphs serve as UI icons in at least 24 places: paperclip, lightning, reset, play, warning, framed picture, film frame, headphone, check, arrow, recycle, three half-circle theme marks, and a fisheye avatar fallback. Everything else in the app is already a 1.5px-stroke inline SVG, so the system to migrate into already exists.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["A11Y-02"],
+      "evidence": [
+        "src/components/editor/EnhanceComposer.tsx:209,214,227,235,267 \u2014 paperclip, lightning, reset, play, warning",
+        "src/components/media/MediaStudio.tsx:46-48 \u2014 KIND_GLYPH image/video/audio emoji map",
+        "src/components/media/MediaStudio.tsx:413,430,473,499,581,589,597,706,713",
+        "src/components/ThemeToggle.tsx:13-17 \u2014 the three half-circle glyphs",
+        "src/components/library/ActivityFeed.tsx:30, PromptDetail.tsx:184,202,341",
+        "src/components/profile/ProfilePanel.tsx:342,346 \u2014 fisheye avatar fallback",
+        "src/components/models/DeveloperIcon.tsx \u2014 the existing SVG system to follow"
+      ],
+      "argumentFor": "Emoji render inconsistently across iOS versions and in colour, breaking the monochrome instrument-panel aesthetic. The Stage-2 guardrails also make zero-emoji a standing rule, so this is a prerequisite for that rule to mean anything.",
+      "argumentAgainst": "Purely cosmetic with no functional defect, and it touches many files at once.",
+      "simplerAlternative": "Migrate the composer's five marks first \u2014 they are on the primary screen and carry the most visual weight \u2014 then the rest incrementally.",
+      "evidenceThatWouldChangeDecision": "None \u2014 the inventory is complete and verified.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 4,
+        "riskReduction": 1,
+        "strategicFit": 4,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 1,
+        "priorityIndex": 8.25
+      }
+    },
+    {
+      "id": "POLISH-02",
+      "title": "Footer hit areas",
+      "sourcesCovered": ["X-B2"],
+      "problemVerified": true,
+      "currentState": "The .tap-44 utility exists and is correctly applied at three sites (library filter chips, revise mode chips, tag remover). Its own comment records that it cannot work on replaced elements, which is why selects use real min-h-[44px]. Footer links are text links with no tap-44 and no explicit minimum height.",
+      "validityVerdict": "Partially confirmed",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["A11Y-01"],
+      "evidence": [
+        "src/styles/globals.css:262-273 \u2014 .tap-44 implementation",
+        "src/styles/globals.css:260 \u2014 comment noting it fails on replaced elements",
+        "src/components/library/LibraryBrowser.tsx:162, PromptDetail.tsx:314,480 \u2014 the three call sites",
+        "src/components/Footer.tsx \u2014 text links without tap-44"
+      ],
+      "argumentFor": "The mechanism is already built and proven, so extending it is nearly free.",
+      "argumentAgainst": "Footer links are low-frequency targets, and the recent iOS pass already addressed the main offenders.",
+      "simplerAlternative": "Apply the existing .tap-44 to footer links \u2014 no new CSS required.",
+      "evidenceThatWouldChangeDecision": "A11Y-01's measurement pass would identify precisely which targets fall short.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 4,
+        "implementationEffort": 1,
+        "changeRisk": 1,
+        "priorityIndex": 11.5
+      }
+    },
+    {
+      "id": "POLISH-03",
+      "title": "Honest token estimates",
+      "sourcesCovered": ["X-B5", "Y-02 (estimator honesty)"],
+      "problemVerified": true,
+      "currentState": "The estimate is Math.ceil(trimmed.length / 4) rendered as a lightning mark plus a token count. It is NOT marked with a tilde or 'approx' in the composer, so a computed guess is presented as a measurement. The same 4-chars-per-token heuristic is used server-side for abort accounting, where it genuinely affects billing.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["A11Y-02"],
+      "evidence": [
+        "src/components/editor/EnhanceComposer.tsx:63-65 \u2014 Math.max(1, Math.ceil(trimmed.length/4))",
+        "src/components/editor/EnhanceComposer.tsx:213-216 \u2014 rendered without a tilde or approximation marker",
+        "src/lib/enhance/use-enhance.ts:83 \u2014 the same heuristic for optimistic display until an authoritative usage event arrives (correctly replaced)",
+        "src/app/api/enhance/route.ts:227-232 \u2014 the same heuristic used for abort-path BILLING"
+      ],
+      "argumentFor": "Chars/4 is wrong by a wide margin for code, non-Latin scripts, and structured text \u2014 and the multilingual eval case shows non-Latin input is a real scenario. Presenting it unqualified misleads.",
+      "argumentAgainst": "The display estimate is decorative and the authoritative count replaces it as soon as usage arrives; a real tokenizer is a heavy dependency for a hint.",
+      "simplerAlternative": "Add the tilde and an accessible explanation. Keep the heuristic for display; the billing use is the part that deserves scrutiny, not the hint.",
+      "evidenceThatWouldChangeDecision": "Measuring heuristic error against real usage events across languages would size the billing risk.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 4,
+        "riskReduction": 2,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 1,
+        "changeRisk": 1,
+        "priorityIndex": 15.0
+      }
+    },
+    {
+      "id": "POLISH-04",
+      "title": "OLED pure-black variant",
+      "sourcesCovered": ["Y-L6"],
+      "problemVerified": false,
+      "currentState": "No pure-black theme exists. --void is #0f1012 dark / #eef0f4 light. The token system is theme-swappable, so an additive variant is structurally straightforward.",
+      "validityVerdict": "Not currently worth developing",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["A11Y-01"],
+      "evidence": [
+        "src/styles/tokens.css:14-89 \u2014 dark and light blocks only",
+        "src/styles/tokens.css \u2014 glass and hairline values are alpha-composited against --void"
+      ],
+      "argumentFor": "OLED black saves power on modern iPhones and suits the brand's aesthetic.",
+      "argumentAgainst": "Every glass, hairline, and chrome value is tuned against #0f1012; on true black the hairlines and frosted surfaces need re-verification against the contrast law. Real cost, cosmetic benefit, and A11Y-01 has not even measured the existing themes yet.",
+      "simplerAlternative": "Defer entirely until A11Y-01 provides a contrast measurement harness that could validate a third theme cheaply.",
+      "evidenceThatWouldChangeDecision": "Measured battery benefit on a target device would strengthen it; none exists.",
+      "scores": {
+        "userImpact": 1,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 1,
+        "applePlatformValue": 3,
+        "evidenceConfidence": 4,
+        "implementationEffort": 2,
+        "changeRisk": 3,
+        "priorityIndex": 3.6
+      }
+    },
+    {
+      "id": "PERF-01",
+      "title": "Measure visual/compositing cost",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "There is no performance measurement of any kind \u2014 no telemetry, no Lighthouse job, no profiling artifact. A full-bleed canvas animation runs at a 30fps cap on every screen, alongside aurora blur layers and multiple backdrop-filter surfaces. It does pause on document.hidden and renders nothing under reduced-motion.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["PERF-02"],
+      "evidence": [
+        "src/components/NeuralMeshBackground.tsx:37 \u2014 FRAME_MS 30fps cap; LINK_DIST 120 pairwise linking",
+        "src/components/NeuralMeshBackground.tsx \u2014 pauses on document.hidden, disabled under reduced-motion (both correct)",
+        "src/styles/globals.css \u2014 .glass backdrop-filter blur(16px), .glass-chrome/.glass-nav blur(18px) saturate(1.4), aurora keyframes 19s and 27s",
+        "No Lighthouse, Web Vitals, or profiling in .github/workflows/ci.yml",
+        "tasks/lessons.md \u2014 the mesh previously animated invisibly at 30fps on every screen with all gates green"
+      ],
+      "argumentFor": "The prompt is explicit that performance work requires measurements. lessons.md documents this exact codebase running an invisible animation for weeks because nothing measured it \u2014 the precedent for measuring first is local, not theoretical.",
+      "argumentAgainst": "Pairwise link drawing over a node set is O(n^2) per frame, but the mitigations already in place (30fps cap, hidden-pause, reduced-motion) may make it a non-issue.",
+      "simplerAlternative": "Capture a profile on a mid-tier iPhone before proposing any change, and add Web Vitals reporting to get field data.",
+      "evidenceThatWouldChangeDecision": "The measurement IS the deliverable \u2014 no fix should be chosen before it exists.",
+      "scores": {
+        "userImpact": 3,
+        "reach": 4,
+        "riskReduction": 2,
+        "strategicFit": 3,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 4,
+        "implementationEffort": 3,
+        "changeRisk": 1,
+        "priorityIndex": 8.75
+      }
+    },
+    {
+      "id": "PERF-02",
+      "title": "WebGPU for media preprocessing",
+      "sourcesCovered": ["X-T4"],
+      "problemVerified": false,
+      "currentState": "No WebGPU usage exists. PR-4 must be UPDATED: navigator.gpu is now Safari 26 and iOS 26 per BCD, so WebGPU is available on Apple platforms \u2014 it is no longer an availability question. But createImageBitmap is Safari 15 and OffscreenCanvas is Safari 16.4, so the simpler alternatives cover a vastly wider installed base. The actual workload is one canvas resize plus a palette quantize.",
+      "validityVerdict": "Problem valid, proposed solution unsuitable",
+      "developmentDecision": "Reject",
+      "confidence": "High",
+      "dependencies": ["PERF-01", "MEDIA-01"],
+      "evidence": [
+        "grep \u2014 no navigator.gpu, no WebGPU code",
+        "MDN BCD 8.0.8 (2026-07-27): api.GPU and api.Navigator.gpu safari=26, safari_ios=26; chrome=144",
+        "MDN BCD 8.0.8: api.createImageBitmap safari=15, safari_ios=15; api.OffscreenCanvas safari=16.4, safari_ios=16.4",
+        "src/lib/media/ondevice.ts \u2014 the real workload: one frame draw plus quantizePalette",
+        "tests/unit/media.test.ts \u2014 quantizePalette is a small pure function"
+      ],
+      "argumentFor": "WebGPU is genuinely available on Apple platforms now, which is a real change from the ruling's original framing.",
+      "argumentAgainst": "The workload is one image resize and a palette quantize on a single frame. That does not justify a GPU pipeline, its bundle cost, or its memory and thermal profile \u2014 and requiring iOS 26 to accelerate what createImageBitmap has done since iOS 15 inverts the reach argument.",
+      "simplerAlternative": "Use createImageBitmap with resize options, which is already available to essentially the entire installed base and requires no new dependency.",
+      "evidenceThatWouldChangeDecision": "A PERF-01 profile showing media preprocessing is actually a bottleneck would reopen it; PR-4's 'profile first, reject without measured benefit' test is not met.",
+      "scores": {
+        "userImpact": 1,
+        "reach": 1,
+        "riskReduction": 1,
+        "strategicFit": 1,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 5,
+        "implementationEffort": 4,
+        "changeRisk": 4,
+        "priorityIndex": 2.0
+      }
+    },
+    {
+      "id": "EXP-01",
+      "title": "A/B transformation comparison",
+      "sourcesCovered": ["X-C3"],
+      "problemVerified": false,
+      "currentState": "No parallel comparison exists. Every run is a single provider call with one target and one mode.",
+      "validityVerdict": "Not currently worth developing",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["COST-01", "PROD-01"],
+      "evidence": [
+        "src/app/api/enhance/route.ts \u2014 one target per request",
+        "src/lib/providers/adapter.ts \u2014 single fan-out per call"
+      ],
+      "argumentFor": "Comparing two approaches on one input is genuinely informative when the user cannot judge which model suits a task.",
+      "argumentAgainst": "It doubles spend per action while COST-01 shows the cap cannot even hold single runs, and it risks becoming the model horse race the north star explicitly warns against.",
+      "simplerAlternative": "EXP-02's refinement chips deliver most of the iterate-and-compare value at a fraction of the cost and complexity.",
+      "evidenceThatWouldChangeDecision": "COST-01 shipping atomic reservation is a hard prerequisite before any feature that doubles spend.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 4,
+        "implementationEffort": 4,
+        "changeRisk": 4,
+        "priorityIndex": 2.75
+      }
+    },
+    {
+      "id": "EXP-02",
+      "title": "Quick refinement controls",
+      "sourcesCovered": ["Y-06 (chips)"],
+      "problemVerified": true,
+      "currentState": "No refinement chips exist on the enhance result. The library's Revise section is the closest analogue: six mode chips plus a textarea plus Re-enhance \u2014 so the interaction pattern is already built and proven in this codebase.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "Medium",
+      "dependencies": ["UX-06", "REV-01"],
+      "evidence": [
+        "src/components/library/PromptDetail.tsx:302-407 \u2014 the existing Revise chip pattern to reuse",
+        "src/components/diff/TransformationDiff.tsx \u2014 no refinement affordance on the enhance result"
+      ],
+      "argumentFor": "'Shorter', 'More detail', 'Keep my tone' map directly onto what users want immediately after seeing a result, and the pattern already exists one screen over.",
+      "argumentAgainst": "Each chip is another paid call, and lineage must be preserved or the library fills with unattributed variants.",
+      "simplerAlternative": "Reuse the PromptDetail chip pattern on the enhance result, routing through the existing mode system rather than inventing new instructions.",
+      "evidenceThatWouldChangeDecision": "REV-01's lineage question should settle first so refinements attach correctly.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 1,
+        "strategicFit": 4,
+        "applePlatformValue": 2,
+        "evidenceConfidence": 4,
+        "implementationEffort": 3,
+        "changeRisk": 2,
+        "priorityIndex": 7.2
+      }
+    },
+    {
+      "id": "EXP-03",
+      "title": "Favorites, collections, templates",
+      "sourcesCovered": ["Y-07", "Y-L2"],
+      "problemVerified": false,
+      "currentState": "Tags exist and work, with an optimistic TagEditor and rollback. There are no favourites, collections, folders, pins, or starter templates.",
+      "validityVerdict": "Not currently worth developing",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["LIB-01", "LIB-03"],
+      "evidence": [
+        "src/components/library/PromptDetail.tsx:417-519 \u2014 TagEditor with optimistic update and rollback",
+        "src/components/library/LibraryBrowser.tsx:90-102 \u2014 tag filter chips derived from real data",
+        "No favourite, collection, or template model exists"
+      ],
+      "argumentFor": "Organisation matters once a library is large.",
+      "argumentAgainst": "The prompt itself says to justify this from actual Library behaviour first, and tags already provide one organisation axis that appears underused. Adding a second before the first is exercised is premature.",
+      "simplerAlternative": "Instrument tag usage before building anything; LIB-03's rename and LIB-01's chip fix will do more for findability today.",
+      "evidenceThatWouldChangeDecision": "Evidence that users tag heavily and still cannot find prompts would justify a second axis.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 4,
+        "implementationEffort": 4,
+        "changeRisk": 3,
+        "priorityIndex": 3.0
+      }
+    },
+    {
+      "id": "EXP-04",
+      "title": "Destination variants",
+      "sourcesCovered": [],
+      "problemVerified": false,
+      "currentState": "Not implemented; one target per run. Entirely blocked on PROD-01, since 'destination' is not yet a separate concept from optimizer.",
+      "validityVerdict": "Not currently worth developing",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["PROD-01", "COST-01", "EXP-01"],
+      "evidence": [
+        "src/lib/providers/formatters.ts:86-106 \u2014 destination idiom and optimizer are the same field today"
+      ],
+      "argumentFor": "Multi-destination variants are a natural expression of what the tool does once destination exists as a concept.",
+      "argumentAgainst": "Cannot be built coherently before PROD-01, and multiplies spend against a cap that COST-01 shows is not enforceable.",
+      "simplerAlternative": "Wait for PROD-01. No interim version is worth building.",
+      "evidenceThatWouldChangeDecision": "PROD-01 shipping would make this reconsiderable.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 2,
+        "riskReduction": 1,
+        "strategicFit": 2,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 4,
+        "implementationEffort": 4,
+        "changeRisk": 3,
+        "priorityIndex": 3.0
+      }
+    },
+    {
+      "id": "EXP-05",
+      "title": "Privacy-first usage insights",
+      "sourcesCovered": ["Y-L3"],
+      "problemVerified": true,
+      "currentState": "usage_events already records target, mode, model, tokens, and cost per run, and activity_events records typed events \u2014 so the data for a personal insights surface exists. The only current surface is the ActivityFeed's last 20 events and a cap-usage warning.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P3 \u2014 prototype or later",
+      "confidence": "Medium",
+      "dependencies": ["SET-01"],
+      "evidence": [
+        "src/lib/supabase/database.types.ts:155-190 \u2014 usage_events schema",
+        "src/components/library/ActivityFeed.tsx \u2014 last 20 activity events, the only existing surface",
+        "src/components/editor/EnhanceComposer.tsx:265-269 \u2014 cap-usage warning at 80%"
+      ],
+      "argumentFor": "The data is already collected and content-free by construction, so a read-only personal view is cheap and carries no new privacy surface.",
+      "argumentAgainst": "Nice-to-have; it competes with items that fix correctness rather than add a view.",
+      "simplerAlternative": "Surface today's spend against the cap in Profile \u2014 a single query over data that already exists.",
+      "evidenceThatWouldChangeDecision": "None \u2014 this is purely a prioritisation question.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 3,
+        "riskReduction": 1,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 6.5
+      }
+    },
+    {
+      "id": "RUNTIME-01",
+      "title": "Align runtimes",
+      "sourcesCovered": [],
+      "problemVerified": true,
+      "currentState": "engines.node is >=20.0.0, CI pins Node 22, there is no .nvmrc or .node-version, and release.yml uses the runner default with no setup-node. No route declares a runtime, so both model routes run on Node.js serverless \u2014 production confirms 6 Node lambdas and zero edge. CLAUDE.md section 7 claims edge route handlers. A punycode DEP0040 deprecation warning surfaces in both the test run and the eval harness.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P2 \u2014 planned next cycle",
+      "confidence": "High",
+      "dependencies": ["RELEASE-01"],
+      "evidence": [
+        "package.json:8-10 \u2014 engines.node >=20.0.0",
+        ".github/workflows/ci.yml:24 \u2014 node-version 22",
+        "grep \u2014 no export const runtime anywhere in src/app",
+        "Vercel deployment dpl_EZ7D8SESK48iApNetb7yN7TX6sVE \u2014 lambdaRuntimeStats {\"nodejs\":6}, zero edge functions",
+        "CLAUDE.md section 7 \u2014 'Edge route handlers for the provider proxy give a DDoS-resistant posture'",
+        "DEP0040 punycode DeprecationWarning observed during npm run test on Node 22.22.2"
+      ],
+      "argumentFor": "A documented security posture that does not exist is worse than an undocumented one \u2014 it can be cited in a review as though it were true. The range >=20 with CI on 22 and no pin means local, CI, and production can each differ.",
+      "argumentAgainst": "Node serverless is a perfectly reasonable choice; only the claim is wrong. Migrating to edge would break the Node-dependent SDK usage.",
+      "simplerAlternative": "Correct CLAUDE.md and architecture.md to describe the Node runtime that actually ships, and add .nvmrc pinning 22. Do not migrate to edge to satisfy a stale doc.",
+      "evidenceThatWouldChangeDecision": "A decision to actually move the proxy to edge would change the fix from documentation to migration.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 3,
+        "riskReduction": 3,
+        "strategicFit": 3,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 2,
+        "changeRisk": 2,
+        "priorityIndex": 7.5
+      }
+    },
+    {
+      "id": "RELEASE-01",
+      "title": "Expanded release gates",
+      "sourcesCovered": ["R-08", "R-05 (CI gate)", "G7 (CI parity)"],
+      "problemVerified": true,
+      "currentState": "CI runs lint, typecheck, icons, unit, build, e2e, and a gating npm audit \u2014 a genuinely solid baseline, all green at this commit (172 tests, 0 vulnerabilities). Missing: check:db-enum (the guard invented after the 22P02 incident) is NOT wired in; format:check is absent; test:int points at tests/integration/ which does not exist, so the script always fails; there is no contrast gate, no splash link-to-asset parity check, and no a11y or device job.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": ["DB-01", "A11Y-01", "APPLE-01"],
+      "evidence": [
+        ".github/workflows/ci.yml:20-59 \u2014 full step list",
+        "Verified 2026-07-27 at this commit: lint 0, typecheck 0, 172 tests across 19 files passed, build 0, npm audit --omit=dev --audit-level=high 0, full audit 0 vulnerabilities",
+        "package.json:20 \u2014 test:int targets tests/integration which does not exist",
+        "package.json:26 \u2014 check:db-enum exists but appears in no workflow",
+        "tasks/lessons.md \u2014 the 22P02 incident passed all five gates because every gate reads the migration FILE, not the database"
+      ],
+      "argumentFor": "The single most expensive incident in this project's history passed every gate green, and the guard written specifically to catch it is still not in CI. That is the highest-value gate available and it already exists as a script.",
+      "argumentAgainst": "check:db-enum needs credentials in CI and skips without them, so wiring it up requires secret management to be meaningful.",
+      "simplerAlternative": "Wire check:db-enum with --strict into CI and delete or implement test:int \u2014 the broken script is a trap for the next contributor.",
+      "evidenceThatWouldChangeDecision": "None \u2014 the CI contents and the missing scripts are both verified.",
+      "scores": {
+        "userImpact": 4,
+        "reach": 4,
+        "riskReduction": 5,
+        "strategicFit": 4,
+        "applePlatformValue": 4,
+        "evidenceConfidence": 5,
+        "implementationEffort": 3,
+        "changeRisk": 1,
+        "priorityIndex": 11.75
+      }
+    },
+    {
+      "id": "GOV-01",
+      "title": "Brand-separation contact",
+      "sourcesCovered": ["R-04"],
+      "problemVerified": true,
+      "currentState": "SECURITY.md directs vulnerability reports to sean@vasey.audio \u2014 a VASEY.AUDIO address on a VASEY/AI product, contrary to the CLAUDE.md section 6 guardrail requiring zero VASEY.AUDIO crossover in copy, assets, or metadata. The repository is public, so this is externally visible.",
+      "validityVerdict": "Confirmed",
+      "developmentDecision": "P1 \u2014 implement next",
+      "confidence": "High",
+      "dependencies": [],
+      "evidence": [
+        "SECURITY.md:3-7 \u2014 'report security issues privately to sean@vasey.audio'",
+        "CLAUDE.md section 6 \u2014 'Brand separation: VASEY/AI only. Zero VASEY.AUDIO crossover in copy, assets, or metadata.'",
+        "Vercel deployment metadata confirms githubRepoVisibility: public"
+      ],
+      "argumentFor": "It is a direct, externally visible violation of an explicit repo guardrail, in the one file whose whole purpose is to be read by outsiders.",
+      "argumentAgainst": "The mailbox works and reports reach the right human; this is a branding correctness issue, not a security failure.",
+      "simplerAlternative": "Switch SECURITY.md to GitHub Private Vulnerability Reporting, which is the sanctioned fallback and requires no new mailbox \u2014 mailbox creation is explicitly a human task.",
+      "evidenceThatWouldChangeDecision": "Creation of a VASEY/AI security mailbox would resolve it directly.",
+      "scores": {
+        "userImpact": 2,
+        "reach": 2,
+        "riskReduction": 3,
+        "strategicFit": 4,
+        "applePlatformValue": 1,
+        "evidenceConfidence": 5,
+        "implementationEffort": 1,
+        "changeRisk": 1,
+        "priorityIndex": 15.0
+      }
+    }
+  ],
+  "newlyDiscovered": [
+    {
+      "id": "DISC-01",
+      "title": "`npm run test:int` targets a directory that does not exist",
+      "severity": "Low",
+      "decision": "P2 \u2014 planned next cycle",
+      "detail": "package.json:20 defines test:int as `vitest run --dir tests/integration`, but tests/integration/ is absent, so the script fails whenever invoked. It is not in CI, so nothing catches it.",
+      "evidence": [
+        "package.json:20",
+        "tests/ contains only unit/, e2e/, stubs/, setup.ts"
+      ],
+      "fix": "Delete the script or create the directory. A documented script that always fails is a trap for the next contributor."
+    },
+    {
+      "id": "DISC-02",
+      "title": "Service-worker runtime deps resolve only as transitives of a devDependency",
+      "severity": "Medium",
+      "decision": "P1 \u2014 implement next",
+      "detail": "src/lib/pwa/sw-src.js imports workbox-core, -routing, -strategies, -precaching, -expiration and -cacheable-response. None is a direct dependency; they resolve only because workbox-build (a devDependency) happens to pull them in. A transitive bump or a dedupe change can break the service-worker build with no lockfile signal.",
+      "evidence": [
+        "src/lib/pwa/sw-src.js \u2014 six workbox-* imports",
+        "package.json:28-39 dependencies \u2014 no workbox-* entry",
+        "package.json:40-62 devDependencies \u2014 workbox-build ^7.3.0 only"
+      ],
+      "fix": "Add the six workbox packages as explicit devDependencies at pinned versions."
+    },
+    {
+      "id": "DISC-03",
+      "title": "CLAUDE.md and architecture.md describe infrastructure that does not exist",
+      "severity": "Medium",
+      "decision": "P1 \u2014 implement next",
+      "detail": "CLAUDE.md section 7 claims edge route handlers for the provider proxy; production runs 6 Node lambdas and zero edge functions. docs/architecture.md documents a four-cache service worker plus Background Sync; the real SW has one runtime route and no sync handler, and Background Sync is unavailable on Apple platforms anyway.",
+      "evidence": [
+        "Vercel dpl_EZ7D8SESK48iApNetb7yN7TX6sVE \u2014 lambdaRuntimeStats {\"nodejs\":6}",
+        "grep \u2014 no export const runtime in src/app",
+        "docs/architecture.md:26-33 vs src/lib/pwa/sw-src.js:72-87",
+        "MDN BCD 8.0.8 \u2014 SyncManager safari/safari_ios false"
+      ],
+      "fix": "Correct both documents to describe what ships. Tracked under RUNTIME-01 and PWA-01."
+    },
+    {
+      "id": "DISC-04",
+      "title": "OpenAI-compatible adapters silently discard request options",
+      "severity": "Low",
+      "decision": "P2 \u2014 planned next cycle",
+      "detail": "makeOpenAICompatStream returns a three-parameter generator and mistral.ts likewise omits the opts parameter, while ProviderStream declares opts optional \u2014 so TypeScript accepts the narrower signature and any thinkingLevel is dropped for 8 of 12 providers. Benign today because those targets expose no ladder and the route rejects unknown levels, but adding a level to any of them would pass validation and then vanish silently.",
+      "evidence": [
+        "src/lib/providers/openai-compat.ts:42-46",
+        "src/lib/providers/mistral.ts:20-24",
+        "src/lib/providers/adapter.ts:54-59",
+        "src/lib/constants.ts:131-142"
+      ],
+      "fix": "Make the compat factory accept and forward opts, or throw when an unsupported option is supplied."
+    },
+    {
+      "id": "DISC-05",
+      "title": "restoreVersionAction does not verify the version belongs to the prompt",
+      "severity": "Medium",
+      "decision": "P1 \u2014 implement next",
+      "detail": "The action sets prompts.current_ver = versionId filtered only by prompt id, never checking that versionId belongs to promptId. RLS protects the prompts row, but nothing in application code prevents pointing prompt A at a version of prompt B. Whether the database blocks it depends on a foreign key that the generated types declare does not exist (Relationships: [] on all seven tables).",
+      "evidence": [
+        "src/lib/library/actions.ts:160-165",
+        "src/lib/supabase/database.types.ts \u2014 Relationships: [] throughout"
+      ],
+      "fix": "Validate ownership before the update, and confirm the FK exists in the hosted schema. Folded into DB-02."
+    },
+    {
+      "id": "DISC-06",
+      "title": "Media route never bills a failed vision call",
+      "severity": "Low",
+      "decision": "P2 \u2014 planned next cycle",
+      "detail": "/api/media returns early on a failed vision call before reaching the ledger insert, so input tokens consumed by a failure never count against the cap. /api/enhance takes the opposite approach and deliberately estimates and charges on abort. The two routes disagree on the same question.",
+      "evidence": [
+        "src/app/api/media/route.ts:125,133 \u2014 early returns",
+        "src/app/api/media/route.ts:139-147 \u2014 ledger insert after",
+        "src/app/api/enhance/route.ts:220-244 \u2014 finally-block charging"
+      ],
+      "fix": "Adopt the enhance route's finally-block pattern in the media route. Folded into COST-01."
+    },
+    {
+      "id": "DISC-07",
+      "title": "Documented RLS policy shape cannot express ownership for two tables",
+      "severity": "Medium",
+      "decision": "P0 \u2014 release blocker",
+      "detail": "docs/architecture.md:95 states 'Every table carries user_id; RLS policy = auth.uid() = user_id'. But prompt_versions has no user_id column \u2014 ownership must traverse prompt_id to prompts.user_id \u2014 and media_assets.prompt_ver_id has the same issue. So either the documentation misdescribes the real policies or the policies are wrong. Neither can be checked, because no policy SQL exists in the repository.",
+      "evidence": [
+        "docs/architecture.md:95",
+        "src/lib/supabase/database.types.ts:86-127 \u2014 prompt_versions columns, no user_id",
+        "supabase/migrations/ \u2014 no CREATE POLICY anywhere"
+      ],
+      "fix": "Resolved by DB-01: commit the real policies, then assert them in CI."
+    },
+    {
+      "id": "DISC-08",
+      "title": "TanStack Query is a declared dependency with no queries",
+      "severity": "Low",
+      "decision": "P3 \u2014 prototype or later",
+      "detail": "ADR 0001 locks TanStack Query as the server-state layer, but there are zero useQuery calls in the codebase \u2014 the only usage is a single useMutation in use-enhance.ts. Data flows through RSC and server actions instead, so the configured staleTime, gcTime and networkMode are inert.",
+      "evidence": [
+        "src/lib/query/provider.tsx:16-25",
+        "grep useQuery across src/ \u2014 zero hits",
+        "src/lib/enhance/use-enhance.ts:4,113 \u2014 the only useMutation"
+      ],
+      "fix": "Either adopt it for client-side data or drop it and the provider, and update ADR 0001 to match reality."
+    },
+    {
+      "id": "DISC-09",
+      "title": "CSP retains script-src 'unsafe-inline' for the theme bootstrap",
+      "severity": "Medium",
+      "decision": "P2 \u2014 planned next cycle",
+      "detail": "The pre-paint no-flash script in layout.tsx is inlined via dangerouslySetInnerHTML, which forces script-src 'unsafe-inline' in the CSP and materially weakens XSS defence app-wide. next.config.ts documents it as a known residual.",
+      "evidence": [
+        "next.config.ts:11-13,15-30 \u2014 CSP and the documented residual",
+        "src/app/layout.tsx:39,50 \u2014 the inline bootstrap",
+        "Production response header confirms script-src 'self' 'unsafe-inline'"
+      ],
+      "fix": "Adopt a nonce for the bootstrap script, which Next supports via middleware, and drop 'unsafe-inline'."
+    },
+    {
+      "id": "DISC-10",
+      "title": "Streaming scanner can silently stop streaming on unusual provider whitespace",
+      "severity": "Low",
+      "decision": "P3 \u2014 prototype or later",
+      "detail": "createEnvelopeScanner retains only field.length + 16 characters between chunks while seeking. A provider emitting \"output\" followed by a long whitespace run before the opening quote would slide past the retained window, so no deltas ever stream. Correctness is unaffected because parseEnhancePayload remains authoritative on the full text \u2014 the user would just see nothing until completion.",
+      "evidence": [
+        "src/lib/providers/json-stream.ts:67",
+        "docs/decisions/0002-stream-inside-the-json-envelope.md:37-39 \u2014 the known degradation mode"
+      ],
+      "fix": "Retain a slightly larger seek window or track the seek state across chunks rather than truncating."
+    },
+    {
+      "id": "DISC-11",
+      "title": "offline.html ignores the user's stored theme",
+      "severity": "Low",
+      "decision": "P3 \u2014 prototype or later",
+      "detail": "The offline fallback page inlines its own tokens with a prefers-color-scheme override only. A user who explicitly chose light or dark against their OS preference sees the OS preference instead while offline.",
+      "evidence": ["public/offline.html:19-24"],
+      "fix": "Read the same vizion.ui.v1 key the layout bootstrap reads, or accept the divergence deliberately."
+    },
+    {
+      "id": "DISC-12",
+      "title": "Unreferenced icon assets ship in public/icons",
+      "severity": "Low",
+      "decision": "P3 \u2014 prototype or later",
+      "detail": "public/icons contains 19 PNGs; the manifest references 7. apple-touch-icon.png and the three favicons are unreferenced because Next serves src/app/icon.png, icon.svg and apple-icon.png via the metadata file convention instead.",
+      "evidence": [
+        "public/icons/ \u2014 19 files",
+        "public/manifest.webmanifest \u2014 7 icon entries",
+        "Production HTML \u2014 icons resolve to /icon.png and /apple-icon.png"
+      ],
+      "fix": "Remove the dead files or reference them; confirm against the generator so the next icon regeneration does not reintroduce them."
+    }
+  ],
+  "blockedValidation": [
+    {
+      "item": "Real Apple device behaviour (iPhone Safari, installed PWA, iPad portrait/landscape/Split View, macOS Safari)",
+      "why": "No Apple hardware or simulator in this environment.",
+      "smallestSafeFollowUp": "Run the Apple validation matrix in section 10 on physical devices; delete and reinstall the home-screen app before checking splash, since iOS caches launch assets."
+    },
+    {
+      "item": "VoiceOver and screen-reader behaviour",
+      "why": "No assistive technology available here.",
+      "smallestSafeFollowUp": "Add @axe-core/playwright to the existing e2e run for automated coverage, then do one manual VoiceOver pass over paste to Enhance to Copy."
+    },
+    {
+      "item": "All authenticated behaviour: RLS enforcement, ledger writes, rate limiting, cost cap, Library and Profile flows",
+      "why": "No Supabase URL or anon key in this environment; the app cannot boot or authenticate. Only OPENAI_API_KEY is present.",
+      "smallestSafeFollowUp": "Run against a throwaway Supabase project seeded from the DB-01 baseline once it exists; assert cross-account isolation with two users."
+    },
+    {
+      "item": "Concurrent-spend overshoot as an executed experiment",
+      "why": "Requires authenticated sessions and would incur real provider spend. COST-01 is established by code path, not by execution.",
+      "smallestSafeFollowUp": "In a staging project with a $1 cap, fire 10 concurrent enhance requests and compare settled usage_events against the cap."
+    },
+    {
+      "item": "Whether hosted RLS policies, foreign keys and triggers match the documentation",
+      "why": "No database credentials; and per DB-01 the definitions exist nowhere in source control.",
+      "smallestSafeFollowUp": "Run pg_dump --schema-only against the hosted project and diff it against docs/runbooks/hardening.md's claims."
+    },
+    {
+      "item": "Whether deployed PRICE_* and MODEL_* env overrides match registry defaults",
+      "why": "Production environment variables are not readable from here.",
+      "smallestSafeFollowUp": "Compare the Vercel project env against src/lib/providers/config.ts defaults; lessons.md records a stale price under-counting the cap 6x."
+    },
+    {
+      "item": "Diff blow-up as a measured benchmark",
+      "why": "Requires an authenticated long-prompt run to produce a realistically large output pair.",
+      "smallestSafeFollowUp": "Benchmark diffWords directly at 20k x 16k tokens offline \u2014 no auth needed, and it would settle DIFF-01's magnitude precisely."
+    },
+    {
+      "item": "Playwright e2e against WebKit for service-worker lifecycle",
+      "why": "tests/e2e/shell.spec.ts:87-90 skips the SW leg on WebKit by design, per a recorded lesson.",
+      "smallestSafeFollowUp": "Validate SW registration and offline fallback manually on a real iOS device."
+    }
+  ]
+}
