@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isKeyboardViewport,
+  keyboardInset,
   KEYBOARD_MIN_OVERLAP,
 } from "@/lib/pwa/keyboard";
 
@@ -59,5 +60,53 @@ describe("isKeyboardViewport — visual-viewport keyboard heuristic", () => {
         scale: 1.0049,
       }),
     ).toBe(true);
+  });
+});
+
+describe("keyboardInset — how far a fixed bar must lift", () => {
+  it("is zero with no keyboard, so it doubles as the show/hide signal", () => {
+    expect(
+      keyboardInset({ layoutHeight: LAYOUT, visualHeight: LAYOUT, scale: 1 }),
+    ).toBe(0);
+  });
+
+  it("returns the occluded height for an open keyboard", () => {
+    expect(
+      keyboardInset({
+        layoutHeight: LAYOUT,
+        visualHeight: LAYOUT - 300,
+        scale: 1,
+      }),
+    ).toBe(300);
+  });
+
+  it("subtracts the visual viewport's offset once WebKit slides it down", () => {
+    // Same keyboard, but the page scrolled a focused field into view: the
+    // visible band moved down, so less of the layout viewport is occluded.
+    expect(
+      keyboardInset({
+        layoutHeight: LAYOUT,
+        visualHeight: LAYOUT - 300,
+        scale: 1,
+        offsetTop: 120,
+      }),
+    ).toBe(180);
+  });
+
+  it("never returns a negative inset", () => {
+    expect(
+      keyboardInset({
+        layoutHeight: LAYOUT,
+        visualHeight: LAYOUT - 300,
+        scale: 1,
+        offsetTop: 999,
+      }),
+    ).toBe(0);
+  });
+
+  it("stays zero under pinch-zoom, matching the keyboard heuristic", () => {
+    expect(
+      keyboardInset({ layoutHeight: LAYOUT, visualHeight: LAYOUT / 2, scale: 2 }),
+    ).toBe(0);
   });
 });

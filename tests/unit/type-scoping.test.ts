@@ -12,6 +12,7 @@ const ROOT = join(__dirname, "..", "..");
 const UI_ONLY_FILES = [
   "src/components/editor/EnhanceComposer.tsx",
   "src/components/editor/ModeRig.tsx",
+  "src/components/editor/KeyboardActionBar.tsx",
   "src/components/auth/SignInForm.tsx",
   "src/components/nav/BottomNav.tsx",
   "src/components/settings/SettingsPanel.tsx",

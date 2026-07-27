@@ -31,10 +31,30 @@ export interface ViewportSample {
   visualHeight: number;
   /** `visualViewport.scale` — the pinch-zoom factor (1 = unzoomed). */
   scale: number;
+  /** `visualViewport.offsetTop` — how far the visual viewport has slid down
+   *  the layout viewport (WebKit shifts it when scrolling a focused field into
+   *  view). Absent = 0. */
+  offsetTop?: number;
 }
 
 /** True when the sampled viewport state indicates an open software keyboard. */
 export function isKeyboardViewport(sample: ViewportSample): boolean {
   if (sample.scale > MAX_UNZOOMED_SCALE) return false;
   return sample.layoutHeight - sample.visualHeight > KEYBOARD_MIN_OVERLAP;
+}
+
+/**
+ * CSS px between the layout viewport's bottom edge and the visible area's —
+ * i.e. how tall the keyboard's occlusion is right now. A `position: fixed`
+ * element anchors to the LAYOUT viewport, so `bottom: keyboardInset(...)px`
+ * is what lands it exactly on top of the keyboard instead of behind it.
+ *
+ * Zero whenever no keyboard is detected (including pinch-zoom shrink), so a
+ * consumer can use the number alone as its show/hide signal.
+ */
+export function keyboardInset(sample: ViewportSample): number {
+  if (!isKeyboardViewport(sample)) return 0;
+  const occluded =
+    sample.layoutHeight - sample.visualHeight - (sample.offsetTop ?? 0);
+  return Math.max(0, Math.round(occluded));
 }

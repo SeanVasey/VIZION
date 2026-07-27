@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   MODE_LABEL,
@@ -79,6 +79,24 @@ export function TransformationDiff({
   );
   const [saving, startSave] = useTransition();
   const [compareOpen, setCompareOpen] = useState(false);
+
+  // Sticky-actions gate: once the real Copy/Use row has scrolled out of view,
+  // a compact copy of it rides the bottom of the viewport so the two primary
+  // actions never require scrolling back up a long result (P0).
+  const primaryActionsRef = useRef<HTMLDivElement | null>(null);
+  const [primaryOffscreen, setPrimaryOffscreen] = useState(false);
+  useEffect(() => {
+    const row = primaryActionsRef.current;
+    // IntersectionObserver is absent in jsdom; without it the sticky bar
+    // simply never arms, which is the correct degradation.
+    if (!row || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setPrimaryOffscreen(!entry?.isIntersecting),
+      { threshold: 0 },
+    );
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, []);
 
   // Per-change decisions (Polish only): hunk ids the user reverted.
   const [rejected, setRejected] = useState<ReadonlySet<number>>(new Set());
@@ -303,7 +321,10 @@ export function TransformationDiff({
       </div>
 
       {/* 2 · Primary actions — Copy + Use, directly under the result. */}
-      <div className={`grid gap-2 ${onUse ? "grid-cols-2" : "grid-cols-1"}`}>
+      <div
+        ref={primaryActionsRef}
+        className={`grid gap-2 ${onUse ? "grid-cols-2" : "grid-cols-1"}`}
+      >
         <button
           type="button"
           onClick={copyOutput}
@@ -604,6 +625,38 @@ export function TransformationDiff({
           </div>
         )}
       </div>
+
+      {/* Sticky primary actions — armed only once the real row is off-screen,
+          so short results never grow a second copy of their own buttons.
+          `sticky` (not `fixed`) keeps it inside this result's flow: it can
+          never overlay another screen, and it clears the bottom nav. The
+          entry animation rests at its final frame, so the global
+          reduced-motion collapse leaves it correctly visible. */}
+      {primaryOffscreen && (
+        <div
+          className="sheet-in glass-chrome sticky z-30 -mx-1 flex items-center gap-2 rounded-2xl px-2 py-2"
+          style={{
+            bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 8px)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={copyOutput}
+            className="btn-laser flex min-h-[44px] flex-1 items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm"
+          >
+            {copied ? "Copied ✓" : "Copy"}
+          </button>
+          {onUse && (
+            <button
+              type="button"
+              onClick={() => onUse(effectiveOutput)}
+              className="btn-secondary flex min-h-[44px] flex-1 items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm"
+            >
+              Use as draft
+            </button>
+          )}
+        </div>
+      )}
 
       <CompareSheet
         open={compareOpen}

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { diffWords } from "@/lib/enhance/diff";
 import type { EnhanceResponse } from "@/lib/enhance/use-enhance";
@@ -111,6 +111,34 @@ describe("result view (mobile-first order)", () => {
     renderView({ onUse });
     fireEvent.click(screen.getByRole("button", { name: "Use as draft" }));
     expect(onUse).toHaveBeenCalledWith("write a concise summary");
+  });
+
+  it("arms sticky Copy/Use only once the real action row leaves the viewport", () => {
+    // jsdom has no IntersectionObserver; install one we can drive.
+    let notify: ((entries: { isIntersecting: boolean }[]) => void) | null = null;
+    class FakeIO {
+      constructor(cb: (entries: { isIntersecting: boolean }[]) => void) {
+        notify = cb;
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("IntersectionObserver", FakeIO);
+
+    const onUse = vi.fn();
+    renderView({ onUse });
+    // Row visible → exactly one Copy and one Use as draft.
+    expect(screen.getAllByRole("button", { name: "Copy" })).toHaveLength(1);
+
+    act(() => notify?.([{ isIntersecting: false }]));
+    expect(screen.getAllByRole("button", { name: "Copy" })).toHaveLength(2);
+    // The sticky copy drives the same handler.
+    fireEvent.click(screen.getAllByRole("button", { name: "Use as draft" })[1]!);
+    expect(onUse).toHaveBeenCalledWith("write a concise summary");
+
+    act(() => notify?.([{ isIntersecting: true }]));
+    expect(screen.getAllByRole("button", { name: "Copy" })).toHaveLength(1);
+    vi.unstubAllGlobals();
   });
 
   it("renders no What-changed heading when the rationale is empty", () => {

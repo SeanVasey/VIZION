@@ -6,6 +6,38 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the keyboard no longer hides the primary action
+
+On iOS the software keyboard covers the bottom of the page without
+resizing the layout viewport, so the composer's rail — and **ENHANCE** with
+it — sat behind the keyboard exactly while you were typing into the field
+above it. Running a prompt meant dismissing the keyboard first.
+
+- A compact bar (token count + ENHANCE) now rides above the keyboard while
+  the composer has focus, positioned by a newly measured **visual-viewport
+  inset** rather than the layout bottom edge — the correction for the
+  documented floating-chrome behaviour. It never collides with the bottom
+  nav, which hides under the same signal.
+- On a long result, **Copy** and **Use as draft** stick to the bottom of the
+  screen once the real action row scrolls away, and retract when it returns
+  — so the two primary actions are never three screens up. Short results
+  are untouched.
+
+### Added — paste and drop
+
+The placeholder invited a paste that nothing intercepted, and the hidden
+file input was the only way to attach media.
+
+- **Paste text** inserts normally; **paste a screenshot** attaches it.
+- **Drag files** onto the composer (Files.app on iPadOS, desktop) with a
+  "Drop to attach" hint; dragged text is ignored rather than swallowed.
+- An empty, focused draft offers **Paste from clipboard**, hidden entirely
+  where the browser can't read it, with a plain error when a read is denied.
+  On iOS the system's own Paste confirmation stands — it isn't routed around.
+
+Every path attaches through the same intake as the attach button, so the
+first-run privacy disclosure still gates uploads.
+
 ## [0.3.0] - 2026-07-27
 
 ### Fixed — enhance runs no longer die over a salvageable envelope
