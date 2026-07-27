@@ -6,6 +6,29 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — media provenance columns + atomic server-side quota (migration)
+
+`supabase/migrations/20260727120000_media_roles_and_reservation.sql`
+(**applied to the hosted project 2026-07-27**, advisors clean):
+
+- `media_assets` gains `original_name`, `mime_type`, `role`
+  (reference/extract/describe/style/generate) and `status`
+  (pending/ready/failed) — additive, no enum surgery, no deploy-order hazard.
+- **`media_reserve()`** — the atomic quota gate. The 50 MB limit was a pure
+  client-side check the browser could simply bypass (it writes straight to
+  Storage); now the client must reserve a `pending` row first, and
+  reservations serialize per user on a transaction-scoped advisory lock.
+  SECURITY INVOKER (RLS applies), `search_path` pinned, EXECUTE revoked from
+  anon.
+- New pure pipeline core (`src/lib/media/pipeline.ts`): reserve → upload →
+  ready, with every failure direction landing safe — an upload failure
+  deletes (or visibly fails) the pending row instead of orphaning an
+  invisible storage object, and asset removal converges on retry instead of
+  stranding rows. Fully unit-tested over injected deps.
+- `npm run check:db-enum` now also probes the migrated columns and the
+  `media_reserve` RPC through PostgREST — the same committed-but-unapplied
+  drift class the enum probe already catches.
+
 ### Changed — mobile-first result view: Enhanced leads, Compare is a sheet
 
 The transformation diff made the improved prompt the *last* thing you reached:

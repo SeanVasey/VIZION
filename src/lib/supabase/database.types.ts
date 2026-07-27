@@ -27,6 +27,10 @@ export type Database = {
           size_bytes: number;
           extracted: Json | null;
           created_at: string;
+          original_name: string | null;
+          mime_type: string | null;
+          role: string | null;
+          status: string;
         };
         Insert: {
           id?: string;
@@ -37,6 +41,10 @@ export type Database = {
           size_bytes?: number;
           extracted?: Json | null;
           created_at?: string;
+          original_name?: string | null;
+          mime_type?: string | null;
+          role?: string | null;
+          status?: string;
         };
         Update: {
           id?: string;
@@ -47,6 +55,10 @@ export type Database = {
           size_bytes?: number;
           extracted?: Json | null;
           created_at?: string;
+          original_name?: string | null;
+          mime_type?: string | null;
+          role?: string | null;
+          status?: string;
         };
         Relationships: [];
       };
@@ -262,6 +274,17 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      media_reserve: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["media_kind"];
+          p_size_bytes: number;
+          p_original_name: string;
+          p_mime_type: string;
+          p_ext: string;
+          p_role?: string;
+        };
+        Returns: { id: string; storage_path: string }[];
+      };
       usage_window: {
         Args: { p_rate_seconds: number };
         Returns: { recent_count: number; today_cost: number }[];
