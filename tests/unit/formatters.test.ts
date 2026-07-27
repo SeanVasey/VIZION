@@ -25,6 +25,10 @@ describe("buildSystemPrompt", () => {
         // The streaming scanner decodes the output field incrementally — the
         // contract must keep telling models to emit it first.
         expect(p).toContain('"output" MUST be the first field');
+        // Anti-drift wording (2026-07 incident): rationale is one plain
+        // string, and the envelope survives refinement passes too.
+        expect(p).toContain("a single plain string, never an array or object");
+        expect(p).toContain("including refinement passes");
       }
     }
   });
@@ -136,13 +140,77 @@ describe("parseEnhancePayload", () => {
     expect(out).toEqual({ output: "hi", rationale: "why" });
   });
 
-  it("throws on non-JSON", () => {
-    expect(() => parseEnhancePayload("not json")).toThrow();
+  it("throws the non-JSON message on unparseable text", () => {
+    expect(() => parseEnhancePayload("not json")).toThrow(
+      "The model returned a non-JSON response.",
+    );
   });
 
-  it("throws when fields are missing or wrong types", () => {
-    expect(() => parseEnhancePayload('{"output":"x"}')).toThrow();
-    expect(() => parseEnhancePayload('{"output":1,"rationale":"y"}')).toThrow();
+  it("throws the missing-fields message only when output is absent or non-string", () => {
+    // The two messages are diagnostic discriminators — pin them apart.
+    expect(() => parseEnhancePayload('{"output":1,"rationale":"y"}')).toThrow(
+      "The model response was missing the expected fields.",
+    );
+    expect(() => parseEnhancePayload('{"rationale":"y"}')).toThrow(
+      "The model response was missing the expected fields.",
+    );
+    expect(() => parseEnhancePayload('"just a string"')).toThrow(
+      "The model response was missing the expected fields.",
+    );
+  });
+
+  it("a truncated envelope is a non-JSON failure, never missing-fields", () => {
+    // max_tokens exhaustion mid-string must not masquerade as a shape error.
+    expect(() => parseEnhancePayload('{"output":"cut off mid-str')).toThrow(
+      "The model returned a non-JSON response.",
+    );
+  });
+
+  it("unwraps a markdown-fenced envelope", () => {
+    for (const fence of ["```json", "```"]) {
+      const out = parseEnhancePayload(
+        `${fence}\n{"output":"o","rationale":"r"}\n\`\`\``,
+      );
+      expect(out.output).toBe("o");
+      expect(out.rationale).toBe("r");
+    }
+  });
+
+  it("recovers an envelope surrounded by prose", () => {
+    const out = parseEnhancePayload(
+      'Here is the result:\n{"output":"o","rationale":"r"}\nHope that helps!',
+    );
+    expect(out).toEqual({ output: "o", rationale: "r" });
+  });
+
+  it("never fails a run over the rationale (2026-07 incident)", () => {
+    // Missing, null, or object-shaped rationale ⇒ empty string, not a throw.
+    expect(parseEnhancePayload('{"output":"x"}').rationale).toBe("");
+    expect(parseEnhancePayload('{"output":"x","rationale":null}').rationale).toBe("");
+    expect(
+      parseEnhancePayload('{"output":"x","rationale":{"summary":"s"}}').rationale,
+    ).toBe("");
+  });
+
+  it("joins an array-shaped rationale and keeps only its strings", () => {
+    const out = parseEnhancePayload(
+      '{"output":"x","rationale":["Tightened scope."," Added constraints. ",42,""]}',
+    );
+    expect(out.rationale).toBe("Tightened scope.\nAdded constraints.");
+  });
+
+  it("recovers a renamed rationale from known aliases", () => {
+    for (const alias of ["reasoning", "explanation", "notes"]) {
+      const out = parseEnhancePayload(
+        `{"output":"x","${alias}":" recovered why "}`,
+      );
+      expect(out.rationale).toBe("recovered why");
+    }
+    // The canonical field wins over any alias when both are present.
+    const both = parseEnhancePayload(
+      '{"output":"x","rationale":"real","reasoning":"alias"}',
+    );
+    expect(both.rationale).toBe("real");
   });
 
   it("passes through the optional fields when well-formed", () => {

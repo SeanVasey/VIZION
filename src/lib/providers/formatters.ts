@@ -143,11 +143,11 @@ export function buildSystemPrompt(
     // delays streaming — it never breaks parsing.
     'Return ONLY a JSON object. Field order matters — "output" MUST be the first field:',
     '- "output" (required, string): the transformed prompt, ready to paste into the target engine.',
-    '- "rationale" (required, string): a short, plain-language explanation of what you changed and why (2-4 sentences).',
+    '- "rationale" (required, string — a single plain string, never an array or object): a short, plain-language explanation of what you changed and why (2-4 sentences).',
     '- "assumptions" (optional, array of strings): assumptions you made to fill gaps in the request, one short line each. Omit the field entirely if you made none.',
     '- "targetNotes" (optional, string): one sentence naming any changes made specifically for the target engine. Omit if none.',
     '- "title" (optional, string): a short semantic name for this prompt (max 60 characters, no quotes), suitable as a library entry title.',
-    "Do not wrap the JSON in markdown fences. Do not include any other text.",
+    "Do not wrap the JSON in markdown fences. Do not include any other text. Return this JSON envelope on every pass, including refinement passes.",
   ].join("\n");
 }
 
@@ -167,30 +167,83 @@ const MAX_ASSUMPTIONS = 6;
 const MAX_TITLE_CHARS = 60;
 
 /**
+ * Best-effort extraction of the JSON envelope from raw model text. Models
+ * occasionally wrap the object in a markdown fence despite the contract —
+ * unwrap a whole-text fence; otherwise return the trimmed text as-is.
+ */
+function extractJsonCandidate(raw: string): string {
+  const trimmed = raw.trim();
+  const fence = /^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/.exec(trimmed);
+  return fence ? fence[1]!.trim() : trimmed;
+}
+
+/** Second-chance parse target for an envelope surrounded by prose: the
+ *  outermost brace span. Null when no plausible object exists. */
+function braceSpan(raw: string): string | null {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  return start !== -1 && end > start ? raw.slice(start, end + 1) : null;
+}
+
+/** Field names models drift to when they rename the rationale. */
+const RATIONALE_KEYS = ["rationale", "reasoning", "explanation", "notes"] as const;
+
+/**
+ * Salvage a rationale from a drifting envelope: the canonical field first,
+ * then the known aliases; strings pass through, arrays of strings join. A
+ * run is never failed over the rationale — a complete output with a missing
+ * explanation beats a dead run (2026-07 production incident: Sonnet 5
+ * returned a valid envelope whose rationale wasn't a string and the whole
+ * run 502'd despite a perfect output).
+ */
+function coerceRationale(rec: Record<string, unknown>): string {
+  for (const key of RATIONALE_KEYS) {
+    const v = rec[key];
+    if (typeof v === "string" && v.trim() !== "") return v.trim();
+    if (Array.isArray(v)) {
+      const parts = v
+        .filter((p): p is string => typeof p === "string" && p.trim() !== "")
+        .map((p) => p.trim());
+      if (parts.length > 0) return parts.join("\n");
+    }
+  }
+  return "";
+}
+
+/**
  * Parse + validate a provider's raw text response into the enhance payload.
- * `output`/`rationale` stay REQUIRED (the battle-scarred contract); the newer
- * fields are optional and parsed tolerantly — junk shapes are dropped, never
- * fatal, so an older or disobedient model can't fail a run over them.
+ * Only `output` is load-bearing enough to fail a run over — everything else
+ * is parsed tolerantly: fences/prose around the object are stripped, the
+ * rationale is coerced from alias/array shapes (empty when unsalvageable),
+ * and junk-shaped optional fields are dropped, never fatal.
+ *
+ * The two error messages are diagnostic discriminators (non-JSON vs missing
+ * fields) — keep them distinct and stable.
  */
 export function parseEnhancePayload(raw: string): EnhancePayload {
   let data: unknown;
   try {
-    data = JSON.parse(raw);
+    data = JSON.parse(extractJsonCandidate(raw));
   } catch {
-    throw new Error("The model returned a non-JSON response.");
+    const span = braceSpan(raw);
+    if (span === null) throw new Error("The model returned a non-JSON response.");
+    try {
+      data = JSON.parse(span);
+    } catch {
+      throw new Error("The model returned a non-JSON response.");
+    }
   }
   if (
     typeof data !== "object" ||
     data === null ||
-    typeof (data as Record<string, unknown>).output !== "string" ||
-    typeof (data as Record<string, unknown>).rationale !== "string"
+    typeof (data as Record<string, unknown>).output !== "string"
   ) {
     throw new Error("The model response was missing the expected fields.");
   }
   const rec = data as Record<string, unknown>;
   const payload: EnhancePayload = {
     output: (rec.output as string).trim(),
-    rationale: (rec.rationale as string).trim(),
+    rationale: coerceRationale(rec),
   };
 
   if (Array.isArray(rec.assumptions)) {
