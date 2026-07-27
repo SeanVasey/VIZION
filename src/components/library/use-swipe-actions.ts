@@ -108,6 +108,27 @@ export function useSwipeActions({ enabled = true }: { enabled?: boolean } = {}) 
     close,
     /** Current horizontal offset in px. */
     offset: dx,
+    /**
+     * Spread onto the draggable element — the transform AND the gesture claim,
+     * together, because they are one contract.
+     *
+     * `touch-action: pan-y` is load-bearing, not decoration. The row's content
+     * is a `<Link>`, and the base layer gives every `a`/`button`
+     * `touch-action: manipulation` (which permits panning on BOTH axes), so
+     * without this the user agent stays free to claim a horizontal drag for
+     * itself — scrolling, or Safari's back-navigation gesture — and hand us a
+     * `pointercancel` instead of the movement. Mapping cancel to pointer-up
+     * settles the swipe gracefully but cannot prevent the hijack. Declaring
+     * `pan-y` here narrows the intersection of this element and its
+     * descendants to "vertical is yours, horizontal is mine": the list still
+     * scrolls natively, and the swipe reliably reaches this hook.
+     *
+     * Omitted when disabled — a row that cannot swipe has no claim to make.
+     */
+    style: {
+      transform: `translateX(${dx}px)`,
+      touchAction: enabled ? ("pan-y" as const) : undefined,
+    },
     handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp },
     onClickCapture,
   };

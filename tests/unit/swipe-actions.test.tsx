@@ -74,6 +74,27 @@ describe("useSwipeActions", () => {
     expect(result.current.offset).toBe(0);
   });
 
+  it("claims horizontal gestures so the browser can't steal the swipe", () => {
+    const { result } = renderHook(() => useSwipeActions());
+    // pan-y, not manipulation: the row's <Link> would otherwise let the UA
+    // treat a horizontal drag as a pan (or a back-navigation) and cancel the
+    // pointer stream instead of delivering it here.
+    expect(result.current.style.touchAction).toBe("pan-y");
+    expect(result.current.style.transform).toBe("translateX(0px)");
+  });
+
+  it("makes no gesture claim when disabled", () => {
+    const { result } = renderHook(() => useSwipeActions({ enabled: false }));
+    expect(result.current.style.touchAction).toBeUndefined();
+  });
+
+  it("carries the offset in the same style object it claims with", () => {
+    const { result } = renderHook(() => useSwipeActions());
+    swipe(result, 200, 100);
+    expect(result.current.style.transform).toBe(`translateX(${-SWIPE_REVEAL_PX}px)`);
+    expect(result.current.style.touchAction).toBe("pan-y");
+  });
+
   it("stays inert when disabled", () => {
     const { result } = renderHook(() => useSwipeActions({ enabled: false }));
     swipe(result, 200, 100);

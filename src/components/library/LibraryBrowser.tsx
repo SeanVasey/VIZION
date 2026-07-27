@@ -483,7 +483,7 @@ const PromptRow = memo(function PromptRow({
       <div
         {...swipe.handlers}
         onClickCapture={swipe.onClickCapture}
-        style={{ transform: `translateX(${swipe.offset}px)` }}
+        style={swipe.style}
         className="relative transition-transform duration-150 ease-out motion-reduce:transition-none"
       >
       <Link
