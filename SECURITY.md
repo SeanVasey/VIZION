@@ -16,6 +16,11 @@ to acknowledge within 72 hours and to ship a fix or mitigation promptly.
 - **Model provider keys are server-side only.** `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
   and `GOOGLE_API_KEY` are read only inside Next route handlers (the provider-adapter
   proxy) and never reach the client bundle.
+- **The service-role key has exactly one consumer** — the account-deletion route
+  handler (`/auth/delete-account` via `src/lib/supabase/admin.ts`, `server-only`).
+  It is constructed per request after the session is verified, the only identifier
+  it ever receives is the session's own user id, and when
+  `SUPABASE_SERVICE_ROLE_KEY` is unset the flow fails closed with a clear error.
 - **Per-user rate limits and cost caps** on every model route.
 - **Parameterized queries** everywhere; no string-built SQL.
 - **`npm audit`** runs in CI on every PR and push to `main`.

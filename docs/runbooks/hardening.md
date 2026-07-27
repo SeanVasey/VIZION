@@ -22,6 +22,12 @@
       error/warn).
 - [x] **Server is the source of truth** — local cache (localStorage / IndexedDB)
       is convenience only.
+- [x] **Service-role key contained** — one consumer (`/auth/delete-account` via
+      `src/lib/supabase/admin.ts`, `server-only`, per-request construction,
+      session verified first, only the session's own user id reaches admin
+      calls). Deleting an account requires `SUPABASE_SERVICE_ROLE_KEY` in the
+      Vercel project env; while unset the flow fails closed with
+      `delete_error=unconfigured`.
 - [x] **Brand separation** — VASEY/AI only; zero VASEY.AUDIO crossover.
 - [x] **Edge/DDoS posture** — Vercel platform + per-user caps + the burst limiter.
 
