@@ -125,12 +125,23 @@
 }
 
 @layer components {
-  /* Frosted Onyx glass panel — the "raised" elevation tier. */
+  /* Frosted Onyx glass panel — the "raised" elevation tier.
+     Three things make it read as glass rather than flat tint: the blur is
+     saturated (colour behind a real pane intensifies, it doesn't just go
+     soft), an INSET top-edge sheen catches the light, and a fine grain
+     breaks up the otherwise perfectly smooth fill.
+
+     The grain is a background-IMAGE, not a ::after — `.glass` sits on
+     dozens of elements and giving them all a new positioning context would
+     silently re-anchor absolutely-positioned descendants. A background
+     layer has no such reach, can't be clipped, and costs no extra node. */
   .glass {
-    background: var(--glass);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background-color: var(--glass);
+    background-image: var(--grain, none);
+    backdrop-filter: blur(16px) saturate(1.25);
+    -webkit-backdrop-filter: blur(16px) saturate(1.25);
     border: 1px solid var(--hair);
+    box-shadow: var(--glass-sheen);
   }
 
   /* Translucent chrome — the top header and bottom nav. Thinner fill + a touch
@@ -429,6 +440,11 @@
   [data-reduced-effects] .mesh-canvas,
   [data-reduced-effects] .result-shimmer::before {
     display: none;
+  }
+  /* Grain is ambient texture, so it answers to the same switch — otherwise
+     "Reduced effects" would quietly stop meaning what it says. */
+  [data-reduced-effects] .glass {
+    background-image: none;
   }
   [data-reduced-effects] .flow-glow,
   [data-reduced-effects] .flow-line {
