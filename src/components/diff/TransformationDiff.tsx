@@ -29,7 +29,11 @@ import {
 } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useCopy } from "@/components/ui/use-copy";
-import { InputSegments, OutputSegments } from "@/components/diff/segments";
+import {
+  InputSegments,
+  OutputSegments,
+  REMOVED_CLASS,
+} from "@/components/diff/segments";
 import { CompareSheet } from "@/components/diff/CompareSheet";
 
 /** Inputs longer than this start with the original collapsed (mobile-first:
@@ -395,7 +399,7 @@ export function TransformationDiff({
                 >
                   {/* OUTPUT REGION: the change's before→after in mono. */}
                   <p className="mono min-w-0 break-words text-xs text-chalk">
-                    <span className="line-through opacity-60">
+                    <span className={REMOVED_CLASS}>
                       {h.removed.trim() === "" ? "∅" : h.removed}
                     </span>
                     <span aria-hidden="true" className="font-body px-1.5 text-silver">

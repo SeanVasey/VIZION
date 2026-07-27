@@ -6,17 +6,45 @@ import type { DiffSegment } from "@/lib/enhance/diff";
  * drift. Both bodies are OUTPUT REGIONS (mono at the call site).
  */
 
-/** Input-side render: equal + removed (struck/dimmed) reconstructs the input
+/** How removed text reads wherever it is shown as proof of a change: struck
+ *  through in Flare. `--flare` is a token that already darkens on light
+ *  themes, so this passes contrast in both. */
+export const REMOVED_CLASS = "text-flare line-through opacity-70";
+
+/** Input-side render: equal + removed (struck) reconstructs the input
  *  losslessly — nothing the author typed is hidden. */
 export function InputSegments({ segments }: { segments: DiffSegment[] }) {
   return (
     <>
       {segments.map((seg, i) =>
         seg.op === "added" ? null : (
-          <span
-            key={i}
-            className={seg.op === "removed" ? "line-through opacity-60" : undefined}
-          >
+          <span key={i} className={seg.op === "removed" ? REMOVED_CLASS : undefined}>
+            {seg.text}
+          </span>
+        ),
+      )}
+    </>
+  );
+}
+
+/**
+ * Two-sided render for a straight before→after comparison (version compare,
+ * and any surface that wants the proof rather than the result): removals in
+ * struck Flare, additions in Accent, equal text plain.
+ *
+ * This is the treatment the library's version compare grew inline; it lives
+ * here so the enhance and library surfaces can't drift apart.
+ */
+export function ComparisonSegments({ segments }: { segments: DiffSegment[] }) {
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.op === "removed" ? (
+          <span key={i} className={REMOVED_CLASS}>
+            {seg.text}
+          </span>
+        ) : (
+          <span key={i} className={seg.op === "added" ? "text-accent" : undefined}>
             {seg.text}
           </span>
         ),

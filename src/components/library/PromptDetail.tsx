@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useCopy } from "@/components/ui/use-copy";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
+import { ComparisonSegments } from "@/components/diff/segments";
 import {
   addVersionAction,
   restoreVersionAction,
@@ -348,20 +349,7 @@ export function PromptDetail({
             /* OUTPUT REGION: prompt/diff body renders in mono (JetBrains). */
             <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
               {versions.length >= 2 && segments && segments.length > 0 ? (
-                segments.map((seg, i) =>
-                  seg.op === "removed" ? (
-                    <span key={i} className="text-flare line-through opacity-70">
-                      {seg.text}
-                    </span>
-                  ) : (
-                    <span
-                      key={i}
-                      className={seg.op === "added" ? "text-accent" : undefined}
-                    >
-                      {seg.text}
-                    </span>
-                  ),
-                )
+                <ComparisonSegments segments={segments} />
               ) : (
                 <>{(bBody ?? currentBody)?.output_text}</>
               )}
