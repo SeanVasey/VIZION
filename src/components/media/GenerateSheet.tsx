@@ -10,6 +10,10 @@ import { sanitizeName } from "@/lib/media/context";
 import { savePromptAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useCopy } from "@/components/ui/use-copy";
+import {
+  highlightGenerationPrompt,
+  stripFlags,
+} from "@/lib/media/highlight";
 import type { MediaItem } from "@/lib/media/queue";
 
 /**
@@ -164,11 +168,78 @@ export function GenerateSheet({
           <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
             Generation prompt · {GEN_TARGETS.find((t) => t.id === engine)?.label}
           </p>
-          {/* OUTPUT REGION: generation prompt body in mono (JetBrains). */}
+          {/* OUTPUT REGION: generation prompt body in mono (JetBrains), with
+              the engine flags, field labels and hex codes picked out so the
+              editable parts are findable in the wall of text. */}
           <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
-            {generated || "Attach analysis is still running…"}
+            {generated
+              ? highlightGenerationPrompt(generated).map((tok, i) =>
+                  tok.kind === "text" ? (
+                    <span key={i}>{tok.text}</span>
+                  ) : tok.kind === "hex" ? (
+                    <span key={i} className="text-accent">
+                      <span
+                        aria-hidden="true"
+                        className="mr-0.5 inline-block h-2.5 w-2.5 translate-y-[1px] rounded-sm border border-hair align-baseline"
+                        style={{ backgroundColor: tok.text }}
+                      />
+                      {tok.text}
+                    </span>
+                  ) : (
+                    <span
+                      key={i}
+                      className={
+                        tok.kind === "flag"
+                          ? "text-accent"
+                          : "text-silver"
+                      }
+                    >
+                      {tok.text}
+                    </span>
+                  ),
+                )
+              : "Attach analysis is still running…"}
           </p>
         </div>
+
+        {/* Copy variants — the flags help in Midjourney and hurt in a chat
+            box, and JSON is what a script wants. Segmented on the export-strip
+            pattern; the focus ring is INSET because the rounded chassis'
+            overflow-hidden would clip an outer one. */}
+        {generated && (
+          <div className="glass flex items-stretch overflow-hidden rounded-xl">
+            {(
+              [
+                { id: "full", label: "Copy", value: () => generated },
+                { id: "plain", label: "Plain", value: () => stripFlags(generated) },
+                {
+                  id: "json",
+                  label: "JSON",
+                  value: () =>
+                    JSON.stringify(
+                      {
+                        engine,
+                        base: (basePrompt || editorDraft || "").trim(),
+                        prompt: generated,
+                        attributes: attrs ?? null,
+                      },
+                      null,
+                      2,
+                    ),
+                },
+              ] as const
+            ).map((seg) => (
+              <button
+                key={seg.id}
+                type="button"
+                onClick={() => void copy(seg.value())}
+                className="font-body min-h-[44px] flex-1 border-r border-hair text-xs uppercase tracking-wide text-silver transition-colors last:border-r-0 hover:text-chalk focus-visible:shadow-[inset_0_0_0_1px_var(--accent-ink)]"
+              >
+                {seg.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {saveError && (
           <p className="font-body text-sm text-flare" role="alert">
