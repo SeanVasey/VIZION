@@ -164,7 +164,7 @@ instruction; `buildSystemPrompt` wraps it with the target's idioms:
 | **Expand**   | Add structure, constraints, examples, acceptance criteria.          |
 | **Condense** | Strip to the minimum viable prompt; keep every load-bearing part.   |
 | **Reformat** | Restructure the same intent into a cleaner shape.                   |
-| **Target**   | Re-render into the target engine's idiomatic syntax.                |
+| **Adapt**    | Re-render into the target engine's idiomatic syntax (id: `target`). |
 
 **The output is the prompt itself.** Every mode × target prompt carries an
 `OUTPUT_CONTRACT` (`src/lib/providers/formatters.ts`): the `output` field must be
@@ -173,7 +173,7 @@ message box, in the author's voice. The model must never emit role labels
 (`System:` / `User:` / `Assistant:` / `Developer:`), never write a system prompt or
 persona spec for a hypothetical assistant, and never embed the input as a "message
 to respond to". Without this, the target idioms read as an instruction to script
-roles, and Expand/Reformat/Target returned a role-labelled system prompt instead of
+roles, and Expand/Reformat/Adapt returned a role-labelled system prompt instead of
 the transformed prompt.
 
 **Shape-preserving modes.** `Clarify` and `Polish` are in a `SHAPE_PRESERVING` set

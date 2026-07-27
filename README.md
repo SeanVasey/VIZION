@@ -6,7 +6,7 @@
 
 **A VASEY/AI prompt-engineering studio — mobile-first PWA.**
 
-_Clarify · Polish · Expand · Condense · Reformat · Re-target — the same idea, fitted to the engine that's about to receive it._
+_Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea, fitted to the engine that's about to receive it._
 
 [![CI](https://img.shields.io/github/actions/workflow/status/SeanVasey/vizion/ci.yml?branch=main&label=CI)](https://github.com/SeanVasey/vizion/actions)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs)](https://nextjs.org)

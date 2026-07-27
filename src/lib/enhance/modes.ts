@@ -30,5 +30,5 @@ export const MODE_BLURB: Record<ModeId, string> = {
   expand: "Adds the detail, structure, and constraints your prompt is missing.",
   condense: "Trims your prompt to the essentials without losing instructions.",
   reformat: "Restructures your prompt into a cleaner, better-organized shape.",
-  target: "Rewrites your prompt in the target model's preferred style.",
+  target: "Adapts your prompt to the selected model's preferred style.",
 };

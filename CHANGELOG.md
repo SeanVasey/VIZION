@@ -6,6 +6,23 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — the "Target" mode is now "Adapt"; the mode helper is plain text
+
+- **"Target" → "Adapt" (label only).** The sixth mode's display name no longer
+  collides with the target-model picker or read as jargon. The persisted id
+  stays `target` (it lives in the `enhance_mode` DB enum, localStorage, the
+  offline outbox, and the `/api/enhance` contract — an enum rename is a
+  migration-class change with a deploy-order hazard this rename deliberately
+  avoids). A new `MODE_LABEL` map is the single sanctioned way to render a
+  stored mode id; saved version history now renders labels ("Adapt") instead
+  of raw ids ("target"), and the markdown export heading follows. The JSON
+  export keeps the raw id (machine artifact).
+- **Mode helper text instead of an explanation card.** The always-present onyx
+  strip under the mode grid (fixed to the tallest of six display-caps blurbs,
+  with a tracking caret) is now one line of quiet secondary text. Same
+  zero-layout-shift technique (all six blurbs stacked in one grid cell), a
+  fraction of the visual weight, no permanent card.
+
 ### Added — Sheet, Toast, and ConfirmSheet UI primitives
 
 The app's first shared overlay primitives (`src/components/ui/`), seeding the

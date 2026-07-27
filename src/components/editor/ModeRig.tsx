@@ -15,14 +15,13 @@ import { MODE_BLURB } from "@/lib/enhance/modes";
  * the font's ascent/descent headroom — are what gets vertically centered in
  * each pill.  Symmetric at 360/390/430px.
  *
- * A dedicated help strip sits IN FLOW below the rig (above the composer): it
- * always shows one mode description — the hovered/focused cell, falling back
- * to the active mode — with a caret tracking the described cell via the same
- * sixth-width math as the lens-lock.  In flow because both floating placements
- * fail: above the rig the pill covered the guidance line, and below the rig
- * the composer's backdrop-filter stacking context painted over it.  All six
- * blurbs are stacked in one grid cell, so the strip is sized by the longest
- * description and never shifts layout as the described mode changes.
+ * A one-line helper sits IN FLOW below the rig (above the composer): plain
+ * secondary text showing one mode description — the hovered/focused cell,
+ * falling back to the active mode. (The 2026-07 UX audit demoted the old
+ * onyx card + caret: the explanation is guidance, not a surface, and must
+ * not cost a full card of vertical space.)  All six blurbs stay stacked in
+ * one grid cell, so the line is sized by the longest description and never
+ * shifts layout as the described mode changes.
  */
 export const ModeRig = memo(function ModeRig({
   activeMode,
@@ -37,13 +36,9 @@ export const ModeRig = memo(function ModeRig({
   );
   const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  /** Transient hover/focus preview; the strip falls back to the active mode. */
+  /** Transient hover/focus preview; the helper falls back to the active mode. */
   const [previewMode, setPreviewMode] = useState<ModeId | null>(null);
   const shownMode = previewMode ?? activeMode;
-  const shownIndex = Math.max(
-    0,
-    MODES.findIndex((m) => m.id === shownMode),
-  );
 
   return (
     <div className="flex flex-col gap-2">
@@ -126,51 +121,27 @@ export const ModeRig = memo(function ModeRig({
         })}
       </div>
 
-      {/* Help strip — the reserved description area between the rig and the
-          composer.  Opaque --onyx (like the old pill) so the caret joins its
-          fill without a translucency seam.  The stacked blurbs share one grid
-          cell: the tallest fixes the height, the shown one cross-fades in. */}
-      <div
-        id="mode-help-strip"
-        className="relative rounded-xl border border-hair bg-onyx px-4 py-2.5"
-      >
-        {/* Caret rail: full strip width, so the translateX percentage measures
-            the strip (translateX % on the caret itself would measure its own
-            8px). Translating the rail keeps the 300ms glide compositor-only —
-            same idiom as the lens-lock indicator above (animating `left`
-            forces layout every frame). */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 -top-1 h-2 transition-transform duration-300 ease-out"
-          style={{
-            transform: `translateX(calc(${shownIndex + 0.5} * (100% / 6) - 4px))`,
-          }}
-        >
-          <span className="absolute left-0 h-2 w-2 rotate-45 border-l border-t border-hair bg-onyx" />
-        </span>
-        {/* Blurbs are set in the display-caps voice (font-display + uppercase
-            guard, text-sm) in the theme-aware brand green (--accent-ink — AA
-            on --onyx in both themes).  items-center + cap-trim + text-balance
-            keep every mode consistent inside the reserved height: the caps
-            themselves sit dead-center (not the font's line box), and any wrap
-            splits into two even lines. */}
-        <div className="grid items-center text-center">
-          {MODES.map((mode) => {
-            const shown = mode.id === shownMode;
-            return (
-              <p
-                key={mode.id}
-                aria-hidden={!shown}
-                className={[
-                  "cap-trim font-display col-start-1 row-start-1 text-balance text-sm uppercase leading-snug tracking-wide text-accent transition-opacity duration-150",
-                  shown ? "opacity-100" : "opacity-0",
-                ].join(" ")}
-              >
-                {MODE_BLURB[mode.id]}
-              </p>
-            );
-          })}
-        </div>
+      {/* Mode helper — concise secondary text, not a card. The stacked blurbs
+          share one grid cell: the tallest reserves the height, the shown one
+          cross-fades in, so switching modes never shifts layout. No aria-live:
+          hover-driven changes would chatter; aria-describedby on the shown
+          cell carries the association instead. */}
+      <div id="mode-help-strip" className="grid items-start px-1 text-center">
+        {MODES.map((mode) => {
+          const shown = mode.id === shownMode;
+          return (
+            <p
+              key={mode.id}
+              aria-hidden={!shown}
+              className={[
+                "font-body col-start-1 row-start-1 text-balance text-xs leading-snug text-silver transition-opacity duration-150",
+                shown ? "opacity-100" : "opacity-0",
+              ].join(" ")}
+            >
+              {MODE_BLURB[mode.id]}
+            </p>
+          );
+        })}
       </div>
     </div>
   );

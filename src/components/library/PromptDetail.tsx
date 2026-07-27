@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MODES, type ModeId, type TargetModelId } from "@/lib/constants";
+import { MODES, MODE_LABEL, type ModeId, type TargetModelId } from "@/lib/constants";
 import { diffWords, countChanges, type DiffSegment } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
 import { useEnhance } from "@/lib/enhance/use-enhance";
@@ -274,7 +274,7 @@ export function PromptDetail({
             <li key={v.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="font-body text-sm text-text">
-                  v{labelOf.get(v.id)} · {v.mode}
+                  v{labelOf.get(v.id)} · {MODE_LABEL[v.mode] ?? v.mode}
                   {v.id === currentId ? (
                     <span className="font-body ml-2 text-xs text-accent">current</span>
                   ) : null}
@@ -541,7 +541,7 @@ function VersionSelect({
       >
         {versions.map((v) => (
           <option key={v.id} value={v.id} className="bg-onyx text-chalk">
-            v{labelOf.get(v.id)} · {v.mode}
+            v{labelOf.get(v.id)} · {MODE_LABEL[v.mode] ?? v.mode}
           </option>
         ))}
       </select>
