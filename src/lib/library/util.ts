@@ -1,19 +1,40 @@
 /** Pure helpers for the library — unit-tested in isolation. */
 
-/** Compact relative time (e.g. "just now", "3h", "2d"). Pure: pass `now` in. */
+const MIN = 60;
+const HOUR = 3600;
+const DAY = 86400;
+
+/**
+ * Human relative time (2026-07 UX audit): "Now", "1 min ago", "Yesterday" —
+ * never machine shorthand like "0m" (which the old floor produced for
+ * 45–59 s). Pure: pass `now` in.
+ */
 export function relativeTime(iso: string, now: number = Date.now()): string {
-  const diff = now - new Date(iso).getTime();
-  const sec = Math.max(0, Math.floor(diff / 1000));
-  if (sec < 45) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}d`;
-  const wk = Math.floor(day / 7);
-  if (wk < 5) return `${wk}w`;
-  return new Date(iso).toLocaleDateString();
+  const then = new Date(iso);
+  const sec = Math.max(0, Math.floor((now - then.getTime()) / 1000));
+  if (sec < 45) return "Now";
+  if (sec < HOUR) {
+    const min = Math.max(1, Math.floor(sec / MIN));
+    return `${min} min ago`;
+  }
+  if (sec < DAY) {
+    const hr = Math.floor(sec / HOUR);
+    return `${hr} hr ago`;
+  }
+  // Calendar yesterday (local), regardless of exact elapsed hours.
+  const nowDate = new Date(now);
+  const yesterday = new Date(nowDate);
+  yesterday.setDate(nowDate.getDate() - 1);
+  if (
+    then.getFullYear() === yesterday.getFullYear() &&
+    then.getMonth() === yesterday.getMonth() &&
+    then.getDate() === yesterday.getDate()
+  ) {
+    return "Yesterday";
+  }
+  const day = Math.floor(sec / DAY);
+  if (day < 7) return `${day} days ago`;
+  return then.toLocaleDateString();
 }
 
 /** Derive a short, human title from a prompt's input text. */
@@ -36,32 +57,4 @@ export function parseTags(raw: string): string[] {
     }
   }
   return out;
-}
-
-export interface PromptFilter {
-  query: string;
-  tag: string | null;
-  model: string | null;
-}
-
-interface FilterablePrompt {
-  title: string;
-  tags: string[];
-  target_model: string;
-}
-
-/** Apply the library search + tag + model filter (pure, client-side). */
-export function filterPrompts<T extends FilterablePrompt>(
-  prompts: T[],
-  filter: PromptFilter,
-): T[] {
-  const q = filter.query.trim().toLowerCase();
-  return prompts.filter((p) => {
-    if (q && !p.title.toLowerCase().includes(q) && !p.tags.some((t) => t.includes(q))) {
-      return false;
-    }
-    if (filter.tag && !p.tags.includes(filter.tag)) return false;
-    if (filter.model && p.target_model !== filter.model) return false;
-    return true;
-  });
 }

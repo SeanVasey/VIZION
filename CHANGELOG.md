@@ -6,6 +6,29 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — library: saved work leads; filters are summoned; queries scale
+
+The sixteen-model chip wall (the full global roster rendered above the first
+prompt, filtering an already-fully-downloaded list) is gone:
+
+- **Search field + one Filter button.** The button (with an active-count
+  badge) opens a bottom sheet: View (All/Favorites/Archived) · Model —
+  **only models actually present in the library, with counts** · Mode · Tag
+  · Sort (edited/created/title). Exactly two quick chips (Recent, Favorites)
+  live outside the sheet. A reserved Collections section sits behind a
+  ready-flag (deferred by owner decision).
+- **Server-side filtering + keyset cursor pagination** driven by URL
+  searchParams (shareable, back-button-friendly): 30 cards per page with
+  "Load more", replacing load-every-prompt.
+- **Database-side version counts** via the embedded
+  `prompt_versions!prompt_id(count)` aggregate — the old one-row-per-version
+  transfer (1,000 rows to count 100 integers) is deleted.
+- **Recognition-first cards**: title, mode, model, a two-line output
+  preview, favorite star, and human time — **"Now" / "1 min ago" /
+  "Yesterday"**, killing the "0m" the 45–59-second window used to render.
+- Search is honest about scope ("looks at titles"); empty-with-filters and
+  truly-empty states are distinct.
+
 ### Added — library organization schema (migration)
 
 `supabase/migrations/20260727130000_library_organization.sql`

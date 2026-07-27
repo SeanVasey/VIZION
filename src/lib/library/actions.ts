@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
 import { describeWriteError } from "@/lib/supabase/errors";
 import { deriveTitle } from "@/lib/library/util";
+import { parseLibraryParams } from "@/lib/library/paging";
+import { queryLibraryPage, type PromptCard } from "@/lib/library/queries";
 
 export interface SaveResult {
   ok: boolean;
@@ -207,6 +209,30 @@ export async function logShareAction(promptId: string): Promise<SaveResult> {
     meta: {},
   });
   return { ok: true, promptId };
+}
+
+/** Load the next library page (keyset cursor) — the "Load more" action.
+ *  The raw filter is re-validated server-side; RLS scopes the rows. */
+export async function fetchLibraryPageAction(
+  rawFilter: Record<string, string | undefined>,
+  cursor: string,
+): Promise<{
+  ok: boolean;
+  cards?: PromptCard[];
+  nextCursor?: string | null;
+  error?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  try {
+    const page = await queryLibraryPage(supabase, parseLibraryParams(rawFilter), cursor);
+    return { ok: true, ...page };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't load more." };
+  }
 }
 
 /** Delete a prompt and its versions (cascade). */

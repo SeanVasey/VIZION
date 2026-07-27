@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveTitle, parseTags, filterPrompts, relativeTime } from "@/lib/library/util";
+import { deriveTitle, parseTags, relativeTime } from "@/lib/library/util";
 
 describe("deriveTitle", () => {
   it("uses the first line", () => {
@@ -26,39 +26,28 @@ describe("parseTags", () => {
   });
 });
 
-describe("filterPrompts", () => {
-  const prompts = [
-    { title: "Launch email", tags: ["marketing"], target_model: "opus_5" },
-    { title: "JSON spec", tags: ["code"], target_model: "gpt_5_6_sol" },
-  ];
-  it("filters by query against title and tags", () => {
-    expect(
-      filterPrompts(prompts, { query: "launch", tag: null, model: null }),
-    ).toHaveLength(1);
-    expect(
-      filterPrompts(prompts, { query: "code", tag: null, model: null }),
-    ).toHaveLength(1);
-  });
-  it("filters by tag and model", () => {
-    expect(
-      filterPrompts(prompts, { query: "", tag: "code", model: null })[0]!.title,
-    ).toBe("JSON spec");
-    expect(
-      filterPrompts(prompts, { query: "", tag: null, model: "opus_5" })[0]!.title,
-    ).toBe("Launch email");
-  });
-});
+// filterPrompts is gone: search/filter/sort moved server-side (paging.ts +
+// queries.ts) — the client no longer filters an already-complete list.
 
-describe("relativeTime", () => {
+describe("relativeTime (human copy)", () => {
   const now = new Date("2026-06-13T12:00:00Z").getTime();
-  it("reports just now for very recent", () => {
-    expect(relativeTime("2026-06-13T11:59:40Z", now)).toBe("just now");
+  it("reports Now for very recent", () => {
+    expect(relativeTime("2026-06-13T11:59:40Z", now)).toBe("Now");
   });
-  it("reports minutes and hours", () => {
-    expect(relativeTime("2026-06-13T11:30:00Z", now)).toBe("30m");
-    expect(relativeTime("2026-06-13T09:00:00Z", now)).toBe("3h");
+  it("never renders the old 0m window — 45-59s reads as 1 min ago", () => {
+    expect(relativeTime("2026-06-13T11:59:10Z", now)).toBe("1 min ago");
   });
-  it("reports days", () => {
-    expect(relativeTime("2026-06-11T12:00:00Z", now)).toBe("2d");
+  it("reports minutes and hours in words", () => {
+    expect(relativeTime("2026-06-13T11:30:00Z", now)).toBe("30 min ago");
+    expect(relativeTime("2026-06-13T09:00:00Z", now)).toBe("3 hr ago");
+  });
+  it("reports calendar-yesterday as Yesterday", () => {
+    expect(relativeTime("2026-06-12T09:00:00Z", now)).toBe("Yesterday");
+  });
+  it("reports recent days, then falls back to a date", () => {
+    expect(relativeTime("2026-06-10T12:00:00Z", now)).toBe("3 days ago");
+    expect(relativeTime("2026-05-01T12:00:00Z", now)).toBe(
+      new Date("2026-05-01T12:00:00Z").toLocaleDateString(),
+    );
   });
 });
