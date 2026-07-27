@@ -85,12 +85,13 @@ function motion(base: string, a: MediaAttributes, engine: string): string {
   return `[${engine}] ${lines.join(" ")}`.trim();
 }
 
-/** Structured audio-generation spec. */
+/** Structured audio-generation spec. Audio analysis reads file METADATA only
+ *  (duration — no semantic tempo/timbre pass exists), so the spec is honest
+ *  about carrying just the base prompt, mood (if a visual ref supplied one),
+ *  and duration. */
 function audioSpec(base: string, a: MediaAttributes): string {
   const lines = [
     base.trim(),
-    a.tempo ? `Tempo: ${a.tempo}.` : undefined,
-    a.timbre ? `Timbre: ${a.timbre}.` : undefined,
     a.mood ? `Mood: ${a.mood}.` : undefined,
     a.durationSec ? `Duration: ~${Math.round(a.durationSec)}s.` : undefined,
   ].filter((l): l is string => Boolean(l && l.trim()));

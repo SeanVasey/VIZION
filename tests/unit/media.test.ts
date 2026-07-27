@@ -6,7 +6,13 @@ import {
   MEDIA_QUOTA_BYTES,
 } from "@/lib/media/formatters";
 import { quantizePalette, kindForMime } from "@/lib/media/ondevice";
-import { parseMediaAttributes, parseDataUrl } from "@/lib/media/extract";
+import {
+  parseMediaAttributes,
+  parseMediaText,
+  parseDataUrl,
+  MEDIA_STYLE_SYSTEM,
+  MEDIA_OCR_SYSTEM,
+} from "@/lib/media/extract";
 import type { MediaAttributes } from "@/lib/media/types";
 
 const attrs: MediaAttributes = {
@@ -54,15 +60,18 @@ describe("buildGenerationPrompt", () => {
     expect(p).toContain("Camera & motion: wide shot.");
   });
 
-  it("formats an audio spec", () => {
+  it("formats an honest audio spec (metadata only — no semantic tempo/timbre)", () => {
     const p = buildGenerationPrompt(
       "score",
-      { source: "ondevice", tempo: "120bpm", mood: "tense", durationSec: 30 },
+      { source: "ondevice", mood: "tense", durationSec: 30 },
       "audio",
     );
     expect(p).toContain("score");
-    expect(p).toContain("Tempo: 120bpm.");
+    expect(p).toContain("Mood: tense.");
     expect(p).toContain("Duration: ~30s.");
+    // The dead tempo/timbre schema is gone — nothing could ever populate it.
+    expect(p).not.toContain("Tempo");
+    expect(p).not.toContain("Timbre");
   });
 });
 
@@ -128,6 +137,30 @@ describe("MEDIA_EXTRACT_SYSTEM", () => {
   it("requires the prose description field", async () => {
     const { MEDIA_EXTRACT_SYSTEM } = await import("@/lib/media/extract");
     expect(MEDIA_EXTRACT_SYSTEM).toContain('"description" (required)');
+  });
+});
+
+describe("intent prompts (attachment roles)", () => {
+  it("the style prompt forbids subject matter", () => {
+    expect(MEDIA_STYLE_SYSTEM).toContain("STYLE only");
+    expect(MEDIA_STYLE_SYSTEM).toContain("Do not describe what is depicted");
+  });
+  it("the OCR prompt demands faithful transcription as {text}", () => {
+    expect(MEDIA_OCR_SYSTEM).toContain('{"text": string}');
+    expect(MEDIA_OCR_SYSTEM).toContain("transcribe exactly what is written");
+  });
+});
+
+describe("parseMediaText", () => {
+  it("returns the transcription string", () => {
+    expect(parseMediaText('{"text":"Line one\\nLine two"}')).toBe(
+      "Line one\nLine two",
+    );
+  });
+  it("reads empty/invalid shapes as no legible text", () => {
+    expect(parseMediaText('{"text":""}')).toBe("");
+    expect(parseMediaText('{"other":1}')).toBe("");
+    expect(parseMediaText("not json")).toBe("");
   });
 });
 

@@ -1,6 +1,9 @@
 export type MediaKind = "image" | "video" | "audio";
 
-/** Attributes VIZ(IO)N "reads" from an attached reference (product-spec §4.2). */
+/** Attributes VIZ(IO)N "reads" from an attached reference (product-spec §4.2).
+ *  Audio never reaches a model (only file metadata is read), so there are no
+ *  semantic audio fields — the old `tempo`/`timbre` were dead schema nothing
+ *  could ever populate (2026-07 UX audit, honest-capability fix). */
 export interface MediaAttributes {
   subject?: string;
   composition?: string;
@@ -10,9 +13,6 @@ export interface MediaAttributes {
   mood?: string;
   /** Prose visual description (2–4 sentences), paste-ready for a prompt. */
   description?: string;
-  // audio
-  tempo?: string;
-  timbre?: string;
   // metadata
   width?: number;
   height?: number;
