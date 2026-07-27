@@ -409,3 +409,79 @@ export async function deletePromptAction(promptId: string): Promise<SaveResult> 
   revalidatePath("/library");
   return { ok: true };
 }
+
+// --- Collections (2026-07 deferral, now landing) -------------------------
+
+/** 23505 (unique_violation) on collections means the per-owner name clash. */
+function describeCollectionError(err: { code?: string; message: string }): string {
+  return err.code === "23505"
+    ? "You already have a collection with that name."
+    : describeWriteError(err, "Couldn't save the collection.");
+}
+
+/** Move a prompt into a collection (or out of every collection with null). */
+export async function setCollectionAction(
+  promptId: string,
+  collectionId: string | null,
+): Promise<SaveResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("prompts")
+    .update({ collection_id: collectionId })
+    .eq("id", promptId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/library");
+  return { ok: true, promptId };
+}
+
+export async function createCollectionAction(
+  name: string,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const trimmed = name.trim();
+  if (trimmed.length < 1 || trimmed.length > 60) {
+    return { ok: false, error: "Give it a short name (1–60 characters)." };
+  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  const { data, error } = await supabase
+    .from("collections")
+    .insert({ user_id: user.id, name: trimmed })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: describeCollectionError(error) };
+  revalidatePath("/library");
+  return { ok: true, id: data.id };
+}
+
+export async function renameCollectionAction(
+  id: string,
+  name: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const trimmed = name.trim();
+  if (trimmed.length < 1 || trimmed.length > 60) {
+    return { ok: false, error: "Give it a short name (1–60 characters)." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("collections")
+    .update({ name: trimmed, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { ok: false, error: describeCollectionError(error) };
+  revalidatePath("/library");
+  return { ok: true };
+}
+
+/** Delete a collection. Prompts inside are kept — the FK's on delete set
+ *  null releases them (no client-side cleanup). */
+export async function deleteCollectionAction(
+  id: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("collections").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/library");
+  return { ok: true };
+}
