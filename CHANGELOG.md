@@ -6,6 +6,25 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — revise integrity + prompt-detail scale
+
+- **Revise seeds from the current OUTPUT** — the editor previously started
+  from the current version's original *input*, so "revise" silently re-ran
+  the original instead of iterating on the result.
+- **Save persists the request snapshot** (the composer's R8 pattern,
+  mirrored): submitting captures `{input, mode, target}`; editing the draft
+  or flipping a mode pill after the run can no longer relabel the stored
+  version, and the preview labels the mismatch — *"Result from previous
+  settings — re-enhance to match your edits."*
+- **Lazy version bodies** — the detail page ships version metadata plus only
+  the default compare pair's bodies; other versions load on demand. A
+  50-version prompt no longer downloads 50 full input/output/rationale
+  bodies to show two.
+- **Bounded, memoized diff** — the O(n·m) word-diff was recomputed on every
+  keystroke in the revise textarea with no size limit; it is now memoized on
+  the compared bodies and bounded at 2,000 tokens/side (over-budget pairs
+  show the selected version plain with a "too long to diff" note).
+
 ### Added — card actions, duplicate detection, and undoable delete
 
 - **Rename, favorite, archive, delete** — every card gets a ⋯ action sheet

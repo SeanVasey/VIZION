@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   diffWords,
+  boundedDiffWords,
   countChangedSections,
   toHunks,
   applyDecisions,
@@ -86,6 +87,18 @@ describe("countChangedSections", () => {
 
   it("a fully-new prompt is one section", () => {
     expect(countChangedSections(diffWords("", "brand new prompt"))).toBe(1);
+  });
+});
+
+describe("boundedDiffWords", () => {
+  it("matches diffWords under the budget", () => {
+    expect(boundedDiffWords("a b c", "a x c")).toEqual(diffWords("a b c", "a x c"));
+  });
+  it("returns null when either side exceeds the budget", () => {
+    const big = Array.from({ length: 60 }, (_, i) => `w${i}`).join(" ");
+    expect(boundedDiffWords(big, "short", 100)).toBeNull();
+    expect(boundedDiffWords("short", big, 100)).toBeNull();
+    expect(boundedDiffWords(big, big, 1000)).not.toBeNull();
   });
 });
 

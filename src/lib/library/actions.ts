@@ -278,6 +278,33 @@ export async function logShareAction(promptId: string): Promise<SaveResult> {
   return { ok: true, promptId };
 }
 
+export interface VersionBody {
+  id: string;
+  input_text: string;
+  output_text: string;
+  rationale: string | null;
+}
+
+/** Fetch one version's full body on demand (2026-07 UX audit: the detail
+ *  page ships version METADATA only — bodies load lazily as the compare
+ *  selects need them). RLS joins through the parent prompt. */
+export async function getVersionBodyAction(
+  promptId: string,
+  versionId: string,
+): Promise<{ ok: boolean; body?: VersionBody; error?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("prompt_versions")
+    .select("id, input_text, output_text, rationale")
+    .eq("id", versionId)
+    .eq("prompt_id", promptId)
+    .single();
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? "Version not found." };
+  }
+  return { ok: true, body: data };
+}
+
 /** Load the next library page (keyset cursor) — the "Load more" action.
  *  The raw filter is re-validated server-side; RLS scopes the rows. */
 export async function fetchLibraryPageAction(

@@ -4,15 +4,19 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { diffWords } from "@/lib/enhance/diff";
 import type { EnhanceResponse } from "@/lib/enhance/use-enhance";
 
-const savePromptAction = vi.fn(async (): Promise<Record<string, unknown>> => ({
+const savePromptAction = vi.fn(
+  async (..._args: unknown[]): Promise<Record<string, unknown>> => ({
+    ok: true,
+    promptId: "p1",
+  }),
+);
+const addVersionAction = vi.fn(async (..._args: unknown[]) => ({
   ok: true,
   promptId: "p1",
 }));
-const addVersionAction = vi.fn(async () => ({ ok: true, promptId: "p1" }));
 vi.mock("@/lib/library/actions", () => ({
   savePromptAction: (...args: unknown[]) => savePromptAction(...args),
-  addVersionAction: (...args: unknown[]) =>
-    addVersionAction(...(args as Parameters<typeof addVersionAction>)),
+  addVersionAction: (...args: unknown[]) => addVersionAction(...args),
   logShareAction: vi.fn(async () => ({ ok: true })),
 }));
 vi.mock("@/lib/pwa/outbox", () => ({

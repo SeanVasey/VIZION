@@ -66,6 +66,24 @@ export function diffWords(before: string, after: string): DiffSegment[] {
   return mergeAdjacent(raw);
 }
 
+/** Per-side token budget for interactive diffs. The LCS table is O(n·m):
+ *  2,000×2,000 ≈ 4M cells is a tolerable one-off; the unbounded version at
+ *  20k-char inputs was allocating ~100M cells on every keystroke. */
+export const DIFF_TOKEN_BUDGET = 2_000;
+
+/** diffWords with a hard size bound — returns null (caller shows the plain
+ *  text + a "too long to diff" note) instead of freezing the main thread. */
+export function boundedDiffWords(
+  before: string,
+  after: string,
+  budget = DIFF_TOKEN_BUDGET,
+): DiffSegment[] | null {
+  if (tokenize(before).length > budget || tokenize(after).length > budget) {
+    return null;
+  }
+  return diffWords(before, after);
+}
+
 /** Collapse runs of the same op into single segments for compact rendering. */
 function mergeAdjacent(segments: DiffSegment[]): DiffSegment[] {
   const out: DiffSegment[] = [];
