@@ -28,7 +28,7 @@ import {
   logShareAction,
 } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
-import { useToast } from "@/components/ui/Toast";
+import { useCopy } from "@/components/ui/use-copy";
 import { InputSegments, OutputSegments } from "@/components/diff/segments";
 import { CompareSheet } from "@/components/diff/CompareSheet";
 
@@ -69,8 +69,7 @@ export function TransformationDiff({
   onUse?: (text: string) => void;
   onRefine?: (kind: RefineKind, currentOutput: string) => void;
 }) {
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
   const [savedId, setSavedId] = useState<string | null>(null);
   const [queued, setQueued] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -136,7 +135,7 @@ export function TransformationDiff({
     setQueued(false);
     setSaveError(null);
     setDuplicate(null);
-    setCopied(false);
+    // `copied` self-clears on its own timer inside useCopy.
     setCompareOpen(false);
     setShowOriginal(
       result.diff
@@ -217,17 +216,7 @@ export function TransformationDiff({
   };
 
   async function copyOutput() {
-    try {
-      await navigator.clipboard.writeText(effectiveOutput);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Surfacing beats silence: tell the user copy did NOT happen.
-      toast({
-        tone: "error",
-        text: "Couldn't copy — your browser blocked clipboard access. Select the text and copy manually.",
-      });
-    }
+    await copy(effectiveOutput);
   }
 
   async function share() {

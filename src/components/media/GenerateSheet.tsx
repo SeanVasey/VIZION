@@ -9,6 +9,7 @@ import { GEN_TARGETS, type GenTargetId } from "@/lib/media/types";
 import { sanitizeName } from "@/lib/media/context";
 import { savePromptAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
+import { useCopy } from "@/components/ui/use-copy";
 import type { MediaItem } from "@/lib/media/queue";
 
 /**
@@ -30,7 +31,7 @@ export function GenerateSheet({
   const targetModel = useUIStore((s) => s.targetModel);
   const [engine, setEngine] = useState<GenTargetId>(item.genTarget ?? "midjourney");
   const [basePrompt, setBasePrompt] = useState("");
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
   const [savedId, setSavedId] = useState<string | null>(null);
   const [saveQueued, setSaveQueued] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -48,15 +49,9 @@ export function GenerateSheet({
     onEngineChange(next);
   }
 
-  async function copy() {
+  async function copyPrompt() {
     if (!generated) return;
-    try {
-      await navigator.clipboard.writeText(generated);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* button state suffices inside the sheet */
-    }
+    await copy(generated);
   }
 
   function save() {
@@ -102,7 +97,7 @@ export function GenerateSheet({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => void copy()}
+            onClick={() => void copyPrompt()}
             className="btn-laser flex min-h-[44px] grow items-center justify-center rounded-xl px-4 text-sm"
           >
             {copied ? "Copied ✓" : "Copy"}

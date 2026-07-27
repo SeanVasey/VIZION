@@ -7,6 +7,7 @@ import { boundedDiffWords, countChangedSections } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
 import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
 import { useToast } from "@/components/ui/Toast";
+import { useCopy } from "@/components/ui/use-copy";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
 import {
@@ -160,22 +161,12 @@ export function PromptDetail({
     [aBody, bBody],
   );
 
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
 
   async function copyCurrent() {
     const text = (bBody ?? currentBody)?.output_text;
     if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Surfacing beats silence: tell the user copy did NOT happen.
-      toast({
-        tone: "error",
-        text: "Couldn't copy — your browser blocked clipboard access. Select the text and copy manually.",
-      });
-    }
+    await copy(text);
   }
 
   function runRevise() {

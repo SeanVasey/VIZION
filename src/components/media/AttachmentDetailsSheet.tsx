@@ -6,6 +6,7 @@ import { TARGET_DEVELOPER } from "@/lib/constants";
 import { TARGET_LABEL } from "@/lib/providers/formatters";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { buildStyleSnippet, sanitizeName } from "@/lib/media/context";
+import { useCopy } from "@/components/ui/use-copy";
 import type { MediaItem } from "@/lib/media/queue";
 
 /**
@@ -33,16 +34,7 @@ export function AttachmentDetailsSheet({
   const [edited, setEdited] = useState(seed);
   useEffect(() => setEdited(seed), [seed]);
 
-  const [copied, setCopied] = useState(false);
-  async function copy(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* the tray-level toast pattern is overkill inside a sheet; button state suffices */
-    }
-  }
+  const { copied, copy } = useCopy();
 
   const attrs = item.attrs;
   const styleSnippet = attrs ? buildStyleSnippet(attrs) : "";
