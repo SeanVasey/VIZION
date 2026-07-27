@@ -28,13 +28,18 @@ import {
   logShareAction,
 } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
-import { useToast } from "@/components/ui/Toast";
-import { InputSegments, OutputSegments } from "@/components/diff/segments";
+import { useCopy } from "@/components/ui/use-copy";
+import {
+  InputSegments,
+  OutputSegments,
+  REMOVED_CLASS,
+} from "@/components/diff/segments";
 import { CompareSheet } from "@/components/diff/CompareSheet";
 
-/** Inputs longer than this start with the original collapsed (mobile-first:
- *  the improved prompt is the primary object, not the diff diagnostics). */
-const COLLAPSE_THRESHOLD_CHARS = 400;
+/** The original always starts collapsed (2026-07 product review): the improved
+ *  prompt is the primary object, and on a phone even a short original pushes
+ *  the rationale and actions down a screen. One tap reveals it. */
+const ORIGINAL_STARTS_OPEN = false;
 
 const REFINE_CHIPS: { kind: RefineKind; label: string }[] = [
   { kind: "shorter", label: "Make shorter" },
@@ -69,8 +74,7 @@ export function TransformationDiff({
   onUse?: (text: string) => void;
   onRefine?: (kind: RefineKind, currentOutput: string) => void;
 }) {
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
   const [savedId, setSavedId] = useState<string | null>(null);
   const [queued, setQueued] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -125,9 +129,7 @@ export function TransformationDiff({
         .join(""),
     [result],
   );
-  const [showOriginal, setShowOriginal] = useState(
-    diffInput.length <= COLLAPSE_THRESHOLD_CHARS,
-  );
+  const [showOriginal, setShowOriginal] = useState(ORIGINAL_STARTS_OPEN);
 
   // A new result (fresh run or refine) resets every per-result decision.
   useEffect(() => {
@@ -136,13 +138,9 @@ export function TransformationDiff({
     setQueued(false);
     setSaveError(null);
     setDuplicate(null);
-    setCopied(false);
+    // `copied` self-clears on its own timer inside useCopy.
     setCompareOpen(false);
-    setShowOriginal(
-      result.diff
-        .filter((s) => s.op !== "added")
-        .reduce((n, s) => n + s.text.length, 0) <= COLLAPSE_THRESHOLD_CHARS,
-    );
+    setShowOriginal(ORIGINAL_STARTS_OPEN);
   }, [result]);
 
   const changes = countChangedSections(result.diff);
@@ -217,17 +215,7 @@ export function TransformationDiff({
   };
 
   async function copyOutput() {
-    try {
-      await navigator.clipboard.writeText(effectiveOutput);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Surfacing beats silence: tell the user copy did NOT happen.
-      toast({
-        tone: "error",
-        text: "Couldn't copy — your browser blocked clipboard access. Select the text and copy manually.",
-      });
-    }
+    await copy(effectiveOutput);
   }
 
   async function share() {
@@ -406,7 +394,7 @@ export function TransformationDiff({
                 >
                   {/* OUTPUT REGION: the change's before→after in mono. */}
                   <p className="mono min-w-0 break-words text-xs text-chalk">
-                    <span className="line-through opacity-60">
+                    <span className={REMOVED_CLASS}>
                       {h.removed.trim() === "" ? "∅" : h.removed}
                     </span>
                     <span aria-hidden="true" className="font-body px-1.5 text-silver">

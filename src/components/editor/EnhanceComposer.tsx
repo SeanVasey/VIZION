@@ -22,6 +22,7 @@ import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
 import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
+import { TemplateSheet } from "@/components/editor/TemplateSheet";
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -75,6 +76,7 @@ export function EnhanceComposer() {
   // Focus lives somewhere inside the composer — gates the keyboard action bar.
   const [composerFocused, setComposerFocused] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   // The tray publishes its file intake here (it owns the privacy gate), so
   // paste and drop attach media through exactly the same path as the button.
   const intakeRef = useRef<((files: File[] | FileList) => void) | null>(null);
@@ -371,16 +373,28 @@ export function EnhanceComposer() {
             overflow-hidden can't clip it and it never covers the draft.
             iOS raises its own Paste confirmation on readText; that native
             second tap is the platform's, not ours to route around. */}
-        {canPaste && composerFocused && isEmpty && !dragging && (
-          <div className="border-t border-hair px-3.5 py-2">
+        {isEmpty && !dragging && (
+          <div className="flex flex-wrap gap-2 border-t border-hair px-3.5 py-2">
+            {canPaste && composerFocused && (
+              <button
+                type="button"
+                // Keep focus (and the keyboard) through the tap.
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={pasteFromClipboard}
+                className="glass font-body pill tap-44 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-silver transition-colors hover:text-chalk"
+              >
+                <span aria-hidden="true">⌸</span> Paste from clipboard
+              </button>
+            )}
+            {/* The blank page needs a way in that isn't typing. Offered only
+                while the draft is empty, so it can never overwrite work. */}
             <button
               type="button"
-              // Keep focus (and the keyboard) through the tap.
               onPointerDown={(e) => e.preventDefault()}
-              onClick={pasteFromClipboard}
+              onClick={() => setTemplatesOpen(true)}
               className="glass font-body pill tap-44 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-silver transition-colors hover:text-chalk"
             >
-              <span aria-hidden="true">⌸</span> Paste from clipboard
+              <span aria-hidden="true">✦</span> Try a template
             </button>
           </div>
         )}
@@ -421,7 +435,14 @@ export function EnhanceComposer() {
               disabled={enhanceMutation.isPending || isEmpty}
               className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
             >
-              {enhanceMutation.isPending ? "Enhancing…" : "► ENHANCE"}
+              {enhanceMutation.isPending ? (
+                <>
+                  <span className="spinner" aria-hidden="true" />
+                  Enhancing…
+                </>
+              ) : (
+                "► ENHANCE"
+              )}
             </button>
           </div>
         </div>
@@ -465,7 +486,12 @@ export function EnhanceComposer() {
 
       {/* Live stream surface while the run is in flight; the finished diff
           replaces it in the same footprint on done. */}
-      {enhanceMutation.stream.active && !view && (
+      {/* `isPending` as well as `stream.active`: the hook clears `active` in
+          its finally block while `view` is only set in onSuccess, leaving one
+          frame where neither surface is mounted — the flash between the
+          streaming card and the finished result. Holding the streaming card
+          until the result actually exists closes it. */}
+      {(enhanceMutation.stream.active || enhanceMutation.isPending) && !view && (
         <StreamingResult
           step={enhanceMutation.stream.step}
           partialOutput={enhanceMutation.stream.partialOutput}
@@ -496,6 +522,16 @@ export function EnhanceComposer() {
         pending={enhanceMutation.isPending}
         disabled={enhanceMutation.isPending || isEmpty}
         onEnhance={runEnhance}
+      />
+
+      <TemplateSheet
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        onPick={(t) => {
+          setEditorDraft(t.text);
+          setActiveMode(t.mode);
+          document.getElementById("prompt-input")?.focus();
+        }}
       />
 
       <ConfirmSheet

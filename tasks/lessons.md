@@ -896,3 +896,49 @@ whole paid run over it.
   POST beats a fetch-based flow when the session dies mid-action.
 - **A merged PR's follow-up is a fresh branch.** `checkout -B <branch>
   origin/main` and a NEW draft PR — never stack on merged history.
+- **A hand-rolled drag must CLAIM the axis it wants.** The swipe row put
+  pointer handlers on a wrapper whose descendant `<a>` inherits the base
+  `touch-action: manipulation` — which permits panning on *both* axes, so the
+  UA stayed free to take the horizontal drag and hand back a `pointercancel`.
+  Mapping cancel to pointer-up settles the swipe politely but cannot prevent
+  the theft. `touch-action: pan-y` on the dragged element is the claim; it
+  works from the ancestor because the used value is the *intersection* down
+  the chain, so a descendant can never widen it. Returning it from the hook
+  next to the transform keeps the two halves of one contract together.
+- **Widening a regex to fix a no-op can start eating content.** `[runway]`
+  had to go for the Plain copy to mean anything on the motion engines — but
+  `^\[[a-z]+\]` also matched the *user's* first word, and only the motion
+  grammar prepends a tag at all: midjourney and audio prompts begin with the
+  base prompt, where `[intro]`/`[verse]`/`[lofi]` are ordinary content. Anchor
+  a stripper to the real id set (derived from `GEN_TARGETS`, so a new engine
+  can't be forgotten), never to a shape. Same commit, same lesson: `\s{2,}`
+  → `" "` flattened the paragraph breaks the attachment tray itself writes;
+  a cleanup collapse wants `[^\S\n]{2,}`, or it changes the prompt's shape
+  while claiming to change only its syntax.
+- **Fixing a dead control in one grammar leaves it dead in the others.**
+  Stripping the tag revived Plain for runway/sora/kling and left it copying
+  Copy verbatim for audio, whose grammar emits no syntax at all. The general
+  fix is to render the variant only when it would differ — the condition the
+  control's existence actually depends on.
+- **Strip what the formatter ADDED, not what looks like syntax.** Two review
+  rounds landed on the same defect from opposite ends: a pattern sweep over
+  the whole generated prompt deleted the *user's* leading `[intro]` and then
+  the user's mid-sentence `--help option,`. Everything but the appended
+  syntax is user text, and user text may contain anything. The fix that ends
+  the class is positional and engine-aware — midjourney's trailing
+  `--ar <r> --v <n>`, motion's leading `[<engine>]`, audio nothing — switched
+  over `GenTargetId` so a new engine is a type error rather than a silent
+  hole. Bonus: nothing is cut from the middle any more, so the gap-closing
+  whitespace collapse (which had been flattening real paragraph breaks)
+  simply went away.
+- **A component-layer `box-shadow` silently eats the focus ring.** Adding the
+  glass sheen replaced the base-layer `:focus-visible` ring on every `.glass`
+  button, link and input — and because several of them also carry
+  `focus:outline-none`, that left keyboard users with *no* focus indicator
+  (WCAG 2.4.7). It was invisible in review because cascade LAYERS decided it,
+  not specificity: no selector looked stronger, the later layer simply won.
+  `box-shadow` is one property, so decorative shadows on interactive surfaces
+  must COMPOSE with the ring, never replace it — hence `--focus-ring` as a
+  token and `.glass:focus-visible` re-including it. Only a real engine
+  resolves layers, so the guard has to be e2e; the spec was proven red with
+  the rule removed before being trusted green.

@@ -26,6 +26,13 @@
                                        ambient glow bloom through            */
   --onyx: #2b2d33; /* opaque surface                   */
   --hair: rgba(185, 188, 197, 0.2); /* hairline border    */
+  /* Top-edge sheen INSIDE a glass panel — the highlight a real pane catches
+     where it meets the light. Inset, so it never enlarges the element's box. */
+  --glass-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  /* Fine fractal grain tiled over a glass fill so large panels don't read as
+     flat plastic. Self-contained SVG (no network, CSP-safe); the opacity is
+     baked into the rect so one token carries the whole intensity. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E");
 
   --laser: #b7ff3c; /* accent FILL + primary action     */
   --on-laser: #0e1013; /* the dark ink that sits ON laser */
@@ -78,6 +85,10 @@
   --chrome: rgba(255, 255, 255, 0.42);
   --onyx: #ffffff;
   --hair: rgba(15, 16, 18, 0.12);
+  /* Brighter on light: white-on-white needs more to read as a lit edge. */
+  --glass-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  /* Dark noise on a near-white fill reads twice as loud — halve it. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.02'/%3E%3C/svg%3E");
 
   /* --laser / --on-laser unchanged (laser stays a fill).  Laser-as-text and
      flare-as-text switch to darker tones that pass WCAG AA on a light surface
@@ -103,6 +114,9 @@
     --chrome: rgba(255, 255, 255, 0.42);
     --onyx: #ffffff;
     --hair: rgba(15, 16, 18, 0.12);
+    --glass-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  /* Dark noise on a near-white fill reads twice as loud — halve it. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.02'/%3E%3C/svg%3E");
     --accent-ink: #3f6b00;
     --flare: #c81d10;
 

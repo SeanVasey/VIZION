@@ -7,8 +7,11 @@ import { boundedDiffWords, countChangedSections } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
 import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
 import { useToast } from "@/components/ui/Toast";
+import { useCopy } from "@/components/ui/use-copy";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
+import { ComparisonSegments } from "@/components/diff/segments";
+import { Skeleton } from "@/components/ui/Skeleton";
 import {
   addVersionAction,
   restoreVersionAction,
@@ -160,22 +163,12 @@ export function PromptDetail({
     [aBody, bBody],
   );
 
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
 
   async function copyCurrent() {
     const text = (bBody ?? currentBody)?.output_text;
     if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Surfacing beats silence: tell the user copy did NOT happen.
-      toast({
-        tone: "error",
-        text: "Couldn't copy — your browser blocked clipboard access. Select the text and copy manually.",
-      });
-    }
+    await copy(text);
   }
 
   function runRevise() {
@@ -350,27 +343,16 @@ export function PromptDetail({
             </button>
           </div>
           {compareLoading ? (
-            <p className="font-body text-sm text-silver" role="status">
-              Loading version…
-            </p>
+            /* A shape where the version body will land, so the panel doesn't
+               collapse and re-expand as it arrives. */
+            <div role="status" aria-label="Loading version">
+              <Skeleton lines={4} />
+            </div>
           ) : (
             /* OUTPUT REGION: prompt/diff body renders in mono (JetBrains). */
             <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
               {versions.length >= 2 && segments && segments.length > 0 ? (
-                segments.map((seg, i) =>
-                  seg.op === "removed" ? (
-                    <span key={i} className="text-flare line-through opacity-70">
-                      {seg.text}
-                    </span>
-                  ) : (
-                    <span
-                      key={i}
-                      className={seg.op === "added" ? "text-accent" : undefined}
-                    >
-                      {seg.text}
-                    </span>
-                  ),
-                )
+                <ComparisonSegments segments={segments} />
               ) : (
                 <>{(bBody ?? currentBody)?.output_text}</>
               )}
@@ -509,7 +491,7 @@ export function PromptDetail({
             footprint the finished preview replaces (parity with the composer;
             the streaming machinery was already wired, just never rendered
             here). */}
-        {enhanceMutation.stream.active && !revised && (
+        {(enhanceMutation.stream.active || enhanceMutation.isPending) && !revised && (
           <StreamingResult
             step={enhanceMutation.stream.step}
             partialOutput={enhanceMutation.stream.partialOutput}

@@ -9,6 +9,11 @@ import { GEN_TARGETS, type GenTargetId } from "@/lib/media/types";
 import { sanitizeName } from "@/lib/media/context";
 import { savePromptAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
+import { useCopy } from "@/components/ui/use-copy";
+import {
+  highlightGenerationPrompt,
+  stripEngineSyntax,
+} from "@/lib/media/highlight";
 import type { MediaItem } from "@/lib/media/queue";
 
 /**
@@ -30,7 +35,7 @@ export function GenerateSheet({
   const targetModel = useUIStore((s) => s.targetModel);
   const [engine, setEngine] = useState<GenTargetId>(item.genTarget ?? "midjourney");
   const [basePrompt, setBasePrompt] = useState("");
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
   const [savedId, setSavedId] = useState<string | null>(null);
   const [saveQueued, setSaveQueued] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -42,21 +47,16 @@ export function GenerateSheet({
     const base = (basePrompt || editorDraft || "").trim();
     return buildGenerationPrompt(base, attrs, engine);
   }, [attrs, basePrompt, editorDraft, engine]);
+  const plain = useMemo(() => stripEngineSyntax(generated, engine), [generated, engine]);
 
   function pickEngine(next: GenTargetId) {
     setEngine(next);
     onEngineChange(next);
   }
 
-  async function copy() {
+  async function copyPrompt() {
     if (!generated) return;
-    try {
-      await navigator.clipboard.writeText(generated);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* button state suffices inside the sheet */
-    }
+    await copy(generated);
   }
 
   function save() {
@@ -102,7 +102,7 @@ export function GenerateSheet({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => void copy()}
+            onClick={() => void copyPrompt()}
             className="btn-laser flex min-h-[44px] grow items-center justify-center rounded-xl px-4 text-sm"
           >
             {copied ? "Copied ✓" : "Copy"}
@@ -169,11 +169,86 @@ export function GenerateSheet({
           <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
             Generation prompt · {GEN_TARGETS.find((t) => t.id === engine)?.label}
           </p>
-          {/* OUTPUT REGION: generation prompt body in mono (JetBrains). */}
+          {/* OUTPUT REGION: generation prompt body in mono (JetBrains), with
+              the engine flags, field labels and hex codes picked out so the
+              editable parts are findable in the wall of text. */}
           <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
-            {generated || "Attach analysis is still running…"}
+            {generated
+              ? highlightGenerationPrompt(generated).map((tok, i) =>
+                  tok.kind === "text" ? (
+                    <span key={i}>{tok.text}</span>
+                  ) : tok.kind === "hex" ? (
+                    <span key={i} className="text-accent">
+                      <span
+                        aria-hidden="true"
+                        className="mr-0.5 inline-block h-2.5 w-2.5 translate-y-[1px] rounded-sm border border-hair align-baseline"
+                        style={{ backgroundColor: tok.text }}
+                      />
+                      {tok.text}
+                    </span>
+                  ) : (
+                    <span
+                      key={i}
+                      className={
+                        tok.kind === "flag"
+                          ? "text-accent"
+                          : "text-silver"
+                      }
+                    >
+                      {tok.text}
+                    </span>
+                  ),
+                )
+              : "Attach analysis is still running…"}
           </p>
         </div>
+
+        {/* Copy variants — engine syntax (Midjourney's flags, the motion
+            engines' [tag]) helps in its own destination and hurts in a chat
+            box, and JSON is what a script wants. Segmented on the export-strip
+            pattern; the focus ring is INSET because the rounded chassis'
+            overflow-hidden would clip an outer one. */}
+        {generated && (
+          <div className="glass flex items-stretch overflow-hidden rounded-xl">
+            {(
+              [
+                { id: "full", label: "Copy", value: () => generated },
+                // Plain only earns its place when it would actually differ.
+                // The audio grammar emits no flags and no tag, so stripping is
+                // a no-op there and the segment would copy exactly what Copy
+                // copies — the same dead control the tag-strip just fixed for
+                // the motion engines, one grammar over.
+                ...(plain && plain !== generated
+                  ? ([{ id: "plain", label: "Plain", value: () => plain }] as const)
+                  : []),
+                {
+                  id: "json",
+                  label: "JSON",
+                  value: () =>
+                    JSON.stringify(
+                      {
+                        engine,
+                        base: (basePrompt || editorDraft || "").trim(),
+                        prompt: generated,
+                        attributes: attrs ?? null,
+                      },
+                      null,
+                      2,
+                    ),
+                },
+              ] as const
+            ).map((seg) => (
+              <button
+                key={seg.id}
+                type="button"
+                onClick={() => void copy(seg.value())}
+                className="font-body min-h-[44px] flex-1 border-r border-hair text-xs uppercase tracking-wide text-silver transition-colors last:border-r-0 hover:text-chalk focus-visible:shadow-[inset_0_0_0_1px_var(--accent-ink)]"
+              >
+                {seg.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {saveError && (
           <p className="font-body text-sm text-flare" role="alert">

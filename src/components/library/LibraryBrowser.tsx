@@ -25,6 +25,7 @@ import { CollectionSheet } from "@/components/library/CollectionSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
+import { useSwipeActions } from "@/components/library/use-swipe-actions";
 
 export type { PromptCard } from "@/lib/library/queries";
 
@@ -51,6 +52,7 @@ export function LibraryBrowser({
   facets: LibraryFacets;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [searchDraft, setSearchDraft] = useState(filter.q ?? "");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [extraCards, setExtraCards] = useState<PromptCard[]>([]);
@@ -67,6 +69,34 @@ export function LibraryBrowser({
   function submitSearch() {
     const q = searchDraft.trim();
     router.push(libraryHref({ ...filter, ...(q ? { q } : { q: undefined }) }));
+  }
+
+  /** Swipe-left delete: the same soft delete + Undo the ⋯ menu performs. */
+  function swipeDelete(p: PromptCard) {
+    void softDeletePromptAction(p.id).then((res) => {
+      if (!res.ok) {
+        setLoadError(res.error ?? "Couldn't delete.");
+        return;
+      }
+      router.refresh();
+      toast({
+        text: "Prompt deleted",
+        action: {
+          label: "Undo",
+          onAction: () => {
+            void undoDeletePromptAction(p.id).then(() => router.refresh());
+          },
+        },
+      });
+    });
+  }
+
+  /** Swipe-right favorite toggle. */
+  function swipeFavorite(p: PromptCard) {
+    void setFavoriteAction(p.id, !p.favorite).then((res) => {
+      if (!res.ok) setLoadError(res.error ?? "Couldn't update favorites.");
+      else router.refresh();
+    });
   }
 
   function loadMore() {
@@ -191,6 +221,8 @@ export function LibraryBrowser({
                 p.collection_id ? collectionNames.get(p.collection_id) : undefined
               }
               onMenu={setMenuFor}
+              onFavorite={swipeFavorite}
+              onDelete={swipeDelete}
             />
           ))}
         </ul>
@@ -203,7 +235,7 @@ export function LibraryBrowser({
           disabled={loadingMore}
           className="glass font-body min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
         >
-          {loadingMore ? "Loading…" : "Load more"}
+          {loadingMore ? "Loading more…" : "Load more"}
         </button>
       )}
       {loadError && (
@@ -403,13 +435,57 @@ const PromptRow = memo(function PromptRow({
   prompt: p,
   collectionName,
   onMenu,
+  onFavorite,
+  onDelete,
 }: {
   prompt: PromptCard;
   collectionName?: string;
   onMenu: (p: PromptCard) => void;
+  onFavorite: (p: PromptCard) => void;
+  onDelete: (p: PromptCard) => void;
 }) {
+  const swipe = useSwipeActions();
   return (
-    <li className="relative">
+    <li className="relative overflow-hidden rounded-2xl">
+      {/* Actions sit UNDER the card and are revealed by sliding it. They are
+          real buttons, but the ⋯ menu remains the discoverable, keyboard- and
+          screen-reader-reachable path — swipe is an accelerator. */}
+      <div aria-hidden={swipe.open === null} className="absolute inset-y-0 left-0 flex">
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => {
+            onFavorite(p);
+            swipe.close();
+          }}
+          className="flex w-[84px] items-center justify-center rounded-l-2xl bg-laser text-lg text-on-laser"
+        >
+          <span aria-hidden="true">★</span>
+          <span className="sr-only">
+            {p.favorite ? `Remove ${p.title} from favorites` : `Favorite ${p.title}`}
+          </span>
+        </button>
+      </div>
+      <div aria-hidden={swipe.open === null} className="absolute inset-y-0 right-0 flex">
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => {
+            onDelete(p);
+            swipe.close();
+          }}
+          className="flex w-[84px] items-center justify-center rounded-r-2xl bg-flare text-lg text-on-laser"
+        >
+          <span aria-hidden="true">✕</span>
+          <span className="sr-only">Delete {p.title}</span>
+        </button>
+      </div>
+      <div
+        {...swipe.handlers}
+        onClickCapture={swipe.onClickCapture}
+        style={swipe.style}
+        className="relative transition-transform duration-150 ease-out motion-reduce:transition-none"
+      >
       <Link
         href={`/library/${p.id}`}
         className="glass hover-hair block rounded-2xl p-4 pr-12 transition-colors"
@@ -451,6 +527,7 @@ const PromptRow = memo(function PromptRow({
           ⋯
         </span>
       </button>
+      </div>
     </li>
   );
 });

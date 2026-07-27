@@ -68,6 +68,32 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     await expect(page.getByRole("link", { name: "Skip to content" })).toBeAttached();
   });
 
+  test("a keyboard-focused glass control still shows the focus ring", async ({
+    page,
+  }) => {
+    // WCAG 2.4.7, pinned in a real browser because the failure mode is a
+    // cascade-LAYER win rather than a specificity one: a components-layer
+    // `box-shadow` on `.glass` silently replaced the base-layer
+    // :focus-visible ring, and these inputs also carry `focus:outline-none`,
+    // so a keyboard user got no focus indicator at all. Only a real engine
+    // resolves layers, so this cannot be a unit test.
+    await page.goto("/sign-in");
+    const email = page.locator("input#email");
+    await expect(email).toHaveClass(/\bglass\b/); // the fix is about .glass
+    await email.focus();
+
+    const ring = await email.evaluate((el) => ({
+      focusVisible: el.matches(":focus-visible"),
+      boxShadow: getComputedStyle(el).boxShadow,
+    }));
+    expect(ring.focusVisible).toBe(true);
+    // The ring is an OUTSET spread; the sheen is `inset`. Requiring a non-inset
+    // layer is what distinguishes "ring + sheen" from "sheen alone".
+    const layers = ring.boxShadow.split(/,(?![^(]*\))/);
+    expect(layers.some((l) => !l.includes("inset"))).toBe(true);
+    expect(ring.boxShadow).not.toBe("none");
+  });
+
   test("the service worker is served with a no-store cache policy", async ({
     request,
   }) => {

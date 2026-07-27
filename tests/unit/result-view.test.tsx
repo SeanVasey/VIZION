@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { diffWords } from "@/lib/enhance/diff";
@@ -45,6 +45,14 @@ function makeResult(
 
 let clipboardWrite: ReturnType<typeof vi.fn>;
 
+// Global stubs must be torn down even when a test fails mid-body — an
+// IntersectionObserver leaking into a later test arms the sticky action bar
+// there, duplicating its buttons and breaking unrelated queries. (This was a
+// real intermittent failure before the teardown moved here.)
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   clipboardWrite = vi.fn(async () => {});
@@ -85,18 +93,22 @@ describe("result view (mobile-first order)", () => {
     ).toBeTruthy();
   });
 
-  it("keeps a short original expanded", () => {
+  it("collapses the original by default — even a short one", () => {
+    // The enhanced prompt is the primary object; on a phone any original
+    // pushes the rationale and actions off-screen.
     renderView();
-    expect(screen.getByRole("button", { name: /hide original/i })).toBeTruthy();
-    expect(screen.getByText("Input")).toBeTruthy();
+    expect(screen.queryByText("Input")).toBeNull();
+    expect(screen.getByRole("button", { name: /show original/i })).toBeTruthy();
   });
 
-  it("collapses a long original by default and expands on demand", () => {
+  it("expands the original on demand and collapses it again", () => {
     const input = `${"lorem ipsum dolor sit amet ".repeat(30)}end`;
     renderView({ input, result: makeResult(input, `${input} improved`) });
     expect(screen.queryByText("Input")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /show original/i }));
     expect(screen.getByText("Input")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /hide original/i }));
+    expect(screen.queryByText("Input")).toBeNull();
   });
 
   it("surfaces a copy failure as an error toast instead of silence", async () => {
@@ -138,7 +150,6 @@ describe("result view (mobile-first order)", () => {
 
     act(() => notify?.([{ isIntersecting: true }]));
     expect(screen.getAllByRole("button", { name: "Copy" })).toHaveLength(1);
-    vi.unstubAllGlobals();
   });
 
   it("renders no What-changed heading when the rationale is empty", () => {

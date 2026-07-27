@@ -23,6 +23,49 @@ above it. Running a prompt meant dismissing the keyboard first.
   — so the two primary actions are never three screens up. Short results
   are untouched.
 
+### Changed — the app reads as glass, and stops jump-cutting
+
+- **Glass has depth**: the backdrop blur is now saturated (colour behind a
+  real pane intensifies, it doesn't just go soft), panels catch an inner
+  top-edge sheen, and a fine grain keeps large surfaces from reading as flat
+  plastic. All three are tokens, so both themes stay honest — and the grain
+  answers to **Reduced effects**, enforced by a new contract test that
+  enumerates every ambient layer behind that switch.
+- **The glass sheen never costs a focus ring.** `.glass` sits on buttons,
+  links and inputs; a panel shadow on those would have replaced the Laser
+  focus ring outright, and several of them suppress the outline too — so a
+  keyboard user would have had no focus indicator at all. The ring is now a
+  composable token and glass surfaces draw both.
+- **A running ENHANCE shows a spinner** beside its label. The label change is
+  load-bearing: reduced-motion freezes the ring, so the meaning lives in the
+  text.
+- **No flash between streaming and result.** That gap was real, not a
+  transition artifact — the stream cleared before the result was set, leaving
+  one frame with neither surface mounted.
+- **Removals now look like removals.** The enhance diff had no red anywhere;
+  the treatment the library's version compare already used moves into the
+  shared segment renderer so the two can't drift. The Enhanced card stays
+  clean — it shows the result, not the proof.
+- **The original always starts collapsed**, and loading states are shaped
+  placeholders instead of the word "Loading…".
+
+### Added — templates, swipe, and a friendlier generation prompt
+
+- **Starter templates** for the blank page, offered only while the draft is
+  empty so they can never overwrite work. Each seeds the editor and the mode
+  that suits it.
+- **Swipe a library card** — right to favorite, left to delete (with the same
+  Undo the ⋯ menu gives). The gesture yields to vertical scrolling and the ⋯
+  menu stays the keyboard-reachable path.
+- **The generation prompt is highlighted** — engine flags, field labels, and
+  hex colours (with swatches) picked out of the monospace — and copies three
+  ways: as-is, **Plain** (engine syntax stripped — Midjourney's `--flags` and
+  the motion engines' `[tag]` alike, for chat boxes), or **JSON**.
+- **One clipboard path** across the app: every copy now reports a blocked
+  clipboard instead of two sheets silently swallowing the failure, and fires
+  a haptic tick where the platform has one (Android; iOS has no Vibration
+  API, so it is a no-op there and is never faked with animation).
+
 ### Added — paste and drop
 
 The placeholder invited a paste that nothing intercepted, and the hidden
