@@ -47,7 +47,7 @@ export function GenerateSheet({
     const base = (basePrompt || editorDraft || "").trim();
     return buildGenerationPrompt(base, attrs, engine);
   }, [attrs, basePrompt, editorDraft, engine]);
-  const plain = useMemo(() => stripEngineSyntax(generated), [generated]);
+  const plain = useMemo(() => stripEngineSyntax(generated, engine), [generated, engine]);
 
   function pickEngine(next: GenTargetId) {
     setEngine(next);

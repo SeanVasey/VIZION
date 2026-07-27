@@ -83,71 +83,88 @@ describe("audio grammar", () => {
 });
 
 describe("stripEngineSyntax", () => {
-  it("removes engine parameters for pasting into a chat box", () => {
-    expect(stripEngineSyntax(MIDJOURNEY)).toBe(
+  it("removes the parameters midjourney appends", () => {
+    expect(stripEngineSyntax(MIDJOURNEY, "midjourney")).toBe(
       "epic scene, a lighthouse, wide shot, golden hour lighting, palette #0f1012 #b7ff3c",
     );
   });
 
   it("removes the bracketed engine tag the motion grammar emits", () => {
-    expect(stripEngineSyntax(MOTION)).toBe(
+    expect(stripEngineSyntax(MOTION, "runway")).toBe(
       "Subject: a lighthouse. Camera & motion: wide shot. Lighting: golden hour. Palette: #0f1012, #b7ff3c.",
     );
   });
 
-  it.each(["runway", "sora", "kling"])(
+  it.each(["runway", "sora", "kling"] as const)(
     "actually changes the %s prompt — Plain must not duplicate Copy",
     (engine) => {
       // The whole point of the Plain segment is to differ. A motion prompt
       // carries no flags, so a flags-only strip would return it verbatim and
       // the control would silently do nothing for three of five engines.
       const prompt = `[${engine}] Subject: a lighthouse.`;
-      expect(stripEngineSyntax(prompt)).not.toBe(prompt);
-      expect(stripEngineSyntax(prompt)).toBe("Subject: a lighthouse.");
+      expect(stripEngineSyntax(prompt, engine)).toBe("Subject: a lighthouse.");
     },
   );
 
-  it("leaves a prompt without engine syntax untouched", () => {
-    // The audio grammar emits neither a tag nor flags. Plain is therefore a
-    // no-op here — which is why GenerateSheet hides the segment rather than
-    // offering a button that copies exactly what Copy copies.
-    expect(stripEngineSyntax(AUDIO)).toBe(AUDIO);
+  it("strips only the selected engine's tag, never another engine's", () => {
+    expect(stripEngineSyntax("[sora] Subject: x.", "runway")).toBe("[sora] Subject: x.");
   });
 
-  it("only strips a bracket at the start, not one inside the description", () => {
-    expect(stripEngineSyntax("a sign reading [exit] ahead")).toBe(
-      "a sign reading [exit] ahead",
-    );
+  it("leaves the audio spec alone — it carries no engine syntax", () => {
+    // Which is why GenerateSheet hides the segment for this engine rather
+    // than offering a no-op button.
+    expect(stripEngineSyntax(AUDIO, "audio")).toBe(AUDIO);
+  });
+});
+
+describe("stripEngineSyntax — the base prompt is user text, not syntax", () => {
+  it("keeps a --flag the USER wrote in the middle of their prompt", () => {
+    // `Explain the --help option` is an ordinary thing to want enhanced. A
+    // pattern sweep over the whole string deleted it (and the comma after
+    // it); anchoring to the suffix the formatter actually appended does not.
+    expect(
+      stripEngineSyntax(
+        "Explain the --help option, a lighthouse --ar 16:9 --v 6",
+        "midjourney",
+      ),
+    ).toBe("Explain the --help option, a lighthouse");
+  });
+
+  it("cannot invent a Plain variant out of user text on a flagless engine", () => {
+    // On audio and motion the formatter appends no flags, so a user's own
+    // `--flag` must not make Plain differ from Copy — that would surface the
+    // segment purely to mangle their prompt.
+    const audio = "Explain the --help option Mood: calm. Duration: ~30s.";
+    expect(stripEngineSyntax(audio, "audio")).toBe(audio);
+    const motion = "[runway] Subject: the --help option.";
+    expect(stripEngineSyntax(motion, "runway")).toBe("Subject: the --help option.");
   });
 
   it.each([
-    ["[intro] warm tape loop Mood: calm.", "an audio structure tag"],
-    ["[verse] a rising line Mood: bright.", "another audio structure tag"],
-    ["[lofi] neon alley --ar 16:9 --v 6", "a style tag on a midjourney prompt"],
-  ])("keeps %s — a leading bracket is only syntax if it names a real engine", (input) => {
-    // The midjourney and audio grammars begin with the USER's base prompt, so
-    // "any bracketed word" would delete their first word. Only runway/sora/
-    // kling actually prepend a tag.
-    expect(stripEngineSyntax(input)).toContain(input.slice(0, input.indexOf("]") + 1));
-  });
+    ["[intro] warm tape loop Mood: calm.", "audio"],
+    ["[lofi] neon alley --ar 16:9 --v 6", "midjourney"],
+  ] as const)(
+    "keeps a leading bracket the user wrote (%s)",
+    (input, engine) => {
+      // `[intro]`/`[verse]`/`[chorus]` are standard audio-generator syntax and
+      // `[lofi]` an ordinary style tag — content, not something to strip.
+      expect(stripEngineSyntax(input, engine)).toContain(
+        input.slice(0, input.indexOf("]") + 1),
+      );
+    },
+  );
 
-  it("preserves paragraph breaks — Plain differs from Copy in syntax, not shape", () => {
+  it("preserves paragraph breaks — nothing is ever cut from the middle", () => {
     // The attachment tray joins an inserted description onto the draft with a
-    // blank line, so a multi-paragraph base prompt is a path the app itself
-    // creates. Flattening it would make Plain disagree about the content.
-    expect(stripEngineSyntax("A cyberpunk street.\n\nNeon signs. --ar 16:9 --v 6")).toBe(
-      "A cyberpunk street.\n\nNeon signs.",
-    );
+    // blank line, so multi-paragraph bases are a path the app itself creates.
+    expect(
+      stripEngineSyntax("A cyberpunk street.\n\nNeon signs. --ar 16:9 --v 6", "midjourney"),
+    ).toBe("A cyberpunk street.\n\nNeon signs.");
   });
 
-  it("still closes the horizontal gap a removed flag leaves behind", () => {
-    expect(stripEngineSyntax("a lighthouse --ar 16:9 at dusk")).toBe(
-      "a lighthouse at dusk",
-    );
-  });
-
-  it("keeps hex codes and field labels, which are content and not parameters", () => {
-    expect(stripEngineSyntax(MIDJOURNEY)).toContain("#b7ff3c");
-    expect(stripEngineSyntax(MOTION)).toContain("Subject:");
+  it("returns empty when midjourney had nothing but its parameters", () => {
+    // GenerateSheet treats empty as "no Plain variant", so the segment hides
+    // rather than copying nothing.
+    expect(stripEngineSyntax("--ar 16:9 --v 6", "midjourney")).toBe("");
   });
 });

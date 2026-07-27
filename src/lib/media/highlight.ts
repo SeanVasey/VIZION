@@ -13,7 +13,7 @@
  *   audio       `Mood: …. Duration: ~30s.`
  */
 
-import { GEN_TARGETS } from "./types";
+import { GEN_TARGETS, type GenTargetId } from "./types";
 
 export type PromptTokenKind =
   | "text"
@@ -98,25 +98,37 @@ export function highlightGenerationPrompt(text: string): PromptToken[] {
 }
 
 /**
- * The prompt with every piece of destination-specific syntax removed — the
- * "Plain" copy, for chat boxes that treat `--ar` (or a leading `[runway]`) as
- * literal text rather than as instructions to the engine.
+ * The prompt with the syntax THIS engine added removed — the "Plain" copy, for
+ * chat boxes that would treat `--ar` (or a leading `[runway]`) as literal text
+ * rather than as an instruction.
  *
- * Both grammars that emit such syntax are handled: Midjourney's `--flag value`
- * pairs and the motion engines' bracketed tag. Stripping only the flags would
- * make Plain a byte-identical duplicate of Copy for Runway/Sora/Kling, whose
- * prompts carry no flags at all — a control that appears to do something and
- * doesn't. Hex codes and field labels stay: those are content.
+ * Engine-aware and positional, deliberately. Everything but the appended
+ * syntax is the user's own base prompt, and a base prompt is allowed to
+ * contain anything — `Explain the --help option` is a perfectly ordinary
+ * thing to want enhanced, and a pattern sweep over the whole string would
+ * delete it. So each grammar removes exactly what `buildGenerationPrompt`
+ * put there, anchored where it put it:
  *
- * The gap left behind is closed with HORIZONTAL whitespace only. The base
- * prompt is user text — the attachment tray joins inserts with a blank line —
- * so collapsing `\s` would flatten real paragraph breaks and make Plain
- * disagree with Copy about the prompt's structure, not just its syntax.
+ *   midjourney  the trailing `--ar <ratio> --v <n>` it always appends last
+ *   motion      the leading `[<engine>]` tag, and only this engine's
+ *   audio       nothing — the spec carries no engine syntax at all
+ *
+ * Because nothing is ever cut from the middle, no gap is left to close and
+ * the prompt's own shape — including the paragraph breaks the attachment tray
+ * writes into the draft — survives untouched. Hex codes and field labels stay
+ * too: those are content.
  */
-export function stripEngineSyntax(text: string): string {
-  return text
-    .replace(ENGINE, "")
-    .replace(FLAG, "")
-    .replace(/[^\S\n]{2,}/g, " ")
-    .trim();
+export function stripEngineSyntax(text: string, engine: GenTargetId): string {
+  switch (engine) {
+    case "midjourney":
+      return text.replace(/\s*--ar\s+\d+:\d+\s+--v\s+\d+\s*$/, "").trim();
+    case "runway":
+    case "sora":
+    case "kling":
+      return text.replace(new RegExp(`^\\[${engine}\\]\\s*`), "").trim();
+    case "audio":
+      // Nothing to strip — which is why GenerateSheet hides the segment here
+      // rather than offering a button that copies what Copy already copies.
+      return text;
+  }
 }

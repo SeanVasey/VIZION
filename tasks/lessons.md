@@ -920,3 +920,14 @@ whole paid run over it.
   Copy verbatim for audio, whose grammar emits no syntax at all. The general
   fix is to render the variant only when it would differ — the condition the
   control's existence actually depends on.
+- **Strip what the formatter ADDED, not what looks like syntax.** Two review
+  rounds landed on the same defect from opposite ends: a pattern sweep over
+  the whole generated prompt deleted the *user's* leading `[intro]` and then
+  the user's mid-sentence `--help option,`. Everything but the appended
+  syntax is user text, and user text may contain anything. The fix that ends
+  the class is positional and engine-aware — midjourney's trailing
+  `--ar <r> --v <n>`, motion's leading `[<engine>]`, audio nothing — switched
+  over `GenTargetId` so a new engine is a type error rather than a silent
+  hole. Bonus: nothing is cut from the middle any more, so the gap-closing
+  whitespace collapse (which had been flattening real paragraph breaks)
+  simply went away.
