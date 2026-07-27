@@ -6,6 +6,68 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — enhance runs no longer die over a salvageable envelope
+
+A production Sonnet 5 run failed with "The model response was missing the
+expected fields." while a complete output sat in the partial card: the model
+returned a valid JSON envelope whose `rationale` wasn't a plain string, and
+the parser treated every such drift as fatal. Anthropic targets are the only
+ones with no API-level JSON enforcement, so the prose contract is the whole
+defense there.
+
+- **Tolerant parsing.** Only a missing/non-string `output` fails a run now.
+  Markdown fences and surrounding prose are stripped before parsing; the
+  rationale is coerced from alias keys (`reasoning`/`explanation`/`notes`)
+  and array shapes, defaulting to empty instead of throwing. The contract
+  wording pins "a single plain string, never an array or object" and
+  re-asserts the envelope for refinement passes.
+- **Salvage layer.** Every provider stream now reports its stop/finish
+  reason. When the envelope tail is malformed but the output string
+  demonstrably completed (the scanner saw its closing quote), the run is
+  recovered — complete output, empty rationale, a visible "explanation was
+  cut off" note, and a `salvaged` flag counted in server logs. A truncated
+  run with a length stop reason now says "The model hit its length limit"
+  instead of "non-JSON response".
+- **Anthropic headroom.** The unset-effort (Auto) path carried the tightest
+  output ceiling in the fleet (16k) while Claude 5 thinks by default and
+  bills thinking against it — the ladder is now 32k for everything below
+  xhigh/max (64k).
+- **Recovery actions.** The partial-output card gains Copy (with the
+  clipboard-blocked toast) and Use as draft; a failed refine no longer
+  stacks three surfaces — the previous result stays and the partial card
+  yields to it. The "What changed" card renders only when a rationale
+  exists.
+
+### Added — Collections (deferred item, now landing)
+
+Per-user folders for the library. A `collections` table (owner-only RLS from
+creation) plus a nullable `prompts.collection_id` (deleting a collection
+releases its prompts, never deletes them). The filter sheet's reserved
+section becomes real — collections with counts and an Any chip, hidden until
+one exists. Cards show their collection in the meta line, and the card
+actions sheet gains "Move to collection…" opening the management surface:
+move/remove, inline create, rename, and delete (with "prompts inside are
+kept" stated on the confirm). Filtering rides the same URL contract
+(`collection` param, uuid-shape validated) and keyset pagination.
+
+### Added — Account deletion (deferred item, now landing)
+
+Data & privacy's seam becomes a destructive row behind a typed-DELETE
+confirmation. The flow is a native form POST to `/auth/delete-account`:
+storage objects are swept (they don't cascade), then the auth user is
+deleted, cascading every user-keyed row (verified against the live schema).
+The service-role key gets its first and only consumer — `server-only`,
+per-request construction, session verified first, nothing request-controlled
+reaches admin calls — and while `SUPABASE_SERVICE_ROLE_KEY` is unset in the
+deployment env the flow fails closed with a plain-language banner.
+
+### Added — CI enablement diagnostics
+
+`ci.yml` gains `workflow_dispatch` and `docs/runbooks/ci-enablement.md`
+documents the owner-only fixes (Actions policy / spending limit) for the
+observed zero-runs-ever state, plus the deferred first-Actions-secrets step
+for wiring `check:db-enum` into CI.
+
 ### Changed — Profile is now Settings, with one persistence model
 
 The screen was preferences and account management, not a profile — it now

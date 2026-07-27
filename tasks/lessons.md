@@ -848,3 +848,51 @@ went frosted-glass. What broke, what changed, what to avoid:
   and under the 16px-iOS-input rule — new files in a governed region must be
   added to the governing test's list in the same commit, or the contract
   silently stops covering them.
+
+## 2026-07-27 — Envelope resilience · collections · account deletion (post-merge follow-up)
+
+**What broke.** A production Sonnet 5 run 502'd with "missing the expected
+fields" while a complete output sat in the partial card — the model returned
+valid JSON whose `rationale` wasn't a plain string, and the parser failed the
+whole paid run over it.
+
+- **Read the error string before hypothesizing.** The two parse errors
+  (non-JSON vs missing-fields) discriminate truncation from shape drift; the
+  reported message proved `JSON.parse` had SUCCEEDED, killing the truncation
+  theory in one step. Keep diagnostic messages distinct and stable — they are
+  the incident's first stack trace.
+- **Audit every provider's enforcement when one drifts.** Anthropic was the
+  ONLY provider sent no structural JSON mode (`response_format` /
+  `responseMimeType`) — the prose contract was the whole defense exactly
+  where the failure happened. A per-provider capability matrix beats
+  assuming symmetry.
+- **The default path deserves the same headroom as the tuned one.** Claude 5
+  thinks by default and bills thinking against `max_tokens`, yet the
+  unset-effort path had the tightest ceiling in the fleet (16k while high
+  got 32k). When a knob's absence changes resource math, test the ladder —
+  a pure exported params builder made that testable with zero SDK mocking.
+- **An exported capability nobody consumes is a latent recovery path.**
+  `scanner.done` (output's closing quote seen) existed for a full phase with
+  zero call sites; wiring it turned "discard a paid, fully-streamed result"
+  into a salvage with an honest note. Grep for exported-but-unread state
+  when designing error paths.
+- **Salvage needs a proof, not a heuristic.** Recovery only fires when the
+  output string demonstrably completed — plus a user-visible flag and a
+  production-surviving `console.warn` so systematic drift stays countable.
+  Silent salvage would have hidden the next contract regression.
+- **`information_schema` FK probes are privilege-filtered.** The first
+  cascade probe showed NO FKs to `auth.users` (missing ref-table privileges
+  hide rows); `pg_constraint` showed every user-keyed table cascades. Schema
+  facts that gate destructive code must come from `pg_catalog`.
+- **Prove a new guard fails before making it pass.** The collections drift
+  probes ran red (including the new missing-table PGRST205 branch) before
+  the migration was applied, then green after — the only way to know the
+  probe actually probes. Corollary: `probeColumns` needed that missing-table
+  branch the day the first CREATE TABLE migration landed.
+- **Service-role first use wants an invariant, not vigilance.** One
+  consumer, `server-only` import, per-request construction, session checked
+  before the client exists, and a test asserting the only identifier
+  reaching admin calls is the JWT's own user id. A destructive native form
+  POST beats a fetch-based flow when the session dies mid-action.
+- **A merged PR's follow-up is a fresh branch.** `checkout -B <branch>
+  origin/main` and a NEW draft PR — never stack on merged history.
