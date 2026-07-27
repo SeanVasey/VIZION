@@ -119,6 +119,12 @@ export function TransformationDiff({
     [reviewable, rejected, result],
   );
 
+  /** The model that ACTUALLY ran. Under Auto the prop is only the fallback the
+   *  client sent; the server reports what it resolved to. Everything
+   *  user-facing or persisted reads this, so the library records the model
+   *  that produced the text rather than the one nobody chose. */
+  const effectiveTarget = result.resolvedTarget ?? target;
+
   // The diff's input side (= the author's original, or the previous result on
   // a refine run) — drives the collapse threshold and the word count honestly.
   const diffInput = useMemo(
@@ -155,7 +161,7 @@ export function TransformationDiff({
       output: effectiveOutput,
       rationale: result.rationale,
       mode,
-      target,
+      target: effectiveTarget,
       modelUsed: result.modelUsed,
       tokenIn: result.tokenIn,
       tokenOut: result.tokenOut,
@@ -191,7 +197,7 @@ export function TransformationDiff({
         output: effectiveOutput,
         rationale: result.rationale,
         mode,
-        target,
+        target: effectiveTarget,
         modelUsed: result.modelUsed,
         tokenIn: result.tokenIn,
         tokenOut: result.tokenOut,
@@ -210,7 +216,7 @@ export function TransformationDiff({
     output: effectiveOutput,
     rationale: result.rationale,
     mode,
-    target,
+    target: effectiveTarget,
     modelUsed: result.modelUsed,
   };
 
@@ -539,9 +545,15 @@ export function TransformationDiff({
         ) : null}
         <p className="font-body mt-3 flex items-center gap-1.5 text-xs tabular-nums text-silver">
           <DeveloperIcon
-            developer={TARGET_DEVELOPER[target]}
+            developer={TARGET_DEVELOPER[effectiveTarget]}
             className="h-3.5 w-3.5 shrink-0 text-accent"
           />
+          {/* Routing provenance: an auto-routed run says which model it chose,
+              because "Auto" alone tells the user nothing about what they just
+              paid for. */}
+          {result.resolvedTarget && (
+            <span>Auto → {TARGET_LABEL[result.resolvedTarget]} · </span>
+          )}
           {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok · $
           {result.costUsd.toFixed(4)}
         </p>
@@ -572,14 +584,14 @@ export function TransformationDiff({
       {result.targetNotes ? (
         <div className="rounded-2xl border border-hair p-4">
           <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
-            For {TARGET_LABEL[target]}
+            For {TARGET_LABEL[effectiveTarget]}
           </p>
           <p className="font-body text-sm text-text">{result.targetNotes}</p>
         </div>
       ) : isShapePreserving(mode) ? (
         <p className="font-body text-center text-xs text-silver">
-          {MODE_LABEL[mode]} keeps your prompt&apos;s shape — {TARGET_LABEL[target]} ran
-          the rewrite, but no {TARGET_LABEL[target]}-specific formatting was applied.
+          {MODE_LABEL[mode]} keeps your prompt&apos;s shape — {TARGET_LABEL[effectiveTarget]} ran
+          the rewrite, but no {TARGET_LABEL[effectiveTarget]}-specific formatting was applied.
         </p>
       ) : null}
 

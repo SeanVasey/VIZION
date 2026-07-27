@@ -1,4 +1,5 @@
 import type { DiffSegment } from "@/lib/enhance/diff";
+import type { TargetModelId } from "@/lib/constants";
 
 /**
  * The SSE wire contract between /api/enhance and the streaming client.
@@ -41,6 +42,10 @@ export interface EnhanceResult {
   /** The output was recovered from a malformed envelope tail — complete,
    *  but the model's explanation was lost (rationale is empty). */
   salvaged?: boolean;
+  /** Which model Auto picked. Present ONLY on an auto-routed run, so its
+   *  presence is itself the signal — the client never has to compare the
+   *  result against what it asked for to know routing happened. */
+  resolvedTarget?: TargetModelId;
 }
 
 export type EnhanceStreamEvent =

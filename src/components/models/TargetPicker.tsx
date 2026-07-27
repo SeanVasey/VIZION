@@ -56,6 +56,8 @@ export function TargetPicker({
   label,
   triggerClassName,
   disabled,
+  auto,
+  onAutoChange,
 }: {
   value: TargetModelId;
   onChange: (next: TargetModelId) => void;
@@ -63,10 +65,18 @@ export function TargetPicker({
   label: string;
   triggerClassName?: string;
   disabled?: boolean;
+  /**
+   * Auto routing. Pass BOTH to offer it — omitting them hides the row
+   * entirely, which is how Settings keeps `profiles.default_model` a real
+   * enum id. "auto" is never a value of `value`; it sits beside it.
+   */
+  auto?: boolean;
+  onAutoChange?: (next: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const developer = TARGET_DEVELOPER[value];
+  const offersAuto = onAutoChange !== undefined;
 
   return (
     <>
@@ -83,10 +93,16 @@ export function TargetPicker({
         }
       >
         <span className="sr-only">{label}: </span>
-        {developer && <DeveloperIcon developer={developer} className="h-4 w-4 text-accent" />}
+        {auto ? (
+          <AutoGlyph className="h-4 w-4 text-accent" />
+        ) : (
+          developer && <DeveloperIcon developer={developer} className="h-4 w-4 text-accent" />
+        )}
         {/* `grow` so a full-width trigger (Settings) pushes the chevron to the
             right edge; in a content-width pill (composer) it is a no-op. */}
-        <span className="grow truncate text-left">{targetLabel(value)}</span>
+        <span className="grow truncate text-left">
+          {auto ? "Auto" : targetLabel(value)}
+        </span>
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-silver">
           <path
             d="M8 10l4 4 4-4"
@@ -103,7 +119,18 @@ export function TargetPicker({
         onClose={() => setOpen(false)}
         title={label}
         value={value}
+        auto={offersAuto ? (auto ?? false) : undefined}
+        onPickAuto={
+          onAutoChange &&
+          (() => {
+            onAutoChange(true);
+            setOpen(false);
+          })
+        }
         onPick={(next) => {
+          // Picking a model explicitly is also how you leave Auto — there is
+          // no separate "turn it off", because choosing one IS turning it off.
+          onAutoChange?.(false);
           onChange(next);
           setOpen(false);
         }}
@@ -118,12 +145,16 @@ function TargetPickerSheet({
   title,
   value,
   onPick,
+  auto,
+  onPickAuto,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   value: TargetModelId;
   onPick: (next: TargetModelId) => void;
+  auto?: boolean;
+  onPickAuto?: () => void;
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null);
   // Open on the current pick rather than the top of a sixteen-row list.
@@ -132,6 +163,33 @@ function TargetPickerSheet({
   return (
     <Sheet open={open} onClose={onClose} title={title} initialFocusRef={initialFocus}>
       <div role="radiogroup" aria-label={title} className="flex flex-col gap-4">
+        {onPickAuto && (
+          // Above the developer groups and outside them: Auto is not a model,
+          // it is the decision not to pick one. Giving it its own section
+          // keeps it out of any developer's list, where it would read as a
+          // product they ship.
+          <section className="flex flex-col gap-1">
+            <div className="glass overflow-hidden rounded-xl">
+              <button
+                ref={auto ? selectedRef : undefined}
+                type="button"
+                role="radio"
+                aria-checked={auto ?? false}
+                onClick={onPickAuto}
+                className="font-body flex min-h-[44px] w-full items-center gap-3 px-4 text-left text-sm text-text transition-colors hover-hair"
+              >
+                <AutoGlyph className="h-4 w-4 shrink-0 text-accent" />
+                <span className="grow">
+                  Auto
+                  <span className="block text-xs text-silver">
+                    Picks a model to suit the mode and length
+                  </span>
+                </span>
+                {auto && <CheckGlyph />}
+              </button>
+            </div>
+          </section>
+        )}
         {GROUPS.map((group) => (
           <section key={group.developer} className="flex flex-col gap-1">
             <p className="font-body px-1 text-[0.625rem] uppercase tracking-[0.18em] text-silver">
@@ -139,7 +197,9 @@ function TargetPickerSheet({
             </p>
             <div className="glass flex flex-col divide-y divide-hair overflow-hidden rounded-xl">
               {group.models.map((m) => {
-                const active = m.id === value;
+                // Under Auto no model row is the pick — the Auto row is. The
+                // fallback id must not render as if the user had chosen it.
+                const active = m.id === value && !auto;
                 return (
                   <button
                     key={m.id}
@@ -155,24 +215,7 @@ function TargetPickerSheet({
                       className="h-4 w-4 shrink-0 text-accent"
                     />
                     <span className="grow truncate">{m.label}</span>
-                    {/* Checkmark, not a filled dot: the row is a choice in a
-                        list, and iOS marks the chosen one this way. */}
-                    {active && (
-                      <svg
-                        aria-hidden="true"
-                        viewBox="0 0 24 24"
-                        className="h-5 w-5 shrink-0 text-accent"
-                      >
-                        <path
-                          d="M5 12.5l4.5 4.5L19 7.5"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
+                    {active && <CheckGlyph />}
                   </button>
                 );
               })}
@@ -181,5 +224,39 @@ function TargetPickerSheet({
         ))}
       </div>
     </Sheet>
+  );
+}
+
+/** Checkmark, not a filled dot: the row is a choice in a list, and iOS marks
+ *  the chosen one this way. */
+function CheckGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-accent">
+      <path
+        d="M5 12.5l4.5 4.5L19 7.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Auto's mark. Deliberately not any developer's glyph — Auto is the decision
+ *  not to pick one, so borrowing a vendor mark would misdescribe it. Two
+ *  converging paths: several models, one route. */
+function AutoGlyph({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className}>
+      <path
+        d="M4 6h4c4 0 4 12 8 12h4M4 18h4c4 0 4-12 8-12h4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

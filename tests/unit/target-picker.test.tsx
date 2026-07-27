@@ -102,3 +102,76 @@ describe("TargetPicker sheet", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe("TargetPicker — Auto routing", () => {
+  function openWithAuto(auto: boolean) {
+    const onChange = vi.fn();
+    const onAutoChange = vi.fn();
+    render(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={onChange}
+        auto={auto}
+        onAutoChange={onAutoChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /target model/i }));
+    return { onChange, onAutoChange };
+  }
+
+  it("is not offered unless the caller wires it", () => {
+    // Settings must not show it: profiles.default_model is a model_target
+    // enum column, and "auto" has nowhere to be stored.
+    open();
+    expect(screen.queryByRole("radio", { name: /^auto/i })).toBeNull();
+  });
+
+  it("offers Auto above the developer groups", () => {
+    openWithAuto(false);
+    const rows = screen.getAllByRole("radio");
+    expect(rows[0]!.textContent).toContain("Auto");
+  });
+
+  it("checks Auto and nothing else while routing is on", () => {
+    // The fallback id still rides on the wire, but it is not the user's pick
+    // and must not render as though it were.
+    openWithAuto(true);
+    const checked = screen
+      .getAllByRole("radio")
+      .filter((r) => r.getAttribute("aria-checked") === "true");
+    expect(checked).toHaveLength(1);
+    expect(checked[0]!.textContent).toContain("Auto");
+  });
+
+  it("turns routing on without reporting a model change", () => {
+    const { onChange, onAutoChange } = openWithAuto(false);
+    fireEvent.click(screen.getByRole("radio", { name: /^auto/i }));
+    expect(onAutoChange).toHaveBeenCalledWith(true);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("leaves Auto when a model is picked explicitly", () => {
+    // Choosing a model IS turning Auto off — a separate toggle would let the
+    // two disagree.
+    const { onChange, onAutoChange } = openWithAuto(true);
+    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.5/i }));
+    expect(onAutoChange).toHaveBeenCalledWith(false);
+    expect(onChange).toHaveBeenCalledWith("grok_4_5");
+  });
+
+  it("reads Auto on the trigger, not the fallback model", () => {
+    render(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={vi.fn()}
+        auto
+        onAutoChange={vi.fn()}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: /target model/i });
+    expect(trigger.textContent).toContain("Auto");
+    expect(trigger.textContent).not.toContain("Sonnet 5");
+  });
+});

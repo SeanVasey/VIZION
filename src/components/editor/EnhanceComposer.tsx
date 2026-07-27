@@ -35,6 +35,8 @@ export function EnhanceComposer() {
   const activeMode = useUIStore((s) => s.activeMode);
   const setActiveMode = useUIStore((s) => s.setActiveMode);
   const targetModel = useUIStore((s) => s.targetModel);
+  const autoTarget = useUIStore((s) => s.autoTarget);
+  const setAutoTarget = useUIStore((s) => s.setAutoTarget);
   const setTargetModel = useUIStore((s) => s.setTargetModel);
   const thinkingLevels = useUIStore((s) => s.thinkingLevels);
   const setThinkingLevel = useUIStore((s) => s.setThinkingLevel);
@@ -117,7 +119,11 @@ export function EnhanceComposer() {
       {
         input,
         mode: activeMode,
+        // Under Auto this is the FALLBACK — the server resolves the real
+        // target and reports it back. "auto" is never a target id: it has
+        // nowhere to live in the model_target enum.
         target: targetModel,
+        ...(autoTarget ? { auto: true as const } : {}),
         ...(thinkingLevel ? { thinkingLevel } : {}),
         ...(mediaContext.length > 0 ? { mediaContext } : {}),
       },
@@ -180,14 +186,19 @@ export function EnhanceComposer() {
   function handleRefine(kind: RefineKind, currentOutput: string) {
     if (!view || enhanceMutation.isPending) return;
     const v = view;
-    const ladder = TARGET_THINKING_LEVELS[v.submitted.target];
-    const stored = thinkingLevels[v.submitted.target];
+    // A refine sticks to the model that produced this output. Under Auto that
+    // is the RESOLVED target, not the fallback — re-routing halfway through an
+    // iteration would change voice mid-conversation, and `auto` is deliberately
+    // not re-sent: the routing decision was already made for this result.
+    const refineTarget = v.result.resolvedTarget ?? v.submitted.target;
+    const ladder = TARGET_THINKING_LEVELS[refineTarget];
+    const stored = thinkingLevels[refineTarget];
     const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
     enhanceMutation.mutate(
       {
         input: currentOutput,
         mode: v.submitted.mode,
-        target: v.submitted.target,
+        target: refineTarget,
         ...(level ? { thinkingLevel: level } : {}),
         // Tone needs the author's ORIGINAL voice as reference material.
         refine: kind === "tone" ? { kind, baseInput: v.submitted.input } : { kind },
@@ -251,6 +262,8 @@ export function EnhanceComposer() {
             label="Target model"
             value={targetModel}
             onChange={setTargetModel}
+            auto={autoTarget}
+            onAutoChange={setAutoTarget}
             triggerClassName="font-body inline-flex min-h-[44px] items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-2.5 text-sm text-text transition-colors hover:text-chalk"
           />
         </div>

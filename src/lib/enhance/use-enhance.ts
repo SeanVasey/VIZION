@@ -12,7 +12,12 @@ export type EnhanceResponse = EnhanceResult;
 export interface EnhanceRequest {
   input: string;
   mode: ModeId;
+  /** Always a real roster id. Under Auto this is the FALLBACK — the server
+   *  resolves the actual target and reports it back as `resolvedTarget`. */
   target: TargetModelId;
+  /** Let the server pick the model. Never a target id in its own right:
+   *  `model_target` is a Postgres enum, so "auto" has nowhere to be stored. */
+  auto?: true;
   /** Reasoning depth for targets that take one; omitted = provider default. */
   thinkingLevel?: ThinkingLevel;
   /** Refinement pass over an already-enhanced prompt (input = prior output). */
