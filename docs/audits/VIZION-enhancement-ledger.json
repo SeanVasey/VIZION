@@ -1939,35 +1939,39 @@
     },
     {
       "id": "RELEASE-01",
-      "title": "Expanded release gates",
+      "title": "Expanded release gates \u2014 and make CI actually execute",
       "sourcesCovered": ["R-08", "R-05 (CI gate)", "G7 (CI parity)"],
       "problemVerified": true,
-      "currentState": "CI runs lint, typecheck, icons, unit, build, e2e, and a gating npm audit \u2014 a genuinely solid baseline, all green at this commit (172 tests, 0 vulnerabilities). Missing: check:db-enum (the guard invented after the 22P02 incident) is NOT wired in; format:check is absent; test:int points at tests/integration/ which does not exist, so the script always fails; there is no contrast gate, no splash link-to-asset parity check, and no a11y or device job.",
+      "currentState": "GITHUB ACTIONS NEVER EXECUTES IN THIS REPOSITORY. Across the repo's entire history there are 19 workflow runs and ALL 19 sit in status 'queued' with a null conclusion \u2014 not one has ever completed. The CI workflow itself has produced ZERO runs since being registered and marked active on 2026-06-13; the only queued runs are CodeQL (4) and Dependabot (15). The workflow file is well written \u2014 lint, typecheck, icons, unit, build, e2e on two mobile projects, and a gating npm audit \u2014 and every one of those gates passes when run locally at this commit. But the pipeline has never run once, so none of it protects anything. Separately: check:db-enum (the guard invented after the 22P02 incident) is wired into no workflow; format:check is absent; test:int targets tests/integration/ which does not exist; and there is no contrast gate, splash parity check, a11y job, or device job.",
       "validityVerdict": "Confirmed",
-      "developmentDecision": "P1 \u2014 implement next",
+      "developmentDecision": "P0 \u2014 release blocker",
       "confidence": "High",
       "dependencies": ["DB-01", "A11Y-01", "APPLE-01"],
       "evidence": [
-        ".github/workflows/ci.yml:20-59 \u2014 full step list",
-        "Verified 2026-07-27 at this commit: lint 0, typecheck 0, 172 tests across 19 files passed, build 0, npm audit --omit=dev --audit-level=high 0, full audit 0 vulnerabilities",
-        "package.json:20 \u2014 test:int targets tests/integration which does not exist",
-        "package.json:26 \u2014 check:db-enum exists but appears in no workflow",
-        "tasks/lessons.md \u2014 the 22P02 incident passed all five gates because every gate reads the migration FILE, not the database"
+        "GitHub Actions API, 2026-07-27: 19 total workflow runs repo-wide, status/conclusion distribution is exactly {(queued, None): 19}; zero completed runs of any workflow, ever",
+        "GitHub Actions API: listing runs for workflow id 295232069 (.github/workflows/ci.yml, state=active, created 2026-06-13) returns total_count 0",
+        "Run paths present: dynamic/github-code-scanning/codeql (4), dynamic/dependabot/dependabot-updates (15). No .github/workflows/ci.yml run exists",
+        "Queued runs span 2026-06-13 to 2026-07-24, so the condition is longstanding, not transient",
+        "PR #37 received only a Vercel check; no CI check run was created",
+        ".github/workflows/ci.yml:20-59 \u2014 the (well-written, never-executed) step list",
+        "Gates verified LOCALLY by this audit on 2026-07-27, not by CI: lint 0, typecheck 0, 172 tests across 19 files, build 0, npm audit 0 vulnerabilities",
+        "package.json:20 \u2014 test:int targets a directory that does not exist",
+        "package.json:26 \u2014 check:db-enum exists but appears in no workflow"
       ],
-      "argumentFor": "The single most expensive incident in this project's history passed every gate green, and the guard written specifically to catch it is still not in CI. That is the highest-value gate available and it already exists as a script.",
-      "argumentAgainst": "check:db-enum needs credentials in CI and skips without them, so wiring it up requires secret management to be meaningful.",
-      "simplerAlternative": "Wire check:db-enum with --strict into CI and delete or implement test:int \u2014 the broken script is a trap for the next contributor.",
-      "evidenceThatWouldChangeDecision": "None \u2014 the CI contents and the missing scripts are both verified.",
+      "argumentFor": "Every quality guarantee this project believes it has is unenforced. The gating npm audit has never gated anything; the e2e suite has never run on CI; a red PR cannot be distinguished from a green one. This also reframes the 22P02 incident recorded in lessons.md \u2014 gates that only ever run on a developer's machine are exactly how a committed-but-unapplied migration reaches production. Until runs execute, every other item's regression test is unenforceable, which makes this a prerequisite for the whole roadmap.",
+      "argumentAgainst": "Fixing execution is an infrastructure or billing action outside the codebase, and it may be a deliberate cost decision. The workflow content itself needs no change to start being useful.",
+      "simplerAlternative": "First determine WHY runs never leave the queue \u2014 Actions billing/spending limit, org policy, or runner availability are the usual causes \u2014 since no amount of workflow editing fixes a queue that never drains. Once runs execute, wire check:db-enum --strict and delete or implement test:int.",
+      "evidenceThatWouldChangeDecision": "Evidence that Actions is deliberately disabled in favour of another CI system would change the fix from 'restore execution' to 'port the gates'; either way the current state is that nothing runs.",
       "scores": {
-        "userImpact": 4,
-        "reach": 4,
+        "userImpact": 5,
+        "reach": 5,
         "riskReduction": 5,
-        "strategicFit": 4,
+        "strategicFit": 5,
         "applePlatformValue": 4,
         "evidenceConfidence": 5,
-        "implementationEffort": 3,
+        "implementationEffort": 2,
         "changeRisk": 1,
-        "priorityIndex": 11.75
+        "priorityIndex": 18.0
       }
     },
     {
@@ -2003,6 +2007,20 @@
     }
   ],
   "newlyDiscovered": [
+    {
+      "id": "DISC-13",
+      "title": "GitHub Actions queues every run and executes none",
+      "severity": "Critical",
+      "decision": "P0 \u2014 release blocker",
+      "detail": "The repository has 19 workflow runs across its entire history and every one is status 'queued' with a null conclusion. No workflow has ever completed. The CI workflow specifically has zero runs despite being registered and active since 2026-06-13 \u2014 the queued runs are all CodeQL and Dependabot. Queued runs span 2026-06-13 to 2026-07-24, so this is longstanding rather than a transient outage. Confirmed live on PR #37, which received a Vercel check but no CI check run. Consequence: lint, typecheck, unit, e2e, build and the GATING npm audit have never actually gated a merge; the project's entire verification story is local-only.",
+      "evidence": [
+        "GitHub Actions API 2026-07-27 \u2014 19 runs, distribution {(queued, None): 19}, zero completed",
+        "GitHub Actions API \u2014 workflow 295232069 (.github/workflows/ci.yml, active since 2026-06-13) has total_count 0 runs",
+        "Run paths: codeql (4), dependabot-updates (15); no ci.yml run exists",
+        "PR #37 check runs: only 'Vercel Preview Comments'"
+      ],
+      "fix": "Diagnose why runs never leave the queue \u2014 Actions spending limit, org policy, or runner availability \u2014 before touching workflow content. Tracked as the leading half of RELEASE-01, which this finding raises to P0."
+    },
     {
       "id": "DISC-01",
       "title": "`npm run test:int` targets a directory that does not exist",

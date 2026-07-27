@@ -26,8 +26,19 @@ what the source proposals ask for is **already built**. The blockers below are
 concentrated in three places — client-side account isolation, spend enforcement, and the
 absence of the database from source control.
 
-### Five highest-value approvals
+### Highest-value approvals
 
+_Item 0 was discovered while opening this audit's own pull request, after the rest of the
+ledger was scored. It displaces everything below it._
+
+0. **RELEASE-01 — Make CI actually execute.** _(Found while opening this audit's own pull
+   request.)_ **GitHub Actions has never run in this repository.** Across its entire
+   history there are 19 workflow runs and **all 19 are stuck in `queued` with a null
+   conclusion — not one has ever completed.** The CI workflow itself has produced **zero**
+   runs since being registered and marked active on 2026-06-13. The workflow file is well
+   written and every gate in it passes when run locally at this commit — but nothing has
+   ever enforced them, including the _gating_ `npm audit`. This is listed first because
+   every other item's regression test is unenforceable until it is fixed.
 1. **DB-01 — Reproducible database baseline.** The repository contains no `CREATE TABLE`,
    no `CREATE POLICY`, no `ENABLE ROW LEVEL SECURITY`, and no `CREATE FUNCTION`. The
    entire authorization model, and `usage_window` — the only durable spend guardrail —
@@ -42,18 +53,20 @@ absence of the database from source control.
 4. **CACHE-01 — Private authenticated HTML in Cache Storage.** The service worker's one
    runtime route caches authenticated navigations stale-first; the purge only fires when
    `/sign-in` loads as a full navigation.
-5. **RELEASE-01 — Expanded release gates.** `check:db-enum`, the guard written
-   specifically after the incident where all five gates passed green while four models
-   failed every database write, is _still not wired into CI_.
+5. **SAFE-02 — Truthful offline queue status.** `enqueueOutbox` swallows every failure
+   while the UI reports "Queued — syncs when online" unconditionally — and its `catch` is
+   not even gated on being offline, so genuine online failures report the same. The app
+   tells users their work is safe when it may have been silently dropped.
 
 ### Release blockers (P0)
 
-`DB-01` · `SAFE-01` · `COST-01` · `CACHE-01` · `SAFE-02` · `DIFF-01`
+`RELEASE-01` · `DB-01` · `SAFE-01` · `COST-01` · `CACHE-01` · `SAFE-02` · `DIFF-01`
 
 Every one carries a concrete failure scenario, a remediation direction, and a required
-regression test in §8. Four of the six concern data belonging to the wrong person or
+regression test in §8. Four of the seven concern data belonging to the wrong person or
 money leaving without a bound — the categories the scoring rules say may override the
-priority index.
+priority index. RELEASE-01 qualifies under the same rule on **reproducibility**: a
+verification pipeline that has never executed cannot enforce any of the others.
 
 ### Best quick wins (high value, ≤1 day, near-zero change risk)
 
@@ -89,6 +102,8 @@ priority index.
 ### On the priority index
 
 The formula ranks **SET-02 at 15.50 and POLISH-03 at 15.00 above COST-01 at 6.86**.
+(RELEASE-01 tops the table at 18.00, which is the formula agreeing with judgement for
+once — cheap, safe, and it unblocks everything.)
 That is the formula behaving as designed — cheap, safe, broad-reach fixes score well —
 and it is precisely the case the scoring rules anticipate: _"a cosmetic quick win never
 outranks a demonstrated cross-account, billing, privacy, corruption, or data-loss
@@ -177,6 +192,11 @@ existing target — which buys the separation without an enum rename.
 | `npm audit --omit=dev --audit-level=high` | gating audit           | exit 0                                                                                       |
 | `npm audit` (full tree)                   | advisory               | **0 vulnerabilities**                                                                        |
 | Production HTML/head                      | `curl` + parse         | `startup-image` occurs **0 times**; single non-media-qualified `theme-color`                 |
+| **CI execution history**                  | GitHub Actions API     | **19 runs repo-wide, all `queued`, zero ever completed; `ci.yml` has 0 runs**                |
+
+> **Every gate above was run locally by this audit.** None of them was run by CI, because
+> CI has never run — see RELEASE-01 and DISC-13. A green local gate says the code is
+> sound at this commit; it does not mean anything is enforced.
 
 ### Platform rulings PR-1…PR-7 — confirmed or overturned
 
@@ -309,9 +329,13 @@ mount/`online`/`visibilitychange`. `navigator.storage.persist()` is requested.
 - Tag editing with optimistic update and rollback
 - Per-target thinking ladders validated at the route and narrowed again per adapter
 
-**CI.** `lint · typecheck · generate:icons · test · build · playwright e2e ·
-npm audit (gating) · npm audit (advisory)` on Node 22. A separate release workflow tags
-and publishes from `CHANGELOG.md`.
+**CI — configured but never executed.** `.github/workflows/ci.yml` declares
+`lint · typecheck · generate:icons · test · build · playwright e2e · npm audit (gating) ·
+npm audit (advisory)` on Node 22, and a release workflow tags and publishes from
+`CHANGELOG.md`. Both are registered and `active`. **Neither has ever produced a completed
+run** — the repository's 19 lifetime workflow runs are all CodeQL and Dependabot, and all
+19 are stuck `queued` (DISC-13). CodeQL and Dependabot are enabled, which is worth
+crediting, but their runs never execute either.
 
 ---
 
@@ -326,6 +350,7 @@ alternatives, and the evidence that would change each decision — is in
 
 | ID             | Sources                              | Verified | Validity                                    | Decision   | Conf | Imp | Rch | Rsk | Fit | App | Ev  | Eff | Chg |  **PI**   | Depends on                 |
 | -------------- | ------------------------------------ | :------: | ------------------------------------------- | ---------- | :--: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-------: | -------------------------- |
+| **RELEASE-01** | R-08, R-05 (CI gate), G7 (CI parity) |    Y     | Confirmed                                   | **P0**     |  H   |  5  |  5  |  5  |  5  |  4  |  5  |  2  |  1  | **18.0**  | DB-01, A11Y-01, APPLE-01   |
 | **CACHE-01**   | —                                    |    Y     | Confirmed                                   | **P0**     |  H   |  4  |  4  |  5  |  4  |  4  |  5  |  2  |  2  | **11.75** | SAFE-01                    |
 | **SAFE-02**    | Y-10 (queue-status half)             |    Y     | Confirmed                                   | **P0**     |  H   |  4  |  4  |  5  |  4  |  2  |  5  |  2  |  2  | **11.25** | SAFE-01                    |
 | **DIFF-01**    | —                                    |    Y     | Confirmed                                   | **P0**     |  H   |  4  |  3  |  5  |  3  |  3  |  5  |  2  |  2  | **10.5**  | —                          |
@@ -333,7 +358,6 @@ alternatives, and the evidence that would change each decision — is in
 | **DB-01**      | standing 22P02 discipline            |    Y     | Confirmed                                   | **P0**     |  H   |  5  |  5  |  5  |  5  |  1  |  5  |  4  |  2  |  **8.5**  | —                          |
 | **COST-01**    | R-07 (transaction semantics)         |    Y     | Confirmed                                   | **P0**     |  H   |  5  |  4  |  5  |  4  |  2  |  5  |  4  |  3  | **6.86**  | DB-01, DB-02               |
 | **GOV-01**     | R-04                                 |    Y     | Confirmed                                   | **P1**     |  H   |  2  |  2  |  3  |  4  |  1  |  5  |  1  |  1  | **15.0**  | —                          |
-| **RELEASE-01** | R-08, R-05 (CI gate), G7 (CI parity) |    Y     | Confirmed                                   | **P1**     |  H   |  4  |  4  |  5  |  4  |  4  |  5  |  3  |  1  | **11.75** | DB-01, A11Y-01, APPLE-01   |
 | **APPLE-01**   | X-A1, G7                             |    Y     | Confirmed                                   | **P1**     |  H   |  3  |  3  |  2  |  3  |  5  |  5  |  2  |  1  | **11.67** | RELEASE-01                 |
 | **PROD-04**    | —                                    |    Y     | Already implemented but needs hardening     | **P1**     |  H   |  4  |  4  |  4  |  5  |  1  |  5  |  3  |  1  | **11.0**  | —                          |
 | **PROD-07**    | Y-L4 (dependency)                    |    Y     | Confirmed                                   | **P1**     |  H   |  4  |  3  |  3  |  4  |  1  |  5  |  2  |  2  |  **9.5**  | —                          |
@@ -391,23 +415,24 @@ alternatives, and the evidence that would change each decision — is in
 
 ### Newly discovered defects
 
-Twelve defects found during this audit that no source proposal raised. Full detail in the
-ledger's `newlyDiscovered` array.
+Thirteen defects found during this audit that no source proposal raised. Full detail in
+the ledger's `newlyDiscovered` array.
 
-| ID          | Finding                                                                                                                                                                                       |      Severity      |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------: |
-| **DISC-07** | Documented RLS shape `auth.uid() = user_id` **cannot express ownership** for `prompt_versions` (no `user_id` column) or `media_assets`. Docs and policies disagree, and neither is checkable. | **P0** (via DB-01) |
-| **DISC-02** | Six `workbox-*` runtime imports resolve only as transitives of a **devDependency**; a dedupe can break the SW build with no lockfile signal.                                                  |         P1         |
-| **DISC-03** | `CLAUDE.md` §7 claims edge route handlers; production runs 6 Node lambdas, zero edge. `architecture.md` documents 4 SW caches + Background Sync that do not exist.                            |         P1         |
-| **DISC-05** | `restoreVersionAction` never verifies the version belongs to the prompt; the FK that would stop it is declared absent in the generated types.                                                 |         P1         |
-| **DISC-09** | CSP retains `script-src 'unsafe-inline'` for the pre-paint theme bootstrap, weakening XSS defence app-wide.                                                                                   |         P2         |
-| **DISC-01** | `npm run test:int` targets `tests/integration/`, which does not exist — the script always fails.                                                                                              |         P2         |
-| **DISC-04** | OpenAI-compatible adapters silently discard `opts`; adding a thinking level to any of 8 providers would validate then vanish.                                                                 |         P2         |
-| **DISC-06** | `/api/media` never bills a failed vision call, while `/api/enhance` deliberately does. The two routes disagree.                                                                               |         P2         |
-| **DISC-08** | TanStack Query is locked by ADR 0001 but has **zero** `useQuery` calls; its configuration is inert.                                                                                           |         P3         |
-| **DISC-10** | Streaming scanner retains only 22 chars while seeking; unusual provider whitespace would silently stop deltas (correctness unaffected).                                                       |         P3         |
-| **DISC-11** | `offline.html` honours OS preference, ignoring the user's explicit stored theme.                                                                                                              |         P3         |
-| **DISC-12** | 19 icon PNGs ship; 7 are referenced. `apple-touch-icon.png` and three favicons are dead weight.                                                                                               |         P3         |
+| ID          | Finding                                                                                                                                                                                                                                      |          Severity          |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------: |
+| **DISC-13** | **GitHub Actions queues every run and executes none.** 19 lifetime runs, all `queued`, zero completed; `ci.yml` has **0** runs since 2026-06-13. Confirmed live on this audit's own PR #37. The gating `npm audit` has never gated anything. | **P0** (raises RELEASE-01) |
+| **DISC-07** | Documented RLS shape `auth.uid() = user_id` **cannot express ownership** for `prompt_versions` (no `user_id` column) or `media_assets`. Docs and policies disagree, and neither is checkable.                                                |     **P0** (via DB-01)     |
+| **DISC-02** | Six `workbox-*` runtime imports resolve only as transitives of a **devDependency**; a dedupe can break the SW build with no lockfile signal.                                                                                                 |             P1             |
+| **DISC-03** | `CLAUDE.md` §7 claims edge route handlers; production runs 6 Node lambdas, zero edge. `architecture.md` documents 4 SW caches + Background Sync that do not exist.                                                                           |             P1             |
+| **DISC-05** | `restoreVersionAction` never verifies the version belongs to the prompt; the FK that would stop it is declared absent in the generated types.                                                                                                |             P1             |
+| **DISC-09** | CSP retains `script-src 'unsafe-inline'` for the pre-paint theme bootstrap, weakening XSS defence app-wide.                                                                                                                                  |             P2             |
+| **DISC-01** | `npm run test:int` targets `tests/integration/`, which does not exist — the script always fails.                                                                                                                                             |             P2             |
+| **DISC-04** | OpenAI-compatible adapters silently discard `opts`; adding a thinking level to any of 8 providers would validate then vanish.                                                                                                                |             P2             |
+| **DISC-06** | `/api/media` never bills a failed vision call, while `/api/enhance` deliberately does. The two routes disagree.                                                                                                                              |             P2             |
+| **DISC-08** | TanStack Query is locked by ADR 0001 but has **zero** `useQuery` calls; its configuration is inert.                                                                                                                                          |             P3             |
+| **DISC-10** | Streaming scanner retains only 22 chars while seeking; unusual provider whitespace would silently stop deltas (correctness unaffected).                                                                                                      |             P3             |
+| **DISC-11** | `offline.html` honours OS preference, ignoring the user's explicit stored theme.                                                                                                                                                             |             P3             |
+| **DISC-12** | 19 icon PNGs ship; 7 are referenced. `apple-touch-icon.png` and three favicons are dead weight.                                                                                                                                              |             P3             |
 
 ---
 
@@ -502,20 +527,24 @@ M 2–4d · L 1–2w · XL >2w.
 _Nothing else should ship before this gate closes. Four of six items concern data
 reaching the wrong account or money leaving without a bound._
 
-| Order | ID                                       | Scope | Depends on             | Parallel?                  |
-| :---: | ---------------------------------------- | :---: | ---------------------- | -------------------------- |
-|   1   | **DB-01** Reproducible database baseline | **L** | —                      | **Blocks 5, 6** — do first |
-|   2   | **CACHE-01** No private HTML in caches   | **S** | SAFE-01 (shared purge) | ✅ with 3, 4               |
-|   3   | **SAFE-02** Truthful queue status        | **S** | SAFE-01                | ✅ with 2, 4               |
-|   4   | **DIFF-01** Bound quadratic diffing      | **S** | —                      | ✅ fully independent       |
-|   5   | **SAFE-01** Account-scope local state    | **M** | — (tests need DB-01)   | ✅ with 6                  |
-|   6   | **COST-01** Atomic spend enforcement     | **M** | DB-01, DB-02           | after 1                    |
+| Order | ID                                       |  Scope   | Depends on             | Parallel?                                                                                                          |
+| :---: | ---------------------------------------- | :------: | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **0** | **RELEASE-01** Make CI execute at all    | **XS–?** | —                      | **Do first.** Not a code change — diagnose why runs never leave the queue. Until then no fix below can be enforced |
+|   1   | **DB-01** Reproducible database baseline |  **L**   | —                      | **Blocks 5, 6** — do first                                                                                         |
+|   2   | **CACHE-01** No private HTML in caches   |  **S**   | SAFE-01 (shared purge) | ✅ with 3, 4                                                                                                       |
+|   3   | **SAFE-02** Truthful queue status        |  **S**   | SAFE-01                | ✅ with 2, 4                                                                                                       |
+|   4   | **DIFF-01** Bound quadratic diffing      |  **S**   | —                      | ✅ fully independent                                                                                               |
+|   5   | **SAFE-01** Account-scope local state    |  **M**   | — (tests need DB-01)   | ✅ with 6                                                                                                          |
+|   6   | **COST-01** Atomic spend enforcement     |  **M**   | DB-01, DB-02           | after 1                                                                                                            |
 
 **Why DB-01 first:** SAFE-01's cross-account test needs two real users; COST-01's
 reservation needs a function in version control; DB-02 needs a place to put transactions.
 Without it, Gate 0 fixes cannot be regression-tested at all.
 
 **Cheap parallel wins during Gate 0** (independent, XS each): DISC-01, DISC-02, GOV-01.
+RELEASE-01's _content_ work (wire `check:db-enum --strict`, delete or implement
+`test:int`, add the splash-parity and contrast gates) belongs in Gate 1 — but it is worth
+nothing until RELEASE-01's _execution_ half at order 0 is resolved.
 
 ### Gate 1 — Semantics and output quality
 
@@ -529,7 +558,6 @@ Without it, Gate 0 fixes cannot be regression-tested at all.
 | **DB-02** Transactional Library mutations      | **M**  | DB-01      | Absorbs DISC-05                                |
 | **REV-01** Revision/run integrity              | **S**  | —          | Re-seed bug first; lineage is a product call   |
 | **MEDIA-01** Media retention/quota             | **M**  | DB-01      | Server-side quota, idempotent delete           |
-| **RELEASE-01** Expanded release gates          | **S**  | DB-01      | **Wire `check:db-enum` — it already exists**   |
 | **PROD-01** Separate the overloaded Target     | **XL** | —          | ⚠️ **PR-7 gated — not approved here**          |
 
 ### Gate 2 — Mobile task flow
@@ -582,6 +610,72 @@ the scenario, the recommended direction, the simpler alternative considered, bla
 radius, and how it is proven and rolled back.
 
 ### 8.0 — Gate 0 · Release blockers
+
+---
+
+#### RELEASE-01 — Expanded release gates, and making CI execute at all
+
+**Verified problem.** Two separable halves, and the first was not in any source proposal.
+
+_Execution._ **GitHub Actions has never run in this repository.** The Actions API reports
+19 workflow runs across the repo's entire history with the distribution
+`{(queued, None): 19}` — every run queued, **none ever completed**. The CI workflow
+(id `295232069`, `state: active`, registered 2026-06-13) has **`total_count: 0`** runs.
+The 19 queued runs are CodeQL (4) and Dependabot (15), spanning 2026-06-13 to 2026-07-24,
+so this is longstanding rather than a transient outage. Confirmed live: this audit's own
+PR #37 received a Vercel check and **no CI check run**.
+
+_Content._ `check:db-enum` — the guard written specifically after the 22P02 incident — is
+wired into no workflow. `format:check` is absent. `test:int` targets a directory that does
+not exist (DISC-01). There is no contrast gate, splash-parity check, a11y job, or device job.
+
+**User scenario.** A contributor opens a pull request. Nothing lints it, type-checks it,
+tests it, builds it, or audits its dependencies. The `npm audit` step marked _gating_ has
+never gated a single merge. A red branch and a green branch are indistinguishable. This
+also reframes the 22P02 incident: gates that only ever run on a developer's machine are
+precisely how a committed-but-unapplied migration reaches production.
+
+**Recommended implementation.** **Diagnose execution before touching workflow content** —
+no amount of YAML fixes a queue that never drains. The usual causes are an Actions
+spending limit or disabled billing, an org-level Actions policy, or unavailable runners.
+Once runs execute, wire `check:db-enum --strict` with read-only credentials, add the
+splash link↔asset parity check (APPLE-01) and the token-level contrast gate, and delete or
+implement `test:int`.
+
+**Simpler alternative considered.** Accept local-only verification and remove the
+workflows so they stop implying protection that does not exist. Rejected as a permanent
+answer — but it is strictly better than the status quo, where the badge and the file
+suggest enforcement to every reader and contributor.
+
+**Affected.** Repository/organisation Actions settings (**a human task, outside the
+codebase**) · `.github/workflows/ci.yml` · `package.json` · new check scripts.
+
+**Migration/backfill.** None. Expect the first executing run to surface latent failures
+that accumulated while nothing ran — budget for triage rather than assuming green.
+
+**Dependencies.** None for the execution half. The content half depends on DB-01
+(credentials and schema), A11Y-01, and APPLE-01.
+
+**Security/privacy/cost.** Restoring execution may incur Actions billing — possibly the
+very reason it stopped. `check:db-enum` needs Supabase credentials as CI secrets; scope
+them to a read-only PostgREST probe. Note the security cost of the status quo: **CodeQL
+results have never been produced either.**
+
+**Accessibility / Apple fallback.** None directly; A11Y-01 and the device matrix depend
+on this working.
+
+**Regression risks.** The first green run may take several iterations. Do not weaken gates
+to reach green — that would recreate the current situation with extra steps.
+
+**Required tests.** A pull request produces a CI check run that completes. Deleting a
+migration turns `check:db-enum --strict` red (`lessons.md`: _"prove a new guard fails"_).
+A deliberately broken lint rule fails the build.
+
+**Rollback.** Workflow content changes are revertible; the settings change is a human
+decision.
+
+**Success signal.** Every pull request carries a completed CI check run — currently zero
+do.
 
 ---
 
@@ -1188,32 +1282,6 @@ _Rollback:_ Per-change. _Success:_ Zero keyboard dead ends.
 
 ---
 
-**RELEASE-01 — Expanded release gates** · S · depends on DB-01, A11Y-01, APPLE-01
-
-_Problem:_ CI is genuinely solid — lint, typecheck, icons, unit, build, e2e on both
-mobile projects, and a **gating** `npm audit`, all green at this commit. But
-`check:db-enum` — the guard written _specifically_ after the incident where all five
-gates passed while four models failed every DB write — **is in no workflow**.
-`format:check` is absent. `test:int` targets a directory that does not exist (DISC-01).
-No contrast gate, no splash parity check, no a11y job.
-_Scenario:_ The 22P02 incident recurs. Every gate passes green. The ledger silently stops
-recording spend for the affected models, disabling the cost cap for them.
-_Implementation:_ Wire `check:db-enum --strict` into CI with credentials; add the splash
-link↔asset parity check (APPLE-01) and the token-level contrast gate; delete or implement
-`test:int`.
-_Simpler alternative:_ Wire `check:db-enum` alone. It is the single highest-value gate
-and already exists as a script.
-_Affected:_ `.github/workflows/ci.yml` · `package.json` · new check scripts.
-_Migration:_ None. _Security:_ Needs Supabase credentials as CI secrets — scope to a
-read-only probe.
-_Risks:_ The probe skips silently without credentials — `--strict` is what makes it
-meaningful.
-_Tests:_ Deleting a migration turns the enum check red (`lessons.md`: _"prove a new guard
-fails"_).
-_Rollback:_ Remove steps. _Success:_ A committed-but-unapplied migration fails CI.
-
----
-
 **APPLE-01 — Link + validate iOS splash** · S · depends on RELEASE-01
 
 _Problem:_ Ten splash PNGs ship in `public/splash/` and are referenced **zero** times —
@@ -1359,6 +1427,19 @@ Compact. Each states problem → direction → simpler alternative → affected 
 Testable Given/When/Then. No criterion says "looks better", "smoother", or "more native".
 
 ### Gate 0
+
+**RELEASE-01**
+
+- Given a pull request against `main`, When it is opened, Then a CI check run is created
+  and reaches a `completed` status. _(At the time of audit, zero pull requests have ever
+  done this.)_
+- Given the Actions API is queried for `.github/workflows/ci.yml`, When runs are listed,
+  Then `total_count` is greater than zero.
+- Given a migration file committed but not applied to the hosted project, When CI runs,
+  Then `check:db-enum --strict` fails the build.
+- Given a deliberately introduced lint error, When CI runs, Then the build fails.
+- Given `npm run test:int`, When invoked, Then it either runs integration tests or no
+  longer exists.
 
 **DB-01**
 
@@ -1550,10 +1631,12 @@ and **no day may exceed `cap + one max request`**. Everything else informs prior
 
 ### Ship first
 
-**Gate 0, in order: DB-01 → CACHE-01 · SAFE-02 · DIFF-01 (parallel) → SAFE-01 →
-COST-01.** DB-01 leads not because it is most urgent to a user but because the other five
-cannot be regression-tested without it. Alongside, take the free wins: GOV-01, DISC-01,
-DISC-02, and PWA-08 and PWA-06 as one-line changes.
+**RELEASE-01's execution half first, then Gate 0 in order: DB-01 → CACHE-01 · SAFE-02 ·
+DIFF-01 (parallel) → SAFE-01 → COST-01.** RELEASE-01 leads because it is not a code
+change at all — it is finding out why Actions runs never leave the queue — and because
+every fix below it is otherwise unenforceable. DB-01 follows for the same structural
+reason: the other five cannot be regression-tested without it. Alongside, take the free
+wins: GOV-01, DISC-01, DISC-02, and PWA-08 and PWA-06 as one-line changes.
 
 The honest summary is that VIZION's _product_ is in better shape than its _substrate_.
 The transformation contract — the hardest and most valuable thing here — is empirically
@@ -1616,6 +1699,14 @@ prompt's own framework, scored on the same terms as the sources it adjudicates.
 | **X** — external audit #1         |     14      | 2 (X-T1 "add a SW"; X-C1 compare exists) |           2 (X-C1, X-B2 partly)           |             2 (X-C2, X-T2)             |    **43%**     |
 | **Y** — external product review   |     14      | 2 (Y-06 session history; Y-04 mechanism) |        2 (Y-05 export, Y-05 share)        |   2 (Y-10 haptics, Y-01 IP limiting)   |    **43%**     |
 | **Z** — this evaluation framework |     62      |                    0                     |       1 (LIB-05 framed as missing)        | 1 (PR-4's WebGPU availability premise) |     **3%**     |
+
+One further correction belongs on Z's ledger, and it is this audit's own: **RELEASE-01
+was initially written as "CI is genuinely solid… all green at this commit," scored P1.**
+That was wrong in the way that matters — the gates were green because _this audit ran them
+locally_, and CI had never executed at all. The error surfaced only because opening the
+audit's own pull request produced no CI check run. It is recorded here rather than quietly
+amended: **an audit that reads a workflow file and reports its intent, without checking
+whether it has ever run, has done exactly what this appendix criticises R, X, and Y for.**
 
 **Reading the numbers.** R scores well because it was written with repository access —
 its one weak item overstated a problem rather than inventing one. X and Y converge at
