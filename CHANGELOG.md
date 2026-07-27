@@ -6,6 +6,30 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — "N changes" now counts changed sections
+
+The result header's counter counted merged diff *segments*: one replaced
+phrase (a removed run + an added run) read as "2 changes", and a single large
+insertion as "1 change" — neither matched what a user calls an edit. The new
+`countChangedSections` counts a run of adjacent non-equal segments once
+(whitespace between them doesn't split a run; whitespace-only churn counts
+zero), and the copy now reads **"N changed sections"** — honest about what is
+being counted. Applied to both the live result view and version compare.
+
+### Added — the enhance envelope can carry assumptions, target notes, and a title
+
+`{output, rationale}` gains three OPTIONAL fields, parsed tolerantly (junk
+shapes are dropped, never fatal; older/disobedient models can't fail a run):
+
+- `assumptions` — up to six short lines on gaps the model filled, for the
+  result view to surface separately from the rationale.
+- `targetNotes` — one sentence naming destination-specific changes.
+- `title` — a ≤60-char semantic name that will seed library titles.
+
+The contract text now also pins `"output"` as the FIRST field — the streaming
+scanner decodes it incrementally, so ordering only affects streaming latency,
+never parsing. The SSE `done` event passes the new fields through untouched.
+
 ### Changed — Reset demoted to a tertiary Clear with Undo
 
 RESET sat beside ENHANCE as an identical filled-Laser pill — a button that

@@ -121,6 +121,29 @@ describe("SSE encode/parse round-trip", () => {
     for await (const e of parseSseStream(body)) parsed.push(e);
     expect(parsed).toEqual([good]);
   });
+
+  it("round-trips the optional done fields (assumptions/targetNotes/title)", async () => {
+    const done: EnhanceStreamEvent = {
+      type: "done",
+      result: {
+        output: "o",
+        rationale: "r",
+        diff: [],
+        tokenIn: 1,
+        tokenOut: 2,
+        modelUsed: "m",
+        costUsd: 0.001,
+        usage: { todayCost: 0.01, capUsd: 2 },
+        assumptions: ["audience is technical"],
+        targetNotes: "Added XML sections for Opus.",
+        title: "Concise summary prompt",
+      },
+    };
+    const body = sseBody([encodeSseEvent(done)]);
+    const parsed: EnhanceStreamEvent[] = [];
+    for await (const e of parseSseStream(body)) parsed.push(e);
+    expect(parsed).toEqual([done]);
+  });
 });
 
 // --- adapter: enhanceStream decodes the envelope; enhance() is its drain ---

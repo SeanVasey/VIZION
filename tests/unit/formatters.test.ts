@@ -11,6 +11,20 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain('"rationale"');
   });
 
+  it("names the optional envelope fields and pins output first, every mode × target", () => {
+    for (const mode of MODES) {
+      for (const target of TARGET_MODELS) {
+        const p = buildSystemPrompt(mode.id, target.id);
+        expect(p).toContain('"assumptions" (optional');
+        expect(p).toContain('"targetNotes" (optional');
+        expect(p).toContain('"title" (optional');
+        // The streaming scanner decodes the output field incrementally — the
+        // contract must keep telling models to emit it first.
+        expect(p).toContain('"output" MUST be the first field');
+      }
+    }
+  });
+
   it("states the output-is-the-prompt contract for every mode × target", () => {
     for (const mode of MODES) {
       for (const target of TARGET_MODELS) {
@@ -98,5 +112,48 @@ describe("parseEnhancePayload", () => {
   it("throws when fields are missing or wrong types", () => {
     expect(() => parseEnhancePayload('{"output":"x"}')).toThrow();
     expect(() => parseEnhancePayload('{"output":1,"rationale":"y"}')).toThrow();
+  });
+
+  it("passes through the optional fields when well-formed", () => {
+    const out = parseEnhancePayload(
+      JSON.stringify({
+        output: "o",
+        rationale: "r",
+        assumptions: [" audience is technical ", "English output"],
+        targetNotes: " Added XML sections for Opus. ",
+        title: "  Concise summary prompt  ",
+      }),
+    );
+    expect(out.assumptions).toEqual(["audience is technical", "English output"]);
+    expect(out.targetNotes).toBe("Added XML sections for Opus.");
+    expect(out.title).toBe("Concise summary prompt");
+  });
+
+  it("drops junk-shaped optional fields instead of failing the run", () => {
+    const out = parseEnhancePayload(
+      JSON.stringify({
+        output: "o",
+        rationale: "r",
+        assumptions: [1, "", "  ", { no: true }],
+        targetNotes: 42,
+        title: "",
+      }),
+    );
+    expect(out.assumptions).toBeUndefined();
+    expect(out.targetNotes).toBeUndefined();
+    expect(out.title).toBeUndefined();
+  });
+
+  it("caps assumptions at six and titles at sixty characters", () => {
+    const out = parseEnhancePayload(
+      JSON.stringify({
+        output: "o",
+        rationale: "r",
+        assumptions: Array.from({ length: 10 }, (_, i) => `a${i}`),
+        title: "x".repeat(100),
+      }),
+    );
+    expect(out.assumptions).toHaveLength(6);
+    expect(out.title).toHaveLength(60);
   });
 });

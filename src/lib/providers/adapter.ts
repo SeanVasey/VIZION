@@ -34,6 +34,10 @@ export interface EnhanceArgs {
 export interface EnhanceOutput {
   output: string;
   rationale: string;
+  /** Optional envelope extensions (parsed tolerantly — see EnhancePayload). */
+  assumptions?: string[];
+  targetNotes?: string;
+  title?: string;
   tokenIn: number;
   tokenOut: number;
   modelUsed: string;

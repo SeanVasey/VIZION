@@ -20,7 +20,9 @@ export const STREAM_STEPS = {
 } as const;
 export type StreamStep = keyof typeof STREAM_STEPS;
 
-/** The final enhance result (same shape the buffered route returned). */
+/** The final enhance result (same shape the buffered route returned). The
+ *  optional fields ride the same envelope additively — absent from older
+ *  responses, tolerated by older clients. */
 export interface EnhanceResult {
   output: string;
   rationale: string;
@@ -30,6 +32,12 @@ export interface EnhanceResult {
   modelUsed: string;
   costUsd: number;
   usage: { todayCost: number; capUsd: number };
+  /** Assumptions the model made to fill gaps in the request. */
+  assumptions?: string[];
+  /** One sentence on changes made specifically for the target engine. */
+  targetNotes?: string;
+  /** Short semantic name for the prompt — seeds the library title. */
+  title?: string;
 }
 
 export type EnhanceStreamEvent =

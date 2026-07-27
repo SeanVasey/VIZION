@@ -98,9 +98,15 @@ export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
     "",
     outputContract,
     "",
-    "Return ONLY a JSON object with two string fields:",
-    '- "output": the transformed prompt, ready to paste into the target engine.',
-    '- "rationale": a short, plain-language explanation of what you changed and why (2-4 sentences).',
+    // "output" first is load-bearing: the streaming scanner decodes the
+    // output string incrementally, so a model that reorders fields only
+    // delays streaming — it never breaks parsing.
+    'Return ONLY a JSON object. Field order matters — "output" MUST be the first field:',
+    '- "output" (required, string): the transformed prompt, ready to paste into the target engine.',
+    '- "rationale" (required, string): a short, plain-language explanation of what you changed and why (2-4 sentences).',
+    '- "assumptions" (optional, array of strings): assumptions you made to fill gaps in the request, one short line each. Omit the field entirely if you made none.',
+    '- "targetNotes" (optional, string): one sentence naming any changes made specifically for the target engine. Omit if none.',
+    '- "title" (optional, string): a short semantic name for this prompt (max 60 characters, no quotes), suitable as a library entry title.',
     "Do not wrap the JSON in markdown fences. Do not include any other text.",
   ].join("\n");
 }
@@ -108,9 +114,24 @@ export function buildSystemPrompt(mode: ModeId, target: TargetModelId): string {
 export interface EnhancePayload {
   output: string;
   rationale: string;
+  /** Assumptions the model made to fill gaps — optional, capped, tolerant. */
+  assumptions?: string[];
+  /** One sentence on target-engine-specific changes — optional. */
+  targetNotes?: string;
+  /** Short semantic name for the prompt (library title seed) — optional. */
+  title?: string;
 }
 
-/** Parse + validate a provider's raw text response into the enhance payload. */
+/** Most assumptions a payload may carry — anything longer is noise. */
+const MAX_ASSUMPTIONS = 6;
+const MAX_TITLE_CHARS = 60;
+
+/**
+ * Parse + validate a provider's raw text response into the enhance payload.
+ * `output`/`rationale` stay REQUIRED (the battle-scarred contract); the newer
+ * fields are optional and parsed tolerantly — junk shapes are dropped, never
+ * fatal, so an older or disobedient model can't fail a run over them.
+ */
 export function parseEnhancePayload(raw: string): EnhancePayload {
   let data: unknown;
   try {
@@ -126,6 +147,24 @@ export function parseEnhancePayload(raw: string): EnhancePayload {
   ) {
     throw new Error("The model response was missing the expected fields.");
   }
-  const { output, rationale } = data as EnhancePayload;
-  return { output: output.trim(), rationale: rationale.trim() };
+  const rec = data as Record<string, unknown>;
+  const payload: EnhancePayload = {
+    output: (rec.output as string).trim(),
+    rationale: (rec.rationale as string).trim(),
+  };
+
+  if (Array.isArray(rec.assumptions)) {
+    const assumptions = rec.assumptions
+      .filter((a): a is string => typeof a === "string" && a.trim() !== "")
+      .map((a) => a.trim())
+      .slice(0, MAX_ASSUMPTIONS);
+    if (assumptions.length > 0) payload.assumptions = assumptions;
+  }
+  if (typeof rec.targetNotes === "string" && rec.targetNotes.trim() !== "") {
+    payload.targetNotes = rec.targetNotes.trim();
+  }
+  if (typeof rec.title === "string" && rec.title.trim() !== "") {
+    payload.title = rec.title.trim().slice(0, MAX_TITLE_CHARS);
+  }
+  return payload;
 }

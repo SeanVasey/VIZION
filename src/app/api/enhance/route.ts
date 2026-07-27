@@ -200,6 +200,11 @@ export async function POST(request: NextRequest) {
             modelUsed: result.modelUsed,
             costUsd: result.costUsd,
             usage: { todayCost, capUsd: COST_CAP_USD_PER_DAY },
+            // Optional envelope extensions — omitted keys stay omitted on the
+            // wire rather than riding as nulls.
+            ...(result.assumptions ? { assumptions: result.assumptions } : {}),
+            ...(result.targetNotes ? { targetNotes: result.targetNotes } : {}),
+            ...(result.title ? { title: result.title } : {}),
           },
         });
       } catch (e) {
