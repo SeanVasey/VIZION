@@ -48,6 +48,10 @@ export interface EnhanceOutput {
   tokenOut: number;
   modelUsed: string;
   costUsd: number;
+  /** The envelope's tail was malformed but the output string demonstrably
+   *  completed — the result was recovered from the stream (rationale is
+   *  empty). Rides to the client so the result view can say so. */
+  salvaged?: boolean;
 }
 
 /** Events surfaced by the streaming adapter. `delta` text is the DECODED
@@ -103,6 +107,8 @@ export async function* enhanceStream({
 
   const scanner = createEnvelopeScanner("output");
   let raw = "";
+  let decoded = "";
+  let stopReason: string | undefined;
   let tokenIn = 0;
   let tokenOut = 0;
 
@@ -111,13 +117,17 @@ export async function* enhanceStream({
   })) {
     if (chunk.text) {
       raw += chunk.text;
-      const decoded = scanner.push(chunk.text);
-      if (decoded) yield { type: "delta", text: decoded };
+      const piece = scanner.push(chunk.text);
+      if (piece) {
+        decoded += piece;
+        yield { type: "delta", text: piece };
+      }
     }
     if (chunk.usage) {
       ({ tokenIn, tokenOut } = chunk.usage);
       yield { type: "usage", tokenIn, tokenOut };
     }
+    if (chunk.stopReason) stopReason = chunk.stopReason;
   }
 
   // A provider that never reported usage (defensive) still must count against
@@ -125,7 +135,25 @@ export async function* enhanceStream({
   if (tokenIn === 0) tokenIn = Math.ceil((system.length + input.length) / 4);
   if (tokenOut === 0 && raw.length > 0) tokenOut = Math.ceil(raw.length / 4);
 
-  const payload = parseEnhancePayload(raw);
+  let payload;
+  let salvaged = false;
+  try {
+    payload = parseEnhancePayload(raw);
+  } catch (e) {
+    if (scanner.done && decoded.trim() !== "") {
+      // The output string demonstrably completed (its closing quote was
+      // seen) — a malformed tail must not discard a paid, fully-streamed
+      // result. Recover it; the rationale is honestly empty.
+      payload = { output: decoded.trim(), rationale: "" };
+      salvaged = true;
+    } else if (stopReason !== undefined && LENGTH_STOPS.has(stopReason)) {
+      throw new Error(
+        "The model hit its length limit before finishing. Try a lower thinking level or a shorter prompt.",
+      );
+    } else {
+      throw e;
+    }
+  }
   yield {
     type: "done",
     result: {
@@ -134,9 +162,15 @@ export async function* enhanceStream({
       tokenOut,
       modelUsed: cfg.model,
       costUsd: computeCost(target, tokenIn, tokenOut),
+      ...(salvaged ? { salvaged: true } : {}),
     },
   };
 }
+
+/** Stop/finish wire values that mean "the model ran out of output budget"
+ *  (Anthropic: max_tokens · OpenAI-compat: length · Gemini: MAX_TOKENS ·
+ *  Mistral: model_length). */
+const LENGTH_STOPS = new Set(["length", "max_tokens", "MAX_TOKENS", "model_length"]);
 
 /** Buffered form — a drain of the stream, so there is exactly one code path. */
 export async function enhance(args: EnhanceArgs): Promise<EnhanceOutput> {

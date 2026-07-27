@@ -20,7 +20,7 @@ import {
  *   the final chunk; when none arrives the adapter falls back to its ~4
  *   chars/token estimate.
  * - Classic `max_tokens` (not `max_completion_tokens`) — the widest-supported
- *   output-ceiling field across compat APIs. 16k for adapter parity.
+ *   output-ceiling field across compat APIs. 16k keeps runaways bounded.
  */
 interface CompatOptions {
   provider: Provider;
@@ -67,6 +67,8 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
         let text = chunk.choices[0]?.delta?.content ?? "";
         if (text && filter) text = filter.push(text);
         if (text) yield { text };
+        const finish = chunk.choices[0]?.finish_reason;
+        if (finish) yield { stopReason: finish };
         if (chunk.usage) {
           yield {
             usage: {

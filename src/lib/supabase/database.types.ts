@@ -77,6 +77,7 @@ export type Database = {
           deleted_at: string | null;
           preview: string | null;
           current_mode: Database["public"]["Enums"]["enhance_mode"] | null;
+          collection_id: string | null;
         };
         Insert: {
           id?: string;
@@ -92,6 +93,7 @@ export type Database = {
           deleted_at?: string | null;
           preview?: string | null;
           current_mode?: Database["public"]["Enums"]["enhance_mode"] | null;
+          collection_id?: string | null;
         };
         Update: {
           id?: string;
@@ -107,8 +109,16 @@ export type Database = {
           deleted_at?: string | null;
           preview?: string | null;
           current_mode?: Database["public"]["Enums"]["enhance_mode"] | null;
+          collection_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "prompts_collection_id_fkey";
+            columns: ["collection_id"];
+            isOneToOne: false;
+            referencedRelation: "collections";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "prompts_current_ver_fkey";
             columns: ["current_ver"];
@@ -117,6 +127,30 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      collections: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       prompt_versions: {
         Row: {
@@ -384,3 +418,4 @@ export type Prompt = Tables<"prompts">;
 export type PromptVersion = Tables<"prompt_versions">;
 export type ActivityEvent = Tables<"activity_events">;
 export type MediaAsset = Tables<"media_assets">;
+export type Collection = Tables<"collections">;

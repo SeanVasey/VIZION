@@ -113,6 +113,21 @@ describe("result view (mobile-first order)", () => {
     expect(onUse).toHaveBeenCalledWith("write a concise summary");
   });
 
+  it("renders no What-changed heading when the rationale is empty", () => {
+    renderView({ result: makeResult("a", "b", { rationale: "" }) });
+    expect(screen.queryByText("What changed")).toBeNull();
+    // The model/cost meta line still renders regardless.
+    expect(screen.getByText(/test-model/)).toBeTruthy();
+  });
+
+  it("says the explanation was cut off on a salvaged result", () => {
+    renderView({ result: makeResult("a", "b", { rationale: "", salvaged: true }) });
+    expect(screen.queryByText("What changed")).toBeNull();
+    expect(
+      screen.getByText(/explanation was cut off — the prompt above is complete/),
+    ).toBeTruthy();
+  });
+
   it("renders the assumptions card only when assumptions exist", () => {
     renderView();
     expect(screen.queryByText("Assumptions made")).toBeNull();

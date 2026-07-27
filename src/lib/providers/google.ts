@@ -7,7 +7,10 @@ import {
 } from "@/lib/providers/errors";
 
 interface GeminiResponse {
-  candidates?: { content?: { parts?: { text?: string }[] } }[];
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+    finishReason?: string;
+  }[];
   usageMetadata?: {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
@@ -97,6 +100,8 @@ export async function* streamGoogle(
               .map((p) => p.text ?? "")
               .join("");
             if (text) yield { text };
+            const finish = data.candidates?.[0]?.finishReason;
+            if (finish) yield { stopReason: finish };
             if (data.usageMetadata) {
               yield {
                 usage: {

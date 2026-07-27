@@ -60,11 +60,14 @@ export function SettingsPanel({
   profile,
   email,
   pendingEmail,
+  deleteError,
 }: {
   profile: Profile;
   email: string;
   /** auth.users.new_email — a change awaiting confirmation at the new inbox. */
   pendingEmail: string | null;
+  /** delete_error query value the deletion route redirected back with. */
+  deleteError?: string;
 }) {
   const router = useRouter();
   const setTargetModel = useUIStore((s) => s.setTargetModel);
@@ -417,7 +420,7 @@ export function SettingsPanel({
         </p>
       </SettingsSection>
 
-      <DataPrivacySection />
+      <DataPrivacySection deleteError={deleteError} />
       <AboutSection />
 
       <Footer inset />

@@ -494,9 +494,14 @@ export function PromptDetail({
                 : enhanceMutation.error.message}
             </p>
             {/* Same as the composer: text that already streamed survives a
-                mid-run failure as a copyable card. */}
-            {enhanceMutation.stream.partialOutput && (
-              <PartialOutput text={enhanceMutation.stream.partialOutput} />
+                mid-run failure as an actionable card — suppressed while a
+                finished preview is still rendered (that result is the better
+                recovery material). Use-as-draft seeds the revise textarea. */}
+            {!revised && enhanceMutation.stream.partialOutput && (
+              <PartialOutput
+                text={enhanceMutation.stream.partialOutput}
+                onUse={(t) => setDraft(t)}
+              />
             )}
           </>
         )}

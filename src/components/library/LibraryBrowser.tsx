@@ -21,6 +21,7 @@ import {
   deletePromptAction,
 } from "@/lib/library/actions";
 import { LibraryFilterSheet } from "@/components/library/LibraryFilterSheet";
+import { CollectionSheet } from "@/components/library/CollectionSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
@@ -61,6 +62,7 @@ export function LibraryBrowser({
   const cards = [...initialCards, ...extraCards];
   const activeFilters = countActiveFilters(filter);
   const isDefaultView = activeFilters === 0 && !filter.q;
+  const collectionNames = new Map(facets.collections.map((c) => [c.id, c.name]));
 
   function submitSearch() {
     const q = searchDraft.trim();
@@ -75,6 +77,7 @@ export function LibraryBrowser({
       model: filter.model,
       mode: filter.mode,
       tag: filter.tag,
+      collection: filter.collection,
       view: filter.view,
       sort: filter.sort,
     };
@@ -181,7 +184,14 @@ export function LibraryBrowser({
       ) : (
         <ul className="flex flex-col gap-3">
           {cards.map((p) => (
-            <PromptRow key={p.id} prompt={p} onMenu={setMenuFor} />
+            <PromptRow
+              key={p.id}
+              prompt={p}
+              collectionName={
+                p.collection_id ? collectionNames.get(p.collection_id) : undefined
+              }
+              onMenu={setMenuFor}
+            />
           ))}
         </ul>
       )}
@@ -209,19 +219,25 @@ export function LibraryBrowser({
         facets={facets}
       />
       {menuFor && (
-        <CardActionsSheet prompt={menuFor} onClose={() => setMenuFor(null)} />
+        <CardActionsSheet
+          prompt={menuFor}
+          collections={facets.collections}
+          onClose={() => setMenuFor(null)}
+        />
       )}
     </section>
   );
 }
 
-/** Per-card actions (2026-07 UX audit): rename, favorite, archive, and
- *  soft delete with Undo — summoned from the card's ⋯ button. */
+/** Per-card actions (2026-07 UX audit): rename, favorite, archive, move to
+ *  collection, and soft delete with Undo — summoned from the card's ⋯. */
 function CardActionsSheet({
   prompt,
+  collections,
   onClose,
 }: {
   prompt: PromptCard;
+  collections: LibraryFacets["collections"];
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -229,6 +245,7 @@ function CardActionsSheet({
   const [title, setTitle] = useState(prompt.title);
   const [error, setError] = useState<string | null>(null);
   const [confirmPurge, setConfirmPurge] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [pending, startAction] = useTransition();
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, close = true) {
@@ -321,6 +338,15 @@ function CardActionsSheet({
           <button
             type="button"
             disabled={pending}
+            onClick={() => setMoveOpen(true)}
+            className={itemClass}
+          >
+            Move to collection…
+            <span aria-hidden="true">⌂</span>
+          </button>
+          <button
+            type="button"
+            disabled={pending}
             onClick={softDelete}
             className="btn-destructive font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm disabled:opacity-60"
           >
@@ -356,6 +382,16 @@ function CardActionsSheet({
         destructive
         onConfirm={() => run(() => deletePromptAction(prompt.id))}
       />
+      <CollectionSheet
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        prompt={prompt}
+        collections={collections}
+        onMoved={() => {
+          setMoveOpen(false);
+          onClose();
+        }}
+      />
     </Sheet>
   );
 }
@@ -365,9 +401,11 @@ function CardActionsSheet({
  *  the link, absolutely positioned, so no interactive element nests. */
 const PromptRow = memo(function PromptRow({
   prompt: p,
+  collectionName,
   onMenu,
 }: {
   prompt: PromptCard;
+  collectionName?: string;
   onMenu: (p: PromptCard) => void;
 }) {
   return (
@@ -399,6 +437,7 @@ const PromptRow = memo(function PromptRow({
           {relativeTime(p.updated_at)} · {p.versions} version
           {p.versions === 1 ? "" : "s"}
           {p.archived ? " · archived" : ""}
+          {collectionName ? ` · ⌂ ${collectionName}` : ""}
           {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
         </p>
       </Link>

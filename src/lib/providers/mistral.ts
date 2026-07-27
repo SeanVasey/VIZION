@@ -30,7 +30,7 @@ export async function* streamMistral(
   try {
     const stream = await client.chat.completions.create({
       model,
-      // Output ceiling for adapter parity (Anthropic caps at 16k). Classic
+      // Output ceiling: a runaway generation must stay bounded. Classic
       // max_tokens — Mistral 422s on unknown fields like max_completion_tokens.
       max_tokens: 16_000,
       messages: [
@@ -43,6 +43,8 @@ export async function* streamMistral(
     for await (const chunk of stream) {
       const text = chunk.choices[0]?.delta?.content;
       if (text) yield { text };
+      const finish = chunk.choices[0]?.finish_reason;
+      if (finish) yield { stopReason: finish };
       if (chunk.usage) {
         yield {
           usage: {

@@ -512,12 +512,22 @@ export function TransformationDiff({
         </p>
       )}
 
-      {/* 6 · Plain-language rationale. */}
+      {/* 6 · Plain-language rationale — only when the model gave one. A
+          salvaged run (recovered from a malformed envelope tail) says so
+          honestly instead of rendering an empty card. */}
       <div className="rounded-2xl border border-hair p-4">
-        <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
-          What changed
-        </p>
-        <p className="font-body text-sm text-text">{result.rationale}</p>
+        {result.rationale.trim() !== "" ? (
+          <>
+            <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
+              What changed
+            </p>
+            <p className="font-body text-sm text-text">{result.rationale}</p>
+          </>
+        ) : result.salvaged ? (
+          <p className="font-body text-sm text-silver" role="status">
+            The model&apos;s explanation was cut off — the prompt above is complete.
+          </p>
+        ) : null}
         <p className="font-body mt-3 flex items-center gap-1.5 text-xs tabular-nums text-silver">
           <DeveloperIcon
             developer={TARGET_DEVELOPER[target]}

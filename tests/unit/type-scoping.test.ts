@@ -19,6 +19,7 @@ const UI_ONLY_FILES = [
   "src/components/settings/AboutSection.tsx",
   "src/components/settings/Field.tsx",
   "src/components/library/LibraryBrowser.tsx",
+  "src/components/library/CollectionSheet.tsx",
   "src/components/library/ActivityFeed.tsx",
   "src/components/Wordmark.tsx",
   "src/components/ui/Sheet.tsx",

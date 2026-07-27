@@ -38,6 +38,9 @@ export interface EnhanceResult {
   targetNotes?: string;
   /** Short semantic name for the prompt — seeds the library title. */
   title?: string;
+  /** The output was recovered from a malformed envelope tail — complete,
+   *  but the model's explanation was lost (rationale is empty). */
+  salvaged?: boolean;
 }
 
 export type EnhanceStreamEvent =

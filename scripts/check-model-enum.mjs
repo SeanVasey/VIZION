@@ -77,6 +77,16 @@ const COLUMN_PROBES = [
     columns: ["content_hash"],
     migration: "20260727130000_library_organization.sql",
   },
+  {
+    table: "prompts",
+    columns: ["collection_id"],
+    migration: "20260727140000_collections.sql",
+  },
+  {
+    table: "collections",
+    columns: ["id", "name"],
+    migration: "20260727140000_collections.sql",
+  },
 ];
 
 /** RPC functions the app calls — a missing function is PostgREST PGRST202.
@@ -120,6 +130,10 @@ async function probeColumns(baseUrl, key, { table, columns }) {
   const body = await res.text();
   // 42703 = undefined column — the unapplied-migration signature.
   if (res.status === 400 && /does not exist|42703/i.test(body)) return "missing";
+  // PGRST205 = unknown table — the whole CREATE TABLE migration is missing.
+  if (res.status === 404 && /PGRST205|could not find the table/i.test(body)) {
+    return "missing";
+  }
   return { error: `HTTP ${res.status}: ${body.slice(0, 300)}` };
 }
 

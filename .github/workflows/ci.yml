@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual dispatch — the enablement diagnostic (docs/runbooks/ci-enablement.md):
+  # after fixing the repo-level Actions block, "Run workflow" here proves runs
+  # actually start.
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref.
 concurrency:

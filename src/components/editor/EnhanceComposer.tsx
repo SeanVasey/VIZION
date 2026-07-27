@@ -346,9 +346,14 @@ export function EnhanceComposer() {
           </p>
           {/* Anything that already streamed in survives the failure — a run
               that dies at 90% must not erase copyable work (the hook retains
-              partialOutput; it just was never rendered on error). */}
-          {enhanceMutation.stream.partialOutput && (
-            <PartialOutput text={enhanceMutation.stream.partialOutput} />
+              partialOutput on error). When a previous result is still
+              rendered (a failed refine), that result is the better recovery
+              material — don't stack a partial refinement on top of it. */}
+          {!view && enhanceMutation.stream.partialOutput && (
+            <PartialOutput
+              text={enhanceMutation.stream.partialOutput}
+              onUse={handleUse}
+            />
           )}
         </>
       )}

@@ -33,6 +33,7 @@ const CARD: PromptCard = {
   preview: "Write a friendly launch email announcing the new tier…",
   mode: "target",
   versions: 3,
+  collection_id: null,
 };
 
 function renderBrowser(cards: PromptCard[] = [CARD]) {
@@ -42,7 +43,11 @@ function renderBrowser(cards: PromptCard[] = [CARD]) {
         initialCards={cards}
         nextCursor={null}
         filter={{ view: "all", sort: "updated" }}
-        facets={{ models: [{ id: "opus_5", count: 1 }], tags: ["marketing"] }}
+        facets={{
+          models: [{ id: "opus_5", count: 1 }],
+          tags: ["marketing"],
+          collections: [],
+        }}
       />
     </ToastProvider>,
   );

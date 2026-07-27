@@ -103,6 +103,26 @@ describe("useEnhance (streaming)", () => {
     expect(result.current.error?.notConfigured).toBe(true);
   });
 
+  it("retains streamed partial output when the run ends in an error event", async () => {
+    // The recovery UX (Copy / Use as draft on the partial card) depends on
+    // this invariant: an error must not wipe what already streamed in.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      sseResponse([
+        { type: "delta", text: "par" },
+        { type: "delta", text: "tial" },
+        { type: "error", status: 502, error: "The model returned a non-JSON response." },
+      ]),
+    );
+
+    const { result } = renderHook(() => useEnhance(), { wrapper });
+    act(() => result.current.mutate({ ...REQ }));
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.status).toBe(502);
+    await waitFor(() => expect(result.current.stream.partialOutput).toBe("partial"));
+    expect(result.current.stream.active).toBe(false);
+  });
+
   it("reset aborts the in-flight run and clears stream state", async () => {
     // A stream that never closes — the run must end via abort.
     const encoder = new TextEncoder();

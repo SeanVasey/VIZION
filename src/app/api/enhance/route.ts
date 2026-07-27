@@ -265,8 +265,15 @@ export async function POST(request: NextRequest) {
             ...(result.assumptions ? { assumptions: result.assumptions } : {}),
             ...(result.targetNotes ? { targetNotes: result.targetNotes } : {}),
             ...(result.title ? { title: result.title } : {}),
+            ...(result.salvaged ? { salvaged: true } : {}),
           },
         });
+        if (result.salvaged) {
+          // warn survives the production console strip — occurrences are
+          // countable in the deployment logs (systematic salvage = a provider
+          // drifting off the envelope contract, worth investigating).
+          console.warn("[enhance] salvaged envelope", typedTarget);
+        }
       } catch (e) {
         // Client may already be gone; a failed send is fine to swallow.
         try {
