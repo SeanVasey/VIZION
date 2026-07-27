@@ -421,7 +421,14 @@ export function EnhanceComposer() {
               disabled={enhanceMutation.isPending || isEmpty}
               className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
             >
-              {enhanceMutation.isPending ? "Enhancing…" : "► ENHANCE"}
+              {enhanceMutation.isPending ? (
+                <>
+                  <span className="spinner" aria-hidden="true" />
+                  Enhancing…
+                </>
+              ) : (
+                "► ENHANCE"
+              )}
             </button>
           </div>
         </div>
@@ -465,7 +472,12 @@ export function EnhanceComposer() {
 
       {/* Live stream surface while the run is in flight; the finished diff
           replaces it in the same footprint on done. */}
-      {enhanceMutation.stream.active && !view && (
+      {/* `isPending` as well as `stream.active`: the hook clears `active` in
+          its finally block while `view` is only set in onSuccess, leaving one
+          frame where neither surface is mounted — the flash between the
+          streaming card and the finished result. Holding the streaming card
+          until the result actually exists closes it. */}
+      {(enhanceMutation.stream.active || enhanceMutation.isPending) && !view && (
         <StreamingResult
           step={enhanceMutation.stream.step}
           partialOutput={enhanceMutation.stream.partialOutput}

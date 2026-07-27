@@ -509,7 +509,7 @@ export function PromptDetail({
             footprint the finished preview replaces (parity with the composer;
             the streaming machinery was already wired, just never rendered
             here). */}
-        {enhanceMutation.stream.active && !revised && (
+        {(enhanceMutation.stream.active || enhanceMutation.isPending) && !revised && (
           <StreamingResult
             step={enhanceMutation.stream.step}
             partialOutput={enhanceMutation.stream.partialOutput}

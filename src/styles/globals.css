@@ -451,6 +451,25 @@
     animation: none;
   }
 
+  /* Inline activity spinner for a button that is mid-run. An open ring that
+     rotates; under the global reduced-motion collapse the animation freezes,
+     leaving a static ring — which is why the button ALSO changes its label.
+     The meaning never depends on the motion. */
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .spinner {
+    display: inline-block;
+    width: 0.85em;
+    height: 0.85em;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 9999px;
+    animation: spin 700ms linear infinite;
+  }
+
   /* Bottom-sheet / toast entry — a short rise-and-fade whose END state is the
      element's natural resting position, so the global reduced-motion collapse
      (which snaps to the final frame) leaves the overlay fully visible. */

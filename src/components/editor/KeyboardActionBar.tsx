@@ -61,7 +61,14 @@ export function KeyboardActionBar({
         disabled={disabled}
         className="btn-laser pill flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
       >
-        {pending ? "Enhancing…" : "► ENHANCE"}
+        {pending ? (
+          <>
+            <span className="spinner" aria-hidden="true" />
+            Enhancing…
+          </>
+        ) : (
+          "► ENHANCE"
+        )}
       </button>
     </div>,
     document.body,
