@@ -9,11 +9,19 @@ export const metadata: Metadata = { title: "Settings" };
  *  preferences and account management, so the screen now says so). The route
  *  stays /profile to avoid URL churn. Auth is guaranteed by middleware + the
  *  (app) layout. */
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const sp = await searchParams;
+  const rawDeleteError = Array.isArray(sp.delete_error)
+    ? sp.delete_error[0]
+    : sp.delete_error;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -30,6 +38,7 @@ export default async function SettingsPage() {
             profile={profile}
             email={user!.email ?? ""}
             pendingEmail={user!.new_email ?? null}
+            deleteError={rawDeleteError}
           />
         ) : (
           <p className="glass rounded-2xl p-5 text-center text-sm text-muted">
