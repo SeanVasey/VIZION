@@ -54,7 +54,8 @@ above it. Running a prompt meant dismissing the keyboard first.
   menu stays the keyboard-reachable path.
 - **The generation prompt is highlighted** — engine flags, field labels, and
   hex colours (with swatches) picked out of the monospace — and copies three
-  ways: as-is, **Plain** (flags stripped, for chat boxes), or **JSON**.
+  ways: as-is, **Plain** (engine syntax stripped — Midjourney's `--flags` and
+  the motion engines' `[tag]` alike, for chat boxes), or **JSON**.
 - **One clipboard path** across the app: every copy now reports a blocked
   clipboard instead of two sheets silently swallowing the failure, and fires
   a haptic tick where the platform has one (Android; iOS has no Vibration

@@ -13,6 +13,8 @@
  *   audio       `Mood: …. Duration: ~30s.`
  */
 
+import { GEN_TARGETS } from "./types";
+
 export type PromptTokenKind =
   | "text"
   /** An engine flag and its value (`--ar 16:9`). */
@@ -35,8 +37,19 @@ const FLAG = /--[a-z]+(?:\s+[^\s]+)?/g;
 const HEX = /#[0-9a-fA-F]{6}\b/g;
 /** Field labels the motion + audio grammars emit, anchored to their colon. */
 const LABEL = /(?:Subject|Camera & motion|Lighting|Style|Mood|Palette|Duration):/g;
-/** The leading `[engine]` tag. */
-const ENGINE = /^\[[a-z]+\]/g;
+/**
+ * The leading `[engine]` tag — anchored to the REAL engine ids, never "any
+ * bracketed word".
+ *
+ * Only the motion grammar prepends a tag; the midjourney and audio grammars
+ * start with the user's own base prompt, and a base prompt may legitimately
+ * open with a bracket. `[intro]`, `[verse]` and `[chorus]` are the standard
+ * structural syntax for audio generators — exactly the prompts the audio
+ * target exists to build — and `[lofi]` is an ordinary style tag. Matching a
+ * bare `[a-z]+` would silently delete the user's first word.
+ */
+const MOTION_ENGINES = GEN_TARGETS.filter((t) => t.kind === "video").map((t) => t.id);
+const ENGINE = new RegExp(`^\\[(?:${MOTION_ENGINES.join("|")})\\]`, "g");
 
 /** One matcher per token kind, in precedence order. */
 const MATCHERS: { kind: Exclude<PromptTokenKind, "text">; re: RegExp }[] = [
@@ -84,8 +97,26 @@ export function highlightGenerationPrompt(text: string): PromptToken[] {
   return tokens;
 }
 
-/** The prompt with every engine flag removed — "Plain" copy, for engines and
- *  chat boxes that treat `--ar` as literal text rather than a parameter. */
-export function stripFlags(text: string): string {
-  return text.replace(FLAG, "").replace(/\s{2,}/g, " ").trim();
+/**
+ * The prompt with every piece of destination-specific syntax removed — the
+ * "Plain" copy, for chat boxes that treat `--ar` (or a leading `[runway]`) as
+ * literal text rather than as instructions to the engine.
+ *
+ * Both grammars that emit such syntax are handled: Midjourney's `--flag value`
+ * pairs and the motion engines' bracketed tag. Stripping only the flags would
+ * make Plain a byte-identical duplicate of Copy for Runway/Sora/Kling, whose
+ * prompts carry no flags at all — a control that appears to do something and
+ * doesn't. Hex codes and field labels stay: those are content.
+ *
+ * The gap left behind is closed with HORIZONTAL whitespace only. The base
+ * prompt is user text — the attachment tray joins inserts with a blank line —
+ * so collapsing `\s` would flatten real paragraph breaks and make Plain
+ * disagree with Copy about the prompt's structure, not just its syntax.
+ */
+export function stripEngineSyntax(text: string): string {
+  return text
+    .replace(ENGINE, "")
+    .replace(FLAG, "")
+    .replace(/[^\S\n]{2,}/g, " ")
+    .trim();
 }

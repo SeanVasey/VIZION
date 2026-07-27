@@ -896,3 +896,27 @@ whole paid run over it.
   POST beats a fetch-based flow when the session dies mid-action.
 - **A merged PR's follow-up is a fresh branch.** `checkout -B <branch>
   origin/main` and a NEW draft PR — never stack on merged history.
+- **A hand-rolled drag must CLAIM the axis it wants.** The swipe row put
+  pointer handlers on a wrapper whose descendant `<a>` inherits the base
+  `touch-action: manipulation` — which permits panning on *both* axes, so the
+  UA stayed free to take the horizontal drag and hand back a `pointercancel`.
+  Mapping cancel to pointer-up settles the swipe politely but cannot prevent
+  the theft. `touch-action: pan-y` on the dragged element is the claim; it
+  works from the ancestor because the used value is the *intersection* down
+  the chain, so a descendant can never widen it. Returning it from the hook
+  next to the transform keeps the two halves of one contract together.
+- **Widening a regex to fix a no-op can start eating content.** `[runway]`
+  had to go for the Plain copy to mean anything on the motion engines — but
+  `^\[[a-z]+\]` also matched the *user's* first word, and only the motion
+  grammar prepends a tag at all: midjourney and audio prompts begin with the
+  base prompt, where `[intro]`/`[verse]`/`[lofi]` are ordinary content. Anchor
+  a stripper to the real id set (derived from `GEN_TARGETS`, so a new engine
+  can't be forgotten), never to a shape. Same commit, same lesson: `\s{2,}`
+  → `" "` flattened the paragraph breaks the attachment tray itself writes;
+  a cleanup collapse wants `[^\S\n]{2,}`, or it changes the prompt's shape
+  while claiming to change only its syntax.
+- **Fixing a dead control in one grammar leaves it dead in the others.**
+  Stripping the tag revived Plain for runway/sora/kling and left it copying
+  Copy verbatim for audio, whose grammar emits no syntax at all. The general
+  fix is to render the variant only when it would differ — the condition the
+  control's existence actually depends on.

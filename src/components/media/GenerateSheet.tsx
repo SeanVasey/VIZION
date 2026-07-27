@@ -12,7 +12,7 @@ import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useCopy } from "@/components/ui/use-copy";
 import {
   highlightGenerationPrompt,
-  stripFlags,
+  stripEngineSyntax,
 } from "@/lib/media/highlight";
 import type { MediaItem } from "@/lib/media/queue";
 
@@ -47,6 +47,7 @@ export function GenerateSheet({
     const base = (basePrompt || editorDraft || "").trim();
     return buildGenerationPrompt(base, attrs, engine);
   }, [attrs, basePrompt, editorDraft, engine]);
+  const plain = useMemo(() => stripEngineSyntax(generated), [generated]);
 
   function pickEngine(next: GenTargetId) {
     setEngine(next);
@@ -202,7 +203,8 @@ export function GenerateSheet({
           </p>
         </div>
 
-        {/* Copy variants — the flags help in Midjourney and hurt in a chat
+        {/* Copy variants — engine syntax (Midjourney's flags, the motion
+            engines' [tag]) helps in its own destination and hurts in a chat
             box, and JSON is what a script wants. Segmented on the export-strip
             pattern; the focus ring is INSET because the rounded chassis'
             overflow-hidden would clip an outer one. */}
@@ -211,7 +213,14 @@ export function GenerateSheet({
             {(
               [
                 { id: "full", label: "Copy", value: () => generated },
-                { id: "plain", label: "Plain", value: () => stripFlags(generated) },
+                // Plain only earns its place when it would actually differ.
+                // The audio grammar emits no flags and no tag, so stripping is
+                // a no-op there and the segment would copy exactly what Copy
+                // copies — the same dead control the tag-strip just fixed for
+                // the motion engines, one grammar over.
+                ...(plain && plain !== generated
+                  ? ([{ id: "plain", label: "Plain", value: () => plain }] as const)
+                  : []),
                 {
                   id: "json",
                   label: "JSON",
