@@ -72,6 +72,11 @@ export type Database = {
           tags: string[];
           created_at: string;
           updated_at: string;
+          favorite: boolean;
+          archived_at: string | null;
+          deleted_at: string | null;
+          preview: string | null;
+          current_mode: Database["public"]["Enums"]["enhance_mode"] | null;
         };
         Insert: {
           id?: string;
@@ -82,6 +87,11 @@ export type Database = {
           tags?: string[];
           created_at?: string;
           updated_at?: string;
+          favorite?: boolean;
+          archived_at?: string | null;
+          deleted_at?: string | null;
+          preview?: string | null;
+          current_mode?: Database["public"]["Enums"]["enhance_mode"] | null;
         };
         Update: {
           id?: string;
@@ -92,8 +102,21 @@ export type Database = {
           tags?: string[];
           created_at?: string;
           updated_at?: string;
+          favorite?: boolean;
+          archived_at?: string | null;
+          deleted_at?: string | null;
+          preview?: string | null;
+          current_mode?: Database["public"]["Enums"]["enhance_mode"] | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "prompts_current_ver_fkey";
+            columns: ["current_ver"];
+            isOneToOne: false;
+            referencedRelation: "prompt_versions";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       prompt_versions: {
         Row: {
@@ -108,6 +131,7 @@ export type Database = {
           token_in: number;
           token_out: number;
           created_at: string;
+          content_hash: string | null;
         };
         Insert: {
           id?: string;
@@ -121,6 +145,7 @@ export type Database = {
           token_in?: number;
           token_out?: number;
           created_at?: string;
+          content_hash?: string | null;
         };
         Update: {
           id?: string;
@@ -134,8 +159,24 @@ export type Database = {
           token_in?: number;
           token_out?: number;
           created_at?: string;
+          content_hash?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "prompt_versions_parent_ver_fkey";
+            columns: ["parent_ver"];
+            isOneToOne: false;
+            referencedRelation: "prompt_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "prompt_versions_prompt_id_fkey";
+            columns: ["prompt_id"];
+            isOneToOne: false;
+            referencedRelation: "prompts";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       activity_events: {
         Row: {

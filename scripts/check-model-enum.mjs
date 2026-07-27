@@ -67,6 +67,16 @@ const COLUMN_PROBES = [
     columns: ["original_name", "mime_type", "role", "status"],
     migration: "20260727120000_media_roles_and_reservation.sql",
   },
+  {
+    table: "prompts",
+    columns: ["favorite", "archived_at", "deleted_at", "preview", "current_mode"],
+    migration: "20260727130000_library_organization.sql",
+  },
+  {
+    table: "prompt_versions",
+    columns: ["content_hash"],
+    migration: "20260727130000_library_organization.sql",
+  },
 ];
 
 /** RPC functions the app calls — a missing function is PostgREST PGRST202.

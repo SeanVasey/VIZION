@@ -6,6 +6,24 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — library organization schema (migration)
+
+`supabase/migrations/20260727130000_library_organization.sql`
+(**applied to the hosted project 2026-07-27**, advisors clean):
+
+- `prompts` gains `favorite`, `archived_at`, `deleted_at` (soft delete),
+  `preview` (current output's first 200 chars for cards), and
+  `current_mode` — backfilled from each prompt's current version.
+- `prompt_versions` gains `content_hash` (sha256 over
+  input∥US∥output∥US∥mode) for exact-duplicate detection, backfilled for
+  every existing version; the Node helper (`src/lib/library/hash.ts`) is
+  pinned byte-for-byte against a live DB digest fixture.
+- Keyset-pagination index on `(user_id, updated_at desc, id desc) where
+  deleted_at is null`, plus a hash index.
+- The schema preflight now probes all six new columns. The generated-types
+  mirror also restores the FK `Relationships` entries (needed by the
+  upcoming embedded version-count query).
+
 ### Changed — media moved into the composer as a role-based attachment tray
 
 The below-the-fold "Media reference" studio (with its own competing prompt
