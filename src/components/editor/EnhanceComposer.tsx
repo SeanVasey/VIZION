@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import {
   TARGET_MODELS,
@@ -74,6 +74,32 @@ export function EnhanceComposer() {
   const [mediaContext, setMediaContext] = useState<string[]>([]);
   // Focus lives somewhere inside the composer — gates the keyboard action bar.
   const [composerFocused, setComposerFocused] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  // The tray publishes its file intake here (it owns the privacy gate), so
+  // paste and drop attach media through exactly the same path as the button.
+  const intakeRef = useRef<((files: File[] | FileList) => void) | null>(null);
+  // Clipboard read is Chromium/Safari-only and permission-gated; hide the
+  // affordance entirely where it can't work rather than offering a dead button.
+  const canPaste =
+    typeof navigator !== "undefined" &&
+    typeof navigator.clipboard?.readText === "function";
+
+  /** Pull text out of the clipboard into an empty draft. */
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim() === "") return;
+      setEditorDraft(text);
+      document.getElementById("prompt-input")?.focus();
+    } catch {
+      // Denied, or dismissed at the native Paste prompt — say so instead of
+      // failing silently, matching the copy-failure contract.
+      toast({
+        tone: "error",
+        text: "Couldn't read the clipboard — paste with the keyboard instead.",
+      });
+    }
+  }
 
   // Cheap, deterministic token estimate (~4 chars/token) for the readout.
   const approxTokens = editorDraft.trim()
@@ -182,7 +208,9 @@ export function EnhanceComposer() {
           its top rail and the reset / Enhance actions into its bottom rail, so
           every control lives within the one rounded-rectangle. */}
       <div
-        className="glass no-pull-refresh overflow-hidden rounded-2xl transition-shadow focus-within:shadow-focus"
+        className={`glass no-pull-refresh overflow-hidden rounded-2xl transition-shadow ${
+          dragging ? "shadow-focus" : "focus-within:shadow-focus"
+        }`}
         // React focus events bubble (focusin/focusout), so the chassis knows
         // when anything inside it holds focus — the signal the keyboard
         // action bar needs. relatedTarget guards focus moving WITHIN it.
@@ -191,6 +219,24 @@ export function EnhanceComposer() {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
             setComposerFocused(false);
           }
+        }}
+        // Files.app drag (iPadOS) and desktop drag-and-drop. preventDefault on
+        // dragover is what makes an element a valid drop target at all.
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setDragging(false);
+          }
+        }}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return;
+          e.preventDefault();
+          setDragging(false);
+          intakeRef.current?.(e.dataTransfer.files);
         }}
       >
         {/* Top rail — model target, nested under the rounded top corners. */}
@@ -297,14 +343,51 @@ export function EnhanceComposer() {
           id="prompt-input"
           value={editorDraft}
           onChange={(e) => setEditorDraft(e.target.value)}
+          // Pasted TEXT falls through to the native insert (never hijack the
+          // caret); pasted FILES — a screenshot from the iOS clipboard — go to
+          // the tray instead of dropping on the floor.
+          onPaste={(e) => {
+            const files = e.clipboardData.files;
+            if (files.length === 0) return;
+            e.preventDefault();
+            intakeRef.current?.(files);
+          }}
           placeholder="Type or paste your prompt…"
           rows={8}
           className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
         />
 
+        {dragging && (
+          <p
+            className="font-body border-t border-hair px-3.5 py-2 text-center text-xs text-accent"
+            role="status"
+          >
+            Drop to attach
+          </p>
+        )}
+
+        {/* Paste affordance — offered only when there is nothing to lose and
+            the field is live. In flow (not floating) so the chassis'
+            overflow-hidden can't clip it and it never covers the draft.
+            iOS raises its own Paste confirmation on readText; that native
+            second tap is the platform's, not ours to route around. */}
+        {canPaste && composerFocused && isEmpty && !dragging && (
+          <div className="border-t border-hair px-3.5 py-2">
+            <button
+              type="button"
+              // Keep focus (and the keyboard) through the tap.
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={pasteFromClipboard}
+              className="glass font-body pill tap-44 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-silver transition-colors hover:text-chalk"
+            >
+              <span aria-hidden="true">⌸</span> Paste from clipboard
+            </button>
+          </div>
+        )}
+
         {/* Attachment tray — media lives INSIDE the composer (2026-07 audit);
             reference-role context flows into the enhance request above. */}
-        <AttachmentTray onContextChange={setMediaContext} />
+        <AttachmentTray onContextChange={setMediaContext} intakeRef={intakeRef} />
 
         {/* Bottom rail — readouts + clear / Enhance, nested under the rounded
             bottom corners so the whole composer reads as one object. */}

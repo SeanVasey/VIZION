@@ -116,8 +116,13 @@ function supabaseDeps(supabase: ReturnType<typeof createClient>): MediaStoreDeps
  */
 export function AttachmentTray({
   onContextChange,
+  intakeRef,
 }: {
   onContextChange?: (blocks: string[]) => void;
+  /** Filled with the tray's file-intake so the composer can hand over pasted
+   *  and dropped files. It routes through `onPick`, which owns the first-run
+   *  privacy disclosure — nothing may reach `admitFiles` around that gate. */
+  intakeRef?: { current: ((files: File[] | FileList) => void) | null };
 }) {
   const targetModel = useUIStore((s) => s.targetModel);
   const editorDraft = useUIStore((s) => s.editorDraft);
@@ -175,8 +180,9 @@ export function AttachmentTray({
   const patch = (id: string, p: Partial<MediaItem>) =>
     setItems((prev) => patchItem(prev, id, p));
 
-  function onPick(list: FileList) {
+  function onPick(list: FileList | File[]) {
     const files = Array.from(list);
+    if (files.length === 0) return;
     if (!mediaNoticeAcknowledged) {
       // First attach on this device: disclose before anything uploads.
       pendingFiles.current = files;
@@ -185,6 +191,17 @@ export function AttachmentTray({
     }
     void proceed(files, !mediaStoreByDefault);
   }
+
+  // Publish intake to the composer (paste / drop). No dep array on purpose:
+  // `onPick` closes over state that changes every render, and a stale closure
+  // here would route pasted files past the privacy gate's current answer.
+  useEffect(() => {
+    if (!intakeRef) return;
+    intakeRef.current = onPick;
+    return () => {
+      intakeRef.current = null;
+    };
+  });
 
   /** Admit + queue + process sequentially (kinder to the burst limiter, the
    *  cost cap, and a mobile radio than a parallel fan-out). */
