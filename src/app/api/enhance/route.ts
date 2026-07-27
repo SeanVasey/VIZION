@@ -22,6 +22,7 @@ import { REFINE_KINDS, type EnhanceRefine, type RefineKind } from "@/lib/provide
 import { rateLimit } from "@/lib/security/rate-limit";
 import { diffWords } from "@/lib/enhance/diff";
 import { resolveAutoTarget } from "@/lib/enhance/auto-target";
+import { isFormatId, type FormatId } from "@/lib/enhance/formats";
 import {
   encodeSseEvent,
   STREAM_STEPS,
@@ -70,16 +71,17 @@ export async function POST(request: NextRequest) {
     return err(400, "Invalid JSON body.");
   }
 
-  const { input, mode, target, auto, thinkingLevel, refine, mediaContext } = (body ??
-    {}) as {
-    input?: unknown;
-    mode?: unknown;
-    target?: unknown;
-    auto?: unknown;
-    thinkingLevel?: unknown;
-    refine?: unknown;
-    mediaContext?: unknown;
-  };
+  const { input, mode, target, auto, format, thinkingLevel, refine, mediaContext } =
+    (body ?? {}) as {
+      input?: unknown;
+      mode?: unknown;
+      target?: unknown;
+      auto?: unknown;
+      format?: unknown;
+      thinkingLevel?: unknown;
+      refine?: unknown;
+      mediaContext?: unknown;
+    };
 
   if (typeof input !== "string" || input.trim() === "") {
     return err(400, "Provide a prompt to enhance.");
@@ -125,6 +127,14 @@ export async function POST(request: NextRequest) {
   ) {
     return err(400, "That thinking level isn't available for this model.");
   }
+  // Reformat's output shape. Validated for legality only — buildSystemPrompt
+  // gates it by mode, so a format sent alongside any other mode is inert
+  // rather than contradictory, and a stale client can't produce a prompt that
+  // argues with itself.
+  if (format !== undefined && !isFormatId(format)) {
+    return err(400, "Unknown output format.");
+  }
+
   // Optional refinement pass — validated to the same standard as the other
   // knobs so an invented kind or oversized base can never reach a provider.
   let typedRefine: EnhanceRefine | undefined;
@@ -238,6 +248,7 @@ export async function POST(request: NextRequest) {
           target: typedTarget,
           thinkingLevel: typedThinkingLevel,
           refine: typedRefine,
+          format: format as FormatId | undefined,
         })) {
           if (event.type === "delta") {
             if (!generating) {

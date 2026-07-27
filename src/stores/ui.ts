@@ -12,6 +12,7 @@ import {
   type Theme,
   type ThinkingLevel,
 } from "@/lib/constants";
+import type { FormatId } from "@/lib/enhance/formats";
 
 /**
  * A localStorage adapter that debounces writes. The editor draft persists on
@@ -89,6 +90,9 @@ interface UIState {
    *  user last chose and rides along as the fallback — turning Auto off must
    *  return them to their own pick, not to a default. */
   autoTarget: boolean;
+  /** Reformat's chosen output shape. `null` = "whichever fits", the behaviour
+   *  before the rail existed. */
+  reformatFormat: FormatId | null;
 
   setTheme: (theme: Theme) => void;
   setActiveMode: (mode: ModeId) => void;
@@ -100,6 +104,7 @@ interface UIState {
   setMediaStoreByDefault: (v: boolean) => void;
   setReducedEffects: (v: boolean) => void;
   setAutoTarget: (v: boolean) => void;
+  setReformatFormat: (v: FormatId | null) => void;
 }
 
 /**
@@ -118,6 +123,7 @@ export const useUIStore = create<UIState>()(
       mediaStoreByDefault: true,
       reducedEffects: false,
       autoTarget: false,
+      reformatFormat: null,
 
       setTheme: (theme) => set({ theme }),
       setActiveMode: (activeMode) => set({ activeMode }),
@@ -135,6 +141,7 @@ export const useUIStore = create<UIState>()(
       setMediaStoreByDefault: (mediaStoreByDefault) => set({ mediaStoreByDefault }),
       setReducedEffects: (reducedEffects) => set({ reducedEffects }),
       setAutoTarget: (autoTarget) => set({ autoTarget }),
+      setReformatFormat: (reformatFormat) => set({ reformatFormat }),
     }),
     {
       name: UI_STORE_KEY,
@@ -193,6 +200,8 @@ export const useUIStore = create<UIState>()(
         // without the key falls back to the initial `false`, so no version
         // bump. Off by default — routing is opt-in, never a surprise.
         autoTarget: state.autoTarget,
+        // Same shallow-merge story as autoTarget: absent key -> initial null.
+        reformatFormat: state.reformatFormat,
       }),
     },
   ),

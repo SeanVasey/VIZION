@@ -29,6 +29,8 @@ export const MODE_BLURB: Record<ModeId, string> = {
   clarify: "Sharpens what you're asking for — same request, no ambiguity.",
   expand: "Adds the detail, structure, and constraints your prompt is missing.",
   condense: "Trims your prompt to the essentials without losing instructions.",
-  reformat: "Restructures your prompt into a cleaner, better-organized shape.",
+  // Reformat is about SHAPE, Adapt is about the engine's IDIOM — the two used
+  // to be a sentence apart, which left neither predictable.
+  reformat: "Restructures your prompt into a shape you choose — JSON, steps, XML.",
   target: "Adapts your prompt to the selected model's preferred style.",
 };

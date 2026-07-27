@@ -8,7 +8,7 @@ import { MODES, TARGET_MODELS } from "@/lib/constants";
 
 describe("buildSystemPrompt", () => {
   it("includes the mode instruction and target conventions", () => {
-    const p = buildSystemPrompt("expand", "opus_5");
+    const p = buildSystemPrompt({ mode: "expand", target: "opus_5" });
     expect(p).toContain("EXPAND");
     expect(p).toContain("Claude Opus");
     expect(p).toContain('"output"');
@@ -18,7 +18,7 @@ describe("buildSystemPrompt", () => {
   it("names the optional envelope fields and pins output first, every mode × target", () => {
     for (const mode of MODES) {
       for (const target of TARGET_MODELS) {
-        const p = buildSystemPrompt(mode.id, target.id);
+        const p = buildSystemPrompt({ mode: mode.id, target: target.id });
         expect(p).toContain('"assumptions" (optional');
         expect(p).toContain('"targetNotes" (optional');
         expect(p).toContain('"title" (optional');
@@ -36,7 +36,7 @@ describe("buildSystemPrompt", () => {
   it("states the output-is-the-prompt contract for every mode × target", () => {
     for (const mode of MODES) {
       for (const target of TARGET_MODELS) {
-        const p = buildSystemPrompt(mode.id, target.id);
+        const p = buildSystemPrompt({ mode: mode.id, target: target.id });
         expect(p).toContain("THE OUTPUT IS THE PROMPT ITSELF");
         expect(p).toContain("Never produce role labels");
         expect(p).toContain(
@@ -49,7 +49,7 @@ describe("buildSystemPrompt", () => {
   it("scopes the structure permission away from shape-preserving modes", () => {
     for (const target of TARGET_MODELS) {
       for (const mode of MODES) {
-        const p = buildSystemPrompt(mode.id, target.id);
+        const p = buildSystemPrompt({ mode: mode.id, target: target.id });
         const preserving = mode.id === "polish" || mode.id === "clarify";
         if (preserving) {
           // The permissive clause must not undercut FORMAT_PRESERVATION.
@@ -66,7 +66,7 @@ describe("buildSystemPrompt", () => {
   it("never instructs role framing that turns the output into a system prompt", () => {
     for (const mode of MODES) {
       for (const target of TARGET_MODELS) {
-        const p = buildSystemPrompt(mode.id, target.id);
+        const p = buildSystemPrompt({ mode: mode.id, target: target.id });
         expect(p).not.toContain("system/user separation");
         expect(p).not.toContain("developer/system/user role framing");
         expect(p).not.toContain("system-instruction block");
@@ -75,23 +75,23 @@ describe("buildSystemPrompt", () => {
   });
 
   it("targets GPT idioms for the GPT target", () => {
-    expect(buildSystemPrompt("reformat", "gpt_5_6_sol")).toContain("GPT");
+    expect(buildSystemPrompt({ mode: "reformat", target: "gpt_5_6_sol" })).toContain("GPT");
   });
 
   it("targets Gemini idioms for the Gemini target", () => {
-    expect(buildSystemPrompt("target", "gemini_3_6_flash")).toContain("Gemini");
+    expect(buildSystemPrompt({ mode: "target", target: "gemini_3_6_flash" })).toContain("Gemini");
   });
 
   it("targets Fable idioms for the Fable target", () => {
-    expect(buildSystemPrompt("expand", "fable_5")).toContain("Claude Fable");
+    expect(buildSystemPrompt({ mode: "expand", target: "fable_5" })).toContain("Claude Fable");
   });
 
   it("targets Grok idioms for the Grok target", () => {
-    expect(buildSystemPrompt("reformat", "grok_4_5")).toContain("Grok");
+    expect(buildSystemPrompt({ mode: "reformat", target: "grok_4_5" })).toContain("Grok");
   });
 
   it("polish preserves the input's shape and skips target restructuring idioms", () => {
-    const p = buildSystemPrompt("polish", "opus_5");
+    const p = buildSystemPrompt({ mode: "polish", target: "opus_5" });
     expect(p).toContain("POLISH");
     // No XML/structured idioms leak in for a shape-preserving mode.
     expect(p).not.toContain("XML-tagged");
@@ -101,23 +101,23 @@ describe("buildSystemPrompt", () => {
   });
 
   it("clarify no longer injects the target's structured-output idioms", () => {
-    const p = buildSystemPrompt("clarify", "gpt_5_6_sol");
+    const p = buildSystemPrompt({ mode: "clarify", target: "gpt_5_6_sol" });
     expect(p).not.toContain("JSON-mode");
     expect(p).toMatch(/preserve the input's existing format/i);
   });
 
   it("appends a refinement pass only when requested", () => {
-    expect(buildSystemPrompt("condense", "opus_5")).not.toContain("REFINEMENT PASS");
-    const p = buildSystemPrompt("condense", "opus_5", { kind: "shorter" });
+    expect(buildSystemPrompt({ mode: "condense", target: "opus_5" })).not.toContain("REFINEMENT PASS");
+    const p = buildSystemPrompt({ mode: "condense", target: "opus_5", refine: { kind: "shorter" } });
     expect(p).toContain("REFINEMENT PASS");
     expect(p).toContain("meaningfully shorter");
   });
 
   it("the tone refinement wraps the author's original in delimiters", () => {
-    const p = buildSystemPrompt("clarify", "opus_5", {
+    const p = buildSystemPrompt({ mode: "clarify", target: "opus_5", refine: {
       kind: "tone",
       baseInput: "my casual original words",
-    });
+    } });
     expect(p).toContain("AUTHOR'S ORIGINAL:");
     expect(p).toContain("<original>\nmy casual original words\n</original>");
   });
@@ -125,7 +125,7 @@ describe("buildSystemPrompt", () => {
   it("refinement never reintroduces role framing, any kind × mode", () => {
     for (const kind of REFINE_KINDS) {
       for (const mode of MODES) {
-        const p = buildSystemPrompt(mode.id, "gpt_5_6_sol", { kind, baseInput: "x" });
+        const p = buildSystemPrompt({ mode: mode.id, target: "gpt_5_6_sol", refine: { kind, baseInput: "x" } });
         expect(p).toContain("THE OUTPUT IS THE PROMPT ITSELF");
         expect(p).not.toContain("system/user separation");
         expect(p).not.toContain("system-instruction block");

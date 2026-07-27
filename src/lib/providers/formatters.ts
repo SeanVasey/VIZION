@@ -1,5 +1,6 @@
 import { TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
 import { MODE_INSTRUCTIONS } from "@/lib/enhance/modes";
+import { FORMAT_INSTRUCTIONS, type FormatId } from "@/lib/enhance/formats";
 
 /**
  * Per-target idiomatic conventions VIZ(IO)N applies (product-spec §4.3). The
@@ -113,16 +114,47 @@ const OUTPUT_STRUCTURE_ALLOWED =
 const OUTPUT_STRUCTURE_FORBIDDEN =
   "This mode preserves the input's shape — the OUTPUT SHAPE rule above stands: do not introduce sections, tags, or lists the author did not already use.";
 
+export interface SystemPromptOptions {
+  mode: ModeId;
+  target: TargetModelId;
+  refine?: EnhanceRefine;
+  /** Reformat only — the explicit output shape. */
+  format?: FormatId;
+}
+
+/**
+ * Per-mode knobs, gated HERE rather than at the wire.
+ *
+ * A knob that doesn't apply to the current mode is inert, not an error: the
+ * builder simply doesn't read it. That keeps the route's validation to "is
+ * this a legal value" and means a stale client — or a mode switched between
+ * composing and sending — can never produce a self-contradictory prompt.
+ */
+function knobBlock({ mode, format }: SystemPromptOptions): string[] {
+  if (mode === "reformat" && format) {
+    // The mode instruction offers the model a choice of shapes ("whichever
+    // best fits the task"). Once the user has made that choice the offer has
+    // to be withdrawn explicitly, or the two lines argue.
+    return [
+      "",
+      `${FORMAT_INSTRUCTIONS[format]} This shape is chosen — it replaces the "whichever fits" latitude above; do not substitute a different structure.`,
+    ];
+  }
+  return [];
+}
+
 /**
  * Build the system prompt that instructs the model to transform the user's
  * prompt for the given mode + target. Pure and deterministic so it can be
  * unit-tested and so the prompt prefix stays cache-friendly.
+ *
+ * Takes an options object rather than positionals: the knob count is growing
+ * past the point where call sites can be read at a glance, and a boolean or
+ * string in the wrong slot would be silently accepted by a positional
+ * signature.
  */
-export function buildSystemPrompt(
-  mode: ModeId,
-  target: TargetModelId,
-  refine?: EnhanceRefine,
-): string {
+export function buildSystemPrompt(opts: SystemPromptOptions): string {
+  const { mode, target, refine } = opts;
   const shapePreserving = SHAPE_PRESERVING.has(mode);
   const conventions = shapePreserving ? FORMAT_PRESERVATION : TARGET_CONVENTIONS[target];
   const outputContract = `${OUTPUT_CONTRACT_BASE} ${
@@ -132,6 +164,7 @@ export function buildSystemPrompt(
     "You are VIZ(IO)N, a precise prompt engineer. You transform a user's prompt; you never answer or execute it.",
     "",
     MODE_INSTRUCTIONS[mode],
+    ...knobBlock(opts),
     ...refineBlock(refine),
     "",
     conventions,

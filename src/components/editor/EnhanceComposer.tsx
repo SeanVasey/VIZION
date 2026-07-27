@@ -21,6 +21,11 @@ import { useToast } from "@/components/ui/Toast";
 import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
+import { Segmented } from "@/components/ui/Segmented";
+import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
+
+/** Frozen option list for the format rail — built once, not per render. */
+const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -36,6 +41,8 @@ export function EnhanceComposer() {
   const setActiveMode = useUIStore((s) => s.setActiveMode);
   const targetModel = useUIStore((s) => s.targetModel);
   const autoTarget = useUIStore((s) => s.autoTarget);
+  const reformatFormat = useUIStore((s) => s.reformatFormat);
+  const setReformatFormat = useUIStore((s) => s.setReformatFormat);
   const setAutoTarget = useUIStore((s) => s.setAutoTarget);
   const setTargetModel = useUIStore((s) => s.setTargetModel);
   const thinkingLevels = useUIStore((s) => s.thinkingLevels);
@@ -124,6 +131,9 @@ export function EnhanceComposer() {
         // nowhere to live in the model_target enum.
         target: targetModel,
         ...(autoTarget ? { auto: true as const } : {}),
+        ...(activeMode === "reformat" && reformatFormat
+          ? { format: reformatFormat }
+          : {}),
         ...(thinkingLevel ? { thinkingLevel } : {}),
         ...(mediaContext.length > 0 ? { mediaContext } : {}),
       },
@@ -315,6 +325,32 @@ export function EnhanceComposer() {
                   strokeLinejoin="round"
                 />
               </svg>
+            </div>
+          </div>
+        )}
+
+        {/* Format rail — Reformat only. Naming the shape is what separates
+            Reformat (SHAPE) from Adapt (ENGINE IDIOM); leaving it unset keeps
+            the old "whichever fits the task" behaviour, so the rail adds
+            control without removing the shortcut. Segmented buttons rather
+            than a select: the rails stay outside the iOS focus-zoom rule. */}
+        {activeMode === "reformat" && (
+          <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
+            <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+              Shape
+            </span>
+            <div className="min-w-0 overflow-x-auto">
+              <Segmented
+                label="Output shape"
+                options={FORMAT_OPTIONS}
+                value={reformatFormat}
+                // Re-picking the active shape clears it, which is the only way
+                // back to "whichever fits" without a separate Auto segment
+                // competing for width on a 390px screen.
+                onChange={(next) =>
+                  setReformatFormat(next === reformatFormat ? null : next)
+                }
+              />
             </div>
           </div>
         )}

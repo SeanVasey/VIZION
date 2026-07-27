@@ -10,6 +10,7 @@ import {
   parseEnhancePayload,
   type EnhanceRefine,
 } from "@/lib/providers/formatters";
+import type { FormatId } from "@/lib/enhance/formats";
 import { createEnvelopeScanner } from "@/lib/providers/json-stream";
 import { streamAnthropic } from "@/lib/providers/anthropic";
 import { streamOpenAI } from "@/lib/providers/openai";
@@ -35,6 +36,9 @@ export interface EnhanceArgs {
   thinkingLevel?: ThinkingLevel;
   /** Refinement pass over an already-enhanced prompt (validated by the route). */
   refine?: EnhanceRefine;
+  /** Reformat's explicit output shape (validated by the route). Inert in any
+   *  other mode — buildSystemPrompt gates it. */
+  format?: FormatId;
 }
 
 export interface EnhanceOutput {
@@ -86,9 +90,10 @@ export async function* enhanceStream({
   target,
   thinkingLevel,
   refine,
+  format,
 }: EnhanceArgs): AsyncGenerator<AdapterStreamEvent> {
   const cfg = TARGETS[target];
-  const system = buildSystemPrompt(mode, target, refine);
+  const system = buildSystemPrompt({ mode, target, refine, format });
 
   const streams: Record<Provider, ProviderStream> = {
     anthropic: streamAnthropic,
