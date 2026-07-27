@@ -6,6 +6,24 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — card actions, duplicate detection, and undoable delete
+
+- **Rename, favorite, archive, delete** — every card gets a ⋯ action sheet
+  (a sibling of the link, so no interactive nesting). Titles were immutable
+  first-line derivations; they can now be renamed (and new saves default to
+  the model's semantic `title` from the envelope before falling back to the
+  derivation).
+- **Delete is soft + undoable** everywhere users delete day-to-day: the card
+  sheet and the prompt detail both soft-delete with an Undo toast, replacing
+  the blocking `confirm()` + irreversible cascade. Permanent delete survives
+  only for archived prompts, behind a ConfirmSheet.
+- **Exact-duplicate detection at save** — saving content that already exists
+  (same input+output+mode, by content hash) offers *"Already in your library
+  as '…'"* with **Open** and **Save as new version** instead of minting a
+  second identical card; appending an identical version to a prompt is
+  refused. Saves now also maintain the card's `preview` and `current_mode`
+  (and restore re-derives them).
+
 ### Changed — library: saved work leads; filters are summoned; queries scale
 
 The sixteen-model chip wall (the full global roster rendered above the first

@@ -11,8 +11,19 @@ import {
   type LibraryFilter,
 } from "@/lib/library/paging";
 import type { LibraryFacets, PromptCard } from "@/lib/library/queries";
-import { fetchLibraryPageAction } from "@/lib/library/actions";
+import {
+  fetchLibraryPageAction,
+  updatePromptTitleAction,
+  setFavoriteAction,
+  setArchivedAction,
+  softDeletePromptAction,
+  undoDeletePromptAction,
+  deletePromptAction,
+} from "@/lib/library/actions";
 import { LibraryFilterSheet } from "@/components/library/LibraryFilterSheet";
+import { Sheet } from "@/components/ui/Sheet";
+import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { useToast } from "@/components/ui/Toast";
 
 export type { PromptCard } from "@/lib/library/queries";
 
@@ -45,6 +56,7 @@ export function LibraryBrowser({
   const [cursor, setCursor] = useState<string | null>(nextCursor);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingMore, startLoadMore] = useTransition();
+  const [menuFor, setMenuFor] = useState<PromptCard | null>(null);
 
   const cards = [...initialCards, ...extraCards];
   const activeFilters = countActiveFilters(filter);
@@ -169,7 +181,7 @@ export function LibraryBrowser({
       ) : (
         <ul className="flex flex-col gap-3">
           {cards.map((p) => (
-            <PromptRow key={p.id} prompt={p} />
+            <PromptRow key={p.id} prompt={p} onMenu={setMenuFor} />
           ))}
         </ul>
       )}
@@ -196,18 +208,173 @@ export function LibraryBrowser({
         filter={filter}
         facets={facets}
       />
+      {menuFor && (
+        <CardActionsSheet prompt={menuFor} onClose={() => setMenuFor(null)} />
+      )}
     </section>
   );
 }
 
-/** Memoized card row: recognition-first — title, mode, model, an output
- *  preview, and human time (2026-07 UX audit). */
-const PromptRow = memo(function PromptRow({ prompt: p }: { prompt: PromptCard }) {
+/** Per-card actions (2026-07 UX audit): rename, favorite, archive, and
+ *  soft delete with Undo — summoned from the card's ⋯ button. */
+function CardActionsSheet({
+  prompt,
+  onClose,
+}: {
+  prompt: PromptCard;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [title, setTitle] = useState(prompt.title);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmPurge, setConfirmPurge] = useState(false);
+  const [pending, startAction] = useTransition();
+
+  function run(fn: () => Promise<{ ok: boolean; error?: string }>, close = true) {
+    setError(null);
+    startAction(async () => {
+      const res = await fn();
+      if (!res.ok) {
+        setError(res.error ?? "That didn't stick — try again.");
+        return;
+      }
+      router.refresh();
+      if (close) onClose();
+    });
+  }
+
+  function softDelete() {
+    const id = prompt.id;
+    setError(null);
+    startAction(async () => {
+      const res = await softDeletePromptAction(id);
+      if (!res.ok) {
+        setError(res.error ?? "Couldn't delete.");
+        return;
+      }
+      router.refresh();
+      onClose();
+      toast({
+        text: "Prompt deleted",
+        action: {
+          label: "Undo",
+          onAction: () => {
+            void undoDeletePromptAction(id).then(() => router.refresh());
+          },
+        },
+      });
+    });
+  }
+
+  const itemClass =
+    "glass font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60";
+
   return (
-    <li>
+    <Sheet open onClose={onClose} title={prompt.title}>
+      <div className="flex flex-col gap-4">
+        {/* Rename. */}
+        <div className="flex gap-2">
+          <label htmlFor="rename-prompt" className="sr-only">
+            Prompt name
+          </label>
+          <input
+            id="rename-prompt"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={120}
+            className="glass font-body min-w-0 flex-1 rounded-xl bg-transparent px-4 py-2.5 text-base text-text focus:outline-none"
+          />
+          <button
+            type="button"
+            disabled={pending || title.trim() === "" || title.trim() === prompt.title}
+            onClick={() => run(() => updatePromptTitleAction(prompt.id, title))}
+            className="btn-laser min-h-[44px] shrink-0 rounded-xl px-4 text-sm disabled:opacity-50"
+          >
+            Rename
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              run(() => setFavoriteAction(prompt.id, !prompt.favorite))
+            }
+            className={itemClass}
+          >
+            {prompt.favorite ? "Remove from favorites" : "Add to favorites"}
+            <span aria-hidden="true" className="text-accent">
+              ★
+            </span>
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => setArchivedAction(prompt.id, !prompt.archived))}
+            className={itemClass}
+          >
+            {prompt.archived ? "Unarchive" : "Archive"}
+            <span aria-hidden="true">▤</span>
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={softDelete}
+            className="btn-destructive font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm disabled:opacity-60"
+          >
+            Delete
+            <span aria-hidden="true">✕</span>
+          </button>
+          {prompt.archived && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setConfirmPurge(true)}
+              className="btn-destructive font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm disabled:opacity-60"
+            >
+              Delete permanently
+              <span aria-hidden="true">⌦</span>
+            </button>
+          )}
+        </div>
+
+        {error && (
+          <p className="font-body text-sm text-flare" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+
+      <ConfirmSheet
+        open={confirmPurge}
+        onClose={() => setConfirmPurge(false)}
+        title="Delete permanently?"
+        body={`"${prompt.title}" and all ${prompt.versions} of its versions will be gone for good — this cannot be undone.`}
+        confirmLabel="Delete permanently"
+        destructive
+        onConfirm={() => run(() => deletePromptAction(prompt.id))}
+      />
+    </Sheet>
+  );
+}
+
+/** Memoized card row: recognition-first — title, mode, model, an output
+ *  preview, and human time (2026-07 UX audit). The ⋯ menu is a SIBLING of
+ *  the link, absolutely positioned, so no interactive element nests. */
+const PromptRow = memo(function PromptRow({
+  prompt: p,
+  onMenu,
+}: {
+  prompt: PromptCard;
+  onMenu: (p: PromptCard) => void;
+}) {
+  return (
+    <li className="relative">
       <Link
         href={`/library/${p.id}`}
-        className="glass hover-hair block rounded-2xl p-4 transition-colors"
+        className="glass hover-hair block rounded-2xl p-4 pr-12 transition-colors"
       >
         <div className="flex items-start justify-between gap-3">
           <p className="font-body min-w-0 text-base text-text">
@@ -235,6 +402,16 @@ const PromptRow = memo(function PromptRow({ prompt: p }: { prompt: PromptCard })
           {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
         </p>
       </Link>
+      <button
+        type="button"
+        onClick={() => onMenu(p)}
+        aria-label={`Actions for ${p.title}`}
+        className="absolute bottom-1 right-1 flex h-11 w-11 items-center justify-center rounded-xl text-silver transition-colors hover:text-chalk"
+      >
+        <span aria-hidden="true" className="text-lg leading-none">
+          ⋯
+        </span>
+      </button>
     </li>
   );
 });

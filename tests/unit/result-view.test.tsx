@@ -4,8 +4,15 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { diffWords } from "@/lib/enhance/diff";
 import type { EnhanceResponse } from "@/lib/enhance/use-enhance";
 
+const savePromptAction = vi.fn(async (): Promise<Record<string, unknown>> => ({
+  ok: true,
+  promptId: "p1",
+}));
+const addVersionAction = vi.fn(async () => ({ ok: true, promptId: "p1" }));
 vi.mock("@/lib/library/actions", () => ({
-  savePromptAction: vi.fn(async () => ({ ok: true, promptId: "p1" })),
+  savePromptAction: (...args: unknown[]) => savePromptAction(...args),
+  addVersionAction: (...args: unknown[]) =>
+    addVersionAction(...(args as Parameters<typeof addVersionAction>)),
   logShareAction: vi.fn(async () => ({ ok: true })),
 }));
 vi.mock("@/lib/pwa/outbox", () => ({
@@ -138,6 +145,29 @@ describe("result view (mobile-first order)", () => {
     renderView({ onRefine: vi.fn(), refinePending: true });
     expect(screen.getByRole("button", { name: "More detail" })).toBeDisabled();
     expect(screen.getByRole("status")).toHaveTextContent("Refining…");
+  });
+});
+
+describe("duplicate detection at save", () => {
+  it("offers Open / Save as new version instead of a second card", async () => {
+    savePromptAction.mockResolvedValueOnce({
+      ok: false,
+      duplicate: { promptId: "p9", title: "Launch email" },
+    });
+    renderView();
+    fireEvent.click(screen.getByRole("button", { name: "Save to library" }));
+    expect(await screen.findByText(/Already in your library as/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
+      "href",
+      "/library/p9",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save as new version" }));
+    expect(addVersionAction).toHaveBeenCalledWith(
+      "p9",
+      expect.objectContaining({ output: "write a concise summary" }),
+    );
+    // Resolves into the normal saved state.
+    expect(await screen.findByText(/Saved ✓/)).toBeTruthy();
   });
 });
 

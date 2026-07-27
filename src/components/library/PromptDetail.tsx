@@ -12,7 +12,8 @@ import { PartialOutput } from "@/components/diff/PartialOutput";
 import {
   addVersionAction,
   restoreVersionAction,
-  deletePromptAction,
+  softDeletePromptAction,
+  undoDeletePromptAction,
   updateTagsAction,
 } from "@/lib/library/actions";
 
@@ -144,12 +145,26 @@ export function PromptDetail({
   }
 
   function remove() {
-    if (!confirm("Delete this prompt and all its versions?")) return;
+    // Soft delete + Undo toast (2026-07 UX audit) — no blocking confirm, no
+    // irreversible cascade from the everyday delete path.
     setActionError(null);
+    const id = prompt.id;
     startTransition(async () => {
-      const res = await deletePromptAction(prompt.id);
-      if (res.ok) router.push("/library");
-      else setActionError(res.error ?? "Couldn't delete the prompt.");
+      const res = await softDeletePromptAction(id);
+      if (!res.ok) {
+        setActionError(res.error ?? "Couldn't delete the prompt.");
+        return;
+      }
+      router.push("/library");
+      toast({
+        text: "Prompt deleted",
+        action: {
+          label: "Undo",
+          onAction: () => {
+            void undoDeletePromptAction(id).then(() => router.refresh());
+          },
+        },
+      });
     });
   }
 

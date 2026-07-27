@@ -22,7 +22,11 @@ import {
   isShapePreserving,
   type RefineKind,
 } from "@/lib/providers/formatters";
-import { savePromptAction, logShareAction } from "@/lib/library/actions";
+import {
+  savePromptAction,
+  addVersionAction,
+  logShareAction,
+} from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useToast } from "@/components/ui/Toast";
 import { InputSegments, OutputSegments } from "@/components/diff/segments";
@@ -70,6 +74,9 @@ export function TransformationDiff({
   const [savedId, setSavedId] = useState<string | null>(null);
   const [queued, setQueued] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<{ promptId: string; title: string } | null>(
+    null,
+  );
   const [saving, startSave] = useTransition();
   const [compareOpen, setCompareOpen] = useState(false);
 
@@ -110,6 +117,7 @@ export function TransformationDiff({
     setSavedId(null);
     setQueued(false);
     setSaveError(null);
+    setDuplicate(null);
     setCopied(false);
     setCompareOpen(false);
     setShowOriginal(
@@ -147,10 +155,36 @@ export function TransformationDiff({
       try {
         const res = await savePromptAction(payload);
         if (res.ok && res.promptId) setSavedId(res.promptId);
+        else if (res.duplicate) setDuplicate(res.duplicate);
         else setSaveError(res.error ?? "Couldn't save.");
       } catch {
         await enqueueOutbox("save-prompt", payload);
         setQueued(true);
+      }
+    });
+  }
+
+  /** Duplicate resolution: append to the existing prompt instead. */
+  function saveAsNewVersion() {
+    if (!duplicate) return;
+    setSaveError(null);
+    const dup = duplicate;
+    startSave(async () => {
+      const res = await addVersionAction(dup.promptId, {
+        input,
+        output: effectiveOutput,
+        rationale: result.rationale,
+        mode,
+        target,
+        modelUsed: result.modelUsed,
+        tokenIn: result.tokenIn,
+        tokenOut: result.tokenOut,
+      });
+      if (res.ok && res.promptId) {
+        setSavedId(res.promptId);
+        setDuplicate(null);
+      } else {
+        setSaveError(res.error ?? "Couldn't save the new version.");
       }
     });
   }
@@ -443,6 +477,35 @@ export function TransformationDiff({
           ))}
         </div>
       </div>
+      {/* Duplicate resolution — this exact content is already saved. */}
+      {duplicate && !savedId && (
+        <div
+          className="rounded-2xl border border-hair p-4"
+          role="status"
+          aria-label="Duplicate detected"
+        >
+          <p className="font-body text-sm text-text">
+            Already in your library as{" "}
+            <span className="text-chalk">&ldquo;{duplicate.title}&rdquo;</span>.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link
+              href={`/library/${duplicate.promptId}`}
+              className="btn-secondary flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm"
+            >
+              Open
+            </Link>
+            <button
+              type="button"
+              onClick={saveAsNewVersion}
+              disabled={saving}
+              className="btn-laser flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save as new version"}
+            </button>
+          </div>
+        </div>
+      )}
       {saveError && (
         <p className="font-body text-sm text-flare" role="alert">
           {saveError}
