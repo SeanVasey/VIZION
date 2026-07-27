@@ -47,13 +47,16 @@ const TABS: Tab[] = [
     ),
   },
   {
+    // Renamed from "Profile" (2026-07 UX audit): the screen is preferences +
+    // account management. The route stays /profile (no URL churn).
     href: "/profile",
-    label: "Profile",
+    label: "Settings",
     icon: (
+      // Gear (1.5px stroke, rounded joins — style-guide §1.4).
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-6 w-6">
-        <circle cx="12" cy="8.5" r="3.5" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
         <path
-          d="M5 19.5a7 7 0 0 1 14 0"
+          d="M12 3.5v2.2m0 12.6v2.2m8.5-8.5h-2.2M5.7 12H3.5m14.5-6-1.6 1.6M7.6 16.4 6 18m12 0-1.6-1.6M7.6 7.6 6 6"
           stroke="currentColor"
           strokeWidth="1.5"
           strokeLinecap="round"

@@ -82,6 +82,9 @@ interface UIState {
   /** Whether new attachments upload to storage (false = analyze without
    *  keeping — the ephemeral path never uploads). */
   mediaStoreByDefault: boolean;
+  /** Suppress the ambient effects (mesh canvas, auroras, shimmer) on this
+   *  device — a performance/comfort knob independent of reduced-motion. */
+  reducedEffects: boolean;
 
   setTheme: (theme: Theme) => void;
   setActiveMode: (mode: ModeId) => void;
@@ -91,6 +94,7 @@ interface UIState {
   setEditorDraft: (draft: string) => void;
   setMediaNoticeAcknowledged: (v: boolean) => void;
   setMediaStoreByDefault: (v: boolean) => void;
+  setReducedEffects: (v: boolean) => void;
 }
 
 /**
@@ -107,6 +111,7 @@ export const useUIStore = create<UIState>()(
       editorDraft: "",
       mediaNoticeAcknowledged: false,
       mediaStoreByDefault: true,
+      reducedEffects: false,
 
       setTheme: (theme) => set({ theme }),
       setActiveMode: (activeMode) => set({ activeMode }),
@@ -122,6 +127,7 @@ export const useUIStore = create<UIState>()(
       setMediaNoticeAcknowledged: (mediaNoticeAcknowledged) =>
         set({ mediaNoticeAcknowledged }),
       setMediaStoreByDefault: (mediaStoreByDefault) => set({ mediaStoreByDefault }),
+      setReducedEffects: (reducedEffects) => set({ reducedEffects }),
     }),
     {
       name: UI_STORE_KEY,
@@ -173,6 +179,9 @@ export const useUIStore = create<UIState>()(
         editorDraft: state.editorDraft,
         mediaNoticeAcknowledged: state.mediaNoticeAcknowledged,
         mediaStoreByDefault: state.mediaStoreByDefault,
+        // reducedEffects rides the shallow merge: a persisted state without
+        // the key falls back to the initial `false` — no version bump needed.
+        reducedEffects: state.reducedEffects,
       }),
     },
   ),

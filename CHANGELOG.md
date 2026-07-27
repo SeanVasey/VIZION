@@ -6,6 +6,37 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — Profile is now Settings, with one persistence model
+
+The screen was preferences and account management, not a profile — it now
+says so (tab, header, and title read **Settings**; the `/profile` route is
+unchanged). Information architecture: **Identity · Account · Defaults ·
+Appearance · Data & privacy · About**. Account deletion is deferred (owner
+decision) — the Data & privacy section leaves a clean seam.
+
+- **One persistence path.** Every durable setting writes through a shared
+  `useSettingWrite` hook over server actions, with optimistic apply,
+  rollback on failure, and **status rendered next to the control that
+  changed** ("Saving… / Saved ✓ / error") — replacing the old three-idiom
+  split (batched identity save · immediate action · raw fire-and-forget
+  theme write, which surfaced no errors at all).
+- **Identity is form-commit done right**: visible input boundaries, live
+  display-name validation (3–24 lowercase chars), and **Save disabled until
+  dirty AND valid** (it used to be always-armed and re-submit identical
+  values).
+- **Email is a distinct verified workflow** — read-only display + a
+  "Change email" sheet that states the confirmation contract, a pending
+  chip for an unconfirmed `new_email` with Resend, and no more
+  partial-commit (names saved, email failed) inside one batched save.
+- **Data & privacy**: the stored-media manager mounted unconditionally
+  (no quota gate), clear-local-draft with Undo, a written retention story,
+  and **Export my data** (profile + prompts + versions + media metadata as
+  JSON).
+- **Appearance** gains a **Reduced effects** toggle — a device-local switch
+  that silences the ambient mesh/aurora/shimmer layers independently of the
+  OS reduced-motion preference.
+- **About**: single-sourced version, acknowledgements, license pointers.
+
 ### Fixed — revise integrity + prompt-detail scale
 
 - **Revise seeds from the current OUTPUT** — the editor previously started
