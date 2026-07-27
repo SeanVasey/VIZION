@@ -21,6 +21,7 @@ import { PartialOutput } from "@/components/diff/PartialOutput";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
 import { AttachmentTray } from "@/components/media/AttachmentTray";
+import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -71,6 +72,8 @@ export function EnhanceComposer() {
   // Reference-role attachment context (built by the tray) — visual context
   // for the text task, sent alongside the enhance request.
   const [mediaContext, setMediaContext] = useState<string[]>([]);
+  // Focus lives somewhere inside the composer — gates the keyboard action bar.
+  const [composerFocused, setComposerFocused] = useState(false);
 
   // Cheap, deterministic token estimate (~4 chars/token) for the readout.
   const approxTokens = editorDraft.trim()
@@ -178,7 +181,18 @@ export function EnhanceComposer() {
       {/* Composer — a single rounded surface that nests the target picker into
           its top rail and the reset / Enhance actions into its bottom rail, so
           every control lives within the one rounded-rectangle. */}
-      <div className="glass no-pull-refresh overflow-hidden rounded-2xl transition-shadow focus-within:shadow-focus">
+      <div
+        className="glass no-pull-refresh overflow-hidden rounded-2xl transition-shadow focus-within:shadow-focus"
+        // React focus events bubble (focusin/focusout), so the chassis knows
+        // when anything inside it holds focus — the signal the keyboard
+        // action bar needs. relatedTarget guards focus moving WITHIN it.
+        onFocus={() => setComposerFocused(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setComposerFocused(false);
+          }
+        }}
+      >
         {/* Top rail — model target, nested under the rounded top corners. */}
         <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
           <label
@@ -390,6 +404,16 @@ export function EnhanceComposer() {
           onRefine={handleRefine}
         />
       )}
+
+      {/* Keeps ENHANCE reachable above the software keyboard (P0). Portaled
+          and inset-positioned inside the component; a no-op without one. */}
+      <KeyboardActionBar
+        active={composerFocused}
+        tokens={approxTokens}
+        pending={enhanceMutation.isPending}
+        disabled={enhanceMutation.isPending || isEmpty}
+        onEnhance={runEnhance}
+      />
 
       <ConfirmSheet
         open={confirmStopOpen}
