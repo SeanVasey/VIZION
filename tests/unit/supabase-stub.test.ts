@@ -24,6 +24,8 @@ import { createStubServer } from "../e2e/support/supabase-stub.mjs";
 let server: Server;
 let control: typeof import("../e2e/support/stub-control");
 let base: string;
+/** Restored in `afterAll` — this file is the only thing that sets it. */
+let originalPortEnv: string | undefined;
 
 beforeAll(async () => {
   server = createStubServer();
@@ -33,12 +35,20 @@ beforeAll(async () => {
   // `stub-control` reads the port at module load, so it has to be imported
   // after the server has one — which also proves the helper honours
   // SUPABASE_STUB_PORT rather than hardcoding 54321.
+  originalPortEnv = process.env.SUPABASE_STUB_PORT;
   process.env.SUPABASE_STUB_PORT = String(port);
   control = await import("../e2e/support/stub-control");
   expect(control.STUB_URL).toBe(base);
 });
 
 afterAll(async () => {
+  // Vitest isolates test files today, so nothing else would see this. That is a
+  // property of the runner's config, not of this file, and it is one setting
+  // away from not being true.
+  if (originalPortEnv === undefined) delete process.env.SUPABASE_STUB_PORT;
+  else process.env.SUPABASE_STUB_PORT = originalPortEnv;
+  vi.resetModules();
+
   await new Promise<void>((resolve, reject) =>
     server.close((err) => (err ? reject(err) : resolve())),
   );
@@ -104,8 +114,26 @@ describe("stub Supabase reset", () => {
       resolve(process.cwd(), "tests/e2e/global-setup.ts"),
       "utf8",
     );
-    expect(src).toMatch(/resetStubState[^}]*} from "\.\/support\/stub-control"/);
+    // `[\s\S]*?` rather than `[^}]*`: both span newlines, so both survive
+    // Prettier breaking the import across lines, but only this one says so.
+    expect(src).toMatch(
+      /import \{[\s\S]*?resetStubState[\s\S]*?\} from "\.\/support\/stub-control"/,
+    );
     expect(src).toMatch(/await resetStubState\(\)/);
+  });
+
+  it("refuses a nonsense SUPABASE_STUB_PORT rather than building a NaN URL", async () => {
+    // `Number("nope")` is NaN, which formats into `http://127.0.0.1:NaN` and
+    // resurfaces as a fetch failure several layers from the typo. This module
+    // is imported by `playwright.config.ts`, so the throw lands at config load.
+    process.env.SUPABASE_STUB_PORT = "not-a-port";
+    vi.resetModules();
+    await expect(import("../e2e/support/stub-control")).rejects.toThrow(
+      /SUPABASE_STUB_PORT must be a port number between 1 and 65535/,
+    );
+
+    process.env.SUPABASE_STUB_PORT = String((server.address() as AddressInfo).port);
+    vi.resetModules();
   });
 
   it("reports an unreachable stub as an error, never as a clean reset", async () => {

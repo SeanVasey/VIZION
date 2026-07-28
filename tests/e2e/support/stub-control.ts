@@ -6,8 +6,26 @@
  * address; two of them hardcoded `54321` independently, so moving it meant
  * finding all three.
  */
-export const STUB_PORT = Number(process.env.SUPABASE_STUB_PORT ?? 54321);
+export const STUB_PORT = parsePort(process.env.SUPABASE_STUB_PORT);
 export const STUB_URL = `http://127.0.0.1:${STUB_PORT}`;
+
+/**
+ * Throws rather than letting a bad value through. `Number("nope")` is `NaN`,
+ * which formats into `http://127.0.0.1:NaN` and surfaces as a fetch failure
+ * several layers away from the typo that caused it — and this module is
+ * imported by `playwright.config.ts`, so the throw lands at config load with
+ * the offending value in the message.
+ */
+function parsePort(raw: string | undefined): number {
+  if (raw === undefined) return 54321;
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `SUPABASE_STUB_PORT must be a port number between 1 and 65535, got ${JSON.stringify(raw)}.`,
+    );
+  }
+  return port;
+}
 
 /**
  * Wipe the stub back to first-run condition. Call once per run, before any
