@@ -6,6 +6,30 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — WebKit e2e could never have passed, and said so the moment it ran
+
+The `mobile-safari` Playwright project had never actually executed. Run it and
+every page renders with **no CSS at all**: `upgrade-insecure-requests` in the
+CSP rewrites every same-origin subresource to `https://127.0.0.1:3100`, the e2e
+server speaks only http, and the stylesheet and fonts die in the TLS handshake.
+Chromium hides this by exempting loopback from the upgrade. WebKit does not,
+and the focus-ring spec — the one that exists to catch a missing focus ring —
+duly reported one.
+
+Production was never affected: it is https, where the directive is a no-op.
+What was affected is everything served over plain http — the e2e server, and
+`next dev` in real Safari.
+
+`upgrade-insecure-requests` and HSTS are now emitted only for an https origin
+(`buildSecurityHeaders(httpsOrigin)`), decided at build time; the sole opt-out
+is `VIZION_HTTP_ORIGIN=1`, which `playwright.config.ts` sets for its http
+server. Production's headers are byte-identical to before.
+
+Next's per-request `has`/`missing` conditions were the obvious mechanism and
+are the wrong one: they compile into `routes-manifest.json` and are then not
+enforced at runtime — a rule keyed on a header that was absent still applied.
+A security header must not hang off a condition that silently no-ops.
+
 ### Added — the media the quota meter counts is now visible, and openable
 
 Settings → Data & privacy showed a storage meter over a list of picture-frame

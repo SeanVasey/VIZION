@@ -61,6 +61,14 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");
+    // This server is plain http, so `upgrade-insecure-requests` must NOT be
+    // here: it would rewrite every same-origin subresource to https, where
+    // nothing is listening, and WebKit (unlike Chromium, which exempts
+    // loopback) would then render every page with no CSS at all. The https
+    // variant, which production gets, is pinned in
+    // tests/unit/security-headers.test.ts.
+    expect(csp).not.toContain("upgrade-insecure-requests");
+    expect(res.headers()["strict-transport-security"]).toBeUndefined();
   });
 
   test("exposes a skip-to-content link for keyboard users", async ({ page }) => {

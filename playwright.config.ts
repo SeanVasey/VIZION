@@ -33,5 +33,11 @@ export default defineConfig({
     url: baseURL,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,
+    // This server is plain http on loopback. `upgrade-insecure-requests` would
+    // rewrite every subresource to https, where nothing is listening, and
+    // WebKit (unlike Chromium, which exempts loopback) would then render every
+    // page with no CSS. The flag is read at BUILD time — hence set for the
+    // whole chained command, not just `next start`. See next.config.ts.
+    env: { VIZION_HTTP_ORIGIN: "1" },
   },
 });

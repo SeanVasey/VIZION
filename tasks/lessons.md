@@ -1122,9 +1122,56 @@ open.
   cached — but that was luck inherited from an earlier decision, not a check
   the feature performed on itself.
 
-**Environment note.** The sandbox image ships `chromium-1194` and no WebKit,
-while this project's Playwright pins 1223, so `npm run test:e2e` fails to launch
-both projects. The shell specs were run against the installed binary via a
-throwaway config with `launchOptions.executablePath` (11/11 green, mobile-chrome
-device profile); the `mobile-safari` project can only be verified in CI, which
-installs its own browsers.
+**Environment note.** The sandbox image shipped `chromium-1194` and no WebKit
+against this project's 1223 pin. Installing the pinned browsers
+(`npx playwright install --with-deps webkit chromium`) was the fix — see the
+next entry for what running WebKit immediately found.
+
+## 2026-07-28 — A browser you never run is a test you never wrote
+
+**What broke.** The `mobile-safari` Playwright project had, as far as I can
+tell, never executed. The moment it did, it failed — and not marginally: WebKit
+renders every page of this app with **no CSS at all** when the server is plain
+http. `upgrade-insecure-requests` in the CSP rewrites every same-origin
+subresource to `https://127.0.0.1:3100`, where nothing is listening for TLS, so
+the stylesheet and all four fonts die in the handshake. Chromium exempts
+loopback from the upgrade and therefore hides the whole thing.
+
+Production was never affected — it is https, where the directive is inert. The
+casualties were the e2e server and `next dev` in real Safari, i.e. exactly the
+browser this iOS-first PWA is built for.
+
+**What to avoid.**
+
+- **"Configured" is not "run."** Two projects in `playwright.config.ts` looked
+  like Chromium *and* WebKit coverage. One of them was decoration. A browser
+  binary that isn't installed doesn't fail loudly in a way anyone reads —
+  it fails at launch, which reads as an environment problem, which reads as
+  "not my test". Check that each project has actually produced a pass.
+- **The failing assertion named the symptom, not the cause.** The focus-ring
+  spec reported `box-shadow: none` and I nearly filed it as a WCAG regression.
+  It wasn't: every custom property resolved to `""`, which meant no stylesheet,
+  which meant a *loading* failure wearing a *styling* failure's clothes. When a
+  computed value is empty, check whether the sheet loaded before you debug the
+  cascade — `document.styleSheets[0].cssRules.length` and the page's
+  `requestfailed` events answered it in one probe.
+- **Next's `has`/`missing` on `headers()` compile but do not enforce.** They
+  land in `routes-manifest.json` looking correct, and the runtime applies the
+  rule anyway — a rule keyed on `x-probe: yes` still applied to a request with
+  no `x-probe` header. I proved it with an absent-by-construction key rather
+  than trusting the manifest. Never gate a SECURITY header on a mechanism that
+  can silently no-op: the failure mode is "hardening quietly absent", which no
+  test would catch unless it tested the thing itself.
+- **A header that differs by environment should take the environment as an
+  argument.** `buildSecurityHeaders(httpsOrigin)` is pure and testable from
+  both sides; reading `process.env` inside the header list would have made the
+  production variant untestable, and the production variant is the one that
+  matters. It is resolved at BUILD time, because `headers()` is compiled into
+  the manifest and never re-evaluated per request — so the e2e flag has to be
+  set for `next build`, not just `next start` (Playwright's `webServer.env`
+  covers the whole chained command).
+- **`reuseExistingServer: !process.env.CI` will hand you a stale build.** Two
+  runs "failed the fix" because Playwright reused a `next-server` still holding
+  the pre-fix manifest; the giveaway was a 22-test suite finishing in 6.7s with
+  no build in the log. Kill the port before trusting a local e2e result, and
+  treat an implausibly fast run as a result you have not actually got.
