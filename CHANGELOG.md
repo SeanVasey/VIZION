@@ -25,10 +25,24 @@ What was affected is everything served over plain http — the e2e server, and
 is `VIZION_HTTP_ORIGIN=1`, which `playwright.config.ts` sets for its http
 server. Production's headers are byte-identical to before.
 
-Next's per-request `has`/`missing` conditions were the obvious mechanism and
-are the wrong one: they compile into `routes-manifest.json` and are then not
-enforced at runtime — a rule keyed on a header that was absent still applied.
-A security header must not hang off a condition that silently no-ops.
+Next's per-request `has`/`missing` conditions were the obvious mechanism. They
+are not used because they would make production's posture depend on the proxy
+always sending `x-forwarded-proto`, which nothing here can verify — preview
+deployments sit behind Vercel's SSO edge, which substitutes its own CSP. A
+build-time input is checkable against the compiled manifest.
+
+### Corrected — `has`/`missing` do work; the claim that they don't was mine
+
+The note above originally said Next's `has`/`missing` conditions compile into
+`routes-manifest.json` and are then not enforced at runtime. That is false, and
+it was asserted in a commit message, this changelog, a runbook and the config
+before being re-tested. Re-run cleanly, they behave exactly as documented: no
+`x-probe` header → the rule is skipped; `x-probe: yes` → applied; `x-probe: no`
+→ skipped. The original probe had been answered by a stale `next-server` still
+holding the port, so it read the *previous* build's headers.
+
+Nothing about the shipped behaviour changes — the build-time flag stays, for
+the reason now stated above rather than the one originally given.
 
 ### Added — the media the quota meter counts is now visible, and openable
 

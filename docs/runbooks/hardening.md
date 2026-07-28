@@ -25,9 +25,14 @@
       takes the transport as an argument; production gets the full set, and the
       only opt-out is `VIZION_HTTP_ORIGIN=1`, set by `playwright.config.ts` for
       the http e2e server. It is read at BUILD time (`headers()` is compiled
-      into `routes-manifest.json`) — Next's per-request `has`/`missing`
-      conditions compile but are not enforced at runtime, so they must not be
-      used to gate a security header. Pinned by
+      into `routes-manifest.json`). Next's per-request `has`/`missing`
+      conditions **do work** — an earlier note here claimed they compile but
+      aren't enforced, which was wrong, and came from a probe served by a stale
+      `next-server` still holding the port. They are not used because they would
+      make production's posture depend on the proxy always sending
+      `x-forwarded-proto`, which cannot be verified from a test here (preview
+      deployments sit behind Vercel's SSO edge, which substitutes its own CSP);
+      a build-time input is checkable against the compiled manifest. Pinned by
       `tests/unit/security-headers.test.ts` (production variant) and the e2e CSP
       spec (http variant).
 - [x] **Console stripped in production** — `compiler.removeConsole` (keeps
