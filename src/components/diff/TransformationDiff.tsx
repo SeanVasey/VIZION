@@ -126,6 +126,12 @@ export function TransformationDiff({
     [reviewable, rejected, result],
   );
 
+  // Web Share is absent on Firefox and on desktop Chrome outside Windows/
+  // ChromeOS. Detected once rather than probed at click time, so the button
+  // can be hidden instead of offered and then quietly doing something else.
+  const canShare =
+    typeof navigator !== "undefined" && typeof navigator.share === "function";
+
   /** The model that ACTUALLY ran. Under Auto the prop is only the fallback the
    *  client sent; the server reports what it resolved to. Everything
    *  user-facing or persisted reads this, so the library records the model
@@ -233,7 +239,7 @@ export function TransformationDiff({
 
   async function share() {
     const text = effectiveOutput;
-    if (typeof navigator !== "undefined" && "share" in navigator) {
+    if (canShare) {
       try {
         await navigator.share({ title: "VIZ(IO)N prompt", text });
         // The activity feed advertises "shared" events — log them when the
@@ -463,13 +469,20 @@ export function TransformationDiff({
               {saving ? "Saving…" : "Save to library"}
             </button>
           )}
-          <button
-            type="button"
-            onClick={share}
-            className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
-          >
-            Share
-          </button>
+          {/* Only where the platform actually has a share sheet. Without the
+              gate this silently fell through to a clipboard write — a second
+              button doing exactly what Copy does, one row away, with the
+              "Copied ✓" flash landing on the OTHER button. Same policy the
+              composer's paste pill already applies to its own capability. */}
+          {canShare && (
+            <button
+              type="button"
+              onClick={share}
+              className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
+            >
+              Share
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setCompareOpen(true)}

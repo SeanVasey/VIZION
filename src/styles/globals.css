@@ -323,10 +323,19 @@
   .pr-safe {
     padding-right: env(safe-area-inset-right);
   }
-  /* Editor surface: suppress pull-to-refresh so in-progress text is protected. */
+  /* Editor surface: keep an overscroll inside the composer instead of letting
+     it chain to the page and pull-to-refresh away in-progress text.
+
+     `overscroll-behavior: contain` is the whole mechanism — pull-to-refresh is
+     an OVERSCROLL, and body already carries `overscroll-behavior-y: none`
+     besides. This used to also set `touch-action: pan-x pan-y`, which reads
+     like it belongs but did nothing here: that value permits panning on both
+     axes and omits `pinch-zoom`, so its only real effect was to disable
+     pinch-to-zoom across the app's primary text surface — while the viewport
+     deliberately allows `maximumScale: 5`. Zoom is how a low-vision user reads
+     their own prompt; the suppression it bought was already covered twice. */
   .no-pull-refresh {
     overscroll-behavior: contain;
-    touch-action: pan-x pan-y;
   }
 
   /* Ambient mesh ground — quiet directional wash over Void; the animated
