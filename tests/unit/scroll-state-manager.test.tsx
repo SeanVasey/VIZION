@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
-import { InteractionManager } from "@/components/InteractionManager";
+import { ScrollStateManager } from "@/components/ScrollStateManager";
 
 const root = () => document.documentElement;
 
@@ -13,42 +13,20 @@ afterEach(() => {
   delete root().dataset.scrolling;
 });
 
-describe("InteractionManager", () => {
+describe("ScrollStateManager", () => {
   it("renders nothing", () => {
-    const { container } = render(<InteractionManager />);
+    const { container } = render(<ScrollStateManager />);
     expect(container).toBeEmptyDOMElement();
-  });
-
-  describe("iOS :active enablement", () => {
-    it("attaches a passive touch listener so WebKit applies :active styles", () => {
-      const add = vi.spyOn(document, "addEventListener");
-      render(<InteractionManager />);
-
-      const touch = add.mock.calls.find(([type]) => type === "touchstart");
-      expect(
-        touch,
-        "no touchstart listener — every active: utility is dead on iOS",
-      ).toBeDefined();
-      // Passive, or the listener it exists purely to register could itself
-      // delay a scroll frame — trading one jank for another.
-      expect(touch![2]).toMatchObject({ passive: true });
-    });
-
-    it("removes the listener on unmount", () => {
-      const remove = vi.spyOn(document, "removeEventListener");
-      render(<InteractionManager />).unmount();
-      expect(remove.mock.calls.some(([type]) => type === "touchstart")).toBe(true);
-    });
   });
 
   describe("data-scrolling", () => {
     it("is absent at rest", () => {
-      render(<InteractionManager />);
+      render(<ScrollStateManager />);
       expect(root().dataset.scrolling).toBeUndefined();
     });
 
     it("is set while the page is moving and cleared once it settles", () => {
-      render(<InteractionManager />);
+      render(<ScrollStateManager />);
 
       window.dispatchEvent(new Event("scroll"));
       expect(root().dataset.scrolling).toBe("");
@@ -63,7 +41,7 @@ describe("InteractionManager", () => {
     });
 
     it("keeps the attribute up across a continuous scroll", () => {
-      render(<InteractionManager />);
+      render(<ScrollStateManager />);
       for (let i = 0; i < 10; i++) {
         window.dispatchEvent(new Event("scroll"));
         vi.advanceTimersByTime(16);
@@ -78,14 +56,14 @@ describe("InteractionManager", () => {
       // Without capture, scrolling inside any of them would leave the glass at
       // full cost for the whole gesture.
       const add = vi.spyOn(window, "addEventListener");
-      render(<InteractionManager />);
+      render(<ScrollStateManager />);
       const scroll = add.mock.calls.find(([type]) => type === "scroll");
       expect(scroll).toBeDefined();
       expect(scroll![2]).toMatchObject({ passive: true, capture: true });
     });
 
     it("does not strand the attribute when it unmounts mid-scroll", () => {
-      const view = render(<InteractionManager />);
+      const view = render(<ScrollStateManager />);
       window.dispatchEvent(new Event("scroll"));
       expect(root().dataset.scrolling).toBe("");
 

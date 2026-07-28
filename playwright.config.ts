@@ -9,6 +9,10 @@ const baseURL = `http://127.0.0.1:${PORT}`;
  */
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Fails once, with an actionable message, if a configured project's browser
+  // is missing — instead of N identical launch errors that read as a broken
+  // suite. See the file for the incident this guards against.
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

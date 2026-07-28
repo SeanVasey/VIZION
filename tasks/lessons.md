@@ -1212,17 +1212,16 @@ The design decision it justified survived on inertia.
   chosen. When the premise fell, the conclusion still happened to be right —
   but that was luck, and the reason had to be rewritten from scratch.
 
-## 2026-07-28 — Two dead affordances that a desktop browser cannot show you
+## 2026-07-28 — A weak affordance, a slow route, and a diagnosis I made up
 
 **What broke.** The bottom nav "had" press feedback (`active:scale-95`) and
-"had" fast navigation (Next `<Link>`). Neither was true on a phone.
+"had" fast navigation (Next `<Link>`). Neither was much use on a phone.
 
-`:active` was dead: **WebKit applies `:active` styles only when the document
-carries at least one touch listener.** There wasn't one, so that utility — and
-the four others like it elsewhere in the app — rendered nothing on iOS. It
-works perfectly in a desktop browser, in Playwright's Chromium, and in every
-screenshot anyone had taken. One passive no-op `touchstart` listener revives
-all of them.
+The affordance was too weak to see: a ~5% shrink on a 150ms ramp, no colour or
+opacity channel, on a 64px bar under a thumb covering most of it — with the
+native tap highlight already suppressed by
+`-webkit-tap-highlight-color: transparent`. `:active` also cannot outlive
+pointer-up, so a 40ms tap bought 40ms of feedback.
 
 Navigation was slow for a reason no amount of press polish could fix: **no
 route had a `loading.tsx`**, so a tab press blocked on the destination's full
@@ -1234,11 +1233,11 @@ route has nothing to warm, so the framework's own latency-hiding was inert too.
 **What to avoid.**
 
 - **"There is a CSS rule for it" is not "the user sees it."** `active:scale-95`
-  had been in the file since P1 and read as covered in every review. A utility
-  that is a no-op on the target platform is indistinguishable from a correct
-  one in source. Where an affordance is load-bearing, drive it from state you
-  can assert on — `[data-pressed]` from pointer events — rather than from a
-  pseudo-class whose firing conditions differ per engine.
+  had been in the file since P1 and read as covered in every review. Nobody had
+  asked how big 5% is on a bar your thumb is covering. Where an affordance is
+  load-bearing, give it more than one channel and drive it from state you can
+  assert on — `[data-pressed]` — rather than a pseudo-class that needs a real
+  engine and a held pointer to observe.
 - **A tap is shorter than the eye.** A decisive thumb is down and up inside
   ~60ms: under four frames. `:active` cannot hold past pointer-up, so even
   where it fires, a fast tap flickers. The minimum-hold is not a nicety, and it
@@ -1275,3 +1274,55 @@ route has nothing to warm, so the framework's own latency-hiding was inert too.
   visible regression for a different reason (`--chrome` is ~0.43 opaque; text
   under an unblurred header is simply legible). Same one-line rule, two
   different reasons it must not be widened — both worth writing down next to it.
+
+## 2026-07-28 — I did it again: folklore, asserted, shipped, then disproven
+
+**What broke.** The entry directly above originally opened by explaining that
+WebKit applies `:active` only when the document carries a touch listener, that
+this app had none, and that adding one passive no-op `touchstart` listener was
+what revived the nav's press feedback. I put that in the code comments, the
+commit message, `CHANGELOG.md` and the PR body. It is false.
+
+When WebKit was finally installed and the guard test was mutation-checked, the
+test **passed with the listener deleted**. The reason: Next's App Router calls
+`hydrateRoot(document, …)`, so React's event delegation attaches the entire
+touch family — `touchstart`, `touchmove`, `touchend`, `touchcancel` — to
+`document` on every page, unconditionally. The precondition my explanation
+rested on had never been unmet. The listener was removed; the component that
+held it now does one thing and is named for it.
+
+The replacement explanation was *also* wrong on first pass. I reasoned that a
+150ms ramp could never complete inside a tap, so the scale stayed invisible.
+Measured in WebKit, an ~80ms press reaches 0.951 — essentially the full
+`scale-95`. The affordance was not failing to render; **5% is just not much to
+look at**, with no second channel and the native tap highlight suppressed.
+
+**What to avoid.**
+
+- **This is the third entry in this file about asserting an unverified claim
+  about a platform or framework, and the second in two days.** The prior one
+  ("`has`/`missing` don't enforce") even ends with *"a negative claim about a
+  framework is an extraordinary claim."* I read that file, wrote a new entry
+  under it, and made the same class of error in the same session. Reading the
+  lessons is not the same as applying them. Before a platform claim goes into
+  a comment, a commit or a changelog: reproduce it, or write "unverified".
+- **A guard you cannot make fail is not a guard.** The `touchstart` e2e test
+  was written from the same belief it was meant to protect, so it asserted a
+  condition the framework satisfies for free. Mutation-testing it is what
+  exposed the belief — not the test passing, the test refusing to fail. Every
+  new guard gets deliberately broken before it is trusted; the one that will
+  not break is the one telling you something.
+- **A plausible mechanism is not a diagnosis.** Both of my explanations were
+  mechanically sensible and both were wrong, and I only found out because a
+  number was measurable. Where an effect can be measured — a scale factor, a
+  duration, a listener registration — measure it instead of reasoning about it.
+- **An unverifiable claim should not survive as a one-line "cheap insurance"
+  either.** The tempting compromise was to keep the redundant listener with a
+  softer comment. That just launders folklore into the codebase behind a hedge.
+  It went.
+- **Missing coverage hides the error, it does not cause it.** WebKit had never
+  been installed here, so nothing could contradict me. Installing it took one
+  command (`npx playwright install --with-deps webkit`) and immediately
+  falsified the premise of the change I had already pushed. When a claim is
+  specifically about a platform you cannot currently run, that is the moment to
+  go get it — not to write the claim more confidently.

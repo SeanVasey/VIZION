@@ -229,16 +229,21 @@
   }
 
   /* Bottom-nav tab. The press affordance lives here rather than in `active:`
-     utilities for one reason Tailwind cannot express: **the press must be
-     instant and the release must not be.** A 150ms ramp on the way DOWN is
-     precisely the lag the tab is trying to disprove — the finger is already
-     lifting by the time the scale finishes. So the pressed rules zero the
-     transition duration, and the resting rules own the ease-out that plays as
-     the finger leaves.
+     utilities for a reason Tailwind cannot express: **the press must be
+     instant and the release must not be.** A ramp on the way DOWN is the lag
+     the tab is trying to disprove. So the pressed rules zero the transition
+     duration, and the resting rules own the ease-out that plays as the finger
+     leaves.
 
-     Driven by `[data-pressed]` (set by usePressable) rather than `:active`,
-     because WebKit only honours `:active` when the document carries a touch
-     listener, and because `:active` cannot hold past pointer-up. */
+     Driven by `[data-pressed]` (set by usePressable) rather than `:active`
+     because `:active` cannot hold past pointer-up — a 40ms tap would get 40ms
+     of feedback — and because state is assertable in a test where a
+     pseudo-class needs a real engine and a held pointer.
+
+     The old affordance was `active:scale-95` on a 150ms transition and no
+     second channel. Measured in WebKit, an ~80ms press reaches about a 5%
+     shrink; this reaches 10% on the first frame and adds an accent wash at
+     full opacity, so the signal does not depend on catching the ramp. */
   .nav-tab {
     position: relative;
     transition:
@@ -499,7 +504,7 @@
      every frame, for every panel, and a library screen holds a dozen. At rest
      that cost buys the design. In motion it buys nothing: a backdrop sliding
      past at flick speed is already a blur, so blurring it again is work no one
-     can see. `InteractionManager` stamps `data-scrolling` on <html> for the
+     can see. `ScrollStateManager` stamps `data-scrolling` on <html> for the
      duration of a scroll gesture (+140ms), and these rules stand that work
      down for exactly that long. The grain goes with it — a tiled background
      image is re-sampled on the same schedule.

@@ -6,20 +6,19 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
-### Fixed — the bottom nav acknowledged nothing, and the app had no reason to be quick
+### Fixed — the bottom nav's press feedback was too weak to see, and the app had no reason to be quick
 
-Tapping a tab looked like nothing happened, because on iOS nothing did. Two
-independent faults, both invisible on a desktop browser:
+**Feedback.** The nav's only press affordance was `active:scale-95` on a 150ms
+transition — a ~5% shrink, with no colour or opacity channel, on a 64px bar
+under a thumb covering most of it, and with the native tap highlight already
+suppressed (`-webkit-tap-highlight-color: transparent`). `:active` also cannot
+outlive pointer-up, so a 40ms tap got 40ms of feedback.
 
-**No feedback.** The nav's only press affordance was `active:scale-95`, and
-WebKit applies `:active` styles *only when the document carries a touch
-listener*. There wasn't one, so that utility — and the four others like it
-elsewhere in the app — was dead on the platform this PWA targets first. A
-single passive no-op `touchstart` listener (`InteractionManager`) revives all
-of them. The nav goes further and drives its own `[data-pressed]` state from
-pointer events: an accent wash plus a scale that lands on the *press* with no
-transition and eases out on release, a haptic tick on touch/pen, and a minimum
-hold so a 60ms tap still reads as one.
+The nav now drives its own `[data-pressed]` state from pointer events: a 10%
+scale that lands on the *press* with no transition and eases out on release, an
+accent wash at full opacity, a haptic tick on touch/pen, and a 130ms minimum
+hold so a fast tap still reads as one. Reduced motion drops the scale and keeps
+the wash. None of it depends on `:active` firing.
 
 **Nothing to be quick with.** No route had a `loading.tsx`, so a tab press
 blocked on the destination's full server render — `auth.getUser()` plus two to
@@ -43,7 +42,7 @@ Frosted glass is expensive to *move*: every `.glass` panel makes the compositor
 snapshot, blur and re-composite its backdrop once per frame, and a library
 screen holds a dozen. Three changes, in descending order of effect:
 
-- `InteractionManager` stamps `data-scrolling` on `<html>` for the duration of
+- `ScrollStateManager` stamps `data-scrolling` on `<html>` for the duration of
   a scroll gesture (+140ms), and `.glass` drops its backdrop blur and grain for
   exactly that long. A backdrop sliding past at flick speed is already a blur.
   The two chrome bars keep theirs — `--chrome` is only ~0.42–0.45 opaque, so
@@ -67,6 +66,33 @@ plain `Event` and silently discards every pointer-specific field. Any code
 branching on `e.pointerType` — the nav's haptics, the library row's swipe claim
 — was therefore asserting against `undefined` regardless of what the test
 passed. `tests/setup.ts` now shims it over `MouseEvent`.
+
+### Corrected — the iOS `:active` explanation above was mine, and it was wrong
+
+The first version of this entry said WebKit applies `:active` only when the
+document carries a touch listener, that this app had none, and that a passive
+no-op `touchstart` listener was therefore what revived the nav's press
+feedback. That framing was asserted from folklore and shipped in a commit
+message, this changelog, `tasks/lessons.md` and a PR body before it was tested.
+
+Tested, in a real WebKit: **React already registers `touchstart` on
+`document`** — the App Router hydrates into `document`, so React's event
+delegation attaches the whole touch family there on every page, always. With
+the added listener mutated out, it is still present. The precondition the
+explanation rested on was never unmet, so the listener could not have been
+what fixed anything. It has been removed, and `InteractionManager` — which now
+does only one thing — is renamed `ScrollStateManager`.
+
+The e2e test written to guard the claim was removed too: it asserted a
+`touchstart` registration that React satisfies by itself, so it passed with the
+listener deleted. It was not a guard, it was a rubber stamp.
+
+What remains unverified either way is whether iOS Safari's touch-`:active`
+heuristic is still live in 2026. Playwright's Linux WebKit cannot answer it —
+`:active` applies there with or without a document touch listener, and its
+touchscreen API cannot hold a press — and no real iOS device was available.
+The fix does not depend on the answer: `[data-pressed]` is explicit state and
+works on every engine by construction.
 
 ### Fixed — WebKit e2e could never have passed, and said so the moment it ran
 

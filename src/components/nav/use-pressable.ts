@@ -17,19 +17,19 @@ const TICK_MS = 8;
  * Explicit press state for a control, driven by pointer events rather than
  * CSS `:active`.
  *
- * Two reasons it is not just `active:` utilities:
+ * Two reasons it is not just an `active:` utility, both of which are about
+ * what `:active` *cannot do*, not about any platform bug:
  *
- *  1. **iOS Safari only applies `:active` when the document carries a touch
- *     listener.** `InteractionManager` installs one globally so the app's
- *     existing `active:` utilities work at all, but a nav tab is the app's
- *     most-tapped control and deserves state we can assert on in a test rather
- *     than a platform quirk we hope is still true next release.
- *  2. **`:active` ends the instant the finger lifts.** On a fast tap that is
- *     ~60ms of feedback. The minimum-hold below is not expressible in CSS.
+ *  1. **`:active` ends the instant the finger lifts.** A tap is ~40–100ms, so
+ *     the feedback lasts ~40–100ms and can be gone before it is seen. The
+ *     minimum-hold below is not expressible in CSS at all.
+ *  2. **It is state, so a test can assert on it.** The nav is the app's
+ *     most-tapped control; `[data-pressed]` is checkable in a unit test,
+ *     whereas a pseudo-class needs a real engine and a held pointer.
  *
- * Also fires a short haptic tick on touch/pen presses (no-op on iOS, which
- * does not implement the Vibration API, and skipped for mouse, where there is
- * nothing to vibrate).
+ * Also fires a short haptic tick on touch/pen presses — skipped for mouse,
+ * where there is nothing to vibrate, and a no-op on iOS, which does not
+ * implement the Vibration API.
  */
 export function usePressable() {
   const [pressed, setPressed] = useState(false);

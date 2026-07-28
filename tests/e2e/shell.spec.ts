@@ -102,6 +102,55 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     expect(ring.boxShadow).not.toBe("none");
   });
 
+  test("the nav's press affordance is instant down and eased up", async ({ page }) => {
+    // The bottom bar is behind auth, so this pins the STYLESHEET contract
+    // rather than a live tab — same approach as the focus-ring test above, and
+    // for the same reason: only a real engine resolves cascade layers, and
+    // `.nav-tab` is a components-layer rule whose pressed variant has to beat
+    // its own resting rule.
+    //
+    // The asymmetry is the point and is why this is not `active:scale-95`: the
+    // press lands with NO transition — a ramp on the way down is the lag the
+    // affordance exists to disprove — while the release keeps its ease-out.
+    // Tailwind cannot express a one-directional duration, so a future
+    // "simplification" back to a utility would quietly undo it.
+    await page.goto("/sign-in");
+    await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<a id="probe-rest" class="nav-tab" href="#">a</a>
+         <a id="probe-press" class="nav-tab" href="#" data-pressed>b</a>`,
+      );
+    });
+
+    const read = (id: string) =>
+      page.evaluate((sel) => {
+        const el = document.querySelector(sel)!;
+        const own = getComputedStyle(el);
+        return {
+          transform: own.transform,
+          duration: own.transitionDuration,
+          washOpacity: getComputedStyle(el, "::before").opacity,
+        };
+      }, `#${id}`);
+
+    const rest = await read("probe-rest");
+    const pressed = await read("probe-press");
+
+    // Pressed: visibly scaled, wash fully up, and no ramp on either.
+    expect(pressed.transform).not.toBe("none");
+    expect(pressed.transform).not.toBe(rest.transform);
+    expect(Number(pressed.washOpacity)).toBe(1);
+    expect(new Set(pressed.duration.split(", "))).toEqual(new Set(["0s"]));
+
+    // At rest: unscaled, wash invisible, and a real ease-out to return on.
+    expect(
+      rest.transform === "none" || rest.transform === "matrix(1, 0, 0, 1, 0, 0)",
+    ).toBe(true);
+    expect(Number(rest.washOpacity)).toBe(0);
+    expect(rest.duration.split(", ").some((d) => parseFloat(d) > 0)).toBe(true);
+  });
+
   test("scrolls smoothly without animating route-change scroll restoration", async ({
     page,
   }) => {
@@ -110,10 +159,7 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     // the attribute is what tells Next to keep suppressing it around its own
     // scroll restoration (from v16 it only does so when the attribute is
     // present — without it every route change would GLIDE to the top).
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-scroll-behavior",
-      "smooth",
-    );
+    await expect(page.locator("html")).toHaveAttribute("data-scroll-behavior", "smooth");
     expect(
       await page.evaluate(
         () => getComputedStyle(document.documentElement).scrollBehavior,
@@ -132,9 +178,7 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     const email = page.locator("input#email");
     await expect(email).toHaveClass(/\bglass\b/);
 
-    const blurAtRest = await email.evaluate(
-      (el) => getComputedStyle(el).backdropFilter,
-    );
+    const blurAtRest = await email.evaluate((el) => getComputedStyle(el).backdropFilter);
     expect(blurAtRest).toContain("blur");
 
     // Drive the real listener rather than stamping the attribute by hand.
@@ -146,9 +190,9 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
 
     // ...and it comes back on its own once the page settles.
     await expect(page.locator("html")).not.toHaveAttribute("data-scrolling", "");
-    expect(
-      await email.evaluate((el) => getComputedStyle(el).backdropFilter),
-    ).toContain("blur");
+    expect(await email.evaluate((el) => getComputedStyle(el).backdropFilter)).toContain(
+      "blur",
+    );
   });
 
   test("the service worker is served with a no-store cache policy", async ({

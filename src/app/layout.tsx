@@ -5,7 +5,7 @@ import { UI_STORE_KEY } from "@/lib/constants";
 import { QueryProvider } from "@/lib/query/provider";
 import { ThemeManager } from "@/components/ThemeManager";
 import { ReducedEffectsManager } from "@/components/ReducedEffectsManager";
-import { InteractionManager } from "@/components/InteractionManager";
+import { ScrollStateManager } from "@/components/ScrollStateManager";
 import { NeuralMeshBackground } from "@/components/NeuralMeshBackground";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -66,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryProvider>
           <ThemeManager />
           <ReducedEffectsManager />
-          <InteractionManager />
+          <ScrollStateManager />
           <NeuralMeshBackground />
           <SafeAreaProvider>{children}</SafeAreaProvider>
           <BottomNav />
