@@ -129,6 +129,18 @@ export function TransformationDiff({
   // Web Share is absent on Firefox and on desktop Chrome outside Windows/
   // ChromeOS. Detected once rather than probed at click time, so the button
   // can be hidden instead of offered and then quietly doing something else.
+  //
+  // Detected during RENDER, which is normally a hydration hazard — the server
+  // and the client would disagree about whether the button exists. It is safe
+  // here for a specific reason: this component's only consumer renders it
+  // behind `{view && ...}`, and `view` is client state set exclusively in a
+  // mutation's onSuccess. There is no server render and no first-client
+  // render, so there is no pair of markups to mismatch. If this component ever
+  // gains a server-rendered consumer, THIS is the line that has to change —
+  // move the detection into an effect behind a `mounted` flag.
+  // (EnhanceComposer's `canPaste` uses the same detection and is safe for a
+  // DIFFERENT reason: a `useState(false)` gate that is false on the server and
+  // on the first client render alike. Don't assume the two are interchangeable.)
   const canShare =
     typeof navigator !== "undefined" && typeof navigator.share === "function";
 
