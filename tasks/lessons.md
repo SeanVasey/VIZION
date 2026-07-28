@@ -1155,13 +1155,10 @@ browser this iOS-first PWA is built for.
   computed value is empty, check whether the sheet loaded before you debug the
   cascade — `document.styleSheets[0].cssRules.length` and the page's
   `requestfailed` events answered it in one probe.
-- **Next's `has`/`missing` on `headers()` compile but do not enforce.** They
-  land in `routes-manifest.json` looking correct, and the runtime applies the
-  rule anyway — a rule keyed on `x-probe: yes` still applied to a request with
-  no `x-probe` header. I proved it with an absent-by-construction key rather
-  than trusting the manifest. Never gate a SECURITY header on a mechanism that
-  can silently no-op: the failure mode is "hardening quietly absent", which no
-  test would catch unless it tested the thing itself.
+- ~~**Next's `has`/`missing` on `headers()` compile but do not enforce.**~~
+  **Wrong — see the correction entry below.** They enforce correctly. The
+  build-time flag stays, but for a different reason: it does not make
+  production's posture depend on a proxy header no test here can observe.
 - **A header that differs by environment should take the environment as an
   argument.** `buildSecurityHeaders(httpsOrigin)` is pure and testable from
   both sides; reading `process.env` inside the header list would have made the
@@ -1175,3 +1172,42 @@ browser this iOS-first PWA is built for.
   the pre-fix manifest; the giveaway was a 22-test suite finishing in 6.7s with
   no build in the log. Kill the port before trusting a local e2e result, and
   treat an implausibly fast run as a result you have not actually got.
+
+## 2026-07-28 — I wrote a framework bug into four files without re-testing it
+
+**What broke.** I claimed Next's `has`/`missing` conditions on `headers()`
+compile into `routes-manifest.json` and are then not enforced at runtime, and
+I put that claim in a commit message, `CHANGELOG.md`, `docs/runbooks/hardening.md`
+and a `next.config.ts` comment. It is false. Re-run on a port nothing had
+touched, they behave exactly as documented: no `x-probe` header → rule skipped;
+`x-probe: yes` → applied; `x-probe: no` → skipped.
+
+The original probe was answered by a **stale `next-server` still holding port
+3100**, so it read the previous build's headers. My `pkill -f "next start -p
+3100"` had matched the `npx` wrapper, not the `next-server` process it spawns.
+
+The compounding part: I hit that same stale-server trap twice more that hour,
+diagnosed it, and wrote it up in the entry directly above — *"treat an
+implausibly fast run as a result you have not actually got"* — and never went
+back to re-check the earlier result that the same trap had already poisoned.
+The design decision it justified survived on inertia.
+
+**What to avoid.**
+
+- **A negative claim about a framework is an extraordinary claim.** "This
+  documented feature silently does nothing" should be the last hypothesis, not
+  the first, and it needs a clean-room reproduction — fresh port, verified
+  server PID, manifest inspected AND runtime observed — before it is written
+  down. Mine had one experiment on a dirty port.
+- **When you discover a trap, re-audit every earlier result it could have
+  reached.** Learning the lesson prospectively is half the job; the other half
+  is sweeping backwards. The stale server invalidated a conclusion I had
+  already committed, and I had every fact needed to know that.
+- **Kill by port, not by command line.** `pkill -f "next start -p 3100"` does
+  not kill the `next-server` child that actually holds the socket. Confirm the
+  port is dead (`curl` → connection refused) before trusting anything served
+  from it.
+- **Documenting a decision's reason locks it in.** Once "has/missing don't
+  work" was in four files, the build-time flag looked settled rather than
+  chosen. When the premise fell, the conclusion still happened to be right —
+  but that was luck, and the reason had to be rewritten from scratch.

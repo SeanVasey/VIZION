@@ -54,11 +54,22 @@ const COMMON_HEADERS = [
  *     UA must ignore anyway (RFC 6797 §8.1), so sending it there is noise.
  *
  * Decided at BUILD time, because `headers()` is compiled into
- * `routes-manifest.json` and never re-evaluated per request. Next's per-request
- * `has`/`missing` conditions look like the natural fit and DO compile into the
- * manifest — but they are not enforced at runtime here (verified: a rule keyed
- * on an absent header still applied). A security header must not depend on a
- * condition that silently no-ops, so the switch is an explicit input instead.
+ * `routes-manifest.json` and never re-evaluated per request.
+ *
+ * The per-request alternative — `has: [{ type: "header", key:
+ * "x-forwarded-proto", value: "https" }]` on one rule and `missing:` on the
+ * other — DOES work; a rule keyed on an absent header is correctly skipped.
+ * (An earlier revision of this comment claimed otherwise. That was wrong: the
+ * probe behind it had been served by a stale `next-server` holding the port,
+ * so it read the previous build's headers. Re-tested clean on an unused port.)
+ *
+ * It is not used because it makes the production security posture depend on
+ * the proxy always setting `x-forwarded-proto` — a header this repo cannot
+ * verify from a test, since preview deployments sit behind Vercel's SSO edge,
+ * which substitutes its own CSP. If it were ever absent, HSTS and
+ * `upgrade-insecure-requests` would vanish in production with nothing failing.
+ * A build-time input is checkable end-to-end here, against the compiled
+ * manifest, so that is what gates it.
  */
 export function buildSecurityHeaders(httpsOrigin: boolean) {
   return [
