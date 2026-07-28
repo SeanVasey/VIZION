@@ -57,15 +57,25 @@
      #2d2d2d, so this is an inference from the parent company: right entity,
      sibling source.  The weakest chromatic claim in the set. */
   --dev-zai: #1598e3; /*       B | thesvg zhipu #3859ff                 -25.59 */
-  /* xAI publishes NO chromatic identity: Grok's production CSS declares
-     `oklch(11.57% 0 none)` — chroma literally zero — its favicon is #050505,
-     and the Simple Icons dataset carries no xAI or Grok entry at all.  Rather
-     than invent a brand fact, this value is ASSIGNED by one stated rule: the
-     largest hue arc no sourced brand claims, at the palette's chroma.  It is
-     the ONE entry here with no source, and the token comment is the only place
-     that says so — keep it.  NEVER #2196F3: that is Material Blue 500
-     verbatim, circulated by third parties with no first-party basis. */
-  --dev-xai: #d66dad; /*       B | ASSIGNED, not sourced — see above           */
+  /* xAI is NEUTRAL ON PURPOSE, and it is the only entry here that is.
+     Grok's production CSS declares `oklch(11.57% 0 none)` — chroma literally
+     zero — its favicon is #050505, and the Simple Icons dataset carries no xAI
+     or Grok entry at all.  There is no chromatic identity to source, so the
+     honest rendering of "this brand has no colour" is no colour: a cool
+     graphite biased to match the house neutrals (--onyx, --silver), rather
+     than an invented hue that would make the one unsourced entry the loudest
+     mark in the list.
+
+     It is a full-contrast neutral, not a muted one — 3.38:1 on the aurora-lit
+     dark card and 3.65:1 on the light card, mid-pack among the eleven sourced
+     accents.  That matters: it must not read as a disabled or unloaded state.
+     It cannot be confused with one, because this app says "disabled" with
+     `disabled:opacity-*` on a still-coloured control, and because a model id
+     this build does not recognise renders NO mark at all.
+
+     NEVER #2196F3: that is Material Blue 500 verbatim, circulated by third
+     parties with no first-party basis. */
+  --dev-xai: #7d858e; /*         | NEUTRAL — the brand publishes no colour     */
 
   /* Peak alpha of the trailing corner field.  This is the ONE aesthetic knob
      in the design: no hex, no contrast figure, no semantic clearance and not

@@ -56,12 +56,23 @@ forces. Two are weaker and say so in their token comment:
 - **Z.ai** takes Zhipu's blue — the corporate sibling. Z.ai's own site CSS is
   black throughout and its published mark colour is `#2d2d2d`, unusable on
   Void. Right entity, sibling source.
-- **xAI** is **assigned, not sourced.** Grok's production CSS declares
-  `oklch(11.57% 0 none)` — chroma literally zero — its favicon is `#050505`,
-  and the Simple Icons dataset carries no xAI entry at all. Rather than invent
-  a brand fact, it takes the largest hue arc no sourced brand claims. It is the
-  one value in the file with no provenance, and the comment above it is the
-  only place that says so. Keep that comment.
+- **xAI** is **neutral, and it is the only entry that is.** Grok's production
+  CSS declares `oklch(11.57% 0 none)` — chroma literally zero — its favicon is
+  `#050505`, and the Simple Icons dataset carries no xAI entry at all. There is
+  no chromatic identity to source, so the accent renders that fact rather than
+  papering over it: a cool graphite matching the house neutrals. It first
+  shipped as an assigned hue chosen by rule, which had the effect of making the
+  one unsourced entry the most assertive mark in the list; the neutral is both
+  more honest and more brand-accurate, since xAI's mark is black-and-white by
+  intent.
+
+  It is deliberately a **full-contrast** neutral — 3.38:1 against the
+  aurora-lit dark card, 3.65:1 against the light card, mid-pack among the
+  eleven sourced accents — because the risk with a lone grey among colours is
+  that it reads as a *state*. It cannot here: this app expresses "disabled"
+  as `disabled:opacity-*` on a still-coloured control, and a model id the build
+  does not recognise renders no mark at all, so there is no missing-data
+  appearance for it to be mistaken for.
 
 Five brands — Anthropic, OpenAI, xAI, Moonshot, Z.ai — publish black or
 near-black as their primary. A literal "use the brand colour" build would have
