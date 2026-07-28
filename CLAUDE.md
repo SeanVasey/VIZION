@@ -54,6 +54,7 @@ procedure in `docs/runbooks/release.md`.
 ## 5. Required files
 
 `README.md` · `LICENSE` · `CHANGELOG.md` · `SECURITY.md` · `CLAUDE.md` ·
+`AGENTS.md` (environment/runtime notes; defers here for everything else) ·
 `.editorconfig` · `.gitignore` · `.env.example` · `.github/workflows/` · `.claude/` ·
 `docs/` (`architecture.md` · `decisions/` · `runbooks/`) · `tasks/lessons.md`.
 

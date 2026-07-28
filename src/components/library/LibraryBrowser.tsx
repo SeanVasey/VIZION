@@ -1,9 +1,16 @@
 "use client";
 
-import { memo, useState, useTransition } from "react";
+import { memo, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MODE_LABEL, TARGET_MODELS, type ModeId } from "@/lib/constants";
+import {
+  LEGACY_TARGET_IDS,
+  MODE_LABEL,
+  TARGET_DEVELOPER,
+  TARGET_MODELS,
+  type Developer,
+  type ModeId,
+} from "@/lib/constants";
 import { relativeTime } from "@/lib/library/util";
 import {
   countActiveFilters,
@@ -26,12 +33,26 @@ import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
 import { useSwipeActions } from "@/components/library/use-swipe-actions";
+import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 
 export type { PromptCard } from "@/lib/library/queries";
 
 const MODEL_LABEL_MAP = new Map<string, string>(
   TARGET_MODELS.map((m) => [m.id, m.label]),
 );
+
+/** Developer for a stored target id.  Tolerant like MODEL_LABEL_MAP above:
+ *  PromptCard.target_model is typed `string`, so a card can hold an id this
+ *  build no longer knows, and DeveloperIcon destructures PATHS[developer] —
+ *  which throws on an unknown key and would blank-screen the whole library.
+ *  LEGACY_TARGET_IDS is folded in so a renamed id keeps its colour rather than
+ *  silently losing its mark. */
+const MODEL_DEVELOPER_MAP = new Map<string, Developer>([
+  ...TARGET_MODELS.map((m) => [m.id, m.developer] as const),
+  ...Object.entries(LEGACY_TARGET_IDS).map(
+    ([legacy, current]) => [legacy, TARGET_DEVELOPER[current]] as const,
+  ),
+]);
 
 /**
  * Saved-prompt browser (2026-07 UX audit): saved work leads; filters are
@@ -445,12 +466,48 @@ const PromptRow = memo(function PromptRow({
   onDelete: (p: PromptCard) => void;
 }) {
   const swipe = useSwipeActions();
+  const developer = MODEL_DEVELOPER_MAP.get(p.target_model);
+  // PER SIDE, never one shared flag — otherwise dragging one way lights the
+  // panel on the other edge too and puts the bleed straight back.
+  // Displacement first, `open` second: `open` is set only at pointer-up while
+  // `offset` moves continuously, so gating on `open` alone would drag the card
+  // off an empty gutter for the whole gesture and pop the colour in at release.
+  const leftOn = swipe.offset > 0 || swipe.open === "left";
+  const rightOn = swipe.offset < 0 || swipe.open === "right";
+  const displaced = swipe.offset !== 0 || swipe.open !== null;
+  // Reveal is INSTANT; only the close fades. A flick covers the full 84px well
+  // under 150ms, and a fade-IN would show the action glyph at transiently
+  // reduced contrast over the page background. close() sets dx=0 and open=null
+  // in one commit, so without the fade-OUT the user sees an empty gutter for
+  // the 150ms the card is still sliding home.
+  const panel = (on: boolean) =>
+    "absolute inset-y-0 flex " +
+    (on
+      ? "opacity-100"
+      : "pointer-events-none opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none");
   return (
-    <li className="relative overflow-hidden rounded-2xl">
+    <li
+      className="relative overflow-hidden rounded-2xl"
+      // Two consumers sit on opposite sides of the <a> — .dev-mark inside it
+      // and .dev-edge after it — so the value is carried here. It arrives as
+      // an inline custom property rather than a composed Tailwind class
+      // because the config scans source text only, so `bg-[${hex}]` would
+      // generate nothing.
+      style={
+        developer
+          ? ({ "--dev": `var(--dev-${developer})` } as CSSProperties)
+          : undefined
+      }
+    >
       {/* Actions sit UNDER the card and are revealed by sliding it. They are
           real buttons, but the ⋯ menu remains the discoverable, keyboard- and
-          screen-reader-reachable path — swipe is an accelerator. */}
-      <div aria-hidden={swipe.open === null} className="absolute inset-y-0 left-0 flex">
+          screen-reader-reachable path — swipe is an accelerator.
+
+          They are also hidden at rest. The card above is .glass, which
+          transmits 28% in dark, so a permanently-painted panel showed straight
+          through it: every row carried an olive left edge and a muddy red
+          right edge, constant and model-independent. */}
+      <div aria-hidden={swipe.open === null} className={`${panel(leftOn)} left-0`}>
         <button
           type="button"
           tabIndex={-1}
@@ -466,7 +523,7 @@ const PromptRow = memo(function PromptRow({
           </span>
         </button>
       </div>
-      <div aria-hidden={swipe.open === null} className="absolute inset-y-0 right-0 flex">
+      <div aria-hidden={swipe.open === null} className={`${panel(rightOn)} right-0`}>
         <button
           type="button"
           tabIndex={-1}
@@ -474,7 +531,10 @@ const PromptRow = memo(function PromptRow({
             onDelete(p);
             swipe.close();
           }}
-          className="flex w-[84px] items-center justify-center rounded-r-2xl bg-flare text-lg text-on-laser"
+          // --on-flare, not --on-laser: on the LIGHT theme's --flare #c81d10
+          // the Void ink measures 3.30:1, an AA fail for this glyph. Dark is
+          // byte-identical at 5.94:1; light flips to white at 5.77:1.
+          className="flex w-[84px] items-center justify-center rounded-r-2xl bg-flare text-lg text-[color:var(--on-flare)]"
         >
           <span aria-hidden="true">✕</span>
           <span className="sr-only">Delete {p.title}</span>
@@ -490,16 +550,32 @@ const PromptRow = memo(function PromptRow({
         href={`/library/${p.id}`}
         className="glass hover-hair block rounded-2xl p-4 pr-12 transition-colors"
       >
-        <div className="flex items-start justify-between gap-3">
+        {/* gap-2 rather than gap-3 reclaims 4px of the 20px the mark costs the
+            wrapping title column, so the net cost is 16px. The title has no
+            truncate and no line-clamp, so nothing is lost — it reflows. */}
+        <div className="flex items-start justify-between gap-2">
           <p className="font-body min-w-0 text-base text-text">
             {p.favorite && (
-              <span aria-label="Favorite" className="mr-1 text-accent">
+              // --silver, not the Laser accent: the star is already redundant
+              // with the Favorites chip and the swipe action, and it was the
+              // only element competing with the developer mark for the same
+              // glance. The label is unchanged.
+              <span aria-label="Favorite" className="mr-1 text-silver">
                 ★
               </span>
             )}
             {p.title}
           </p>
-          <span className="font-body shrink-0 text-xs text-accent">
+          {/* leading-6 gives this span a 24px first-line box to match the
+              title's, so a 16px mark centres against the title's cap line
+              instead of floating above it in an items-start row. */}
+          <span className="font-body inline-flex shrink-0 items-center gap-1 text-xs leading-6 text-silver">
+            {developer && (
+              <DeveloperIcon
+                developer={developer}
+                className="dev-mark h-4 w-4 shrink-0"
+              />
+            )}
             {MODEL_LABEL_MAP.get(p.target_model) ?? p.target_model}
           </span>
         </div>
@@ -517,6 +593,17 @@ const PromptRow = memo(function PromptRow({
           {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
         </p>
       </Link>
+      {/* Identity field + the card's focus ring, in one overlay. It has to be
+          a SIBLING of the <a> rather than a child: an inset box-shadow paints
+          below its own element's descendants, so a ring drawn inside the card
+          would sit under the card's text. `data-swiping` drops the field while
+          a row is displaced, so the only chromatic signal on the trailing edge
+          during a drag is the action colour. */}
+      <span
+        aria-hidden="true"
+        className="dev-edge"
+        data-swiping={displaced ? "" : undefined}
+      />
       <button
         type="button"
         onClick={() => onMenu(p)}

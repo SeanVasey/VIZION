@@ -5,6 +5,9 @@
 /* Tokens are imported via the layout's metadata link order; kept here too so
    global utility classes can resolve the vars during Tailwind processing. */
 @import "./tokens.css";
+/* Additive layer — the twelve per-developer library accents.  Kept out of
+   tokens.css because that file declares itself LOCKED; see its header. */
+@import "./dev-accents.css";
 
 @layer base {
   * {
@@ -283,6 +286,82 @@
     border-color: color-mix(in srgb, var(--silver) 40%, transparent);
   }
 
+  /* Per-developer identity on a library card: a soft field on the trailing
+     edge, and the focus ring this card has never had.  ONE overlay <span>, a
+     later sibling of the card's <a>, so it paints in FRONT of the translucent
+     glass — a layer BEHIND .glass is attenuated to 28% (dark) / 18% (light)
+     and cannot work in both themes at one alpha.  inset:1px keeps it inside
+     the card's own --hair border, so the field is never the page background's
+     neighbour.  It owns NO property .glass owns — no background-color, no
+     border, no box-shadow at rest — so the grain, .hover-hair and
+     .glass:focus-visible are untouched, and [data-reduced-effects] .glass
+     cannot reach it. */
+  .dev-edge {
+    /* transparent, NOT --silver: a target id this build no longer knows must
+       not draw the LOUDEST edge in the list.  It matches the mark, which is
+       simply not rendered in that case.  The element still renders
+       unconditionally, because it also owns the focus ring. */
+    --_dev: var(--dev, transparent);
+    position: absolute;
+    inset: 1px;
+    /* The <a>'s rounded-2xl (1rem) minus the 1px inset.  Kept in sync with the
+       card by tests/unit/developer-accents.test.ts. */
+    border-radius: calc(1rem - 1px);
+    pointer-events: none;
+    /* An ellipse anchored to the card's top-right INNER corner, with no hard
+       edge on any side.  One declaration: two background layers composite
+       alpha-OVER (they add) and cannot multiply into a two-axis falloff, and a
+       mask would clip the focus ring below.  See dev-accents.css for why the
+       horizontal radius is exactly the card's gutter width. */
+    background-image: radial-gradient(
+      var(--dev-rx, 48px) var(--dev-ry, 100%) at 100% 0,
+      color-mix(in srgb, var(--_dev) var(--dev-peak, 26%), transparent) 0%,
+      color-mix(in srgb, var(--_dev) var(--dev-peak, 26%), transparent) 26%,
+      transparent 100%
+    );
+    background-repeat: no-repeat;
+  }
+
+  /* The row is displaced: identity steps aside so the ACTION colour is the
+     only chromatic signal on this edge.  Mid-drag is the one moment a
+     full-strength --flare panel abuts the card's trailing edge, and gating a
+     state that lasts 150ms costs zero brand fidelity where rotating twelve
+     hues permanently would cost a great deal.  Gating --dev-peak rather than
+     `opacity` is deliberate: opacity would take the FOCUS RING with it, and a
+     row can be keyboard-focused and then swiped by the same hybrid-input
+     user. */
+  .dev-edge[data-swiping] {
+    --dev-peak: 0%;
+  }
+
+  /* The library card's keyboard focus indicator.  It lives HERE, not on the
+     <a>, because the row's <li> is overflow-hidden — load-bearing for the
+     swipe, since without it a swiped card extends 84px past its own track —
+     and overflow:hidden clips every OUTSET box-shadow a descendant draws.  The
+     card has therefore had NO visible keyboard focus indicator at all: a live
+     WCAG 2.4.7 failure that predates this change and that the e2e focus-ring
+     spec could not catch, because it can only reach the signed-out /sign-in
+     route.  An inset ring on this overlay draws above the card fill AND above
+     the field, and inside the clip.  No glow: an outset one is clipped, and an
+     inset one would tint the card behind its own text for no benefit. */
+  .glass:focus-visible ~ .dev-edge {
+    box-shadow: inset 0 0 0 2px var(--accent-ink);
+  }
+
+  /* The developer mark: a POSITIVE glyph in the developer's own colour, on the
+     card's own untinted surface.  Colour is set here and inherited by the
+     path's fill="currentColor" — DeveloperIcon's doc contract forbids
+     hardcoded fills, so the coloured variant needs no SVG edit, no new
+     component and no new dependency.
+     --silver is the right fallback HERE and `transparent` is the right one on
+     .dev-edge: if the token layer were ever unimported, each consumer takes
+     its own, giving a muted but VISIBLE mark and no edge at all — rather than
+     one unresolvable var() taking the information layer down with the
+     decoration layer. */
+  .dev-mark {
+    color: var(--dev, var(--silver));
+  }
+
   /* Mono utility text — prompts, diffs, tokens, version hashes. */
   .mono {
     font-family: var(--font-mono);
@@ -479,6 +558,16 @@
      "Reduced effects" would quietly stop meaning what it says. */
   [data-reduced-effects] .glass {
     background-image: none;
+  }
+  /* The trailing corner FIELD is ambient colour and answers to the same
+     switch.  Nothing informational is lost when it fires: the developer MARK
+     is a separate element, at full chroma, and is deliberately NOT gated —
+     an unrelated comfort toggle must never be able to amputate an identity
+     channel.  This MUST stay a standalone block: reduced-effects.test.ts
+     matches /\[data-reduced-effects\]\s+\.glass\s*\{([^}]*)\}/, so folding
+     this selector into the rule above inserts a comma there and fails it. */
+  [data-reduced-effects] .dev-edge {
+    --dev-peak: 0%;
   }
   [data-reduced-effects] .flow-glow,
   [data-reduced-effects] .flow-line,
