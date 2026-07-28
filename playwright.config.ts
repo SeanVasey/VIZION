@@ -4,6 +4,19 @@ const PORT = 3100;
 const baseURL = `http://127.0.0.1:${PORT}`;
 
 /**
+ * The stub Supabase (tests/e2e/support/supabase-stub.mjs). Pointing
+ * `NEXT_PUBLIC_SUPABASE_URL` at it is the ONLY thing that makes the authed
+ * surfaces reachable — there is deliberately no test-only auth branch in
+ * `src/`, so the specs drive the real middleware, the real `@supabase/ssr`
+ * clients and the real sign-in form. See the stub's header for why.
+ *
+ * The anon key is a throwaway: the stub never checks it, and it is not a
+ * credential for anything that exists.
+ */
+const STUB_PORT = 54321;
+const STUB_URL = `http://127.0.0.1:${STUB_PORT}`;
+
+/**
  * Shell / PWA e2e. We build the service worker, then run a production server so
  * the SW + manifest behave as they would in deployment.
  */
@@ -32,16 +45,33 @@ export default defineConfig({
       use: { ...devices["Pixel 7"] },
     },
   ],
-  webServer: {
-    command: `npm run build:sw && npx next build && npx next start -p ${PORT}`,
-    url: baseURL,
-    timeout: 180_000,
-    reuseExistingServer: !process.env.CI,
-    // This server is plain http on loopback. `upgrade-insecure-requests` would
-    // rewrite every subresource to https, where nothing is listening, and
-    // WebKit (unlike Chromium, which exempts loopback) would then render every
-    // page with no CSS. The flag is read at BUILD time — hence set for the
-    // whole chained command, not just `next start`. See next.config.ts.
-    env: { VIZION_HTTP_ORIGIN: "1" },
-  },
+  webServer: [
+    {
+      // Must be listening before the app builds: `NEXT_PUBLIC_*` is inlined
+      // into the client bundle at BUILD time, so the browser's Supabase client
+      // is pinned to this origin by `next build` below.
+      command: "node tests/e2e/support/supabase-stub.mjs",
+      url: `${STUB_URL}/auth/v1/settings`,
+      timeout: 30_000,
+      reuseExistingServer: !process.env.CI,
+      env: { SUPABASE_STUB_PORT: String(STUB_PORT) },
+    },
+    {
+      command: `npm run build:sw && npx next build && npx next start -p ${PORT}`,
+      url: baseURL,
+      timeout: 180_000,
+      reuseExistingServer: !process.env.CI,
+      env: {
+        // This server is plain http on loopback. `upgrade-insecure-requests`
+        // would rewrite every subresource to https, where nothing is
+        // listening, and WebKit (unlike Chromium, which exempts loopback)
+        // would then render every page with no CSS. The flag is read at BUILD
+        // time — hence set for the whole chained command, not just
+        // `next start`. See next.config.ts.
+        VIZION_HTTP_ORIGIN: "1",
+        NEXT_PUBLIC_SUPABASE_URL: STUB_URL,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "e2e-stub-anon-key",
+      },
+    },
+  ],
 });

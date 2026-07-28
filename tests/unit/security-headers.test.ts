@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSecurityHeaders, CSP_DIRECTIVES } from "../../next.config";
+import { buildSecurityHeaders, cspDirectives, CSP_DIRECTIVES } from "../../next.config";
 
 /**
  * Transport-dependent hardening.
@@ -22,6 +22,58 @@ function headerMap(headers: readonly { key: string; value: string }[]) {
 function directives(headers: readonly { key: string; value: string }[]) {
   return (headerMap(headers).get("Content-Security-Policy") ?? "").split("; ");
 }
+
+describe("CSP tracks the configured Supabase origin", () => {
+  /**
+   * The policy used to hardcode `https://*.supabase.co`, which silently
+   * assumes every deployment is a hosted project on Supabase's own domain. A
+   * self-hosted instance or a custom domain is then blocked by `connect-src`
+   * with no server-side symptom at all: the browser refuses the request,
+   * `signInWithPassword` never resolves, and the app simply never signs anyone
+   * in. The e2e stub hit exactly that.
+   *
+   * `cspDirectives` takes the URL as an argument precisely so this is a plain
+   * function call — reading `process.env` inside would make the interesting
+   * variants untestable, which is the same trap `buildSecurityHeaders` avoids.
+   */
+  const directivesWith = (url: string | undefined) => cspDirectives(url);
+
+  const find = (ds: string[], name: string) => ds.find((d) => d.startsWith(`${name} `))!;
+
+  it("adds a self-hosted origin to every directive the wildcard appears in", () => {
+    const ds = directivesWith("https://db.example.com");
+    for (const name of ["connect-src", "img-src", "media-src", "form-action"]) {
+      expect(find(ds, name), name).toContain("https://db.example.com");
+    }
+  });
+
+  it("leaves a hosted project's policy byte-identical", async () => {
+    // The wildcard already covers it; adding the exact origin too would be
+    // noise, and any diff here is a silent policy change for every existing
+    // deployment.
+    const hosted = await directivesWith("https://abcdefgh.supabase.co");
+    const unset = await directivesWith(undefined);
+    expect(hosted).toEqual(unset);
+    expect(find(hosted, "connect-src")).toBe(
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+    );
+  });
+
+  it("ignores a malformed URL rather than injecting it into the policy", () => {
+    const ds = directivesWith("not a url");
+    expect(find(ds, "connect-src")).toBe(
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+    );
+  });
+
+  it("adds only the ORIGIN, never a path or query from the env value", async () => {
+    // A stray path in the env var must not end up in the policy.
+    const ds = await directivesWith("https://db.example.com/rest/v1?k=v");
+    expect(find(ds, "connect-src")).toContain("https://db.example.com");
+    expect(find(ds, "connect-src")).not.toContain("/rest/v1");
+    expect(find(ds, "connect-src")).not.toContain("k=v");
+  });
+});
 
 describe("security headers by transport", () => {
   it("ships upgrade-insecure-requests and HSTS only on an https origin", () => {

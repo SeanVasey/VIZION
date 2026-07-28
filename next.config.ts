@@ -12,21 +12,63 @@ import pkg from "./package.json" with { type: "json" };
  * `object-src 'none'` + `base-uri 'self'` + `frame-ancestors 'none'` blunt the
  * common injection vectors in the meantime.
  */
-export const CSP_DIRECTIVES = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
-  "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-  "media-src 'self' blob: https://*.supabase.co",
-  "worker-src 'self'",
-  "manifest-src 'self'",
-  "form-action 'self' https://*.supabase.co",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "object-src 'none'",
-];
+/**
+ * The Supabase origin this build is actually configured against, when the
+ * hosted `*.supabase.co` wildcard below does not already cover it.
+ *
+ * The wildcard alone silently assumes every deployment uses a hosted project on
+ * Supabase's own domain. A self-hosted instance, a custom domain, or the e2e
+ * stub is blocked by `connect-src` with no server-side symptom at all — the
+ * browser refuses the request, `signInWithPassword` fails, and the app just
+ * never signs anyone in. Reading the origin the app is already pointed at keeps
+ * the policy and the configuration from disagreeing.
+ *
+ * Returns null for a hosted project (the wildcard covers it) and for anything
+ * unparseable, so the default deployment's policy is byte-identical to before.
+ */
+export function configuredSupabaseOrigin(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const { origin, hostname, protocol } = new URL(raw);
+    if (protocol !== "https:" && protocol !== "http:") return null;
+    // Only the ORIGIN — a stray path or query in the env value must never
+    // reach the policy, where it would be meaningless at best.
+    return hostname.endsWith(".supabase.co") ? null : origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Takes the Supabase URL as an ARGUMENT rather than reading `process.env`
+ * inside, for the same reason `buildSecurityHeaders(httpsOrigin)` does: a
+ * policy that varies by environment is only testable if the environment is an
+ * input. `CSP_DIRECTIVES` below binds it to the real env for Next to consume.
+ */
+export function cspDirectives(supabaseUrl: string | undefined): string[] {
+  const origin = configuredSupabaseOrigin(supabaseUrl);
+  const withSupabase = (base: string) => (origin ? `${base} ${origin}` : base);
+
+  return [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    withSupabase(
+      "img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
+    ),
+    "font-src 'self' data:",
+    withSupabase("connect-src 'self' https://*.supabase.co wss://*.supabase.co"),
+    withSupabase("media-src 'self' blob: https://*.supabase.co"),
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    withSupabase("form-action 'self' https://*.supabase.co"),
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "object-src 'none'",
+  ];
+}
+
+export const CSP_DIRECTIVES = cspDirectives(process.env.NEXT_PUBLIC_SUPABASE_URL);
 
 /** Headers that are correct on every transport. */
 const COMMON_HEADERS = [
