@@ -35,9 +35,21 @@
     scroll-behavior: smooth;
   }
 
-  /* iOS Safari waits ~300ms on tappable elements to rule out a double-tap
-     zoom; `manipulation` keeps pan + pinch but drops that wait, so taps on
-     nav tabs / buttons commit immediately. */
+  /* iOS Safari waits ~350ms on a tap to rule out a double-tap zoom;
+     `manipulation` keeps pan + pinch but drops that wait, so taps on nav tabs
+     and buttons commit immediately.
+
+     VERIFIED (2026-07-28), and the reason is narrower than it looks. Since iOS
+     9.3 the wait is already gone for any page declaring `width=device-width`,
+     which the layout's viewport export does — so on the face of it this rule
+     is redundant. It is not, because that viewport-level optimisation only
+     applies **at initial scale**, whereas `touch-action: manipulation` is fast
+     at *every* zoom level (WebKit, "More Responsive Tapping on iOS").
+
+     This app deliberately permits `maximumScale: 5` so a low-vision user can
+     zoom in and read their own prompt. Without this rule, that user — and only
+     that user — gets the 350ms delay back on every control in the app. Do not
+     remove it as dead weight. */
   a,
   button,
   input,
@@ -52,7 +64,17 @@
      iOS via -webkit-touch-callout (an iOS-only property) so desktop/Android
      keep the designed sizes; !important because the sub-16px utilities
      (text-sm / text-xs) sit on the controls themselves and out-specify any
-     base-layer rule. max() leaves controls already at/above 1rem alone. */
+     base-layer rule. max() leaves controls already at/above 1rem alone.
+
+     HALF-VERIFIED (2026-07-28), and the untested half is the one that does the
+     work. The NEGATIVE side is measured: `-webkit-touch-callout` is
+     unsupported in both Playwright engines, and a `text-sm` input computes a
+     true 14px there — so the gate correctly does NOT leak the 16px floor onto
+     desktop/Android. The POSITIVE side — that the block actually fires on iOS
+     — cannot be tested from here at all, because the property's absence off
+     iOS is precisely what makes it a usable iOS filter. If iOS ever ships
+     `-webkit-touch-callout` elsewhere, or drops the zoom behaviour, nothing in
+     CI will notice. See docs/runbooks/ios-verification.md. */
   @supports (-webkit-touch-callout: none) {
     input,
     select,

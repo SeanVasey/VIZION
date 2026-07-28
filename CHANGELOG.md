@@ -6,6 +6,45 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Documentation — audited every iOS/WebKit claim in the codebase
+
+With WebKit installed, every `iOS` / `WebKit` / `Safari` claim in `src/` was
+measured where measurable, in both engines, in a confirmed secure context.
+
+Most held: `navigator.vibrate` and Background Sync really are absent (so
+`lib/haptics.ts` and `OutboxFlusher` are right), and `inert`,
+`content-visibility`, `contain-intrinsic-size`, `color-mix` and `text-box` are
+all supported. Chromium notably does **not** support `-webkit-backdrop-filter`,
+so both declarations stay.
+
+Three claims were re-labelled:
+
+- **`register-sw.ts` / `navigator.storage.persist()`.** `navigator.storage` is
+  absent outright in Playwright's WebKit, which reads like the mitigation being
+  a no-op on our primary platform. It is the opposite: Safari 17 / iOS 17
+  support the Storage API in full, and WebKit grants `persist()` on heuristics
+  that explicitly include *"opened as a Home Screen Web App"* — precisely this
+  app's primary surface. The absence is a WebKitGTK gap. Documented as verified,
+  and as permanently untestable here.
+- **The `@supports (-webkit-touch-callout: none)` iOS gate.** Now labelled
+  half-verified, with the untested half named: measured, it correctly does *not*
+  leak the 16px floor onto desktop/Android (a `text-sm` input computes a true
+  14px in both engines). That it fires *on iOS* cannot be tested from here at
+  all — the property's absence off iOS is exactly what makes it a usable filter.
+- **`touch-action: manipulation`.** Looks redundant since iOS 9.3, because
+  `width=device-width` already removes the tap delay. It is not: that only
+  applies at *initial scale*, and this app deliberately allows
+  `maximumScale: 5` so a low-vision user can zoom. Without the rule, the ~350ms
+  delay returns for that user and nobody else. Marked do-not-remove.
+
+New `docs/runbooks/ios-verification.md` carries the measured divergence table
+and the rule — use `mobile-safari` for the engine, never for the platform — and
+CLAUDE.md §3 now states what a green e2e run does *not* mean. There is
+deliberately no test for the table: a spec asserting "WebKit lacks
+`navigator.storage`" would pin a Linux fact as an iOS requirement and fail as a
+bug report the day WebKitGTK ships it.
+
+
 ### Fixed — the bottom nav's press feedback was too weak to see, and the app had no reason to be quick
 
 **Feedback.** The nav's only press affordance was `active:scale-95` on a 150ms

@@ -1372,3 +1372,55 @@ returning.
   nav had no scale at all. Caught only because the probe was *also* stale in
   the other direction. Pair any synthesized-markup test with a unit assertion
   that the real component carries the class.
+
+## 2026-07-28 — Auditing the other iOS claims, and nearly writing the same bug into a test
+
+**What happened.** With WebKit finally installed, I swept every iOS/WebKit
+claim in the codebase and measured what could be measured, in both engines, on
+a confirmed secure context.
+
+Most held. `navigator.vibrate` really is absent (so `lib/haptics.ts`'s HONEST
+SCOPE note is right), Background Sync really is absent (so `OutboxFlusher`'s
+premise is right), `inert` / `content-visibility` / `color-mix` / `text-box`
+are all supported, and Chromium notably does *not* support
+`-webkit-backdrop-filter`, so both declarations have to stay.
+
+Then `navigator.storage` came back **absent in WebKit** — in a secure context,
+`'storage' in navigator === false`. `register-sw.ts` calls
+`navigator.storage?.persist?.()` and documents it as the iOS storage-eviction
+mitigation. My immediate reading was: the mitigation is a no-op on the primary
+target platform, and I started writing that up.
+
+It is the opposite. Safari 17 / iOS 17 support the Storage API **in full**, and
+WebKit grants `persist()` on heuristics that explicitly include *"opened as a
+Home Screen Web App"* — which is precisely this app's primary surface. The
+absence is a **WebKitGTK gap**, not an iOS gap.
+
+**What to avoid.**
+
+- **Playwright's WebKit diverges from iOS in BOTH directions, and the direction
+  that fools you is "missing here, present there."** A missing capability reads
+  like a hard negative result — the most trustworthy kind — which is exactly
+  why it slips through. Two of these found in one sweep: `navigator.storage`
+  and `-webkit-touch-callout`.
+- **I was one edit away from encoding the error as a test.** The plan had been
+  a spec asserting the measured capability matrix, so a future engine change
+  would surface. That test would have pinned "WebKit has no Storage API" as a
+  *requirement*, mislabelled a Linux fact as an iOS fact in a file called
+  `mobile-safari`, and failed as a bug report the day WebKitGTK shipped it.
+  There is deliberately no such spec; `docs/runbooks/ios-verification.md`
+  carries the matrix as dated measurements instead. Not everything you learn
+  should become an assertion.
+- **A rule that looks redundant may be load-bearing for one user.**
+  `touch-action: manipulation` reads like dead weight post-iOS-9.3, since
+  `width=device-width` already kills the tap delay. But that only applies at
+  *initial scale*, and this app deliberately allows `maximumScale: 5` so a
+  low-vision user can zoom. Delete the rule and the 350ms delay comes back for
+  that user and nobody else. Check who a "redundant" guard is still protecting.
+- **Label the half you could not test, specifically.** The
+  `@supports (-webkit-touch-callout: none)` gate is now verified in the
+  negative (measured: a `text-sm` input computes 14px in both engines, so the
+  16px floor does not leak) and untestable in the positive — because the
+  property's absence off iOS is the very thing that makes it work as a filter.
+  "Half-verified, and the untested half is the one that does the work" is a
+  more useful comment than either "verified" or nothing.
