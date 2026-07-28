@@ -22,6 +22,7 @@ import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
+import { useDraftParam } from "@/components/editor/use-draft-param";
 import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
 import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
 
@@ -72,6 +73,9 @@ export function EnhanceComposer() {
     lengthChoices && storedLength && LENGTHS.includes(storedLength)
       ? storedLength
       : null;
+
+  // `?draft=` prefill (Siri Shortcuts and the iOS share sheet land here).
+  useDraftParam();
 
   const enhanceMutation = useEnhance();
   const { toast } = useToast();

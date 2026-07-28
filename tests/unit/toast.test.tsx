@@ -95,3 +95,58 @@ describe("Toast", () => {
     spy.mockRestore();
   });
 });
+
+/** An action that posts a FOLLOW-UP toast — the "Replace draft" → "Undo"
+ *  chain the ?draft= prefill relies on. */
+function ChainTrigger() {
+  const { toast } = useToast();
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        toast({
+          text: "A prompt was shared",
+          action: {
+            label: "Replace draft",
+            onAction: () =>
+              toast({
+                text: "Draft replaced",
+                action: { label: "Undo", onAction: () => {} },
+              }),
+          },
+        })
+      }
+    >
+      fire-chain
+    </button>
+  );
+}
+
+describe("an action that queues a follow-up toast", () => {
+  it("keeps the replacement instead of dismissing it", () => {
+    // The action runs before the dismiss, so an unguarded dismiss would wipe
+    // the toast the action had just posted and the Undo would never appear.
+    render(
+      <ToastProvider>
+        <ChainTrigger />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByText("fire-chain"));
+    fireEvent.click(screen.getByRole("button", { name: "Replace draft" }));
+
+    expect(screen.getByText("Draft replaced")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy();
+    expect(screen.queryByText("A prompt was shared")).toBeNull();
+  });
+
+  it("still dismisses normally when the action posts nothing", () => {
+    render(
+      <ToastProvider>
+        <Trigger onUndo={() => {}} />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByText("fire"));
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(screen.queryByText("Composer cleared")).toBeNull();
+  });
+});

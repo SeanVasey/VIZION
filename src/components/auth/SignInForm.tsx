@@ -61,8 +61,11 @@ export function SignInForm({ initialError }: { initialError?: string }) {
         setStatus({ kind: "error", message: error.message });
         return;
       }
-      // Full navigation so middleware sees the fresh session cookies.
-      window.location.assign("/enhance");
+      // Full navigation so middleware sees the fresh session cookies. The
+      // query rides along: middleware preserved `?draft=` when it bounced an
+      // unauthenticated launch here, and hardcoding the path would drop the
+      // shared prompt on the last hop.
+      window.location.assign(`/enhance${window.location.search}`);
       return;
     }
 

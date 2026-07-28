@@ -45,7 +45,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const dismiss = useCallback(() => {
+  /**
+   * Dismiss the toast — but only if it is still the one showing.
+   *
+   * The id guard matters because an action may queue a FOLLOW-UP toast (the
+   * "Draft replaced · Undo" that answers a "Replace draft?" offer). The action
+   * runs before the dismiss, so an unguarded dismiss would wipe the
+   * replacement the action had just posted, and the Undo would never be
+   * offered. Passing no id means "dismiss whatever is showing" (the close
+   * affordance).
+   */
+  const dismiss = useCallback((id?: number) => {
+    if (id !== undefined && id !== idRef.current) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     setCurrent(null);
@@ -55,8 +66,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     (opts: ToastOptions) => {
       if (timerRef.current) clearTimeout(timerRef.current);
       idRef.current += 1;
-      setCurrent({ ...opts, id: idRef.current });
-      timerRef.current = setTimeout(dismiss, opts.durationMs ?? DEFAULT_DURATION_MS);
+      const id = idRef.current;
+      setCurrent({ ...opts, id });
+      timerRef.current = setTimeout(
+        () => dismiss(id),
+        opts.durationMs ?? DEFAULT_DURATION_MS,
+      );
     },
     [dismiss],
   );
@@ -98,8 +113,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => {
+                    const shownId = current.id;
                     current.action?.onAction();
-                    dismiss();
+                    // Scoped to the toast that was clicked: if the action
+                    // posted a follow-up, that one survives.
+                    dismiss(shownId);
                   }}
                   className="font-body flex min-h-[44px] shrink-0 items-center rounded-lg px-3 text-sm font-semibold text-accent transition-colors hover:text-chalk"
                 >
