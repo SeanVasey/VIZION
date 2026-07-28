@@ -65,11 +65,24 @@ bucket is private, both go through signed URLs — `src/lib/media/preview.ts`:
 - `img-src`/`media-src` in `next.config.ts` already allow `https://*.supabase.co`;
   a custom storage domain would need adding there. The service worker ignores
   cross-origin requests, so signed URLs are never cached by it.
-- Thumbnails are the **full stored objects**, rendered small and lazily. If
-  Storage image transformations are enabled on the project, signing thumbnails
-  individually with `{ transform: { width, height, resize: "cover" } }` would
-  cut the bytes — the transform is bound into the token, so it cannot be
-  bolted onto a batch-signed URL after the fact.
+- Thumbnails are the **full stored objects**, rendered small and lazily. This is
+  a known, accepted cost (decided 2026-07-28): opening the manager with a large
+  library downloads those originals, and it repeats per visit because each load
+  mints fresh signed URLs that miss the browser cache.
+
+  The obvious fix is not available here. Signing thumbnails individually with
+  `{ transform: { width, height, resize: "cover" } }` needs **Storage image
+  transformations, which are Pro+**; this project's org is on the free plan. The
+  transform is bound into the signed token, so it also cannot be bolted onto a
+  batch-signed URL after the fact — it is one signing request per image or
+  nothing.
+
+  What would work on any plan, if the cost ever bites: capture a ~96 px JPEG at
+  upload with the downscaler the composer already runs
+  (`captureFrameDataUrl(file, kind, 96)`) and keep it as a data URI on a new
+  nullable `media_assets.thumb` column. The list then costs zero extra requests
+  and zero quota, and video rows gain a real first-frame thumbnail instead of a
+  glyph. It needs a migration plus a backfill for rows predating the column.
 
 ## Generation formatters
 
