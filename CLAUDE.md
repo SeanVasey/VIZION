@@ -43,6 +43,16 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 
 If any step is red, fix it before committing. **No red commits.** `npm audit` runs in CI.
 
+**What green does not mean.** The e2e `mobile-safari` project is WebKitGTK on
+Linux, not Mobile Safari. It is evidence about the *rendering engine* — cascade
+layers, computed styles, layout — and is **not** evidence about the iOS
+*platform*: capability detection, touch-input semantics, storage eviction, or
+Home Screen web-app behaviour. It diverges from iOS in both directions, so
+"missing in WebKit" does not mean "missing on iOS". Before writing an iOS claim
+into a comment, commit, or changelog, read
+`docs/runbooks/ios-verification.md` — it carries the measured divergences and
+the rule. Two wrong claims have already shipped from getting this backwards.
+
 ## 4. CI
 
 `.github/workflows/ci.yml` runs on PR + push to `main`:

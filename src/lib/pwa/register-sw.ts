@@ -22,8 +22,21 @@ function canRegister(): boolean {
 }
 
 /**
- * Best-effort request for persistent storage. iOS/WebKit may evict service-worker
- * caches under storage pressure; persistence mitigates that. Never throws.
+ * Best-effort request for persistent storage. iOS/WebKit may evict
+ * service-worker caches under storage pressure; persistence mitigates that.
+ * Never throws.
+ *
+ * VERIFIED (2026-07-28): the claim holds, and it matters more here than most
+ * apps. Safari 17 / iOS 17 support the Storage API in full, and WebKit grants
+ * `persist()` on heuristics that explicitly include *"opened as a Home Screen
+ * Web App"* — i.e. exactly VIZ(IO)N's primary surface, the installed PWA.
+ *
+ * NOT COVERED BY ANY TEST, and it cannot be: `navigator.storage` is absent
+ * outright in Playwright's Linux WebKit (`'storage' in navigator === false`,
+ * measured in a confirmed secure context), so the e2e suite's `mobile-safari`
+ * project would report this API missing on a platform that in fact has it.
+ * See docs/runbooks/ios-verification.md — that divergence is the whole reason
+ * that runbook exists. The double `?.` is what keeps the gap harmless.
  */
 async function requestPersistentStorage(): Promise<void> {
   try {
