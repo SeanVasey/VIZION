@@ -20,12 +20,12 @@ const RAW_GLOBALS = read("src/styles/globals.css");
 
 /** Comments stripped — an assertion a comment can satisfy is not a test. */
 const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
-const ACCENTS = strip(RAW_ACCENTS);
+const ACCENTS_CSS = strip(RAW_ACCENTS);
 const GLOBALS = strip(RAW_GLOBALS);
 
 describe("the accent layer tracks the developer roster", () => {
   it("defines an accent for every developer, and none for anything else", () => {
-    const declared = [...ACCENTS.matchAll(/--dev-([a-z]+):\s*#/g)].map((m) => m[1]!);
+    const declared = [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*#/g)].map((m) => m[1]!);
     expect([...declared].sort()).toEqual([...DEVELOPER_ORDER].sort());
   });
 
@@ -43,14 +43,58 @@ describe("the accent layer tracks the developer roster", () => {
   });
 });
 
+describe("xAI is neutral on purpose", () => {
+  /** How far apart an accent's RGB channels sit. 0 is a perfect grey. */
+  function chromaSpread(hex: string): number {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return Math.max(r!, g!, b!) - Math.min(r!, g!, b!);
+  }
+
+  const ACCENT_HEX = new Map(
+    [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-f]{6})/g)].map(
+      (m) => [m[1]!, m[2]!] as const,
+    ),
+  );
+
+  it("renders xAI without a hue, because xAI publishes none", () => {
+    // Grok's production CSS declares oklch(11.57% 0 none) — chroma literally
+    // zero. Any hue here would be invented, and inventing one made the only
+    // unsourced entry the loudest mark in the list.
+    expect(chromaSpread(ACCENT_HEX.get("xai")!)).toBeLessThan(24);
+  });
+
+  it("is the ONLY neutral, so the absence reads as specific to this brand", () => {
+    // A palette drifting toward grey generally would make xAI's neutrality
+    // meaningless — it says something precise only while it is the exception.
+    const neutrals = [...ACCENT_HEX].filter(([, hex]) => chromaSpread(hex) < 24);
+    expect(neutrals.map(([dev]) => dev)).toEqual(["xai"]);
+  });
+
+  it("stays a FULL-contrast neutral, not a muted one", () => {
+    // The risk with a lone grey among colours is that it reads as a state.
+    // It must sit in the same luminance corridor as every other accent —
+    // a dimmer value would look disabled rather than deliberately colourless.
+    const [r, g, b] = [1, 3, 5].map((i) =>
+      parseInt(ACCENT_HEX.get("xai")!.slice(i, i + 2), 16),
+    );
+    const lin = (c: number) => {
+      const s = c / 255;
+      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
+    expect(luminance).toBeGreaterThan(0.1995); // 3:1 on the aurora-lit dark card
+    expect(luminance).toBeLessThan(0.2922); //    3:1 on the light card
+  });
+});
+
 describe("one hex per developer, in both themes", () => {
   it("declares no accent inside a light block", () => {
     // The palette's whole property is that each value clears 3:1 against BOTH
     // composited card fills, so it needs no light override. Adding one would
     // destroy the property it was derived to have.
     const lightBlocks = [
-      ...ACCENTS.matchAll(/:root\[data-theme="light"\]\s*\{([^}]*)\}/g),
-      ...ACCENTS.matchAll(/:root\[data-theme="system"\]\s*\{([^}]*)\}/g),
+      ...ACCENTS_CSS.matchAll(/:root\[data-theme="light"\]\s*\{([^}]*)\}/g),
+      ...ACCENTS_CSS.matchAll(/:root\[data-theme="system"\]\s*\{([^}]*)\}/g),
     ].map((m) => m[1]!);
     expect(lightBlocks.length).toBeGreaterThanOrEqual(2);
     for (const block of lightBlocks) {
@@ -67,8 +111,8 @@ describe("one hex per developer, in both themes", () => {
     // tokens.css declares the light theme twice — once for an explicit choice
     // and once for the system-preference path — so a token written into only
     // one of them leaves system-light users on dark values.
-    expect(ACCENTS.match(/--dev-peak:/g)?.length).toBe(3);
-    expect(ACCENTS.match(/--on-flare:/g)?.length).toBe(3);
+    expect(ACCENTS_CSS.match(/--dev-peak:/g)?.length).toBe(3);
+    expect(ACCENTS_CSS.match(/--on-flare:/g)?.length).toBe(3);
   });
 });
 
@@ -79,7 +123,7 @@ describe("the constructions the contrast figures rest on", () => {
     // identically zero at every x past the gutter the card already reserves —
     // `pr-12`, 48px. These two numbers are a PAIR: moving one without the
     // other silently puts the mark inside its own colour.
-    expect(ACCENTS).toMatch(/--dev-rx:\s*48px/);
+    expect(ACCENTS_CSS).toMatch(/--dev-rx:\s*48px/);
     expect(read("src/components/library/LibraryBrowser.tsx")).toContain("p-4 pr-12");
   });
 
@@ -87,7 +131,7 @@ describe("the constructions the contrast figures rest on", () => {
     // Card height varies with the preview (nullable) and with title wrapping.
     // A fixed px radius would make how much colour a card carries a function
     // of how long its preview happens to be.
-    expect(ACCENTS).toMatch(/--dev-ry:\s*\d+%/);
+    expect(ACCENTS_CSS).toMatch(/--dev-ry:\s*\d+%/);
   });
 
   it("keeps the overlay's radius in step with the card's", () => {

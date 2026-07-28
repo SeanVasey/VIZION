@@ -37,9 +37,13 @@ Two things surfaced with it and are fixed here too:
   information.
 - **A soft field of that colour on the card's trailing edge**, replacing the
   red. Ten of the twelve colours are sourced first-party; Z.ai's comes from its
-  corporate sibling and xAI's is assigned outright, because xAI publishes no
-  chromatic identity at all — its own CSS declares zero chroma. Both say so in
-  the token file rather than passing as sourced facts.
+  corporate sibling, and **xAI's is a deliberate neutral** — it publishes no
+  chromatic identity at all, its own CSS declaring zero chroma, so rather than
+  invent a hue the mark simply has none. Both say so in the token file rather
+  than passing as sourced facts. The neutral runs at full contrast, not a muted
+  one: this app says "disabled" with opacity on a still-coloured control, and
+  an unrecognised model renders no mark at all, so a colourless mark can't be
+  mistaken for either.
 - The field steps aside while a row is swiped, so the one moment a red delete
   panel meets that edge, the action colour is the only colour there. It also
   answers to **Reduced effects**; the mark deliberately does not, because a
