@@ -6,6 +6,29 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — the media the quota meter counts is now visible, and openable
+
+Settings → Data & privacy showed a storage meter over a list of picture-frame
+emoji and truncated UUIDs. It charged 18 MB of a 50 MB budget against files the
+user had no way to look at, and named them things like
+`32264e82-d153-46a3-…` — an identifier that identifies nothing to a human. If
+we are going to show someone the bill, the list has to show what the bytes are.
+
+- **Real thumbnails.** Image rows render the stored file. The `media` bucket is
+  private, so the whole list is signed in one batch call and the thumbnails
+  load lazily.
+- **Every stored row opens.** Tapping a row opens the file itself in a sheet —
+  image, video player, or audio player — with its type, size, and age, plus an
+  "Open original" link for full size. Opening mints a **fresh** signed URL
+  rather than reusing the list's, so a Settings page left open all afternoon
+  still opens files.
+- **Legacy rows get a human name.** Attachments stored before `original_name`
+  existed now read `Image · 3 days ago` instead of a sliced UUID.
+- **Rows whose upload never landed advertise no tap**, because there is nothing
+  behind it — they stay visible and removable, as before, for quota honesty.
+  A thumbnail that can't be signed degrades to the kind glyph; the list never
+  fails over decoration.
+
 ### Fixed — the red on every library card was the delete button showing through
 
 Both swipe-action panels were rendered permanently and only hidden from screen

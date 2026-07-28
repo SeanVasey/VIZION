@@ -1079,3 +1079,52 @@ whole paid run over it.
   accent. When a palette has to be derived rather than copied, say per entry
   which values are sourced and which are assigned — and put that in the token
   comment, not just the PR, because the PR is not what the next person reads.
+
+## 2026-07-28 — Showing the bytes the quota meter charges for
+
+**What broke.** Nothing broke; something was never finished. Settings showed a
+storage meter, a picture-frame emoji per file, and a truncated UUID. Every part
+of the plumbing worked — the objects were in the bucket the whole time — but
+the UI presented a bill for files the user could not see. A quota meter over
+unviewable items is an accusation, not information: the first question it
+provokes is "18 MB of *what*?", and the screen had no answer.
+
+**What changed.** Image rows render the stored file, and any `ready` row opens
+its actual bytes in a sheet. Both go through signed URLs (the bucket is
+private): one `createSignedUrls` batch for the list, a fresh single sign per
+open.
+
+**What to avoid.**
+
+- **A truncated UUID is worse than no name.** `32264e82-d153-46a3-…` costs a
+  full row of width to identify nothing. Where the real name was never recorded,
+  synthesise one from what IS known — `Image · 3 days ago` — and let the
+  thumbnail do the disambiguating.
+- **Don't reuse a list's signed URLs for the detail view.** The list's batch is
+  signed once at load; a page left open outlives it. Signing again on open is
+  one request and removes an entire class of "it worked five minutes ago".
+- **Supabase binds transform options into the signed token.** `createSignedUrls`
+  (plural, batched) takes no `transform`; only `createSignedUrl` (singular)
+  does, and it returns a `/render/image/sign/` URL whose token covers the
+  transformation. So you cannot batch-sign and then rewrite the URL into a
+  thumbnail — it's one request per transformed image, or full objects rendered
+  small. Chose the batch; wrote down the trade rather than leaving it implicit.
+- **Decoration must not be able to fail the thing it decorates.** `signThumbnails`
+  swallows a rejecting signer and per-path errors and returns a partial map, so a
+  storage hiccup costs thumbnails, not the ability to see and delete your files —
+  which is the manager's actual job, and the one that unblocks a full quota.
+- **A row that can't be opened must not look like one that can.** `pending` and
+  `failed` rows are reservations whose upload never landed; they render as plain
+  text, not buttons, so the only tap they offer is the one that works (remove).
+- **Check the CSP before shipping a new media source.** `img-src`/`media-src`
+  already allowed `*.supabase.co` (avatars got there first), and the service
+  worker ignores cross-origin requests, so signed URLs are neither blocked nor
+  cached — but that was luck inherited from an earlier decision, not a check
+  the feature performed on itself.
+
+**Environment note.** The sandbox image ships `chromium-1194` and no WebKit,
+while this project's Playwright pins 1223, so `npm run test:e2e` fails to launch
+both projects. The shell specs were run against the installed binary via a
+throwaway config with `launchOptions.executablePath` (11/11 green, mobile-chrome
+device profile); the `mobile-safari` project can only be verified in CI, which
+installs its own browsers.
