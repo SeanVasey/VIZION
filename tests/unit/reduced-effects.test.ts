@@ -17,16 +17,49 @@ const TOKENS = readFileSync(
   "utf8",
 );
 
-/** The block of selectors gated behind the root attribute. */
-const GATED = CSS.split("[data-reduced-effects]").slice(1).join("\n");
+/**
+ * Every selector that actually sits in a `[data-reduced-effects] …` rule head.
+ *
+ * Built structurally, and from comment-stripped CSS, because the obvious
+ * version is not safe: splitting the raw file on the literal
+ * "[data-reduced-effects]" takes everything after the FIRST occurrence — and
+ * once any explanatory comment mentions the attribute, that first occurrence
+ * moves above the component definitions and the remainder contains every
+ * selector in the file. The assertion then passes on a rule's own definition
+ * rather than on its gate. That is not hypothetical: it happened here.
+ */
+const GATED_SELECTORS: string[] = (() => {
+  const stripped = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const out: string[] = [];
+  for (const match of stripped.matchAll(/([^{}]+)\{/g)) {
+    const head = match[1]!;
+    if (!head.includes("[data-reduced-effects]")) continue;
+    for (const selector of head.split(",")) out.push(selector.trim());
+  }
+  return out;
+})();
 
 describe("reduced-effects gate covers every ambient layer", () => {
-  it.each([".bg-aurora", ".mesh-canvas", ".result-shimmer::before", ".glass"])(
-    "%s is gated",
-    (selector) => {
-      expect(GATED).toContain(selector);
-    },
-  );
+  it("finds the gated rules at all", () => {
+    // Guards the guard: a parser that matched nothing would make every
+    // assertion below fail loudly rather than silently, but a parser that
+    // matched the WHOLE FILE would make them all pass. Pin the shape.
+    expect(GATED_SELECTORS.length).toBeGreaterThan(3);
+    expect(GATED_SELECTORS.every((s) => s.includes("[data-reduced-effects]"))).toBe(true);
+  });
+
+  it.each([
+    ".bg-aurora",
+    ".mesh-canvas",
+    ".result-shimmer::before",
+    ".glass",
+    ".dev-edge",
+  ])("%s is gated", (selector) => {
+    expect(
+      GATED_SELECTORS.some((s) => s.endsWith(` ${selector}`)),
+      `no [data-reduced-effects] rule targets ${selector}`,
+    ).toBe(true);
+  });
 
   it("silences the glass grain specifically, not just some glass property", () => {
     const glassRule = /\[data-reduced-effects\]\s+\.glass\s*\{([^}]*)\}/.exec(CSS);

@@ -1,0 +1,118 @@
+/* =====================================================================
+ * VIZ(IO)N — ADDITIVE accent layer.  `tokens.css` is deliberately NOT edited:
+ * its header declares it LOCKED, and it defines the light theme TWICE
+ * (`:root[data-theme="light"]` and the verbatim
+ * `@media (prefers-color-scheme: light) :root[data-theme="system"]`), so every
+ * theme-swapped token has to be written into both or a system-light user
+ * silently inherits dark values.  That hazard is contained here, and only two
+ * tokens in this file swap.
+ *
+ * WHAT LIVES HERE
+ *   1. --dev-*     twelve per-developer identity accents (LIBRARY LIST ONLY)
+ *   2. --dev-peak  peak alpha of the card's trailing corner field
+ *   3. --on-flare  the ink that sits ON a --flare fill
+ *
+ * THE CORRIDOR, AND WHY THERE IS NO LIGHT PALETTE.
+ * Each accent is used two ways — as a soft field on a library card, and as the
+ * colour of a 16px identity mark on that card's surface — so the binding
+ * surfaces are the composited card fills, not a flat token:
+ *   dark card  = --glass over --void                 #23252A
+ *   dark card  = --glass over the aurora-lit ground  #2E352D   <- the floor
+ *   light card = --glass over --void                 #FCFCFD
+ * 3:1 against the aurora-lit dark card needs relative luminance Y >= 0.1995;
+ * 3:1 against the light card needs Y <= 0.2922.  Every accent below sits in
+ * that band, which lies BETWEEN the two card fills — and that is why ONE hex
+ * per developer is correct in BOTH themes and why none of the twelve appears
+ * in a light block.  Do not "fix" that: adding a light override destroys the
+ * property the palette was derived to have, and
+ * tests/unit/developer-accents.test.ts fails if you do.
+ *
+ * Two lightness tiers alternate around the hue wheel so that hue-neighbours
+ * differ in lightness as well as hue.
+ *
+ * SCOPE — READ THIS BEFORE REUSING A --dev-* TOKEN ANYWHERE ELSE.
+ * These are LIBRARY-LIST tokens.  Their clearances to the semantic roles were
+ * set by measured CO-PRESENCE on that one route: --flare renders there only as
+ * an alert paragraph and as the delete swipe panel, and --amber and --pulse do
+ * not render there at all.  Floors used: 20 dE2000 to --laser, 18 to BOTH
+ * --flare values, 15 to --amber and --pulse.  Putting --dev-* on the composer
+ * or the prompt detail makes --amber and --pulse co-present and the clearances
+ * MUST be re-derived first.  See docs/decisions/0003-developer-accents.md.
+ * ===================================================================== */
+
+:root {
+  /* tier | published anchor | OKLCH hue drift from that anchor */
+  --dev-anthropic: #a77159; /* A | anthropic.com --swatch--clay #d97757  +6.01 */
+  --dev-openai: #0ea480; /*    B | OpenAI --openai-green #10a37f         +0.17 */
+  --dev-deepseek: #798aee; /*  B | thesvg deepseek #4d6bfe               +4.76 */
+  --dev-google: #b379da; /*    B | thesvg google-gemini #8e75b2          +7.95 */
+  --dev-meta: #3b7ed6; /*      A | thesvg meta bright stop #0082fb       +1.25 */
+  --dev-minimax: #c85975; /*   A | MiniMax's own repo mark #e73562       -5.51 */
+  --dev-mistral: #da772a; /*   B | Mistral's OWN ramp stop #ff8205       +0.03 */
+  --dev-moonshot: #0088af; /*  A | thesvg kimi/color.svg #1783ff        -29.50 */
+  --dev-perplexity: #00a0b3; /* B | perplexity.ai #1fb8cd / #20808d      -0.19 */
+  --dev-qwen: #826ed4; /*      A | qwen.ai #6950ef                       +6.87 */
+  /* thesvg `zhipu` — the CORPORATE SIBLING slug.  Z.ai's own site CSS is
+     #000000 / #0d0d0d / #171717 throughout and its published mark colour is
+     #2d2d2d, so this is an inference from the parent company: right entity,
+     sibling source.  The weakest chromatic claim in the set. */
+  --dev-zai: #1598e3; /*       B | thesvg zhipu #3859ff                 -25.59 */
+  /* xAI publishes NO chromatic identity: Grok's production CSS declares
+     `oklch(11.57% 0 none)` — chroma literally zero — its favicon is #050505,
+     and the Simple Icons dataset carries no xAI or Grok entry at all.  Rather
+     than invent a brand fact, this value is ASSIGNED by one stated rule: the
+     largest hue arc no sourced brand claims, at the palette's chroma.  It is
+     the ONE entry here with no source, and the token comment is the only place
+     that says so — keep it.  NEVER #2196F3: that is Material Blue 500
+     verbatim, circulated by third parties with no first-party basis. */
+  --dev-xai: #d66dad; /*       B | ASSIGNED, not sourced — see above           */
+
+  /* Peak alpha of the trailing corner field.  This is the ONE aesthetic knob
+     in the design: no hex, no contrast figure, no semantic clearance and not
+     the focus ring depends on it, which is why it is the thing that is cheap
+     to be wrong about.  Turn it down to 20%/24% for a whisper, up to 34%/38%
+     for a statement. */
+  --dev-peak: 26%;
+
+  /* Horizontal reach of that field.  48px is NOT a taste value and must not be
+     raised without moving the card's `pr-12` with it.  The card's <a> reserves
+     exactly 48px of gutter free of ALL content, so a gradient whose alpha is
+     identically zero at every x >= 48px cannot tint any element inside the <a>
+     — not the mark, not the model label, not the title at any length, in any
+     locale, at any Dynamic Type size.  That construction guarantee is what
+     lets the mark be a positive coloured glyph instead of a knockout: an
+     accent-coloured glyph sitting inside its own tint fails WCAG 1.4.11 at a
+     tint of only ~8%.  Pinned as a pair by tests/unit/developer-accents.test.ts. */
+  --dev-rx: 48px;
+  /* Vertical reach, as a PROPORTION of the card rather than a fixed length.
+     Card height varies with the preview (which is nullable) and with title
+     wrapping, so a fixed px radius makes "how much brand colour this card
+     carries" a function of how long its preview text happens to be. */
+  --dev-ry: 100%;
+
+  /* The ink that sits ON a --flare FILL.  tokens.css documents --flare as
+     "only ever used as text/border — never a fill", but the library card's
+     delete swipe panel fills with it, and --on-laser #0e1013 on the LIGHT
+     --flare #c81d10 measures 3.30:1 — an AA fail for the non-bold ✕.  Dark is
+     unaffected at 5.94:1; light flips to white at 5.77:1.  --chalk is not the
+     escape hatch: #f2f3f6 on the dark --flare is 2.89:1.  Mirrors the way
+     --accent-ink already solves the same problem for --laser. */
+  --on-flare: var(--on-laser);
+}
+
+:root[data-theme="light"] {
+  /* A tint on a near-white card reads mostly as a chroma shift rather than a
+     lightness shift, so it needs slightly more alpha for the same perceptual
+     delta. */
+  --dev-peak: 28%;
+  --on-flare: #ffffff;
+}
+
+/* System theme — MUST duplicate the light block verbatim, or a system-light
+   user silently inherits the dark alpha AND the failing delete-panel ink. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --dev-peak: 28%;
+    --on-flare: #ffffff;
+  }
+}

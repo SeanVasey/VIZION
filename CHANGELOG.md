@@ -6,6 +6,49 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the red on every library card was the delete button showing through
+
+Both swipe-action panels were rendered permanently and only hidden from screen
+readers, so the card's translucent glass let the green favourite bleed in from
+the left and the red delete from the right — on every row, identically,
+regardless of the model. It read as an error, or a prompt already queued for
+deletion. It meant nothing. The panels now appear only while a row is actually
+displaced, and only on the side being dragged.
+
+Two things surfaced with it and are fixed here too:
+
+- **Library cards had no keyboard focus indicator at all.** The row is
+  `overflow-hidden` — load-bearing, or a swiped card runs past its own track —
+  and that clips every outset shadow a descendant draws, which is what the
+  focus ring is made of. The ring is now drawn inset on the card's overlay,
+  where the clip cannot reach it. The e2e spec that pins focus rings never
+  caught this because it can only reach the signed-out sign-in page.
+- **The delete panel's ✕ failed AA on the light theme**, at 3.30:1. It now
+  takes a `--on-flare` ink that flips with the theme, the way `--accent-ink`
+  already solves the same problem for Laser.
+
+### Added — every prompt now shows which developer's model made it
+
+- **A coloured developer mark beside the model name.** Sixteen models across
+  twelve developers, each in its own brand colour — the same glyph the picker
+  uses, but rendered in the developer's colour rather than the app's one green.
+  That green moves off the model label and the favourite star at the same time,
+  so exactly one thing on the card is coloured and it is the thing that carries
+  information.
+- **A soft field of that colour on the card's trailing edge**, replacing the
+  red. Ten of the twelve colours are sourced first-party; Z.ai's comes from its
+  corporate sibling and xAI's is assigned outright, because xAI publishes no
+  chromatic identity at all — its own CSS declares zero chroma. Both say so in
+  the token file rather than passing as sourced facts.
+- The field steps aside while a row is swiped, so the one moment a red delete
+  panel meets that edge, the action colour is the only colour there. It also
+  answers to **Reduced effects**; the mark deliberately does not, because a
+  comfort toggle should never amputate an identity channel.
+
+`--dev-peak` in `src/styles/dev-accents.css` is the one dial: turn it down for a
+whisper, up for a statement. `docs/decisions/0003-developer-accents.md` records
+why the palette is what it is.
+
 ### Changed — one contributor doc gained, two stale claims removed
 
 - **`AGENTS.md`** joins the required files: environment and runtime notes for

@@ -1029,3 +1029,53 @@ whole paid run over it.
   separate commit, so the diff says plainly what arrived and what was changed.
   Rewriting it as my own commit would have made the record less true for no
   gain.
+
+## 2026-07-28 — Developer accents on library cards
+
+- **A translucent fill turns every permanently-rendered sibling into a visible
+  wash.** The library's swipe panels were always in the DOM and only
+  `aria-hidden` toggled — which hides a thing from screen readers and from
+  nobody else. Under a `.glass` card at 28% transmission that painted an olive
+  left edge and a red right edge on every row, constant and model-independent,
+  and it read as an error state. Reveal-on-gesture UI has to gate on
+  DISPLACEMENT, not on committed state and not on ARIA: `open` is only set at
+  pointer-up, so gating on it drags the card across an empty gutter for the
+  whole gesture and pops the colour in at release.
+- **`overflow: hidden` on a row clips every outset focus shadow inside it.**
+  The card's focus ring is `0 0 0 1px` plus a 24px glow — both outset — so the
+  `overflow-hidden` that keeps a swiped row on its own track had silently
+  removed the keyboard focus indicator from every library card. The e2e spec
+  that exists to pin focus rings could not see it: it can only reach
+  `/sign-in`, and the library is behind auth. Second time a focus ring has died
+  here to a mechanism that looks fine in review — the first was cascade-layer
+  order. Check for an `overflow-hidden` ancestor whenever a focusable thing
+  stops showing a ring, and note that an inset ring must live on a SIBLING,
+  since an inset shadow paints below its own element's descendants.
+- **I broke a contract test by writing a comment.** `reduced-effects.test.ts`
+  built its haystack as `CSS.split("[data-reduced-effects]").slice(1)` — text
+  after the FIRST occurrence. My explanatory comment mentioned
+  `[data-reduced-effects] .glass`, which moved that first occurrence hundreds
+  of lines up, so the haystack swallowed the component definitions and every
+  selector assertion passed on a rule's own definition rather than on its gate.
+  Same shape as the `overscroll-behavior-y` comment that satisfied its own test
+  in P3. Strip comments and match STRUCTURALLY — parse the rule heads that
+  actually contain the attribute — and add a guard that pins the parser's shape,
+  because a parser matching nothing fails loudly but one matching everything
+  passes silently.
+- **Verify the mutation landed before believing a red/green result.** Proving a
+  test red, I removed a CSS rule with a `perl -0pi` whose whitespace didn't
+  match. Nothing changed, the suite stayed green, and for a moment that looked
+  like "the test is vacuous". The mutation script needs its own assertion —
+  `assert new != s` — or a proof-of-red run proves nothing.
+- **jsdom has no `PointerEvent`, so `fireEvent.pointerDown(el, {clientX})`
+  silently drops the coordinate.** The hook then computes `undefined - undefined`,
+  every comparison against NaN is false, and the row's transform becomes
+  `translateX(NaNpx)`. A "did it move?" assertion written as
+  `not.toBe("translateX(0px)")` passes on that — I wrote exactly that test and
+  it passed while nothing moved. Dispatch a `MouseEvent` typed `pointerdown`
+  (React dispatches on the type string) and assert the EXACT offset.
+- **Five of twelve AI developers publish black as their primary colour**, so a
+  literal "use the brand colour" feature would have given five cards no visible
+  accent. When a palette has to be derived rather than copied, say per entry
+  which values are sourced and which are assigned — and put that in the token
+  comment, not just the PR, because the PR is not what the next person reads.
