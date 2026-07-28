@@ -1517,3 +1517,17 @@ it *reached*.
   next. Either reset it at the start of every run or do not reuse it — reusing
   it and hoping is what turns "a spec failed an hour ago" into "the suite is
   broken and I cannot see why."
+
+**A later review round on the same fix, worth its own line.** The reset helper
+checked that `/__stub/reset` returned 200 and called that success. But
+`reuseExistingServer` can hand a run a stub process from an *older revision* —
+including one predating this very fix, whose reset reseeds tables, answers
+`{"ok":true}`, and leaves the diagnostics poisoned. Verified against the parent
+revision's handler: 200, still poisoned. So the fix for "a reused stub carries
+stale state" could itself be defeated by a reused stub. **When a remote
+component reports success, and the thing you need is a state change, read the
+state back.** A status code is the component's opinion of itself, and a version
+you did not write is exactly the case where that opinion is worth least. It now
+throws with the leftover entries and the command to clear them — and the same
+check catches any future partial reset at global setup, naming itself, rather
+than as a puzzling failure in whichever spec ran first.

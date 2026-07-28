@@ -50,6 +50,30 @@ export async function resetStubState(): Promise<void> {
   if (!res.ok) {
     throw new Error(`Stub Supabase refused the reset: HTTP ${res.status}`);
   }
+
+  // Trust the STATE, not the 200. `reuseExistingServer` can hand this run a
+  // stub process from an older revision — including one predating this fix,
+  // whose reset reseeds `tables` and leaves this list untouched. That stub
+  // answers `{"ok":true}` and stays poisoned (verified against the parent
+  // revision's handler), so a status-code check would wave through the exact
+  // cross-run state the reset exists to clear, and the run would fail later in
+  // whichever spec called `expectNoUnhandledStubRoutes` first.
+  //
+  // Reading it back also means a future partial reset fails HERE, naming
+  // itself, instead of surfacing as an unrelated spec failure.
+  const leftover = await readUnhandledStubRoutes();
+  if (leftover.length) {
+    throw new Error(
+      [
+        `The stub Supabase at ${STUB_URL} accepted a reset but is still reporting ${leftover.length} unhandled route(s):`,
+        ...leftover.map((entry) => `  ${entry}`),
+        "",
+        "Most likely it is a leftover process from an older revision, reused via",
+        "`reuseExistingServer`, whose reset does not clear this list. Kill it and re-run:",
+        `  pkill -f supabase-stub`,
+      ].join("\n"),
+    );
+  }
 }
 
 /** Routes the stub was asked for and does not implement. Empty is the pass. */

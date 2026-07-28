@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AddressInfo } from "node:net";
-import type { Server } from "node:http";
+import { createServer, type Server } from "node:http";
 import { createStubServer } from "../e2e/support/supabase-stub.mjs";
 
 /**
@@ -120,6 +120,41 @@ describe("stub Supabase reset", () => {
       /import \{[\s\S]*?resetStubState[\s\S]*?\} from "\.\/support\/stub-control"/,
     );
     expect(src).toMatch(/await resetStubState\(\)/);
+  });
+
+  it("rejects a reused stub whose reset answers OK but clears nothing", async () => {
+    // What `reuseExistingServer` can actually hand a run: a stub process from
+    // a revision predating this fix. Its reset reseeds `tables`, returns
+    // `{"ok":true}`, and leaves this list poisoned — so a helper that checked
+    // only the status code would wave through the exact cross-run state the
+    // reset exists to clear, and the failure would surface later, in whichever
+    // spec called `expectNoUnhandledStubRoutes` first.
+    const stale = createServer((req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify(
+          req.url === "/__stub/unhandled"
+            ? { unhandled: ["GET /rest/v1/left_over (unknown table)"] }
+            : { ok: true },
+        ),
+      );
+    });
+    await new Promise<void>((ready) => stale.listen(0, "127.0.0.1", ready));
+
+    try {
+      process.env.SUPABASE_STUB_PORT = String((stale.address() as AddressInfo).port);
+      vi.resetModules();
+      const against = await import("../e2e/support/stub-control");
+      await expect(against.resetStubState()).rejects.toThrow(
+        /accepted a reset but is still reporting 1 unhandled route/,
+      );
+    } finally {
+      await new Promise<void>((done, fail) =>
+        stale.close((err) => (err ? fail(err) : done())),
+      );
+      process.env.SUPABASE_STUB_PORT = String((server.address() as AddressInfo).port);
+      vi.resetModules();
+    }
   });
 
   it("refuses a nonsense SUPABASE_STUB_PORT rather than building a NaN URL", async () => {
