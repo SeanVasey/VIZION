@@ -127,7 +127,11 @@ export function useSwipeActions({ enabled = true }: { enabled?: boolean } = {}) 
      */
     style: {
       transform: `translateX(${dx}px)`,
-      touchAction: enabled ? ("pan-y" as const) : undefined,
+      // `pan-y pinch-zoom`, not bare `pan-y`: the claim this row needs is over
+      // the HORIZONTAL axis only. Omitting pinch-zoom would disable zoom
+      // across the whole library list — the same WCAG defect the composer
+      // chassis had — for no gesture benefit at all.
+      touchAction: enabled ? ("pan-y pinch-zoom" as const) : undefined,
     },
     handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp },
     onClickCapture,

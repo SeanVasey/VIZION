@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
 import {
@@ -101,7 +101,7 @@ describe("?draft= prefill", () => {
     );
   });
 
-  it("strips the param from the URL so a reload can't re-apply it", () => {
+  it("strips the param once applied, so a reload can't re-apply it", () => {
     visit("?draft=hello");
     renderComposer();
     expect(window.location.search).toBe("");
@@ -120,33 +120,82 @@ describe("?draft= prefill", () => {
     expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe("");
   });
 
-  it("offers rather than overwrites when the composer holds work", () => {
-    useUIStore.setState({ editorDraft: "my own prompt" });
-    visit("?draft=shared%20prompt");
-    renderComposer();
-
-    const textarea = screen.getByLabelText("Prompt input") as HTMLTextAreaElement;
-    expect(textarea.value).toBe("my own prompt");
-    expect(screen.getByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: /replace draft/i }));
-    expect(useUIStore.getState().editorDraft).toBe("shared prompt");
-  });
-
-  it("makes the replacement undoable", () => {
-    // Consistent with every other destructive-ish action in the composer.
-    useUIStore.setState({ editorDraft: "my own prompt" });
-    visit("?draft=shared%20prompt");
-    renderComposer();
-    fireEvent.click(screen.getByRole("button", { name: /replace draft/i }));
-    fireEvent.click(screen.getByRole("button", { name: /undo/i }));
-    expect(useUIStore.getState().editorDraft).toBe("my own prompt");
-  });
-
   it("does nothing at all on an ordinary visit", () => {
     useUIStore.setState({ editorDraft: "untouched" });
     renderComposer();
     expect(useUIStore.getState().editorDraft).toBe("untouched");
     expect(screen.queryByText(/A prompt was shared/i)).toBeNull();
+  });
+});
+
+describe("?draft= conflict — the offer has no deadline", () => {
+  beforeEach(() => {
+    useUIStore.setState({ editorDraft: "my own prompt" });
+    visit("?draft=shared%20prompt");
+  });
+
+  it("offers rather than overwrites", () => {
+    renderComposer();
+    expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe(
+      "my own prompt",
+    );
+    expect(screen.getByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeTruthy();
+    expect(screen.getByText("shared prompt")).toBeTruthy();
+  });
+
+  it("KEEPS the param while the offer is outstanding", () => {
+    // The whole point: the incoming prompt must survive longer than any
+    // timer. Stripping it here would leave it existing nowhere.
+    renderComposer();
+    expect(window.location.search).toContain("draft=shared");
+  });
+
+  it("does not use a toast, which would expire", () => {
+    renderComposer();
+    // A toast would be role=status/alert and self-dismiss; the banner is
+    // ordinary content that stays until answered.
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("survives well past a toast's lifetime", () => {
+    vi.useFakeTimers();
+    try {
+      renderComposer();
+      act(() => vi.advanceTimersByTime(60_000));
+      expect(screen.getByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeTruthy();
+      expect(window.location.search).toContain("draft=shared");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applies and clears the param on accept", () => {
+    renderComposer();
+    fireEvent.click(screen.getByRole("button", { name: /replace draft/i }));
+    expect(useUIStore.getState().editorDraft).toBe("shared prompt");
+    expect(window.location.search).toBe("");
+    expect(screen.queryByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeNull();
+  });
+
+  it("undoes to what was there AT CLICK TIME, not at mount", () => {
+    // Typing between the offer appearing and the tap must not be discarded by
+    // an Undo that restores a stale snapshot.
+    renderComposer();
+    fireEvent.change(screen.getByLabelText("Prompt input"), {
+      target: { value: "my own prompt, now longer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /replace draft/i }));
+    expect(useUIStore.getState().editorDraft).toBe("shared prompt");
+
+    fireEvent.click(screen.getByRole("button", { name: /undo/i }));
+    expect(useUIStore.getState().editorDraft).toBe("my own prompt, now longer");
+  });
+
+  it("discards it explicitly, leaving the draft alone", () => {
+    renderComposer();
+    fireEvent.click(screen.getByRole("button", { name: /discard it/i }));
+    expect(useUIStore.getState().editorDraft).toBe("my own prompt");
+    expect(window.location.search).toBe("");
+    expect(screen.queryByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeNull();
   });
 });

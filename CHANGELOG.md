@@ -31,8 +31,8 @@ All notable changes to VIZ(IO)N are documented here. The format follows
   with your answers, once, and says plainly that it's another billed run.
 - **Send a prompt in from a URL** — `?draft=` — which is what makes a Siri
   Shortcut or the iOS share sheet work (`docs/runbooks/shortcuts.md` has the
-  recipe). It never overwrites a draft in progress: it offers, and the
-  replacement is undoable.
+  recipe). It never overwrites a draft in progress: it offers in a banner that
+  waits as long as you need, and the replacement is undoable.
 
 ### Fixed — two controls that weren't what they looked like
 

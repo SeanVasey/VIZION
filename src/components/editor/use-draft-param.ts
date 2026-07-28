@@ -1,72 +1,89 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
-import { useToast } from "@/components/ui/Toast";
 import { resolveDraftParam } from "@/lib/pwa/draft-param";
 
 /**
  * Consume a `?draft=` prefill exactly once per page load.
  *
- * One-shot by two separate mechanisms, because either alone would leak:
- *  - a ref guards against React's double-invoked effects in dev StrictMode and
- *    against any re-render, and
- *  - the param is stripped from the URL with `replaceState`, so a reload — or
- *    the browser restoring the tab — doesn't re-apply a prompt the user has
- *    since edited or cleared.
+ * Applies straight into an empty composer. When the composer already holds
+ * work it does NOT apply and does NOT discard — it returns the incoming text
+ * so the composer can offer it as a persistent banner.
  *
- * Reads `location` directly rather than `useSearchParams`, which would opt the
- * whole page into a Suspense boundary for a value only needed once on mount.
+ * The offer deliberately has no deadline and the parameter is deliberately
+ * NOT stripped while one is outstanding. An earlier version put the offer in
+ * a toast and stripped the URL immediately, which meant the shared prompt
+ * existed nowhere after six seconds — not the URL, not history, not the
+ * store — and a single unrelated toast could evict it sooner. Avoiding a
+ * clobber of the old draft by silently destroying the new one is not a
+ * trade; leaving the param in place makes the offer survive a reload, a
+ * backgrounded PWA, and anything else that takes longer than a toast.
+ *
+ * One-shot within a page load via a ref, which survives StrictMode's
+ * double-invoked effects. Reads `location` directly rather than
+ * `useSearchParams`, which would opt the page into a Suspense boundary for a
+ * value needed once on mount.
  */
-export function useDraftParam() {
-  const editorDraft = useUIStore((s) => s.editorDraft);
+export function useDraftParam(): {
+  /** Incoming text awaiting a decision, or null. */
+  pending: string | null;
+  /** Take it — the caller is responsible for any undo affordance. */
+  accept: () => void;
+  /** Decline it, and clear the parameter for good. */
+  dismiss: () => void;
+} {
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
-  const { toast } = useToast();
+  const [pending, setPending] = useState<string | null>(null);
   const consumed = useRef(false);
-  // The draft is read once at mount; a later keystroke must not re-trigger.
-  const draftRef = useRef(editorDraft);
-  draftRef.current = editorDraft;
+
+  /** Drop `draft` from the address bar without touching anything else. */
+  function stripParam() {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("draft")) return;
+    url.searchParams.delete("draft");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
 
   useEffect(() => {
     if (consumed.current || typeof window === "undefined") return;
     consumed.current = true;
 
-    const url = new URL(window.location.href);
-    const outcome = resolveDraftParam(url.searchParams.get("draft"), draftRef.current);
-    if (url.searchParams.has("draft")) {
-      // Strip it whatever the outcome — including when it was rejected, so a
-      // too-long or empty param doesn't sit in the address bar looking live.
-      url.searchParams.delete("draft");
-      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-    }
+    const param = new URL(window.location.href).searchParams.get("draft");
+    // Read the store directly rather than a render-captured value: the
+    // persisted draft rehydrates synchronously at store creation, so this is
+    // the real current draft at mount.
+    const outcome = resolveDraftParam(param, useUIStore.getState().editorDraft);
 
     if (outcome.kind === "apply") {
       setEditorDraft(outcome.text);
+      stripParam();
       return;
     }
     if (outcome.kind === "conflict") {
-      // Offer, don't take. The composer already holds something the user
-      // typed; a link should never be able to overwrite it silently.
-      const incoming = outcome.text;
-      const previous = draftRef.current;
-      toast({
-        text: "A prompt was shared to VIZ(IO)N",
-        action: {
-          label: "Replace draft",
-          onAction: () => {
-            setEditorDraft(incoming);
-            toast({
-              text: "Draft replaced",
-              action: {
-                label: "Undo",
-                onAction: () => setEditorDraft(previous),
-              },
-            });
-          },
-        },
-      });
+      // Hand it up; the param stays until the user decides.
+      setPending(outcome.text);
+      return;
     }
+    // Nothing usable — clear it so a rejected value doesn't sit in the
+    // address bar looking live.
+    stripParam();
     // Mount-only: the prefill belongs to this navigation, not to later edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  return {
+    pending,
+    accept: () => {
+      if (pending === null) return;
+      setEditorDraft(pending);
+      setPending(null);
+      stripParam();
+    },
+    dismiss: () => {
+      setPending(null);
+      stripParam();
+    },
+  };
 }

@@ -239,19 +239,21 @@ export function TransformationDiff({
 
   async function share() {
     const text = effectiveOutput;
-    if (canShare) {
-      try {
-        await navigator.share({ title: "VIZ(IO)N prompt", text });
-        // The activity feed advertises "shared" events — log them when the
-        // shared prompt is saved (the action existed, unwired). Swallow a
-        // failed log so it never becomes an unhandled rejection.
-        if (savedId) void logShareAction(savedId).catch(() => {});
-        return;
-      } catch {
-        /* user cancelled or unsupported; fall through to copy */
-      }
+    try {
+      await navigator.share({ title: "VIZ(IO)N prompt", text });
+      // The activity feed advertises "shared" events — log them when the
+      // shared prompt is saved (the action existed, unwired). Swallow a
+      // failed log so it never becomes an unhandled rejection.
+      if (savedId) void logShareAction(savedId).catch(() => {});
+    } catch (e) {
+      // Dismissing the share sheet rejects with AbortError, and that is the
+      // most common outcome of tapping Share. Copying the prompt because the
+      // user declined to share it would be the very thing this button was
+      // just fixed for — a surprise clipboard write with "Copied ✓" flashing
+      // on the OTHER control. Only a genuine failure falls back.
+      if (e instanceof Error && e.name === "AbortError") return;
+      await copyOutput();
     }
-    await copyOutput();
   }
 
   function download(format: ExportFormat) {
@@ -447,7 +449,15 @@ export function TransformationDiff({
 
       {/* 5 · Secondary actions + export. */}
       <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-[1.35fr_1fr_1fr] gap-2">
+        <div
+          className={`grid gap-2 ${
+            // Drop the TRACK with the button, not just the node — otherwise the
+            // row keeps a dead third column and reads ragged against the
+            // full-bleed export strip below it. Same pattern as the Copy/Use
+            // row above, which switches cols on `onUse`.
+            canShare ? "grid-cols-[1.35fr_1fr_1fr]" : "grid-cols-[1.35fr_1fr]"
+          }`}
+        >
           {savedId ? (
             <Link
               href={`/library/${savedId}`}

@@ -76,10 +76,12 @@ describe("useSwipeActions", () => {
 
   it("claims horizontal gestures so the browser can't steal the swipe", () => {
     const { result } = renderHook(() => useSwipeActions());
-    // pan-y, not manipulation: the row's <Link> would otherwise let the UA
-    // treat a horizontal drag as a pan (or a back-navigation) and cancel the
-    // pointer stream instead of delivering it here.
-    expect(result.current.style.touchAction).toBe("pan-y");
+    // The row's <Link> would otherwise let the UA treat a horizontal drag as
+    // a pan (or a back-navigation) and cancel the pointer stream instead of
+    // delivering it here. `pinch-zoom` is retained deliberately: the claim
+    // this row needs is over the horizontal axis only, and omitting pinch
+    // would disable zoom across the whole library list for no benefit.
+    expect(result.current.style.touchAction).toBe("pan-y pinch-zoom");
     expect(result.current.style.transform).toBe("translateX(0px)");
   });
 
@@ -92,7 +94,7 @@ describe("useSwipeActions", () => {
     const { result } = renderHook(() => useSwipeActions());
     swipe(result, 200, 100);
     expect(result.current.style.transform).toBe(`translateX(${-SWIPE_REVEAL_PX}px)`);
-    expect(result.current.style.touchAction).toBe("pan-y");
+    expect(result.current.style.touchAction).toBe("pan-y pinch-zoom");
   });
 
   it("stays inert when disabled", () => {

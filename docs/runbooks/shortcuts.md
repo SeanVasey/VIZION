@@ -38,11 +38,15 @@ Siri triggers on the shortcut name.
 
 - **Empty composer** → the prompt is filled in, ready to run.
 - **Composer already has something** → VIZ(IO)N does **not** overwrite it. A
-  toast offers *Replace draft*, and replacing is undoable. A Shortcut fired
-  twice by accident can't destroy work in progress.
-- **The parameter is stripped from the URL** immediately, so reloading the tab
-  — or iOS restoring it days later — doesn't re-apply a prompt you have since
-  edited or cleared.
+  banner appears above the composer showing the incoming prompt with *Replace
+  draft* / *Discard it*. It has **no timer** — it stays until you answer it,
+  and replacing is undoable to whatever the draft held at the moment you
+  tapped. A Shortcut fired twice by accident can't destroy work in progress.
+- **The parameter is stripped once resolved.** After it applies (or after you
+  discard it), reloading the tab — or iOS restoring it days later — won't
+  re-apply a prompt you have since edited or cleared. While an offer is
+  outstanding the parameter deliberately stays in the URL, so even a reload
+  or a backgrounded PWA can't lose the shared prompt.
 - **Over 8 000 characters** → ignored rather than truncated. A silently
   shortened prompt is worse than one that plainly didn't arrive.
 
