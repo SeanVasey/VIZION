@@ -6,6 +6,44 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — the app can pick the model, and the modes stopped overlapping
+
+- **Auto routing.** VIZ(IO)N picks the model per run from a documented table,
+  chosen by how much *judgement* the mode needs rather than how much text it
+  moves: the shape-preserving modes can't restructure, so a fast model reaches
+  their ceiling, while Expand, Reformat and Adapt invent structure and take the
+  frontier tier. Long input or an attachment escalates. The result says which
+  model it chose, and the library records that one — not a fallback nobody
+  picked.
+- **A grouped model picker**, replacing the flat native list on both surfaces
+  that choose a model. Sixteen models under twelve developer headings, with
+  each developer's mark on its own rows instead of stranded on the control's
+  edge. The library's filter chips group the same way, and a model retired from
+  the roster keeps its chip so its saved prompts stay findable.
+- **Reformat now names the shape** — JSON, Markdown, Steps, Few-shot, or XML —
+  which is what finally separates it from Adapt: Reformat is about *shape*,
+  Adapt about the engine's *idiom*. Leave it unset for the old behaviour.
+- **Condense and Expand got a depth dial**, with each mode's own words
+  (Tight/Balanced/Essential · Focused/Thorough/Comprehensive) because the
+  aggressive end of one is the smallest output and of the other the largest.
+- **Clarify can ask.** When a request is genuinely ambiguous it returns its
+  best enhancement *and* up to three questions. Answering re-runs the original
+  with your answers, once, and says plainly that it's another billed run.
+- **Send a prompt in from a URL** — `?draft=` — which is what makes a Siri
+  Shortcut or the iOS share sheet work (`docs/runbooks/shortcuts.md` has the
+  recipe). It never overwrites a draft in progress: it offers in a banner that
+  waits as long as you need, and the replacement is undoable.
+
+### Fixed — two controls that weren't what they looked like
+
+- **Pinch-zoom works on the composer again.** A `touch-action` rule on the
+  editor surface silently disabled zoom on the app's main text area while
+  buying nothing — pull-to-refresh was already handled by the overscroll rule
+  beside it. Zoom is how you read your own prompt when you need it larger.
+- **Share is only offered where it exists.** Without a share sheet it used to
+  fall through to a plain copy — a second Copy button, one row away, with the
+  confirmation flashing on the wrong one.
+
 ### Fixed — the keyboard no longer hides the primary action
 
 On iOS the software keyboard covers the bottom of the page without

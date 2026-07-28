@@ -22,6 +22,7 @@ import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
+import { useDraftParam } from "@/components/editor/use-draft-param";
 import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
 import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
 
@@ -72,6 +73,12 @@ export function EnhanceComposer() {
     lengthChoices && storedLength && LENGTHS.includes(storedLength)
       ? storedLength
       : null;
+
+  // `?draft=` prefill (Siri Shortcuts and the iOS share sheet land here).
+  // A conflict comes back as `pending` and is rendered as a persistent banner
+  // below — never a toast, which would put a six-second deadline on a
+  // decision about the user's own text.
+  const sharedDraft = useDraftParam();
 
   const enhanceMutation = useEnhance();
   const { toast } = useToast();
@@ -267,6 +274,51 @@ export function EnhanceComposer() {
 
   return (
     <section className="flex flex-col gap-5">
+      {/* An incoming shared prompt that would have overwritten real work.
+          Stays until it is answered — the parameter is still in the URL
+          behind it, so even a reload cannot lose it. */}
+      {sharedDraft.pending !== null && (
+        <div className="glass flex flex-col gap-2 rounded-2xl border border-hair p-4">
+          <p className="font-body text-xs uppercase tracking-wider text-silver">
+            A prompt was shared to VIZ(IO)N
+          </p>
+          <p className="font-body line-clamp-3 text-sm text-text">
+            {sharedDraft.pending}
+          </p>
+          <p className="font-body text-xs text-silver">
+            Your composer already has a draft — replacing it can be undone.
+          </p>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                // Snapshot at CLICK time, not when the offer appeared, so
+                // anything typed in between is what Undo restores.
+                const previous = editorDraft;
+                sharedDraft.accept();
+                toast({
+                  text: "Draft replaced",
+                  action: {
+                    label: "Undo",
+                    onAction: () => setEditorDraft(previous),
+                  },
+                });
+              }}
+              className="btn-laser font-body flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm"
+            >
+              Replace draft
+            </button>
+            <button
+              type="button"
+              onClick={sharedDraft.dismiss}
+              className="glass font-body flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm text-text hover-hair transition-colors"
+            >
+              Discard it
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Mode instrument — full-width grid with the sliding lens-lock. */}
       <ModeRig activeMode={activeMode} onSelect={setActiveMode} />
 

@@ -942,3 +942,61 @@ whole paid run over it.
   token and `.glass:focus-visible` re-including it. Only a real engine
   resolves layers, so the guard has to be e2e; the spec was proven red with
   the rule removed before being trusted green.
+- **The DB's type system is a design input, not an obstacle.** `model_target`
+  is a Postgres enum on three columns, so "auto" could never be a target id —
+  which is what forced Auto to be a boolean riding BESIDE a real fallback,
+  resolved server-side, with only the resolved id ever written. That shape is
+  better than the one intended anyway: `resolvedTarget` gives the client
+  provenance it would otherwise have to infer, and the library records the
+  model that actually produced the text. Let the constraint pick the design.
+- **Resolve a derived value before anything reads the thing it derives from.**
+  Auto resolves immediately after the target gate and before the thinking gate,
+  because that gate indexes `TARGET_THINKING_LEVELS[target]` — resolving later
+  would have validated the user's thinking dial against a model they weren't
+  going to get. Order-of-validation bugs don't announce themselves; find them
+  by asking which later gate reads the value.
+- **Gate a per-mode knob in the builder, not at the wire.** `format` and
+  `length` are keyed by mode inside `buildSystemPrompt`, so a knob sent with a
+  mode that doesn't take it is INERT rather than contradictory. That is what
+  lets the route validate legality only, and it means a stale client — or a
+  mode flipped between composing and sending — can't produce a prompt that
+  argues with itself. The test that pins it asserts the built prompt is
+  byte-identical with and without the knob for every mode that ignores it.
+- **A shared dial can't always share its words.** Condense and Expand take the
+  same three-position control, but the aggressive end of one is the smallest
+  output and of the other the largest. "Short/Medium/Long" would have been a
+  lie on one of them, so the labels (and the instructions) are per mode. When
+  one control drives two opposite meanings, only the geometry is shareable.
+- **Adding an optional field to a required contract must not weaken it.**
+  Clarify's `questions` never substitutes for `output`: the model answers AND
+  may ask. Had questions been allowed to stand in, a paid run could return
+  nothing usable. Same tolerance as `assumptions` (filtered, trimmed, capped,
+  omitted-when-empty, never fatal) with its own lower cap, because a human
+  answers these by hand.
+- **A new variant of an existing thing may need to contradict its siblings'
+  boilerplate.** All three refine instructions opened "the input you receive is
+  an already-enhanced prompt". For the answered pass that is false — its input
+  is the author's original — so copying the sibling framing would have told the
+  model something untrue about what it was holding. Check the shared preamble
+  before joining a family.
+- **`touch-action` is not decoration.** `pan-x pan-y` on the composer read like
+  a pull-to-refresh guard and was actually a zoom kill switch: it omits
+  `pinch-zoom`, while the actual PTR suppression came from `overscroll-behavior`
+  on the line above. A property whose name doesn't mention the thing it breaks
+  is exactly the kind that survives review. (The mirror of the swipe-row lesson:
+  there, the missing claim broke a gesture; here, an unnecessary one broke zoom.)
+- **A fallback can turn a control into a duplicate of its neighbour.** Share
+  fell back to a clipboard write when Web Share was absent, so on some browsers
+  it did precisely what Copy did one row over — with the "Copied ✓" landing on
+  the other button. Capability-detect and HIDE, the way the paste pill already
+  did; a graceful fallback isn't graceful when it makes two controls identical.
+- **A dismiss that isn't scoped can eat the thing it triggered.** The toast
+  action ran `onAction()` then dismissed unconditionally, so an action that
+  posted a follow-up toast lost it instantly — the "Replace draft → Undo" chain
+  would have silently dropped its second half. Scope the dismiss to the id that
+  was showing. Found only because a test asserted the follow-up appeared.
+- **Run the gate in order, every time.** The length-rail commit went in with a
+  typecheck failure: its test used a request field never added to the type, so
+  the runtime tests passed and `tsc` was never re-run after the test file
+  landed. Amended. Re-running unit tests is not a substitute for re-running the
+  step that checks a different thing.

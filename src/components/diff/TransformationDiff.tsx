@@ -126,6 +126,24 @@ export function TransformationDiff({
     [reviewable, rejected, result],
   );
 
+  // Web Share is absent on Firefox and on desktop Chrome outside Windows/
+  // ChromeOS. Detected once rather than probed at click time, so the button
+  // can be hidden instead of offered and then quietly doing something else.
+  //
+  // Detected during RENDER, which is normally a hydration hazard — the server
+  // and the client would disagree about whether the button exists. It is safe
+  // here for a specific reason: this component's only consumer renders it
+  // behind `{view && ...}`, and `view` is client state set exclusively in a
+  // mutation's onSuccess. There is no server render and no first-client
+  // render, so there is no pair of markups to mismatch. If this component ever
+  // gains a server-rendered consumer, THIS is the line that has to change —
+  // move the detection into an effect behind a `mounted` flag.
+  // (EnhanceComposer's `canPaste` uses the same detection and is safe for a
+  // DIFFERENT reason: a `useState(false)` gate that is false on the server and
+  // on the first client render alike. Don't assume the two are interchangeable.)
+  const canShare =
+    typeof navigator !== "undefined" && typeof navigator.share === "function";
+
   /** The model that ACTUALLY ran. Under Auto the prop is only the fallback the
    *  client sent; the server reports what it resolved to. Everything
    *  user-facing or persisted reads this, so the library records the model
@@ -233,19 +251,21 @@ export function TransformationDiff({
 
   async function share() {
     const text = effectiveOutput;
-    if (typeof navigator !== "undefined" && "share" in navigator) {
-      try {
-        await navigator.share({ title: "VIZ(IO)N prompt", text });
-        // The activity feed advertises "shared" events — log them when the
-        // shared prompt is saved (the action existed, unwired). Swallow a
-        // failed log so it never becomes an unhandled rejection.
-        if (savedId) void logShareAction(savedId).catch(() => {});
-        return;
-      } catch {
-        /* user cancelled or unsupported; fall through to copy */
-      }
+    try {
+      await navigator.share({ title: "VIZ(IO)N prompt", text });
+      // The activity feed advertises "shared" events — log them when the
+      // shared prompt is saved (the action existed, unwired). Swallow a
+      // failed log so it never becomes an unhandled rejection.
+      if (savedId) void logShareAction(savedId).catch(() => {});
+    } catch (e) {
+      // Dismissing the share sheet rejects with AbortError, and that is the
+      // most common outcome of tapping Share. Copying the prompt because the
+      // user declined to share it would be the very thing this button was
+      // just fixed for — a surprise clipboard write with "Copied ✓" flashing
+      // on the OTHER control. Only a genuine failure falls back.
+      if (e instanceof Error && e.name === "AbortError") return;
+      await copyOutput();
     }
-    await copyOutput();
   }
 
   function download(format: ExportFormat) {
@@ -441,7 +461,15 @@ export function TransformationDiff({
 
       {/* 5 · Secondary actions + export. */}
       <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-[1.35fr_1fr_1fr] gap-2">
+        <div
+          className={`grid gap-2 ${
+            // Drop the TRACK with the button, not just the node — otherwise the
+            // row keeps a dead third column and reads ragged against the
+            // full-bleed export strip below it. Same pattern as the Copy/Use
+            // row above, which switches cols on `onUse`.
+            canShare ? "grid-cols-[1.35fr_1fr_1fr]" : "grid-cols-[1.35fr_1fr]"
+          }`}
+        >
           {savedId ? (
             <Link
               href={`/library/${savedId}`}
@@ -463,13 +491,20 @@ export function TransformationDiff({
               {saving ? "Saving…" : "Save to library"}
             </button>
           )}
-          <button
-            type="button"
-            onClick={share}
-            className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
-          >
-            Share
-          </button>
+          {/* Only where the platform actually has a share sheet. Without the
+              gate this silently fell through to a clipboard write — a second
+              button doing exactly what Copy does, one row away, with the
+              "Copied ✓" flash landing on the OTHER button. Same policy the
+              composer's paste pill already applies to its own capability. */}
+          {canShare && (
+            <button
+              type="button"
+              onClick={share}
+              className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
+            >
+              Share
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setCompareOpen(true)}
