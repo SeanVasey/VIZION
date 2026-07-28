@@ -487,7 +487,13 @@ const PromptRow = memo(function PromptRow({
       : "pointer-events-none opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none");
   return (
     <li
-      className="relative overflow-hidden rounded-2xl"
+      // `scroll-row` (content-visibility) makes scroll cost independent of how
+      // many prompts are saved: off-screen rows skip layout, paint and — the
+      // expensive part — the card's backdrop blur. Safe on this element
+      // specifically because its paint containment clips nothing that isn't
+      // already clipped: the row is `overflow-hidden` for the swipe, so its
+      // focus indicator is already drawn inset by `.dev-edge`.
+      className="scroll-row relative overflow-hidden rounded-2xl"
       // Two consumers sit on opposite sides of the <a> — .dev-mark inside it
       // and .dev-edge after it — so the value is carried here. It arrives as
       // an inline custom property rather than a composed Tailwind class

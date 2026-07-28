@@ -8,7 +8,13 @@
  * Android/Chromium only.
  *
  * The audit's standing ruling: never simulate the missing haptic with an
- * animation. Touch feedback on iOS stays the `active:scale-95` press state.
+ * animation. Touch feedback on iOS is carried by the visual press state —
+ * which is now `usePressable` + `.pressable` (`[data-pressed]`), not the
+ * `active:scale-95` this line used to name. `:active` was retired for touch
+ * feedback app-wide: it cannot outlive pointer-up, it does not cancel when a
+ * press is dragged off the control, and iOS is widely reported to ignore it
+ * for touch altogether unless the document carries a touch listener — a
+ * workaround whose documented cost is controls flashing active during scroll.
  */
 
 /** A short confirmation tick — copy succeeded, a run finished. */

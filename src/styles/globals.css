@@ -19,8 +19,20 @@
        background extending under the notch / home indicator. */
     background-color: var(--bg);
     -webkit-text-size-adjust: 100%;
-    /* iOS: no grey tap flash — active:scale / hover tokens carry the feedback. */
+    /* iOS: no grey tap flash. Note this SUPPRESSES the only touch feedback iOS
+       gives by default — reportedly it uses this highlight *instead of*
+       honouring `:active` for touch — so the replacement has to be real. It is
+       `.pressable` + `usePressable` (see the components layer), not a
+       pseudo-class, precisely so nothing here depends on that report. */
     -webkit-tap-highlight-color: transparent;
+    /* Programmatic and in-page scrolls glide instead of teleporting: hash
+       links, `scrollIntoView` in the composer and attachment tray, "back to
+       top". This does NOT slow route changes — Next temporarily forces
+       `scroll-behavior: auto` around its own scroll restoration, and the
+       matching `data-scroll-behavior="smooth"` on <html> (set in the root
+       layout) is how it is told to keep doing so in v16+. The global
+       reduced-motion rule below overrides this back to `auto`. */
+    scroll-behavior: smooth;
   }
 
   /* iOS Safari waits ~300ms on tappable elements to rule out a double-tap
@@ -220,6 +232,71 @@
     box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28);
   }
 
+  /* THE app-wide press affordance. Every tappable control that wants one uses
+     this + `usePressable`; nothing uses `active:` for touch feedback any more.
+
+     Why not `active:scale-95`, which this replaced everywhere:
+
+     1. **The press must be instant and the release must not be** — and Tailwind
+        cannot express a one-directional duration. A ramp on the way DOWN is
+        exactly the lag the affordance exists to disprove, so `[data-pressed]`
+        zeroes the duration and the resting rule owns the ease-out.
+     2. **`:active` cannot hold past pointer-up.** A 40ms tap bought 40ms of
+        feedback; `usePressable` guarantees a 130ms floor.
+     3. **iOS may ignore `:active` for touch entirely.** Every source on this
+        reports that it does unless the document carries a touch listener, and
+        that the workaround makes controls flash active while you SCROLL past
+        them. All of that reporting predates current iOS and could not be
+        verified here. State we set ourselves is not a bet either way.
+
+     Scale is 10%, not 5%: measured in WebKit, the old `scale-95` on a 150ms
+     ramp reached ~0.951 in an ~80ms press, so it did render — it was just
+     small, with no second channel, and with the native tap highlight already
+     suppressed on html. */
+  .pressable {
+    transition:
+      transform 200ms cubic-bezier(0.2, 0.9, 0.3, 1),
+      color 200ms ease;
+  }
+  .pressable[data-pressed] {
+    transform: scale(0.9);
+    transition-duration: 0s;
+  }
+
+  /* Bottom-nav tab — `.pressable` plus a wash, since a scale alone is easy to
+     miss on a 64px bar under a thumb that is covering most of it. */
+  .nav-tab {
+    position: relative;
+  }
+
+  /* The press wash: an accent-tinted pill behind the tab's content. Painted on
+     a ::before so it needs no extra node and cannot disturb the flex
+     centring. */
+  .nav-tab::before {
+    content: "";
+    position: absolute;
+    inset: 0.375rem 0.5rem;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--accent-ink) 16%, transparent);
+    opacity: 0;
+    transition: opacity 260ms ease-out;
+    pointer-events: none;
+  }
+  .nav-tab[data-pressed]::before {
+    opacity: 1;
+    transition-duration: 0s;
+  }
+
+  /* Reduced motion takes the movement, never the feedback. The global collapse
+     already flattens the durations; drop the scale too. On the nav the wash
+     then carries the whole signal; on a bare `.pressable` icon button the
+     colour change does. Either way the tap stays acknowledged. */
+  @media (prefers-reduced-motion: reduce) {
+    .pressable[data-pressed] {
+      transform: none;
+    }
+  }
+
   /* Primary CTA — ALWAYS --on-laser ink on a Laser fill (never the reverse),
      in BOTH themes.  Pill radius, Laser focus ring (via :focus-visible). */
   .btn-laser {
@@ -415,6 +492,53 @@
      their own prompt; the suppression it bought was already covered twice. */
   .no-pull-refresh {
     overscroll-behavior: contain;
+  }
+
+  /* ---------------------------------------------------------------------
+     Scroll performance
+     --------------------------------------------------------------------- */
+
+  /* Long lists (the library) skip layout, paint AND backdrop-filter for rows
+     that are off-screen, so scroll cost stops scaling with list length. The
+     `auto` keyword in contain-intrinsic-size makes the engine remember each
+     row's last rendered height, so the scrollbar doesn't jitter as rows are
+     skipped and restored.
+
+     Note this applies `contain: layout style paint`, and paint containment
+     CLIPS outset box-shadows — including a focus ring. Only put it on rows
+     that are already `overflow-hidden` (and therefore already draw their focus
+     indicator inset, as the library card does via `.dev-edge`). */
+  .scroll-row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 116px;
+  }
+
+  /* Frosted glass is expensive to MOVE. Each `.glass` panel makes the
+     compositor snapshot the pixels behind it, blur them and re-composite —
+     every frame, for every panel, and a library screen holds a dozen. At rest
+     that cost buys the design. In motion it buys nothing: a backdrop sliding
+     past at flick speed is already a blur, so blurring it again is work no one
+     can see. `ScrollStateManager` stamps `data-scrolling` on <html> for the
+     duration of a scroll gesture (+140ms), and these rules stand that work
+     down for exactly that long. The grain goes with it — a tiled background
+     image is re-sampled on the same schedule.
+
+     Scoped to `.glass` and NOT to the two chrome bars: `--chrome` is only
+     ~0.42–0.45 opaque, so text passing under an unblurred header would be
+     plainly legible through it. `--glass` is 0.72 (dark) / 0.82 (light) over a
+     deliberately low-contrast ambient mesh, where dropping the blur is not
+     perceptible — least of all mid-flick.
+
+     Toggling `backdrop-filter` also toggles a stacking context and a
+     containing block for fixed descendants. Safe here because no `.glass`
+     element hosts a `position: fixed` descendant: Sheet, Toast and
+     KeyboardActionBar all portal to <body>, and the avatar-crop modal is a
+     root-level sibling in SettingsPanel. `tests/unit/ui-contracts.test.ts`
+     is what keeps that true. */
+  [data-scrolling] .glass {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-image: none;
   }
 
   /* Ambient mesh ground — quiet directional wash over Void; the animated

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { PressableButton } from "@/components/ui/PressableButton";
 import { useRouter } from "next/navigation";
 import { MODES, MODE_LABEL, type ModeId, type TargetModelId } from "@/lib/constants";
 import { boundedDiffWords, countChangedSections } from "@/lib/enhance/diff";
@@ -302,11 +303,10 @@ export function PromptDetail({
                 : `v${labelOf.get(currentId ?? "") ?? 1}`}
             </p>
             {/* Quick copy — 44px tap target that doesn't inflate the header row. */}
-            <button
-              type="button"
-              onClick={copyCurrent}
+            <PressableButton
+                            onClick={copyCurrent}
               aria-label={copied ? "Copied" : "Copy prompt text"}
-              className="-my-2 -mr-1.5 flex h-11 w-11 items-center justify-center rounded-full text-silver transition-[color,transform] duration-150 hover:text-chalk focus-visible:text-chalk active:scale-95"
+              className="-my-2 -mr-1.5 flex h-11 w-11 items-center justify-center rounded-full text-silver hover:text-chalk focus-visible:text-chalk"
             >
               {copied ? (
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-accent">
@@ -340,7 +340,7 @@ export function PromptDetail({
                   />
                 </svg>
               )}
-            </button>
+            </PressableButton>
           </div>
           {compareLoading ? (
             /* A shape where the version body will land, so the panel doesn't

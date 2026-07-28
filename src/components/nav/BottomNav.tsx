@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { usePressable } from "@/components/ui/use-pressable";
 import { useKeyboardVisible } from "./use-keyboard-visible";
 import { showsBottomNav } from "./visibility";
 
@@ -66,6 +67,78 @@ const TABS: Tab[] = [
   },
 ];
 
+/**
+ * The tab's visible content, rendered *inside* `<Link>` so it can read
+ * `useLinkStatus()`.
+ *
+ * `pending` is the whole point: these routes are server-rendered against
+ * Supabase, so the gap between tap and paint is real network time. Treating a
+ * pending tab as selected means the destination lights up on tap — the answer
+ * to "did that register?" arrives immediately and is *correct*, rather than
+ * waiting for the server. If the navigation is instant, `pending` never flips
+ * and `active` has already taken over; if it is aborted, `pending` falls back
+ * to false on its own. No optimistic state to reconcile by hand.
+ */
+function TabContent({ tab, active }: { tab: Tab; active: boolean }) {
+  const { pending } = useLinkStatus();
+  const on = active || pending;
+
+  return (
+    <span
+      className={[
+        "relative z-[1] flex flex-col items-center gap-1",
+        on ? "text-accent" : "text-silver group-hover:text-chalk",
+      ].join(" ")}
+    >
+      {tab.icon}
+      <span className="font-body">{tab.label}</span>
+      {/* Selected marker. Selection used to be carried by colour ALONE, and
+          accent-against-Silver is a 1.57:1 luminance pair in dark and 1.03:1
+          in light — i.e. for a user who does not separate those two hues, the
+          tabs were indistinguishable (WCAG 1.4.1, "use of colour"). A shape
+          that is present or absent is a second, non-chromatic channel, and it
+          doubles as the at-a-glance answer during the pending window. */}
+      <span
+        aria-hidden="true"
+        className={[
+          "absolute -bottom-1.5 h-1 w-1 rounded-full bg-accent",
+          "transition-opacity duration-200 motion-reduce:transition-none",
+          on ? "opacity-100" : "opacity-0",
+        ].join(" ")}
+      />
+    </span>
+  );
+}
+
+function NavTab({ tab, active }: { tab: Tab; active: boolean }) {
+  const { pressed, handlers } = usePressable();
+
+  return (
+    <Link
+      href={tab.href}
+      // Prefetch is left at the default (automatic), NOT forced to `true`.
+      // All three tabs are dynamic routes (the app layout reads cookies), and
+      // automatic prefetch warms each one down to its `loading.tsx` boundary —
+      // which is what actually makes the transition instant. Forcing a full
+      // prefetch would additionally run every route's Supabase queries on each
+      // page view, and Next 15 defaults `staleTimes.dynamic` to 0, so that
+      // payload is discarded rather than reused. Triple the reads, no gain.
+      aria-current={active ? "page" : undefined}
+      data-pressed={pressed || undefined}
+      {...handlers}
+      className={[
+        // `pressable` owns the scale; `nav-tab` adds the accent wash on top.
+        "pressable nav-tab group flex flex-1 min-h-[var(--bottom-nav-h)] flex-col items-center justify-center py-2",
+        // select-none stops iOS long-press from selecting the tab label
+        // instead of navigating.
+        "select-none text-xs",
+      ].join(" ")}
+    >
+      <TabContent tab={tab} active={active} />
+    </Link>
+  );
+}
+
 export function BottomNav() {
   const pathname = usePathname();
   // iOS keeps "fixed" chrome anchored to the layout viewport, so with the
@@ -93,29 +166,14 @@ export function BottomNav() {
       ].join(" ")}
     >
       <ul className="mx-auto flex max-w-screen-sm items-stretch justify-around">
-        {TABS.map((tab) => {
-          const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-          return (
-            <li key={tab.href} className="flex-1">
-              <Link
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={[
-                  "flex min-h-[var(--bottom-nav-h)] flex-col items-center justify-center gap-1 py-2",
-                  // active:scale gives touch users immediate tap feedback (hover
-                  // never fires on touch); the global reduced-motion rule
-                  // neutralizes the transition. select-none stops iOS long-press
-                  // from selecting the tab label instead of navigating.
-                  "select-none text-xs transition-[color,transform] duration-150 active:scale-95",
-                  active ? "text-accent" : "text-silver hover:text-chalk",
-                ].join(" ")}
-              >
-                {tab.icon}
-                <span className="font-body">{tab.label}</span>
-              </Link>
-            </li>
-          );
-        })}
+        {TABS.map((tab) => (
+          <li key={tab.href} className="flex flex-1">
+            <NavTab
+              tab={tab}
+              active={pathname === tab.href || pathname.startsWith(`${tab.href}/`)}
+            />
+          </li>
+        ))}
       </ul>
     </nav>
   );

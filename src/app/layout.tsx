@@ -5,6 +5,7 @@ import { UI_STORE_KEY } from "@/lib/constants";
 import { QueryProvider } from "@/lib/query/provider";
 import { ThemeManager } from "@/components/ThemeManager";
 import { ReducedEffectsManager } from "@/components/ReducedEffectsManager";
+import { ScrollStateManager } from "@/components/ScrollStateManager";
 import { NeuralMeshBackground } from "@/components/NeuralMeshBackground";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -44,6 +45,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       data-theme="system"
+      // Declares the `scroll-behavior: smooth` set in globals.css. Next reads
+      // this to decide whether it must neutralize smooth scrolling around its
+      // own scroll restoration — without it, route changes would animate their
+      // scroll-to-top from v16 on, and dev logs a warning today.
+      data-scroll-behavior="smooth"
       className={fontVars}
       suppressHydrationWarning
     >
@@ -60,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryProvider>
           <ThemeManager />
           <ReducedEffectsManager />
+          <ScrollStateManager />
           <NeuralMeshBackground />
           <SafeAreaProvider>{children}</SafeAreaProvider>
           <BottomNav />

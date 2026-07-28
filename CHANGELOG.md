@@ -6,6 +6,125 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the bottom nav's press feedback was too weak to see, and the app had no reason to be quick
+
+**Feedback.** The nav's only press affordance was `active:scale-95` on a 150ms
+transition — a ~5% shrink, with no colour or opacity channel, on a 64px bar
+under a thumb covering most of it, and with the native tap highlight already
+suppressed (`-webkit-tap-highlight-color: transparent`). `:active` also cannot
+outlive pointer-up, so a 40ms tap got 40ms of feedback.
+
+The nav now drives its own `[data-pressed]` state from pointer events: a 10%
+scale that lands on the *press* with no transition and eases out on release, an
+accent wash at full opacity, a haptic tick on touch/pen, and a 130ms minimum
+hold so a fast tap still reads as one. Reduced motion drops the scale and keeps
+the wash. None of it depends on `:active` firing.
+
+**Nothing to be quick with.** No route had a `loading.tsx`, so a tab press
+blocked on the destination's full server render — `auth.getUser()` plus two to
+three Supabase queries — with the *old* screen still on-screen throughout. It
+also meant automatic `<Link>` prefetch had nothing to warm, since a dynamic
+route is only prefetched as far as its nearest loading boundary. All four app
+routes now have one, so the new screen paints on the same frame as the press.
+Prefetch is deliberately left at the default rather than forced to `true`:
+these are dynamic routes and Next 15 defaults `staleTimes.dynamic` to `0`, so
+a forced full prefetch would run every tab's queries on every page view and
+then discard the result.
+
+A pending tab also lights up as selected the moment it is tapped
+(`useLinkStatus`), so the answer to "did that register?" no longer waits on the
+network. `aria-current` stays on the route actually being displayed — a pending
+tab is not the current page and must not tell a screen reader it is.
+
+### Changed — scrolling
+
+Frosted glass is expensive to *move*: every `.glass` panel makes the compositor
+snapshot, blur and re-composite its backdrop once per frame, and a library
+screen holds a dozen. Three changes, in descending order of effect:
+
+- `ScrollStateManager` stamps `data-scrolling` on `<html>` for the duration of
+  a scroll gesture (+140ms), and `.glass` drops its backdrop blur and grain for
+  exactly that long. A backdrop sliding past at flick speed is already a blur.
+  The two chrome bars keep theirs — `--chrome` is only ~0.42–0.45 opaque, so
+  text passing under an unblurred header would be legible through it.
+- Library rows carry `content-visibility: auto`, so off-screen rows skip
+  layout, paint and their own backdrop blur. Scroll cost stops scaling with how
+  many prompts are saved.
+- `scroll-behavior: smooth` on `<html>` for in-page and programmatic scrolls,
+  with the matching `data-scroll-behavior="smooth"` so Next keeps suppressing
+  it around route-change scroll restoration.
+
+`tests/unit/scroll-performance.test.ts` pins all of it, including the
+invariant the first item depends on: no `position: fixed` element may live
+inside a `.glass` subtree, or toggling `backdrop-filter` would re-anchor it
+mid-scroll.
+
+### Fixed — jsdom drops `pointerType`, so pointer-type branches were untested
+
+jsdom ships no `PointerEvent` constructor, so Testing Library falls back to a
+plain `Event` and silently discards every pointer-specific field. Any code
+branching on `e.pointerType` — the nav's haptics, the library row's swipe claim
+— was therefore asserting against `undefined` regardless of what the test
+passed. `tests/setup.ts` now shims it over `MouseEvent`.
+
+### Changed — `:active` is retired for touch feedback, app-wide
+
+The nav's press affordance is now the app's only one. `usePressable` +
+`.pressable` moved out of `nav/` into `components/ui/`, and the four remaining
+`active:scale-95` controls — the header back chevron, the theme toggle, and the
+two quick-copy buttons — go through `PressableLink` / `PressableButton`.
+
+This is what actually closes the open iOS question, rather than answering it.
+Every source on the subject reports that iOS ignores `:active` for touch unless
+the document carries a touch listener, and that the documented workaround costs
+you controls flashing active *while you scroll past them*. All of that
+reporting predates current iOS, and it cannot be verified here — Playwright's
+Linux WebKit applies `:active` either way and cannot hold a touch. So nothing
+depends on it: state we set ourselves renders identically on every engine.
+
+Two things `:active` could not do regardless, both now fixed everywhere rather
+than just on the nav: it cannot outlive pointer-up (a 40ms tap bought 40ms of
+feedback; there is now a 130ms floor), and it does not cancel when a press is
+dragged off the control (`onPointerLeave` / `onPointerCancel` do).
+
+Also folded in: `usePressable` now calls the existing `lib/haptics` `tap()`
+instead of its own inline `navigator.vibrate`, and that module's doc comment no
+longer names `active:scale-95` as the iOS fallback. `PressableButton` defaults
+`type="button"` — these are icon buttons that happen to sit outside any form
+today, which is not a thing to leave implicit.
+
+`tests/unit/ui-contracts.test.ts` (renamed from `scroll-performance.test.ts`,
+which no longer described it) fails the build if any `active:` variant returns,
+if `.pressable` loses its zero-duration press, if a converted control stops
+using its wrapper, or if `PressableButton` loses its type.
+
+### Corrected — the iOS `:active` explanation above was mine, and it was wrong
+
+The first version of this entry said WebKit applies `:active` only when the
+document carries a touch listener, that this app had none, and that a passive
+no-op `touchstart` listener was therefore what revived the nav's press
+feedback. That framing was asserted from folklore and shipped in a commit
+message, this changelog, `tasks/lessons.md` and a PR body before it was tested.
+
+Tested, in a real WebKit: **React already registers `touchstart` on
+`document`** — the App Router hydrates into `document`, so React's event
+delegation attaches the whole touch family there on every page, always. With
+the added listener mutated out, it is still present. The precondition the
+explanation rested on was never unmet, so the listener could not have been
+what fixed anything. It has been removed, and `InteractionManager` — which now
+does only one thing — is renamed `ScrollStateManager`.
+
+The e2e test written to guard the claim was removed too: it asserted a
+`touchstart` registration that React satisfies by itself, so it passed with the
+listener deleted. It was not a guard, it was a rubber stamp.
+
+What remains unverified either way is whether iOS Safari's touch-`:active`
+heuristic is still live in 2026. Playwright's Linux WebKit cannot answer it —
+`:active` applies there with or without a document touch listener, and its
+touchscreen API cannot hold a press — and no real iOS device was available.
+The fix does not depend on the answer: `[data-pressed]` is explicit state and
+works on every engine by construction.
+
 ### Fixed — WebKit e2e could never have passed, and said so the moment it ran
 
 The `mobile-safari` Playwright project had never actually executed. Run it and

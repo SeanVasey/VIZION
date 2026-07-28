@@ -1211,3 +1211,164 @@ The design decision it justified survived on inertia.
   work" was in four files, the build-time flag looked settled rather than
   chosen. When the premise fell, the conclusion still happened to be right —
   but that was luck, and the reason had to be rewritten from scratch.
+
+## 2026-07-28 — A weak affordance, a slow route, and a diagnosis I made up
+
+**What broke.** The bottom nav "had" press feedback (`active:scale-95`) and
+"had" fast navigation (Next `<Link>`). Neither was much use on a phone.
+
+The affordance was too weak to see: a ~5% shrink on a 150ms ramp, no colour or
+opacity channel, on a 64px bar under a thumb covering most of it — with the
+native tap highlight already suppressed by
+`-webkit-tap-highlight-color: transparent`. `:active` also cannot outlive
+pointer-up, so a 40ms tap bought 40ms of feedback.
+
+Navigation was slow for a reason no amount of press polish could fix: **no
+route had a `loading.tsx`**, so a tab press blocked on the destination's full
+server render — `auth.getUser()` plus two to three Supabase queries — with the
+*old* screen on-screen the whole time. The second-order cost was worse than the
+first: without a loading boundary, automatic `<Link>` prefetch of a dynamic
+route has nothing to warm, so the framework's own latency-hiding was inert too.
+
+**What to avoid.**
+
+- **"There is a CSS rule for it" is not "the user sees it."** `active:scale-95`
+  had been in the file since P1 and read as covered in every review. Nobody had
+  asked how big 5% is on a bar your thumb is covering. Where an affordance is
+  load-bearing, give it more than one channel and drive it from state you can
+  assert on — `[data-pressed]` — rather than a pseudo-class that needs a real
+  engine and a held pointer to observe.
+- **A tap is shorter than the eye.** A decisive thumb is down and up inside
+  ~60ms: under four frames. `:active` cannot hold past pointer-up, so even
+  where it fires, a fast tap flickers. The minimum-hold is not a nicety, and it
+  is not expressible in CSS.
+- **Press feedback must be instant on the way DOWN and eased on the way UP.**
+  The original had `transition-[color,transform] duration-150` in both
+  directions, so the scale was still ramping in as the finger left — a 150ms
+  ramp is precisely the lag the affordance exists to disprove. Zero the
+  duration in the pressed rule; let the resting rule own the ease-out.
+- **jsdom has no `PointerEvent`, so every `pointerType` branch was untested.**
+  Testing Library falls back to a plain `Event` and silently drops the field —
+  `fireEvent.pointerDown(el, { pointerType: "mouse" })` delivers `undefined`.
+  The first version of the haptics test passed for the wrong reason and the
+  swipe hook's `pointerType === "mouse"` guard had never been exercised at all.
+  When a test asserts on a DOM field, check the environment actually carries it.
+- **A guard that scans source must be proven to bite.** The first version of
+  the "no fixed element inside `.glass`" test anchored on `className="…"` and
+  therefore skipped every `className={[…].join(" ")}` in the codebase —
+  including the bottom nav, the single most important consumer. It reported a
+  clean sweep over a set it could not see. Every guard here was then mutated
+  on purpose to confirm it fails; one of the four did not, because the `sed`
+  that was supposed to break it silently matched nothing.
+- **Prefetch harder is not always prefetch better.** Forcing `prefetch` on the
+  three tabs looked like the obvious win, and would have run every route's
+  Supabase queries on every page view — while Next 15 defaults
+  `staleTimes.dynamic` to `0`, which discards the result rather than reusing
+  it. The cheap fix (a `loading.tsx` per route) is also the one that makes the
+  framework's default prefetch work at all.
+- **Scoping a perf switch is where the risk lives, not the switch itself.**
+  Standing `.glass`'s backdrop blur down during scroll is safe only because no
+  `.glass` element hosts a `position: fixed` descendant — toggling
+  `backdrop-filter` toggles a containing block, and the overlay would jump
+  mid-scroll. Extending the same rule to the chrome bars would have been a
+  visible regression for a different reason (`--chrome` is ~0.43 opaque; text
+  under an unblurred header is simply legible). Same one-line rule, two
+  different reasons it must not be widened — both worth writing down next to it.
+
+## 2026-07-28 — I did it again: folklore, asserted, shipped, then disproven
+
+**What broke.** The entry directly above originally opened by explaining that
+WebKit applies `:active` only when the document carries a touch listener, that
+this app had none, and that adding one passive no-op `touchstart` listener was
+what revived the nav's press feedback. I put that in the code comments, the
+commit message, `CHANGELOG.md` and the PR body. It is false.
+
+When WebKit was finally installed and the guard test was mutation-checked, the
+test **passed with the listener deleted**. The reason: Next's App Router calls
+`hydrateRoot(document, …)`, so React's event delegation attaches the entire
+touch family — `touchstart`, `touchmove`, `touchend`, `touchcancel` — to
+`document` on every page, unconditionally. The precondition my explanation
+rested on had never been unmet. The listener was removed; the component that
+held it now does one thing and is named for it.
+
+The replacement explanation was *also* wrong on first pass. I reasoned that a
+150ms ramp could never complete inside a tap, so the scale stayed invisible.
+Measured in WebKit, an ~80ms press reaches 0.951 — essentially the full
+`scale-95`. The affordance was not failing to render; **5% is just not much to
+look at**, with no second channel and the native tap highlight suppressed.
+
+**What to avoid.**
+
+- **This is the third entry in this file about asserting an unverified claim
+  about a platform or framework, and the second in two days.** The prior one
+  ("`has`/`missing` don't enforce") even ends with *"a negative claim about a
+  framework is an extraordinary claim."* I read that file, wrote a new entry
+  under it, and made the same class of error in the same session. Reading the
+  lessons is not the same as applying them. Before a platform claim goes into
+  a comment, a commit or a changelog: reproduce it, or write "unverified".
+- **A guard you cannot make fail is not a guard.** The `touchstart` e2e test
+  was written from the same belief it was meant to protect, so it asserted a
+  condition the framework satisfies for free. Mutation-testing it is what
+  exposed the belief — not the test passing, the test refusing to fail. Every
+  new guard gets deliberately broken before it is trusted; the one that will
+  not break is the one telling you something.
+- **A plausible mechanism is not a diagnosis.** Both of my explanations were
+  mechanically sensible and both were wrong, and I only found out because a
+  number was measurable. Where an effect can be measured — a scale factor, a
+  duration, a listener registration — measure it instead of reasoning about it.
+- **An unverifiable claim should not survive as a one-line "cheap insurance"
+  either.** The tempting compromise was to keep the redundant listener with a
+  softer comment. That just launders folklore into the codebase behind a hedge.
+  It went.
+- **Missing coverage hides the error, it does not cause it.** WebKit had never
+  been installed here, so nothing could contradict me. Installing it took one
+  command (`npx playwright install --with-deps webkit`) and immediately
+  falsified the premise of the change I had already pushed. When a claim is
+  specifically about a platform you cannot currently run, that is the moment to
+  go get it — not to write the claim more confidently.
+
+## 2026-07-28 — Closing a question you cannot answer
+
+**What happened.** After the `:active` claim collapsed, the honest position was
+"iOS may or may not ignore `:active` for touch; nobody here can check." That
+left four `active:scale-95` controls whose feedback depended on the answer.
+
+Researching harder did not resolve it. Every source says the same thing —
+including Apple's own Safari Web Content Guide — and every one of them is a
+decade old, with nothing version-current to confirm or retire it. One of them
+did surface a cost I had not weighed: the standard `document.addEventListener
+('touchstart', …)` workaround makes controls flash active *as you scroll past
+them*. So the fix I originally shipped would have introduced a visible bug on
+every list in the app, to satisfy a requirement I could not demonstrate exists.
+
+So the question was closed by removing everything that depended on it. All four
+controls moved to `[data-pressed]`, and a guard forbids the `active:` variant
+returning.
+
+**What to avoid.**
+
+- **When you cannot verify a platform behaviour, stop trying to answer it and
+  delete the dependency instead.** I spent several rounds trying to establish
+  whether the heuristic is live. That was the wrong question: it is not
+  knowable from this machine, and the app does not need it to be. "Make the
+  answer not matter" was available the whole time and took less work than the
+  research did.
+- **Age out your sources.** Four searches returned confident, mutually
+  consistent answers, all tracing to 2011–2015 material. Consistency across
+  sources is not currency; a decade-old consensus about a browser is a
+  hypothesis, not a fact.
+- **Read the workaround's cost before adopting it, not after.** The
+  scroll-flash side effect was in the very first search result and I had
+  already shipped the listener.
+- **Check for the module before writing it.** `usePressable` reimplemented
+  `navigator.vibrate` inline while `lib/haptics.ts` already existed, complete
+  with a documented "HONEST SCOPE" note and a standing audit ruling — whose
+  text still named the `active:scale-95` I was in the middle of deleting. One
+  `grep` for `vibrate` at the start would have found it.
+- **A test built from a copy of production's class list will drift from it.**
+  The e2e spec asserts `.pressable` against a hand-written probe element. When
+  the scale moved from `.nav-tab` to `.pressable` I updated the probe and not
+  the component, so the stylesheet was right, the test was green, and the real
+  nav had no scale at all. Caught only because the probe was *also* stale in
+  the other direction. Pair any synthesized-markup test with a unit assertion
+  that the real component carries the class.
