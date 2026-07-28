@@ -1424,3 +1424,49 @@ absence is a **WebKitGTK gap**, not an iOS gap.
   property's absence off iOS is the very thing that makes it work as a filter.
   "Half-verified, and the untested half is the one that does the work" is a
   more useful comment than either "verified" or nothing.
+
+## 2026-07-28 — The auth gate had been hiding the whole product from e2e
+
+**What happened.** Every e2e spec could only reach `/sign-in`. Middleware
+bounces the rest, so the nav, the library, Settings and every `loading.tsx`
+had no end-to-end coverage — and it had already cost something real: the bottom
+nav shipped with no press scale while its spec stayed green, because the spec
+asserted against a hand-written probe element and the probe had been updated
+when the component was not.
+
+Fixed by pointing `NEXT_PUBLIC_SUPABASE_URL` at a stub Supabase in
+`playwright.config.ts`. No `src/` change, so the specs drive the real
+middleware, the real `@supabase/ssr` clients and the real sign-in form. 27 e2e
+became 41.
+
+**What to avoid.**
+
+- **A test-only branch in `src/` was the obvious shortcut and the wrong one.**
+  `if (process.env.E2E) skipAuth()` is four lines and would have worked. It is
+  also a production auth hole one config mistake away from being real, and it
+  means the suite verifies a path no user executes. The seam already existed:
+  the app reads its backend from an env var, so redirecting *that* needs no
+  production code at all. Look for the seam the configuration already gives you
+  before adding one to the product.
+- **Every failure mode of a fake backend is silent, so build the alarms first.**
+  Two bugs surfaced in ten minutes because the alarms existed: an unimplemented
+  route (`media_assets`) returned 501 and got recorded, and a fixture missing
+  `archived_at` was caught by a "filter on unknown column" check. Without the
+  second, `.is("archived_at", null)` filters `undefined !== null` — every card
+  vanishes, the screen renders "Nothing saved yet", and a spec asserting the
+  empty state passes for entirely the wrong reason. A stub that answers
+  plausibly when it is wrong is worse than no stub.
+- **Fixture columns must mirror the generated DB types exactly, not
+  approximately.** I wrote `archived: false` where the schema says
+  `archived_at: string | null`. Close enough to read correctly in review; not
+  close enough to survive a filter.
+- **Wiring a fake exposed a real production bug.** `connect-src` hardcoded
+  `https://*.supabase.co`, so any self-hosted or custom-domain Supabase is
+  blocked by CSP with no server-side symptom whatsoever — the browser refuses
+  the request and sign-in simply never completes. That is a live defect for a
+  deployment nobody here has tried, and it took a stub on a different origin to
+  find it. Fakes are worth building partly for what they trip over.
+- **`data-pressed={true}` renders as `"true"`, not `""`.** The e2e spec that
+  injected `<a data-pressed>` in HTML got an empty string, so the assertion
+  written against the probe did not match the React-rendered element. Another
+  cost of asserting on synthesized markup instead of the shipped component.

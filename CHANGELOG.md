@@ -6,6 +6,63 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — end-to-end coverage of the app behind the auth gate
+
+Every e2e spec could previously only reach `/sign-in`, because middleware
+bounces everything else. The actual product — the bottom nav, the library,
+Settings, every `loading.tsx` — had no end-to-end coverage at all, and specs
+that wanted it synthesised markup and asserted against the stylesheet. That gap
+had already cost something concrete: the nav shipped with no press scale while
+its e2e spec stayed green, because the spec's hand-written probe had been
+updated and the component had not.
+
+`tests/e2e/support/supabase-stub.mjs` is a dependency-free stub Supabase
+implementing the slice the authed screens touch — the password grant, refresh,
+`GET /auth/v1/user`, and enough PostgREST for `profiles` / `prompts` /
+`prompt_versions` / `activity_events` / `collections` / `media_assets` /
+`usage_events`. `playwright.config.ts` runs it and points
+`NEXT_PUBLIC_SUPABASE_URL` at it, the same way it already flips
+`VIZION_HTTP_ORIGIN`.
+
+**Nothing in `src/` changed to make this work.** No `if (process.env.E2E)`
+branch: CLAUDE.md §6 is explicit about Supabase Auth only, and a test-only auth
+path is a production hole one config mistake away from being real — besides
+which it would verify a code path users never execute. The specs sign in
+through the real form and drive the real middleware, the real `@supabase/ssr`
+clients and the real onboarding gate. The stub does **not** implement RLS and
+says so: it answers as the owner, so nothing here is evidence about row-level
+security.
+
+New `tests/e2e/authed.spec.ts` covers the nav press affordance **on the shipped
+element**, tab navigation and `aria-current`, the library rendering from the
+server with `content-visibility` rows, glass standing its blur down over a real
+list of cards, nav clearance vs `--bottom-nav-h`, and Settings. 27 e2e → 41,
+across both engines.
+
+Two guards, because both failure modes are silent:
+`expectNoUnhandledStubRoutes` fails a spec if the stub was asked for a route it
+does not implement (it caught `media_assets` immediately), and the stub records
+a filter on a column no fixture row has — which is how `.is("archived_at",
+null)` silently dropped every card and rendered "Nothing saved yet" as a
+plausible pass.
+
+### Fixed — CSP hardcoded the hosted Supabase domain
+
+`connect-src` allowed `https://*.supabase.co` and nothing else, silently
+assuming every deployment is a hosted project on Supabase's own domain. A
+self-hosted instance or a custom domain is blocked with no server-side symptom
+at all: the browser refuses the request, `signInWithPassword` never resolves,
+and the app simply never signs anyone in. The e2e stub hit exactly this.
+
+`cspDirectives(supabaseUrl)` now adds the configured origin to every directive
+the wildcard already appears in (`connect-src`, `img-src`, `media-src`,
+`form-action`), and takes the URL as an argument rather than reading
+`process.env` internally — the same reason `buildSecurityHeaders(httpsOrigin)`
+does, so the interesting variants are testable. A hosted project's policy is
+byte-identical to before, a malformed URL is ignored rather than injected, and
+only the origin is used, never a path or query.
+
+
 ### Documentation — audited every iOS/WebKit claim in the codebase
 
 With WebKit installed, every `iOS` / `WebKit` / `Safari` claim in `src/` was
