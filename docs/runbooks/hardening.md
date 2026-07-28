@@ -18,6 +18,18 @@
       (`default-src 'self'`; Supabase in `connect/img/media`; `frame-ancestors`,
       `object-src`, `base-uri` locked). Residual `script-src 'unsafe-inline'` for
       the pre-paint theme bootstrap — nonce upgrade is the next step.
+      **Two of them are https-only** (`upgrade-insecure-requests`, HSTS): on a
+      plain-http origin the first rewrites every subresource to https, where
+      nothing listens, and the app renders with no CSS — invisible in Chromium,
+      which exempts loopback, and total in WebKit. `buildSecurityHeaders()`
+      takes the transport as an argument; production gets the full set, and the
+      only opt-out is `VIZION_HTTP_ORIGIN=1`, set by `playwright.config.ts` for
+      the http e2e server. It is read at BUILD time (`headers()` is compiled
+      into `routes-manifest.json`) — Next's per-request `has`/`missing`
+      conditions compile but are not enforced at runtime, so they must not be
+      used to gate a security header. Pinned by
+      `tests/unit/security-headers.test.ts` (production variant) and the e2e CSP
+      spec (http variant).
 - [x] **Console stripped in production** — `compiler.removeConsole` (keeps
       error/warn).
 - [x] **Server is the source of truth** — local cache (localStorage / IndexedDB)

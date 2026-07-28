@@ -49,6 +49,41 @@ NEXT_PUBLIC_MEDIA_EXTRACTION=proxy   # default — vision via the model proxy
 - A per-user **50 MB** budget shows an **Amber** warning at 80% and blocks new uploads at
   100% (tune in `src/lib/media/formatters.ts`).
 
+### Viewing stored media
+
+The manager (Settings → Data & privacy, and the composer tray past 80%) shows a
+thumbnail per image row and opens any `ready` row in a preview sheet. Because the
+bucket is private, both go through signed URLs — `src/lib/media/preview.ts`:
+
+- **List** — one `createSignedUrls` batch for the image rows only
+  (`PREVIEW_URL_TTL_SECONDS`, 1 h). A signer failure, or a per-path error,
+  degrades that row to its kind glyph; the list keeps working.
+- **Open** — `createSignedUrl` per tap, so a long-open page never hands the
+  sheet a URL that aged out of the batch.
+- `pending`/`failed` rows have no object in the bucket and are deliberately not
+  openable.
+- `img-src`/`media-src` in `next.config.ts` already allow `https://*.supabase.co`;
+  a custom storage domain would need adding there. The service worker ignores
+  cross-origin requests, so signed URLs are never cached by it.
+- Thumbnails are the **full stored objects**, rendered small and lazily. This is
+  a known, accepted cost (decided 2026-07-28): opening the manager with a large
+  library downloads those originals, and it repeats per visit because each load
+  mints fresh signed URLs that miss the browser cache.
+
+  The obvious fix is not available here. Signing thumbnails individually with
+  `{ transform: { width, height, resize: "cover" } }` needs **Storage image
+  transformations, which are Pro+**; this project's org is on the free plan. The
+  transform is bound into the signed token, so it also cannot be bolted onto a
+  batch-signed URL after the fact — it is one signing request per image or
+  nothing.
+
+  What would work on any plan, if the cost ever bites: capture a ~96 px JPEG at
+  upload with the downscaler the composer already runs
+  (`captureFrameDataUrl(file, kind, 96)`) and keep it as a data URI on a new
+  nullable `media_assets.thumb` column. The list then costs zero extra requests
+  and zero quota, and video rows gain a real first-frame thumbnail instead of a
+  glyph. It needs a migration plus a backfill for rows predating the column.
+
 ## Generation formatters
 
 `buildGenerationPrompt(base, attributes, target)` in
