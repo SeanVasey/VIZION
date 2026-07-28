@@ -66,6 +66,39 @@ describe("CSP tracks the configured Supabase origin", () => {
     );
   });
 
+  /**
+   * supabase-js derives its Realtime endpoint by rewriting the configured
+   * URL's protocol (`https:` → `wss:`), and CSP's scheme matching never
+   * upgrades `https` to `wss`. So an origin added for REST leaves its own
+   * socket blocked — REST works, every channel is refused, and only on a
+   * custom-domain or self-hosted deployment. The hosted wildcard has listed
+   * both schemes since day one; the configured origin has to match it.
+   */
+  it("also allows the WebSocket origin supabase-js derives from the same URL", () => {
+    const connect = find(directivesWith("https://db.example.com"), "connect-src");
+    expect(connect).toContain("https://db.example.com");
+    expect(connect).toContain("wss://db.example.com");
+  });
+
+  it("derives ws:// for an http origin, as the client does", () => {
+    // The e2e stub. `protocol.replace("http", "ws")` yields `ws:`, not `wss:`,
+    // and a policy naming the wrong one is the same failure as naming none.
+    const connect = find(directivesWith("http://127.0.0.1:54321"), "connect-src");
+    expect(connect).toContain("http://127.0.0.1:54321");
+    expect(connect).toContain("ws://127.0.0.1:54321");
+    expect(connect).not.toContain("wss://127.0.0.1");
+  });
+
+  it("keeps the socket origin out of directives where it means nothing", () => {
+    // A WebSocket is not an image, a media element or a form target. Only
+    // `connect-src` governs one.
+    const ds = directivesWith("https://db.example.com");
+    for (const name of ["img-src", "media-src", "form-action"]) {
+      expect(find(ds, name), name).toContain("https://db.example.com");
+      expect(find(ds, name), name).not.toContain("wss://db.example.com");
+    }
+  });
+
   it("adds only the ORIGIN, never a path or query from the env value", async () => {
     // A stray path in the env var must not end up in the policy.
     const ds = await directivesWith("https://db.example.com/rest/v1?k=v");

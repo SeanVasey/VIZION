@@ -35,6 +35,15 @@
       a build-time input is checkable against the compiled manifest. Pinned by
       `tests/unit/security-headers.test.ts` (production variant) and the e2e CSP
       spec (http variant).
+      **A non-hosted Supabase origin needs BOTH schemes in `connect-src`**:
+      supabase-js derives its Realtime endpoint by rewriting the configured
+      URL's protocol (`https:` → `wss:`), and CSP does not follow it — measured
+      in both engines with a `connect-src 'self'`-only control, a `https://host`
+      source does not permit `wss://host`, nor `http://host` a `ws://host`.
+      `cspDirectives()` appends the derived socket origin to `connect-src` only.
+      If you re-measure: only WebKit throws `SecurityError` from the blocked
+      constructor — Chromium returns an object and blocks asynchronously, so
+      read the `securitypolicyviolation` event, not the throw.
 - [x] **Console stripped in production** — `compiler.removeConsole` (keeps
       error/warn).
 - [x] **Server is the source of truth** — local cache (localStorage / IndexedDB)

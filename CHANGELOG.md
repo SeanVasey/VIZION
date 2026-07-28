@@ -62,6 +62,22 @@ does, so the interesting variants are testable. A hosted project's policy is
 byte-identical to before, a malformed URL is ignored rather than injected, and
 only the origin is used, never a path or query.
 
+The configured origin also gets its **WebSocket** form, which the first version
+of this fix missed. supabase-js derives its Realtime endpoint by rewriting the
+configured URL's protocol (`https:` → `wss:`), and CSP does not follow it there.
+Measured in both engines, with a `connect-src 'self'`-only control to prove the
+probe: a `https://host` source does **not** permit `wss://host`, and
+`http://host` does **not** permit `ws://host`. So the fix as first written left
+REST working and every Realtime channel refused, on exactly the deployments it
+was written for. Nothing in `src/` opens a channel yet, which is why it was
+invisible — and why the failure would otherwise have arrived with whichever
+feature opened the first one. Only `connect-src` gets the socket origin: a
+WebSocket is not an image, a media element or a form target.
+
+A trap for anyone re-measuring this: only WebKit throws `SecurityError` from the
+`WebSocket` constructor. Chromium returns an object and blocks asynchronously,
+so judged on the constructor alone it looks permissive in all four cases — read
+the `securitypolicyviolation` event instead.
 
 ### Documentation — audited every iOS/WebKit claim in the codebase
 
