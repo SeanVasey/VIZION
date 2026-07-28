@@ -69,8 +69,12 @@ export async function resetStubState(): Promise<void> {
         ...leftover.map((entry) => `  ${entry}`),
         "",
         "Most likely it is a leftover process from an older revision, reused via",
-        "`reuseExistingServer`, whose reset does not clear this list. Kill it and re-run:",
-        `  pkill -f supabase-stub`,
+        "`reuseExistingServer`, whose reset does not clear this list. Stop whatever",
+        "is listening on the port, then re-run:",
+        `  lsof -ti tcp:${STUB_PORT} | xargs -r kill`,
+        "",
+        "Match on the PORT, not the name: `pkill -f supabase-stub` also matches an",
+        "editor or a test run with supabase-stub.test.ts open, and will kill those too.",
       ].join("\n"),
     );
   }
