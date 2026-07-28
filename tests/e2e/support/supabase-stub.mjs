@@ -29,6 +29,7 @@
  */
 
 import { createServer } from "node:http";
+import { pathToFileURL } from "node:url";
 
 const PORT = Number(process.env.SUPABASE_STUB_PORT ?? 54321);
 
@@ -115,6 +116,27 @@ function seed() {
 }
 
 let tables = seed();
+
+/**
+ * Every piece of mutable state this process owns, back to first-run condition.
+ *
+ * BOTH halves matter, and the second is the one that bit us. `tables` is
+ * mutated by any POST/PATCH/DELETE the app makes, and `unhandled` (below) is
+ * append-only for the life of the process. With `reuseExistingServer` on —
+ * which is every local run — a stub left over from an earlier run keeps both,
+ * so one unsupported request an hour ago fails `expectNoUnhandledStubRoutes`
+ * in every clean run afterwards, and the only cure is knowing to kill a
+ * background process nobody remembers starting. `next build` prerendering
+ * against this stub can leave entries here too, before a single test runs.
+ *
+ * `tests/e2e/global-setup.ts` calls this once per run. Deliberately not
+ * per-test: `fullyParallel` workers share this one process, so a mid-run reset
+ * would wipe another worker's state underneath it.
+ */
+function resetState() {
+  tables = seed();
+  unhandled.length = 0;
+}
 
 /* --------------------------------------------------------------------- jwt */
 
@@ -286,7 +308,15 @@ async function readBody(req) {
   }
 }
 
-const server = createServer(async (req, res) => {
+/**
+ * Exported so a unit test can drive the real handler on an ephemeral port
+ * instead of asserting against a second, drifting copy of these rules.
+ */
+export function createStubServer() {
+  return createServer(handleRequest);
+}
+
+async function handleRequest(req, res) {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
   const { pathname, searchParams } = url;
 
@@ -294,7 +324,7 @@ const server = createServer(async (req, res) => {
 
   // --- test control -------------------------------------------------------
   if (pathname === "/__stub/reset") {
-    tables = seed();
+    resetState();
     return send(res, 200, { ok: true });
   }
   if (pathname === "/__stub/unhandled") {
@@ -405,8 +435,12 @@ const server = createServer(async (req, res) => {
   unhandled.push(`${req.method} ${pathname}`);
   console.warn(`[supabase-stub] UNHANDLED ${req.method} ${pathname}${url.search}`);
   return send(res, 501, { message: "stub: unhandled route" });
-});
+}
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`[supabase-stub] listening on http://127.0.0.1:${PORT}`);
-});
+// Bind the port only when this file is RUN (playwright.config.ts's webServer),
+// never when it is imported — importing it must not squat on 54321.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  createStubServer().listen(PORT, "127.0.0.1", () => {
+    console.log(`[supabase-stub] listening on http://127.0.0.1:${PORT}`);
+  });
+}

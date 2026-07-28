@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { readUnhandledStubRoutes } from "./stub-control";
 
 /** Must match the fixture in `supabase-stub.mjs`. */
 export const E2E_USER = {
@@ -38,9 +39,14 @@ export async function signIn(page: Page): Promise<void> {
  * Without this an unimplemented PostgREST route returns 501, the app swallows
  * it as "no rows", and a spec asserting an empty state passes for entirely the
  * wrong reason. Call it after a flow that touches new data.
+ *
+ * The list is process-global to the stub and only ever cleared between runs
+ * (`global-setup.ts`), so this reports anything any worker has hit so far —
+ * deliberately over-eager rather than under.
  */
-export async function expectNoUnhandledStubRoutes(page: Page): Promise<void> {
-  const res = await page.request.get("http://127.0.0.1:54321/__stub/unhandled");
-  const { unhandled } = (await res.json()) as { unhandled: string[] };
-  expect(unhandled, "stub Supabase received routes it does not implement").toEqual([]);
+export async function expectNoUnhandledStubRoutes(): Promise<void> {
+  expect(
+    await readUnhandledStubRoutes(),
+    "stub Supabase received routes it does not implement",
+  ).toEqual([]);
 }

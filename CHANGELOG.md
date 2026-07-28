@@ -79,6 +79,28 @@ A trap for anyone re-measuring this: only WebKit throws `SecurityError` from the
 so judged on the constructor alone it looks permissive in all four cases — read
 the `securitypolicyviolation` event instead.
 
+### Fixed — the e2e stub Supabase carried state between runs
+
+`playwright.config.ts` runs the stub with `reuseExistingServer` for every
+non-CI run, so a stub left over from an earlier run handed the next one both its
+mutated tables and its whole `unhandled` list — the process-lifetime,
+append-only record `expectNoUnhandledStubRoutes` asserts is empty. One
+unsupported request therefore failed that assertion in every clean run
+afterwards, curable only by knowing to kill a background process nobody
+remembers starting. `next build` prerendering against the stub can seed that
+list too, before a single test runs.
+
+The reset route existed, reseeded `tables` only — and nothing ever called it, so
+it read as a safety net while being dead code. It now clears every piece of
+mutable state the process owns, and `tests/e2e/global-setup.ts` invokes it once
+per run (Playwright starts `webServer` plugins before `globalSetup`, so the stub
+is listening by then; an unreachable stub is an error, never a silent skip).
+Once per run and deliberately not per test: `fullyParallel` workers share the
+one stub process, so a mid-run reset would wipe another worker's state. The
+port and control endpoints now live in `tests/e2e/support/stub-control.ts`
+rather than being hardcoded in three places.
+
+
 ### Documentation — audited every iOS/WebKit claim in the codebase
 
 With WebKit installed, every `iOS` / `WebKit` / `Safari` claim in `src/` was

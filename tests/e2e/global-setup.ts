@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { chromium, firefox, webkit, type FullConfig } from "@playwright/test";
+import { resetStubState } from "./support/stub-control";
 
 const ENGINES = { chromium, firefox, webkit };
 type EngineName = keyof typeof ENGINES;
@@ -22,7 +23,15 @@ type EngineName = keyof typeof ENGINES;
  * listener). A green Chromium run says nothing about it. So a missing WebKit
  * has to be an unmissable, actionable stop — never a quiet skip.
  */
-export default function assertBrowsersInstalled(config: FullConfig) {
+export default async function globalSetup(config: FullConfig) {
+  assertBrowsersInstalled(config);
+  // Playwright starts `webServer` plugins before `globalSetup`, so the stub is
+  // listening by now — and its state is whatever the LAST run left behind
+  // whenever `reuseExistingServer` reused the process. See `stub-control.ts`.
+  await resetStubState();
+}
+
+function assertBrowsersInstalled(config: FullConfig) {
   const wanted = new Map<EngineName, string[]>();
 
   for (const project of config.projects) {

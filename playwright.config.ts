@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { STUB_PORT, STUB_URL } from "./tests/e2e/support/stub-control";
 
 const PORT = 3100;
 const baseURL = `http://127.0.0.1:${PORT}`;
@@ -12,9 +13,12 @@ const baseURL = `http://127.0.0.1:${PORT}`;
  *
  * The anon key is a throwaway: the stub never checks it, and it is not a
  * credential for anything that exists.
+ *
+ * Its port and control endpoints live in `tests/e2e/support/stub-control.ts`,
+ * which `global-setup.ts` also uses to reset the stub once per run — it is
+ * stateful, and `reuseExistingServer` below hands the next run whatever the
+ * last one left in it.
  */
-const STUB_PORT = 54321;
-const STUB_URL = `http://127.0.0.1:${STUB_PORT}`;
 
 /**
  * Shell / PWA e2e. We build the service worker, then run a production server so

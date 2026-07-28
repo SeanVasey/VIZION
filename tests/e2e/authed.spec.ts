@@ -95,7 +95,7 @@ test.describe("authenticated app", () => {
       await rows.first().evaluate((el) => getComputedStyle(el).contentVisibility),
     ).toBe("auto");
 
-    await expectNoUnhandledStubRoutes(page);
+    await expectNoUnhandledStubRoutes();
   });
 
   test("glass stands down its blur while an authed page is scrolling", async ({
@@ -139,6 +139,6 @@ test.describe("authenticated app", () => {
     await page.getByRole("navigation").getByRole("link", { name: "Settings" }).click();
     await page.waitForURL(/\/profile/);
     await expect(page.getByText("e2e@vasey.test")).toBeVisible();
-    await expectNoUnhandledStubRoutes(page);
+    await expectNoUnhandledStubRoutes();
   });
 });
