@@ -1470,3 +1470,64 @@ became 41.
   injected `<a data-pressed>` in HTML got an empty string, so the assertion
   written against the probe did not match the React-rendered element. Another
   cost of asserting on synthesized markup instead of the shipped component.
+
+## Follow-up: two review findings on the e2e-coverage PR (#51)
+
+Both were raised by an automated reviewer after the PR merged, and both were
+real. Neither was a mistake in what the code *did*; both were mistakes in what
+it *reached*.
+
+**What broke.**
+
+- The CSP fix added the configured Supabase origin to `connect-src` but not the
+  `wss://` form supabase-js derives from that same URL. REST allowed, every
+  Realtime channel refused — on precisely the self-hosted / custom-domain
+  deployments the fix existed for.
+- The stub Supabase's reset reseeded its tables and left its append-only
+  `unhandled` list, and nothing called it at all.
+
+**What to avoid.**
+
+- **Ask what else is derived from the value you just fixed.** The URL in
+  `NEXT_PUBLIC_SUPABASE_URL` is not used once. supabase-js rewrites its protocol
+  to reach Realtime, and CSP treats the result as a different source. Adding an
+  origin to a policy covers the requests you were thinking about, not the ones
+  the client derives.
+- **Measure browser-security behaviour; do not reason it out from the spec.**
+  The scheme-matching rules are subtle enough that I would have written a
+  confident and unverifiable comment. Twenty lines of Playwright answered it in
+  both engines — including the part I would have got wrong: **Chromium does not
+  throw from a CSP-blocked `WebSocket` constructor**, it returns an object and
+  blocks asynchronously. A probe that only watches for a throw reports Chromium
+  as permissive in every case. Always include a control case that must fail;
+  mine (`connect-src 'self'` against a `wss://` target) is what exposed the
+  discriminator as engine-specific.
+- **A reset that resets *some* state is worse than none.** It looks like the
+  cure, so nobody looks further — and the state it misses is the one that has
+  already been recorded as a diagnostic, i.e. exactly the state that makes the
+  next run lie. Reset everything mutable the process owns, in one function, so
+  adding new mutable state has one obvious place to be cleared.
+- **A test helper that nothing calls is not a safety net, it is dead code that
+  reads as one.** `/__stub/reset` was written, was correct-looking, was never
+  invoked, and shipped through review that way. Where the wiring is the point,
+  guard the wiring: the unit suite now fails if `global-setup.ts` stops calling
+  the reset.
+- **`reuseExistingServer` makes a stateful test server a cross-run global.**
+  Convenient for iteration, and it silently carries one run's accidents into the
+  next. Either reset it at the start of every run or do not reuse it — reusing
+  it and hoping is what turns "a spec failed an hour ago" into "the suite is
+  broken and I cannot see why."
+
+**A later review round on the same fix, worth its own line.** The reset helper
+checked that `/__stub/reset` returned 200 and called that success. But
+`reuseExistingServer` can hand a run a stub process from an *older revision* —
+including one predating this very fix, whose reset reseeds tables, answers
+`{"ok":true}`, and leaves the diagnostics poisoned. Verified against the parent
+revision's handler: 200, still poisoned. So the fix for "a reused stub carries
+stale state" could itself be defeated by a reused stub. **When a remote
+component reports success, and the thing you need is a state change, read the
+state back.** A status code is the component's opinion of itself, and a version
+you did not write is exactly the case where that opinion is worth least. It now
+throws with the leftover entries and the command to clear them — and the same
+check catches any future partial reset at global setup, naming itself, rather
+than as a puzzling failure in whichever spec ran first.

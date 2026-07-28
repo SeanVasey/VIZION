@@ -40,6 +40,44 @@ export function configuredSupabaseOrigin(raw: string | undefined): string | null
 }
 
 /**
+ * The WebSocket origin supabase-js will derive from that same URL.
+ *
+ * It builds its Realtime endpoint by rewriting the configured URL's protocol —
+ * `realtimeUrl.protocol = realtimeUrl.protocol.replace("http", "ws")` in
+ * `SupabaseClient` — so `https://db.example.com` yields `wss://db.example.com`
+ * and the e2e stub's `http://127.0.0.1:54321` yields `ws://127.0.0.1:54321`.
+ *
+ * CSP does not follow it there. Measured in both engines this repo runs specs
+ * against, with a `connect-src 'self'`-only control to prove the probe:
+ *
+ *   | connect-src source          | target             | Chromium | WebKit  |
+ *   | --------------------------- | ------------------ | -------- | ------- |
+ *   | `https://host`              | `wss://host`       | BLOCKED  | BLOCKED |
+ *   | `https://host wss://host`   | `wss://host`       | allowed  | allowed |
+ *   | `http://host`               | `ws://host`        | BLOCKED  | BLOCKED |
+ *   | `http://host ws://host`     | `ws://host`        | allowed  | allowed |
+ *
+ * So an origin added to `connect-src` for its REST traffic does NOT bring its
+ * own Realtime socket with it: REST works and every channel is refused. The
+ * hosted wildcard has always listed both schemes (`https://*.supabase.co
+ * wss://*.supabase.co`); this keeps the configured origin symmetric with it.
+ *
+ * (Worth knowing if you re-measure: only WebKit throws `SecurityError` from the
+ * constructor. Chromium returns a WebSocket object and blocks asynchronously,
+ * so "it constructed" is not evidence of an allowed connection — read the
+ * `securitypolicyviolation` event instead. Judged on the constructor alone,
+ * Chromium looks like it permits all four.)
+ *
+ * Nothing in `src/` opens a channel today, which is exactly why this is worth
+ * fixing now: the failure would arrive with the first feature that does, in a
+ * custom-domain or self-hosted deployment only, as a browser-side refusal with
+ * no server-side symptom.
+ */
+export function derivedWebsocketOrigin(origin: string): string {
+  return origin.replace(/^http/i, "ws");
+}
+
+/**
  * Takes the Supabase URL as an ARGUMENT rather than reading `process.env`
  * inside, for the same reason `buildSecurityHeaders(httpsOrigin)` does: a
  * policy that varies by environment is only testable if the environment is an
@@ -48,6 +86,9 @@ export function configuredSupabaseOrigin(raw: string | undefined): string | null
 export function cspDirectives(supabaseUrl: string | undefined): string[] {
   const origin = configuredSupabaseOrigin(supabaseUrl);
   const withSupabase = (base: string) => (origin ? `${base} ${origin}` : base);
+  /** `connect-src` only: the socket origin is meaningless in `img-src` et al. */
+  const withSupabaseSocket = (base: string) =>
+    origin ? `${withSupabase(base)} ${derivedWebsocketOrigin(origin)}` : base;
 
   return [
     "default-src 'self'",
@@ -57,7 +98,7 @@ export function cspDirectives(supabaseUrl: string | undefined): string[] {
       "img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
     ),
     "font-src 'self' data:",
-    withSupabase("connect-src 'self' https://*.supabase.co wss://*.supabase.co"),
+    withSupabaseSocket("connect-src 'self' https://*.supabase.co wss://*.supabase.co"),
     withSupabase("media-src 'self' blob: https://*.supabase.co"),
     "worker-src 'self'",
     "manifest-src 'self'",
