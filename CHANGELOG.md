@@ -6,6 +6,23 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — one contributor doc gained, two stale claims removed
+
+- **`AGENTS.md`** joins the required files: environment and runtime notes for
+  agents, deferring to `CLAUDE.md` for everything about the product so the two
+  can't disagree. It arrived from a Cursor Cloud pass and is landed corrected —
+  it had claimed one tracked migration where there are ten, named three
+  provider keys where there are twelve, and pointed at an "update script" this
+  repo doesn't have. What it got right is what makes it worth keeping: the
+  whole gate runs with no secrets because the Supabase middleware fails closed,
+  Chromium is the reliable e2e leg, and `supabase/migrations/` is a stack of
+  increments rather than a schema — so a bare local Supabase lacks the core
+  tables.
+- **The local-dev runbook stopped blaming the network for font failures.** The
+  families have been vendored as woff2 under `src/app/fonts/` since P1, so the
+  build makes no font request; the troubleshooting entry still described the
+  behaviour from before that.
+
 ### Added — the app can pick the model, and the modes stopped overlapping
 
 - **Auto routing.** VIZ(IO)N picks the model per run from a documented table,

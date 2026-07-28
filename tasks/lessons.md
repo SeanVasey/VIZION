@@ -1000,3 +1000,32 @@ whole paid run over it.
   the runtime tests passed and `tsc` was never re-run after the test file
   landed. Amended. Re-running unit tests is not a substitute for re-running the
   step that checks a different thing.
+
+## 2026-07-28 — Reconciling a doc pushed from a stale base
+
+- **"It pushed" is a claim to verify, not a premise to act on.** The instruction
+  was to reconcile a Copilot pass over PR #44. Copilot never pushed: #44 had
+  merged at `b0f8b2e`, its branch was auto-deleted, and no Copilot PR existed.
+  The branch that had actually appeared was Cursor's, adding `AGENTS.md`. An
+  approved plan was already written against the wrong subject — checking
+  `git log`, the branch list and the PR list first cost two minutes and stopped
+  a reconciliation of something that did not exist.
+- **An agent-authored doc can be right about the machine and wrong about the
+  repo.** Every environment claim in the incoming `AGENTS.md` held up —
+  fail-closed middleware, jsdom, port 3100, the WebKit skip, vendored fonts.
+  Every claim about repo *state* had rotted, because it was authored against a
+  base thirty commits old: one tracked migration (there are ten), three provider
+  keys (there are twelve), and an "update script" belonging to another tool's
+  environment config. Verify a doc against `HEAD`, claim by claim, before
+  merging it — the useful parts and the stale parts arrive in the same file.
+- **A contradiction between two docs is a finding about the one you already
+  own.** The new file said the build needs no network for fonts;
+  `docs/runbooks/local-dev.md` still told you to retry a font failure with
+  connectivity. The newcomer was right — the families were vendored in P1 — so
+  the incoming file's real value was exposing a stale troubleshooting entry that
+  had been quietly wrong for weeks in a doc nobody had reason to re-read.
+- **Cherry-pick rather than re-type, when someone else wrote it.** `git
+  cherry-pick` kept Cursor Agent as the author and put the corrections in a
+  separate commit, so the diff says plainly what arrived and what was changed.
+  Rewriting it as my own commit would have made the record less true for no
+  gain.

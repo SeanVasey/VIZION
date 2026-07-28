@@ -52,7 +52,10 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 
 ## Troubleshooting
 
-- **`next/font` build failure** → the font fetch needs network at build time. Retry with
-  connectivity; fallbacks (`Arial Narrow`, `system-ui`, `ui-monospace`) are declared.
+- **`next/font` build failure** → not a network problem. The three families are vendored
+  as woff2 under `src/app/fonts/` and loaded with `next/font/local`, so the build makes
+  no font request at all; check the files are present rather than your connectivity.
+  Fallbacks (`Arial Narrow`, `system-ui`, `ui-monospace`) are declared behind each
+  variable in `tokens.css`.
 - **SW not updating** → it is served `no-store`; hard-reload or clear the
   `vizion-*` caches in DevTools → Application.
