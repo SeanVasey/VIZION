@@ -1211,3 +1211,67 @@ The design decision it justified survived on inertia.
   work" was in four files, the build-time flag looked settled rather than
   chosen. When the premise fell, the conclusion still happened to be right —
   but that was luck, and the reason had to be rewritten from scratch.
+
+## 2026-07-28 — Two dead affordances that a desktop browser cannot show you
+
+**What broke.** The bottom nav "had" press feedback (`active:scale-95`) and
+"had" fast navigation (Next `<Link>`). Neither was true on a phone.
+
+`:active` was dead: **WebKit applies `:active` styles only when the document
+carries at least one touch listener.** There wasn't one, so that utility — and
+the four others like it elsewhere in the app — rendered nothing on iOS. It
+works perfectly in a desktop browser, in Playwright's Chromium, and in every
+screenshot anyone had taken. One passive no-op `touchstart` listener revives
+all of them.
+
+Navigation was slow for a reason no amount of press polish could fix: **no
+route had a `loading.tsx`**, so a tab press blocked on the destination's full
+server render — `auth.getUser()` plus two to three Supabase queries — with the
+*old* screen on-screen the whole time. The second-order cost was worse than the
+first: without a loading boundary, automatic `<Link>` prefetch of a dynamic
+route has nothing to warm, so the framework's own latency-hiding was inert too.
+
+**What to avoid.**
+
+- **"There is a CSS rule for it" is not "the user sees it."** `active:scale-95`
+  had been in the file since P1 and read as covered in every review. A utility
+  that is a no-op on the target platform is indistinguishable from a correct
+  one in source. Where an affordance is load-bearing, drive it from state you
+  can assert on — `[data-pressed]` from pointer events — rather than from a
+  pseudo-class whose firing conditions differ per engine.
+- **A tap is shorter than the eye.** A decisive thumb is down and up inside
+  ~60ms: under four frames. `:active` cannot hold past pointer-up, so even
+  where it fires, a fast tap flickers. The minimum-hold is not a nicety, and it
+  is not expressible in CSS.
+- **Press feedback must be instant on the way DOWN and eased on the way UP.**
+  The original had `transition-[color,transform] duration-150` in both
+  directions, so the scale was still ramping in as the finger left — a 150ms
+  ramp is precisely the lag the affordance exists to disprove. Zero the
+  duration in the pressed rule; let the resting rule own the ease-out.
+- **jsdom has no `PointerEvent`, so every `pointerType` branch was untested.**
+  Testing Library falls back to a plain `Event` and silently drops the field —
+  `fireEvent.pointerDown(el, { pointerType: "mouse" })` delivers `undefined`.
+  The first version of the haptics test passed for the wrong reason and the
+  swipe hook's `pointerType === "mouse"` guard had never been exercised at all.
+  When a test asserts on a DOM field, check the environment actually carries it.
+- **A guard that scans source must be proven to bite.** The first version of
+  the "no fixed element inside `.glass`" test anchored on `className="…"` and
+  therefore skipped every `className={[…].join(" ")}` in the codebase —
+  including the bottom nav, the single most important consumer. It reported a
+  clean sweep over a set it could not see. Every guard here was then mutated
+  on purpose to confirm it fails; one of the four did not, because the `sed`
+  that was supposed to break it silently matched nothing.
+- **Prefetch harder is not always prefetch better.** Forcing `prefetch` on the
+  three tabs looked like the obvious win, and would have run every route's
+  Supabase queries on every page view — while Next 15 defaults
+  `staleTimes.dynamic` to `0`, which discards the result rather than reusing
+  it. The cheap fix (a `loading.tsx` per route) is also the one that makes the
+  framework's default prefetch work at all.
+- **Scoping a perf switch is where the risk lives, not the switch itself.**
+  Standing `.glass`'s backdrop blur down during scroll is safe only because no
+  `.glass` element hosts a `position: fixed` descendant — toggling
+  `backdrop-filter` toggles a containing block, and the overlay would jump
+  mid-scroll. Extending the same rule to the chrome bars would have been a
+  visible regression for a different reason (`--chrome` is ~0.43 opaque; text
+  under an unblurred header is simply legible). Same one-line rule, two
+  different reasons it must not be widened — both worth writing down next to it.

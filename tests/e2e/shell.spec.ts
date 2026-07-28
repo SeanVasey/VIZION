@@ -102,6 +102,55 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     expect(ring.boxShadow).not.toBe("none");
   });
 
+  test("scrolls smoothly without animating route-change scroll restoration", async ({
+    page,
+  }) => {
+    await page.goto("/sign-in");
+    // Both halves matter: the CSS is what makes an in-page scroll glide, and
+    // the attribute is what tells Next to keep suppressing it around its own
+    // scroll restoration (from v16 it only does so when the attribute is
+    // present — without it every route change would GLIDE to the top).
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-scroll-behavior",
+      "smooth",
+    );
+    expect(
+      await page.evaluate(
+        () => getComputedStyle(document.documentElement).scrollBehavior,
+      ),
+    ).toBe("smooth");
+  });
+
+  test("glass stands its backdrop blur down while the page is moving", async ({
+    page,
+  }) => {
+    // Same class of bug as the focus-ring test above, and unreachable from a
+    // unit test for the same reason: `.glass` declares `backdrop-filter` in
+    // the components layer and the scroll gate overrides it from the
+    // utilities layer, so only a real engine can say which one wins.
+    await page.goto("/sign-in");
+    const email = page.locator("input#email");
+    await expect(email).toHaveClass(/\bglass\b/);
+
+    const blurAtRest = await email.evaluate(
+      (el) => getComputedStyle(el).backdropFilter,
+    );
+    expect(blurAtRest).toContain("blur");
+
+    // Drive the real listener rather than stamping the attribute by hand.
+    await page.evaluate(() => window.dispatchEvent(new Event("scroll")));
+    await expect(page.locator("html")).toHaveAttribute("data-scrolling", "");
+    expect(await email.evaluate((el) => getComputedStyle(el).backdropFilter)).toBe(
+      "none",
+    );
+
+    // ...and it comes back on its own once the page settles.
+    await expect(page.locator("html")).not.toHaveAttribute("data-scrolling", "");
+    expect(
+      await email.evaluate((el) => getComputedStyle(el).backdropFilter),
+    ).toContain("blur");
+  });
+
   test("the service worker is served with a no-store cache policy", async ({
     request,
   }) => {

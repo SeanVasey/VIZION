@@ -6,6 +6,68 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the bottom nav acknowledged nothing, and the app had no reason to be quick
+
+Tapping a tab looked like nothing happened, because on iOS nothing did. Two
+independent faults, both invisible on a desktop browser:
+
+**No feedback.** The nav's only press affordance was `active:scale-95`, and
+WebKit applies `:active` styles *only when the document carries a touch
+listener*. There wasn't one, so that utility — and the four others like it
+elsewhere in the app — was dead on the platform this PWA targets first. A
+single passive no-op `touchstart` listener (`InteractionManager`) revives all
+of them. The nav goes further and drives its own `[data-pressed]` state from
+pointer events: an accent wash plus a scale that lands on the *press* with no
+transition and eases out on release, a haptic tick on touch/pen, and a minimum
+hold so a 60ms tap still reads as one.
+
+**Nothing to be quick with.** No route had a `loading.tsx`, so a tab press
+blocked on the destination's full server render — `auth.getUser()` plus two to
+three Supabase queries — with the *old* screen still on-screen throughout. It
+also meant automatic `<Link>` prefetch had nothing to warm, since a dynamic
+route is only prefetched as far as its nearest loading boundary. All four app
+routes now have one, so the new screen paints on the same frame as the press.
+Prefetch is deliberately left at the default rather than forced to `true`:
+these are dynamic routes and Next 15 defaults `staleTimes.dynamic` to `0`, so
+a forced full prefetch would run every tab's queries on every page view and
+then discard the result.
+
+A pending tab also lights up as selected the moment it is tapped
+(`useLinkStatus`), so the answer to "did that register?" no longer waits on the
+network. `aria-current` stays on the route actually being displayed — a pending
+tab is not the current page and must not tell a screen reader it is.
+
+### Changed — scrolling
+
+Frosted glass is expensive to *move*: every `.glass` panel makes the compositor
+snapshot, blur and re-composite its backdrop once per frame, and a library
+screen holds a dozen. Three changes, in descending order of effect:
+
+- `InteractionManager` stamps `data-scrolling` on `<html>` for the duration of
+  a scroll gesture (+140ms), and `.glass` drops its backdrop blur and grain for
+  exactly that long. A backdrop sliding past at flick speed is already a blur.
+  The two chrome bars keep theirs — `--chrome` is only ~0.42–0.45 opaque, so
+  text passing under an unblurred header would be legible through it.
+- Library rows carry `content-visibility: auto`, so off-screen rows skip
+  layout, paint and their own backdrop blur. Scroll cost stops scaling with how
+  many prompts are saved.
+- `scroll-behavior: smooth` on `<html>` for in-page and programmatic scrolls,
+  with the matching `data-scroll-behavior="smooth"` so Next keeps suppressing
+  it around route-change scroll restoration.
+
+`tests/unit/scroll-performance.test.ts` pins all of it, including the
+invariant the first item depends on: no `position: fixed` element may live
+inside a `.glass` subtree, or toggling `backdrop-filter` would re-anchor it
+mid-scroll.
+
+### Fixed — jsdom drops `pointerType`, so pointer-type branches were untested
+
+jsdom ships no `PointerEvent` constructor, so Testing Library falls back to a
+plain `Event` and silently discards every pointer-specific field. Any code
+branching on `e.pointerType` — the nav's haptics, the library row's swipe claim
+— was therefore asserting against `undefined` regardless of what the test
+passed. `tests/setup.ts` now shims it over `MouseEvent`.
+
 ### Fixed — WebKit e2e could never have passed, and said so the moment it ran
 
 The `mobile-safari` Playwright project had never actually executed. Run it and
