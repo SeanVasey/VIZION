@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { tap } from "@/lib/haptics";
 
 /**
  * A tap can be shorter than the eye can resolve — a decisive thumb is down and
@@ -14,22 +15,27 @@ const MIN_HOLD_MS = 130;
 const TICK_MS = 8;
 
 /**
- * Explicit press state for a control, driven by pointer events rather than
- * CSS `:active`.
+ * Explicit press state for a control, driven by pointer events. Pair with the
+ * `.pressable` class (globals.css), which owns the instant-down / eased-up
+ * scale that `[data-pressed]` drives.
  *
- * Two reasons it is not just an `active:` utility, both of which are about
- * what `:active` *cannot do*, not about any platform bug:
+ * **This is what keeps the app off `:active` for touch feedback, deliberately.**
+ * Every source on the subject — Apple's (archived) Safari Web Content Guide
+ * included — reports that iOS ignores `:active` for touch unless the document
+ * carries a touch listener, and that the documented workaround has a real cost:
+ * a global `touchstart` listener makes elements flash active *while you
+ * scroll past them*. That reporting is also uniformly ancient, and it could
+ * not be verified here (Playwright's Linux WebKit applies `:active` either
+ * way, and cannot hold a touch). Rather than bet the app's feedback on a
+ * behaviour nobody can currently confirm, nothing depends on it: state we set
+ * ourselves renders identically on every engine.
  *
- *  1. **`:active` ends the instant the finger lifts.** A tap is ~40–100ms, so
- *     the feedback lasts ~40–100ms and can be gone before it is seen. The
- *     minimum-hold below is not expressible in CSS at all.
- *  2. **It is state, so a test can assert on it.** The nav is the app's
- *     most-tapped control; `[data-pressed]` is checkable in a unit test,
- *     whereas a pseudo-class needs a real engine and a held pointer.
+ * Two things `:active` could not give us regardless:
  *
- * Also fires a short haptic tick on touch/pen presses — skipped for mouse,
- * where there is nothing to vibrate, and a no-op on iOS, which does not
- * implement the Vibration API.
+ *  1. **It ends the instant the finger lifts.** A tap is ~40–100ms, so the
+ *     feedback lasts ~40–100ms. `MIN_HOLD_MS` is not expressible in CSS.
+ *  2. **A press dragged off the control never cancels** (a long-standing iOS
+ *     complaint). `onPointerLeave` / `onPointerCancel` below do.
  */
 export function usePressable() {
   const [pressed, setPressed] = useState(false);
@@ -42,10 +48,9 @@ export function usePressable() {
     clearTimeout(timer.current);
     downAt.current = Date.now();
     setPressed(true);
-    // Optional chaining on the method AND a feature test on the object: the
-    // property is absent on iOS/desktop Safari and present-but-inert
-    // elsewhere, and `navigator` itself is absent in a non-DOM test env.
-    if (haptic) navigator?.vibrate?.(TICK_MS);
+    // lib/haptics is capability-detected and a documented no-op on iOS, which
+    // has never implemented the Vibration API.
+    if (haptic) tap(TICK_MS);
   }, []);
 
   const release = useCallback(() => {
@@ -72,7 +77,7 @@ export function usePressable() {
         press(e.pointerType === "touch" || e.pointerType === "pen"),
       onPointerUp: release,
       // A pointer the scroller claims mid-gesture, or one dragged off the
-      // control, is a cancelled press — release it or the tab stays lit.
+      // control, is a cancelled press — release it or the control stays lit.
       onPointerCancel: release,
       onPointerLeave: release,
       onKeyDown: (e: React.KeyboardEvent) => {

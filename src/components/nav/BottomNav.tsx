@@ -3,7 +3,7 @@
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { usePressable } from "./use-pressable";
+import { usePressable } from "@/components/ui/use-pressable";
 import { useKeyboardVisible } from "./use-keyboard-visible";
 import { showsBottomNav } from "./visibility";
 
@@ -127,7 +127,8 @@ function NavTab({ tab, active }: { tab: Tab; active: boolean }) {
       data-pressed={pressed || undefined}
       {...handlers}
       className={[
-        "nav-tab group flex flex-1 min-h-[var(--bottom-nav-h)] flex-col items-center justify-center py-2",
+        // `pressable` owns the scale; `nav-tab` adds the accent wash on top.
+        "pressable nav-tab group flex flex-1 min-h-[var(--bottom-nav-h)] flex-col items-center justify-center py-2",
         // select-none stops iOS long-press from selecting the tab label
         // instead of navigating.
         "select-none text-xs",

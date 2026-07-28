@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { PressableLink } from "@/components/ui/PressableLink";
 import { Wordmark } from "@/components/Wordmark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -44,13 +44,18 @@ export function ScreenHeader({
         ) : (
           <div className="flex min-w-0 items-center gap-2">
             {backHref && (
-              <Link
+              <PressableLink
                 href={backHref}
                 aria-label="Back"
-                className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-silver transition-[color,transform] duration-150 hover:text-chalk active:scale-95"
+                className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-silver hover:text-chalk"
               >
                 {/* 1.5px-stroke, rounded-join chevron (style-guide §1.4). */}
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-6 w-6">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  className="h-6 w-6"
+                >
                   <path
                     d="M14.5 6L9 12l5.5 6"
                     stroke="currentColor"
@@ -59,7 +64,7 @@ export function ScreenHeader({
                     strokeLinejoin="round"
                   />
                 </svg>
-              </Link>
+              </PressableLink>
             )}
             <h1 className="truncate font-display text-xl tracking-wide text-text">
               {title}

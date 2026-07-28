@@ -19,7 +19,11 @@
        background extending under the notch / home indicator. */
     background-color: var(--bg);
     -webkit-text-size-adjust: 100%;
-    /* iOS: no grey tap flash — active:scale / hover tokens carry the feedback. */
+    /* iOS: no grey tap flash. Note this SUPPRESSES the only touch feedback iOS
+       gives by default — reportedly it uses this highlight *instead of*
+       honouring `:active` for touch — so the replacement has to be real. It is
+       `.pressable` + `usePressable` (see the components layer), not a
+       pseudo-class, precisely so nothing here depends on that report. */
     -webkit-tap-highlight-color: transparent;
     /* Programmatic and in-page scrolls glide instead of teleporting: hash
        links, `scrollIntoView` in the composer and attachment tray, "back to
@@ -228,37 +232,46 @@
     box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28);
   }
 
-  /* Bottom-nav tab. The press affordance lives here rather than in `active:`
-     utilities for a reason Tailwind cannot express: **the press must be
-     instant and the release must not be.** A ramp on the way DOWN is the lag
-     the tab is trying to disprove. So the pressed rules zero the transition
-     duration, and the resting rules own the ease-out that plays as the finger
-     leaves.
+  /* THE app-wide press affordance. Every tappable control that wants one uses
+     this + `usePressable`; nothing uses `active:` for touch feedback any more.
 
-     Driven by `[data-pressed]` (set by usePressable) rather than `:active`
-     because `:active` cannot hold past pointer-up — a 40ms tap would get 40ms
-     of feedback — and because state is assertable in a test where a
-     pseudo-class needs a real engine and a held pointer.
+     Why not `active:scale-95`, which this replaced everywhere:
 
-     The old affordance was `active:scale-95` on a 150ms transition and no
-     second channel. Measured in WebKit, an ~80ms press reaches about a 5%
-     shrink; this reaches 10% on the first frame and adds an accent wash at
-     full opacity, so the signal does not depend on catching the ramp. */
-  .nav-tab {
-    position: relative;
+     1. **The press must be instant and the release must not be** — and Tailwind
+        cannot express a one-directional duration. A ramp on the way DOWN is
+        exactly the lag the affordance exists to disprove, so `[data-pressed]`
+        zeroes the duration and the resting rule owns the ease-out.
+     2. **`:active` cannot hold past pointer-up.** A 40ms tap bought 40ms of
+        feedback; `usePressable` guarantees a 130ms floor.
+     3. **iOS may ignore `:active` for touch entirely.** Every source on this
+        reports that it does unless the document carries a touch listener, and
+        that the workaround makes controls flash active while you SCROLL past
+        them. All of that reporting predates current iOS and could not be
+        verified here. State we set ourselves is not a bet either way.
+
+     Scale is 10%, not 5%: measured in WebKit, the old `scale-95` on a 150ms
+     ramp reached ~0.951 in an ~80ms press, so it did render — it was just
+     small, with no second channel, and with the native tap highlight already
+     suppressed on html. */
+  .pressable {
     transition:
       transform 200ms cubic-bezier(0.2, 0.9, 0.3, 1),
       color 200ms ease;
   }
-  .nav-tab[data-pressed] {
+  .pressable[data-pressed] {
     transform: scale(0.9);
     transition-duration: 0s;
   }
 
-  /* The press wash: an accent-tinted pill behind the tab's content. Colour +
-     scale together, because scale alone is easy to miss on a 64px bar under a
-     thumb that is covering most of it. Painted on a ::before so it needs no
-     extra node and cannot disturb the flex centring. */
+  /* Bottom-nav tab — `.pressable` plus a wash, since a scale alone is easy to
+     miss on a 64px bar under a thumb that is covering most of it. */
+  .nav-tab {
+    position: relative;
+  }
+
+  /* The press wash: an accent-tinted pill behind the tab's content. Painted on
+     a ::before so it needs no extra node and cannot disturb the flex
+     centring. */
   .nav-tab::before {
     content: "";
     position: absolute;
@@ -275,10 +288,11 @@
   }
 
   /* Reduced motion takes the movement, never the feedback. The global collapse
-     already flattens the durations; drop the scale too and let the wash carry
-     the whole signal, so the tap is still unmistakably acknowledged. */
+     already flattens the durations; drop the scale too. On the nav the wash
+     then carries the whole signal; on a bare `.pressable` icon button the
+     colour change does. Either way the tap stays acknowledged. */
   @media (prefers-reduced-motion: reduce) {
-    .nav-tab[data-pressed] {
+    .pressable[data-pressed] {
       transform: none;
     }
   }
@@ -519,7 +533,7 @@
      containing block for fixed descendants. Safe here because no `.glass`
      element hosts a `position: fixed` descendant: Sheet, Toast and
      KeyboardActionBar all portal to <body>, and the avatar-crop modal is a
-     root-level sibling in SettingsPanel. `tests/unit/scroll-performance.test.ts`
+     root-level sibling in SettingsPanel. `tests/unit/ui-contracts.test.ts`
      is what keeps that true. */
   [data-scrolling] .glass {
     backdrop-filter: none;

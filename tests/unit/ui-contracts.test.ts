@@ -26,7 +26,7 @@ function block(headPattern: RegExp): string {
   return "";
 }
 
-describe("scroll performance", () => {
+describe("UI contracts", () => {
   describe("glass stands down while the page is in motion", () => {
     it("drops the backdrop blur under [data-scrolling]", () => {
       const decls = block(/^\[data-scrolling\]\s+\.glass$/);
@@ -79,6 +79,78 @@ describe("scroll performance", () => {
       }
       // A scan that matches nothing would pass this silently.
       expect(applications, "scroll-row is applied nowhere").toBeGreaterThan(0);
+    });
+  });
+
+  describe("touch feedback never depends on :active", () => {
+    /**
+     * `:active` is retired for press feedback app-wide. Three reasons, only
+     * one of which is about iOS: it cannot outlive pointer-up (a 40ms tap gets
+     * 40ms of feedback), it does not cancel when the press is dragged off the
+     * control, and iOS is widely reported to ignore it for touch unless the
+     * document carries a touch listener — a workaround whose documented cost
+     * is controls flashing active as you scroll past them. That last claim is
+     * unverifiable here, which is exactly why nothing is allowed to rest on
+     * it: `usePressable` sets state we own, and it renders the same on every
+     * engine.
+     *
+     * This is the guard that keeps it that way. A reviewer reaching for
+     * `active:scale-95` because it is shorter reintroduces the dependency
+     * silently, on the one platform CI cannot fully check.
+     */
+    it("uses no active: press utility anywhere in src", () => {
+      const offenders: string[] = [];
+      for (const [rel, cls] of classLists()) {
+        for (const m of cls.matchAll(/(?:^|\s)(active:[\w[\]./-]+)/g)) {
+          // active:text-* etc. would be equally affected; the whole variant is
+          // off-limits for feedback, so flag any of it.
+          offenders.push(`${rel}: ${m[1]}`);
+        }
+      }
+      expect(
+        offenders,
+        "use usePressable + .pressable (data-pressed) instead — see globals.css",
+      ).toEqual([]);
+    });
+
+    it("routes every converted control through a Pressable wrapper", () => {
+      // The four controls that used to carry `active:scale-95`. Naming them
+      // means deleting the affordance from one shows up here, rather than as
+      // a control that quietly stops acknowledging taps.
+      const EXPECTED: Array<[string, string]> = [
+        ["components/ScreenHeader.tsx", "PressableLink"],
+        ["components/ThemeToggle.tsx", "PressableButton"],
+        ["components/library/PromptDetail.tsx", "PressableButton"],
+        ["components/diff/TransformationDiff.tsx", "PressableButton"],
+      ];
+      for (const [rel, wrapper] of EXPECTED) {
+        const src = readFileSync(join(ROOT, "src", rel), "utf8");
+        expect(src, `${rel} no longer uses ${wrapper}`).toContain(`<${wrapper}`);
+      }
+    });
+
+    it("gives PressableButton a type, so it cannot submit a form by accident", () => {
+      // A bare <button> is type="submit". These are icon buttons (copy, theme)
+      // that today sit outside any <form> — an implicit dependency on page
+      // structure that would fail silently the first time one moved.
+      const src = readFileSync(
+        join(ROOT, "src", "components", "ui", "PressableButton.tsx"),
+        "utf8",
+      );
+      expect(src).toMatch(/type="button"/);
+      // Before the spread, or a caller could never override it.
+      expect(src.indexOf('type="button"')).toBeLessThan(src.indexOf("{...rest}"));
+    });
+
+    it("defines .pressable as instant down, eased up", () => {
+      const rest = block(/^\.pressable$/);
+      const pressed = block(/^\.pressable\[data-pressed\]$/);
+      expect(rest, "no .pressable rule").not.toBe("");
+      expect(pressed, "no .pressable[data-pressed] rule").not.toBe("");
+      // The press must not ramp; the release must.
+      expect(pressed).toMatch(/transition-duration:\s*0s/);
+      expect(pressed).toMatch(/transform:\s*scale\(/);
+      expect(rest).toMatch(/transition:[\s\S]*transform\s+\d+ms/);
     });
   });
 

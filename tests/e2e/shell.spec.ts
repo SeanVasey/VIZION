@@ -118,8 +118,8 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<a id="probe-rest" class="nav-tab" href="#">a</a>
-         <a id="probe-press" class="nav-tab" href="#" data-pressed>b</a>`,
+        `<a id="probe-rest" class="pressable nav-tab" href="#">a</a>
+         <a id="probe-press" class="pressable nav-tab" href="#" data-pressed>b</a>`,
       );
     });
 

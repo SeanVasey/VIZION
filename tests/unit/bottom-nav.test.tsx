@@ -72,6 +72,20 @@ describe("BottomNav", () => {
   });
 
   describe("press feedback", () => {
+    it("opts into the shared press affordance", () => {
+      // The e2e spec proves `.pressable` resolves to an instant scale in a real
+      // engine, but it does so against a hand-written probe element. This is
+      // the other half: that the REAL tab carries the class. Without it the
+      // stylesheet is correct and the nav still has no scale — which is
+      // exactly the regression that shipped when the rule moved off
+      // `.nav-tab`, and which the e2e probe could not see because the probe
+      // had been updated and the component had not.
+      render(<BottomNav />);
+      for (const label of ["Enhance", "Library", "Settings"]) {
+        expect(tab(label)).toHaveClass("pressable");
+      }
+    });
+
     it("marks the tab pressed on pointer-down, before any navigation", () => {
       render(<BottomNav />);
       const library = tab("Library");

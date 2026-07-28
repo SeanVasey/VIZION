@@ -1,6 +1,7 @@
 "use client";
 
 import { useUIStore } from "@/stores/ui";
+import { PressableButton } from "@/components/ui/PressableButton";
 import { useSetTheme } from "@/lib/profile/use-theme-preference";
 import { THEMES, type Theme } from "@/lib/constants";
 import { Segmented } from "@/components/ui/Segmented";
@@ -23,15 +24,14 @@ export function ThemeToggle() {
   const setTheme = useSetTheme();
 
   return (
-    <button
-      type="button"
+    <PressableButton
       onClick={() => setTheme(NEXT[theme])}
       aria-label={`Theme: ${theme}. Switch to ${NEXT[theme]}.`}
       title={`Theme: ${theme}`}
-      className="glass flex h-11 w-11 items-center justify-center rounded-xl text-lg text-silver transition-[color,transform] duration-150 hover:text-accent active:scale-95"
+      className="glass flex h-11 w-11 items-center justify-center rounded-xl text-lg text-silver hover:text-accent"
     >
       <span aria-hidden="true">{GLYPH[theme]}</span>
-    </button>
+    </PressableButton>
   );
 }
 

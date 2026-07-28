@@ -1326,3 +1326,49 @@ look at**, with no second channel and the native tap highlight suppressed.
   falsified the premise of the change I had already pushed. When a claim is
   specifically about a platform you cannot currently run, that is the moment to
   go get it — not to write the claim more confidently.
+
+## 2026-07-28 — Closing a question you cannot answer
+
+**What happened.** After the `:active` claim collapsed, the honest position was
+"iOS may or may not ignore `:active` for touch; nobody here can check." That
+left four `active:scale-95` controls whose feedback depended on the answer.
+
+Researching harder did not resolve it. Every source says the same thing —
+including Apple's own Safari Web Content Guide — and every one of them is a
+decade old, with nothing version-current to confirm or retire it. One of them
+did surface a cost I had not weighed: the standard `document.addEventListener
+('touchstart', …)` workaround makes controls flash active *as you scroll past
+them*. So the fix I originally shipped would have introduced a visible bug on
+every list in the app, to satisfy a requirement I could not demonstrate exists.
+
+So the question was closed by removing everything that depended on it. All four
+controls moved to `[data-pressed]`, and a guard forbids the `active:` variant
+returning.
+
+**What to avoid.**
+
+- **When you cannot verify a platform behaviour, stop trying to answer it and
+  delete the dependency instead.** I spent several rounds trying to establish
+  whether the heuristic is live. That was the wrong question: it is not
+  knowable from this machine, and the app does not need it to be. "Make the
+  answer not matter" was available the whole time and took less work than the
+  research did.
+- **Age out your sources.** Four searches returned confident, mutually
+  consistent answers, all tracing to 2011–2015 material. Consistency across
+  sources is not currency; a decade-old consensus about a browser is a
+  hypothesis, not a fact.
+- **Read the workaround's cost before adopting it, not after.** The
+  scroll-flash side effect was in the very first search result and I had
+  already shipped the listener.
+- **Check for the module before writing it.** `usePressable` reimplemented
+  `navigator.vibrate` inline while `lib/haptics.ts` already existed, complete
+  with a documented "HONEST SCOPE" note and a standing audit ruling — whose
+  text still named the `active:scale-95` I was in the middle of deleting. One
+  `grep` for `vibrate` at the start would have found it.
+- **A test built from a copy of production's class list will drift from it.**
+  The e2e spec asserts `.pressable` against a hand-written probe element. When
+  the scale moved from `.nav-tab` to `.pressable` I updated the probe and not
+  the component, so the stylesheet was right, the test was green, and the real
+  nav had no scale at all. Caught only because the probe was *also* stale in
+  the other direction. Pair any synthesized-markup test with a unit assertion
+  that the real component carries the class.

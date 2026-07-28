@@ -67,6 +67,37 @@ branching on `e.pointerType` — the nav's haptics, the library row's swipe clai
 — was therefore asserting against `undefined` regardless of what the test
 passed. `tests/setup.ts` now shims it over `MouseEvent`.
 
+### Changed — `:active` is retired for touch feedback, app-wide
+
+The nav's press affordance is now the app's only one. `usePressable` +
+`.pressable` moved out of `nav/` into `components/ui/`, and the four remaining
+`active:scale-95` controls — the header back chevron, the theme toggle, and the
+two quick-copy buttons — go through `PressableLink` / `PressableButton`.
+
+This is what actually closes the open iOS question, rather than answering it.
+Every source on the subject reports that iOS ignores `:active` for touch unless
+the document carries a touch listener, and that the documented workaround costs
+you controls flashing active *while you scroll past them*. All of that
+reporting predates current iOS, and it cannot be verified here — Playwright's
+Linux WebKit applies `:active` either way and cannot hold a touch. So nothing
+depends on it: state we set ourselves renders identically on every engine.
+
+Two things `:active` could not do regardless, both now fixed everywhere rather
+than just on the nav: it cannot outlive pointer-up (a 40ms tap bought 40ms of
+feedback; there is now a 130ms floor), and it does not cancel when a press is
+dragged off the control (`onPointerLeave` / `onPointerCancel` do).
+
+Also folded in: `usePressable` now calls the existing `lib/haptics` `tap()`
+instead of its own inline `navigator.vibrate`, and that module's doc comment no
+longer names `active:scale-95` as the iOS fallback. `PressableButton` defaults
+`type="button"` — these are icon buttons that happen to sit outside any form
+today, which is not a thing to leave implicit.
+
+`tests/unit/ui-contracts.test.ts` (renamed from `scroll-performance.test.ts`,
+which no longer described it) fails the build if any `active:` variant returns,
+if `.pressable` loses its zero-duration press, if a converted control stops
+using its wrapper, or if `PressableButton` loses its type.
+
 ### Corrected — the iOS `:active` explanation above was mine, and it was wrong
 
 The first version of this entry said WebKit applies `:active` only when the
