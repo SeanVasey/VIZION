@@ -17,12 +17,19 @@ at 240px) with a single 5px node breathing at its centre on a 4.4s cycle.
 Horizon first shipped with the emblem's exact footprint, to keep the swap free
 of spacing changes. That footprint was sized for an SVG lockup, and once the
 lockup was gone it read as roughly 1.5x too much air above the composer for a
-hairline and a dot. The band is now two thirds as tall: `min(width / 7.5, 44px)`
-rather than `min(width / 5, 64px)` — 44px from 330px up, 38.4px at a 320px
-viewport, which the page's `-mb-3` pulls to 32px and 26.4px. Both terms of the
-`min` shrank together so the reduction holds at every breakpoint; capping alone
-would have left narrow screens where they were. Nothing else about the band
-moved.
+hairline and a dot.
+
+The band's height is entirely padding — the mark inside is a 1px rule and a 5px
+node at every size — so it is now a flat `h-7` (28px) rather than
+`min(width / 5, 64px)`. With the page's `py-5` above and its `-mb-3`-trimmed
+`gap-8` below, clearance on each side of the rule goes from 52px to **34px**.
+The rule and the node are untouched: the ask was less dead air, not a smaller
+mark.
+
+The aspect ratio went with it. It existed only to track the emblem's
+`max-w-[320px]` viewBox so the band could not grow the header on narrow screens,
+and nothing inside the band scales with width any more; 28px sits below the old
+curve at every viewport, so that failure mode cannot recur.
 
 It reuses `--accent-ink` rather than adding a token: that role already exists
 and is theme-aware, so light mode keeps its darkened ink and no Laser lands on a

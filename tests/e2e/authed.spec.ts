@@ -155,24 +155,35 @@ test.describe("authenticated app", () => {
     expect(await animationName()).toBe("none");
   });
 
-  test("the Horizon band stays two thirds of the emblem's old footprint", async ({
+  test("the Horizon band trims its dead air without shrinking the mark", async ({
     page,
   }) => {
-    // The band inherited the replaced emblem's height — min(width / 5, 64px),
-    // sized for an SVG lockup — and read as ~1.5x too much air for a hairline
-    // and a dot. Both terms shrank together to min(width / 7.5, 44px) so the
-    // ratio holds at every breakpoint: 320px is on the aspect ratio (38.4px),
-    // 390px is on the cap (44px), and a regression in either term shows up
-    // here. A flat `h-11` would pass the cap arm and silently grow the header
-    // on narrow screens, so the assertion is the whole curve, not one number.
+    // The band's height IS its padding — the mark inside is a 1px rule and a
+    // 5px node at every size. It inherited the replaced emblem's
+    // min(width / 5, 64px), which was sized for an SVG lockup and left ~1.5x
+    // too much air once the lockup was a hairline; 28px is the trim.
+    //
+    // Both halves matter and they fail differently: shrinking the band is the
+    // fix, shrinking the rule or the node is the thing that was explicitly
+    // asked NOT to happen, and a height regression that scaled everything down
+    // together would satisfy either assertion alone. Two widths because the old
+    // height tracked viewport width — a flat number has to be checked flat.
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 860 });
-      const band = page.locator(".horizon");
-      const box = (await band.boundingBox())!;
-      expect(box.height, `height at ${width}px`).toBeCloseTo(
-        Math.min(box.width / 7.5, 44),
+      expect((await page.locator(".horizon").boundingBox())!.height).toBeCloseTo(
+        28,
         1,
       );
+      expect(
+        (await page.locator(".horizon-rule").boundingBox())!.height,
+      ).toBeCloseTo(1, 1);
+      // getComputedStyle, not boundingBox: the node is mid-breathe and
+      // getBoundingClientRect() reports the SCALED box (up to 7.5px).
+      const node = await page.locator(".horizon-node").evaluate((el) => ({
+        width: getComputedStyle(el).width,
+        height: getComputedStyle(el).height,
+      }));
+      expect(node, `node at ${width}px`).toEqual({ width: "5px", height: "5px" });
     }
   });
 
