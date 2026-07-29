@@ -633,52 +633,53 @@
     }
   }
 
-  /* Enhance hero flow (PromptFlow) — a symmetric emblem: mirror-image Laser
-     wings about the (│›◯) aperture.  Deliberately quiet: the wings sit
-     slightly translucent and shimmer on the halo's slow ~6s cycle, each line
-     phase-offset so the emblem ripples rather than blinks.  The global
-     reduced-motion rule collapses ALL of it, leaving the halo at the base
-     opacity below (the midpoint of the breathe range) and the wings at their
-     resting translucency. */
-  .flow-glow {
-    opacity: 0.55;
-    filter: blur(10px);
-    animation: flow-breathe 6s ease-in-out infinite;
+  /* Horizon (Enhance) — one edge-faded hairline with a single node breathing
+     at its centre, replacing the old prompt-optics emblem.  The rule fades to
+     transparent at both ends so it reads as atmosphere, never as a border
+     belonging to the header above or the mode rig below.  Laser comes through
+     --accent-ink (deep green on light), never raw laser as a stroke on a light
+     surface (§6).
+
+     The node's BASE values below ARE its reduced-motion rest state: the global
+     collapse ends the animation after one 0.01ms iteration and, with no
+     fill-mode, the element falls back to these declarations — a static dot at
+     scale(1) / .9 opacity, sitting inside the designed .85–1 range.  Never add
+     animation-fill-mode here; `forwards` would park the node at scale(1.5).
+
+     Only transform and opacity animate, so the breathe stays on the compositor
+     and never repaints.  Scaling the node scales its shadow with it, which is
+     the whole effect and costs nothing — no will-change, because a permanently
+     promoted layer is not worth it for a 5px element.  [data-state] selects the
+     animation rather than the class hardcoding it, leaving room for a future
+     in-flight state without restructuring the rule. */
+  .horizon-rule {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--accent-ink) 30%, transparent) 22%,
+      color-mix(in srgb, var(--accent-ink) 30%, transparent) 78%,
+      transparent
+    );
   }
-  @keyframes flow-breathe {
-    0%,
-    100% {
-      opacity: 0.4;
+  .horizon-node {
+    background: var(--accent-ink);
+    box-shadow:
+      0 0 0 6px color-mix(in srgb, var(--accent-ink) 10%, transparent),
+      0 0 14px 3px color-mix(in srgb, var(--accent-ink) 30%, transparent);
+    opacity: 0.9;
+  }
+  .horizon[data-state="idle"] .horizon-node {
+    animation: horizon-breathe 4.4s ease-in-out infinite alternate;
+  }
+  @keyframes horizon-breathe {
+    from {
+      transform: scale(1);
+      opacity: 0.85;
     }
-    50% {
-      opacity: 0.75;
-    }
-  }
-  .flow-lines {
-    opacity: 0.7;
-  }
-  .flow-line {
-    animation: flow-shimmer 6s ease-in-out infinite;
-  }
-  /* nth-of-type counts per wing (each wing group holds three paths), so the
-     stagger lands identically on the mirrored side — symmetry is preserved. */
-  .flow-line:nth-of-type(2) {
-    animation-delay: -2s;
-  }
-  .flow-line:nth-of-type(3) {
-    animation-delay: -4s;
-  }
-  @keyframes flow-shimmer {
-    0%,
-    100% {
+    to {
+      transform: scale(1.5);
       opacity: 1;
     }
-    50% {
-      opacity: 0.55;
-    }
-  }
-  .flow-out-glow {
-    filter: drop-shadow(0 0 6px var(--laser-glow));
   }
 
   /* Optical vertical centering for text inside pills: trim the line box to
@@ -715,8 +716,7 @@
   [data-reduced-effects] .dev-edge {
     --dev-peak: 0%;
   }
-  [data-reduced-effects] .flow-glow,
-  [data-reduced-effects] .flow-line,
+  [data-reduced-effects] .horizon-node,
   [data-reduced-effects] .skeleton {
     animation: none;
   }

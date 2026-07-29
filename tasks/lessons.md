@@ -1531,3 +1531,35 @@ you did not write is exactly the case where that opinion is worth least. It now
 throws with the leftover entries and the command to clear them — and the same
 check catches any future partial reset at global setup, naming itself, rather
 than as a puzzling failure in whichever spec ran first.
+
+## Enhance hero → Horizon (2026-07) — swap in place, and check the token exists
+
+- **A "replace X with Y" task is a swap, not a re-spacing.** The brief fixed the
+  new band at 92px; the emblem it replaced occupied 52px effective. Following
+  the number grew the header ~40px, which was immediately and correctly
+  rejected. When the ask is a drop-in, the OLD element's footprint is the spec —
+  measure it first and reproduce it, and treat any dimension in the brief that
+  contradicts it as the thing to question.
+- **Check whether a "new" token is a rename of a live one before adding it.**
+  The brief asked for `--laser-ink` (Laser as foreground, darkened on light).
+  That is `--accent-ink`, verbatim, already in `tokens.css` and already used by
+  the focus ring, the mesh and every inactive ModeRig icon. Grep the token layer
+  for the ROLE, not the proposed name — the answer is in the comment above the
+  declaration. Same for syntax: the brief specified `rgb(var(--x-rgb) / .30)`
+  and there is not one `-rgb` token in the tree; the convention is `color-mix`.
+- **The base declarations ARE the reduced-motion rest state — so never set
+  `animation-fill-mode` on an ambient layer.** The global collapse forces
+  `iteration-count: 1` at `0.01ms`; with no fill-mode the element falls back to
+  its own declarations, which is how a `.85→1` breathe rests at the specified
+  `.9`. `forwards` would have parked the node at `scale(1.5)` — the loudest
+  frame — for exactly the users who asked for less motion.
+- **`getBoundingClientRect()` measures the SCALED box.** A 5px node mid-breathe
+  measured 5.8px, then 7.0px, and the assertion looked like a geometry bug for
+  two runs. For layout size on an animating element read
+  `getComputedStyle(el).width`.
+- **Playwright's `test.use({ reducedMotion })` silently did nothing here;
+  `page.emulateMedia()` worked.** The first run "failed" with a mid-animation
+  transform, which reads exactly like a broken rest state. Assert
+  `matchMedia(...).matches` inside the probe — an emulation that did not apply
+  and a feature that does not work are indistinguishable from the assertion
+  alone, and only one of them is your bug.
