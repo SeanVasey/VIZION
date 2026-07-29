@@ -5,9 +5,12 @@
  * a third one. It replaces the old prompt-optics emblem, which repeated the
  * brand mark ~200px below the same mark in the top bar.
  *
- * It is a drop-in for that emblem and deliberately keeps its footprint: a 64px
- * box which the page's `-mb-3` pulls to 52px effective, exactly what the SVG
- * occupied. This is a swap, not a re-spacing — the header must not grow.
+ * It is a drop-in for that emblem and deliberately keeps its footprint. The SVG
+ * was `w-full max-w-[320px]` over a 320x64 viewBox, so its height was
+ * `min(width, 320) / 5` — 64px from 352px up, but SHORTER below that (57.6px at
+ * a 320px viewport). `aspect-[5/1] max-h-16` reproduces that curve exactly from
+ * the band's own width, so the swap adds no height at any breakpoint. A flat
+ * `h-16` looks equivalent and quietly grows the header on small screens.
  *
  * The rule is deliberately narrow (64%, capped at 240px) and fades to
  * transparent at both ends, so it can never be misread as a border belonging
@@ -29,7 +32,10 @@ export function Horizon({ className = "" }: { className?: string }) {
     <div
       aria-hidden="true"
       data-state="idle"
-      className={["horizon flex h-16 items-center justify-center", className]
+      className={[
+        "horizon flex aspect-[5/1] max-h-16 w-full items-center justify-center",
+        className,
+      ]
         .filter(Boolean)
         .join(" ")}
     >

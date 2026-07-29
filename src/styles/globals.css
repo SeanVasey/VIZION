@@ -716,7 +716,12 @@
   [data-reduced-effects] .dev-edge {
     --dev-peak: 0%;
   }
-  [data-reduced-effects] .horizon-node,
+  /* The breathe hangs off `.horizon[data-state="idle"] .horizon-node` (0,3,0),
+     so the gate has to carry the `.horizon[data-state]` prefix to reach (0,4,0)
+     and win. Written as `[data-reduced-effects] .horizon-node` it is (0,2,0):
+     it parses, it reads correctly, and it silently loses. No !important —
+     this stylesheet reserves that for the OS reduced-motion collapse. */
+  [data-reduced-effects] .horizon[data-state] .horizon-node,
   [data-reduced-effects] .skeleton {
     animation: none;
   }
