@@ -1577,3 +1577,20 @@ than as a puzzling failure in whichever spec ran first.
   `matchMedia(...).matches` inside the probe — an emulation that did not apply
   and a feature that does not work are indistinguishable from the assertion
   alone, and only one of them is your bug.
+- **"Keep the old footprint" is a safe default for a swap, not a permanent
+  spec.** Horizon reproduced the emblem's `min(width / 5, 64px)` exactly, which
+  was right for the swap and wrong a commit later: 64px of box was sized for an
+  SVG lockup, and once the lockup was a hairline and a 5px dot the same
+  footprint read as ~1.5x too much air. When the *content* of an element
+  changes class, re-derive its footprint from the new content instead of
+  inheriting the old one on the strength of "no spacing changed."
+- **Shrink both terms of a `min(width / n, cap)`, never just the cap.** The cap
+  is the only arm that binds above ~330px, so capping alone leaves every narrow
+  viewport at its old height — the exact asymmetry the aspect-ratio form existed
+  to avoid. Scale `n` by the same factor and the reduction holds everywhere.
+- **A test that asserts "matches the thing it replaced" has to be rewritten when
+  the replacement is intentionally re-sized.** The e2e footprint check encoded
+  the swap's constraint, so it went red on the fix and looked like a
+  regression. Assert the curve the component now owns (both arms, at a
+  breakpoint on each side of the cap) rather than a comparison to something no
+  longer on screen.

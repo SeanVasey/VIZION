@@ -5,12 +5,13 @@
  * a third one. It replaces the old prompt-optics emblem, which repeated the
  * brand mark ~200px below the same mark in the top bar.
  *
- * It is a drop-in for that emblem and deliberately keeps its footprint. The SVG
- * was `w-full max-w-[320px]` over a 320x64 viewBox, so its height was
- * `min(width, 320) / 5` — 64px from 352px up, but SHORTER below that (57.6px at
- * a 320px viewport). `aspect-[5/1] max-h-16` reproduces that curve exactly from
- * the band's own width, so the swap adds no height at any breakpoint. A flat
- * `h-16` looks equivalent and quietly grows the header on small screens.
+ * Height is `min(width / 7.5, 44px)` — two thirds of the emblem's old
+ * `min(width / 5, 64px)`, because the band inherited a footprint sized for an
+ * SVG lockup and read as ~1.5x too much air above the composer for a hairline
+ * and a dot (2026-07 review). Both terms scale together so the ratio holds at
+ * every breakpoint; shrinking only the cap would leave small screens untouched.
+ * The height stays derived from the band's own width rather than a flat `h-11`,
+ * which looks equivalent and quietly grows the header on narrow screens.
  *
  * The rule is deliberately narrow (64%, capped at 240px) and fades to
  * transparent at both ends, so it can never be misread as a border belonging
@@ -33,7 +34,7 @@ export function Horizon({ className = "" }: { className?: string }) {
       aria-hidden="true"
       data-state="idle"
       className={[
-        "horizon flex aspect-[5/1] max-h-16 w-full items-center justify-center",
+        "horizon flex aspect-[15/2] max-h-11 w-full items-center justify-center",
         className,
       ]
         .filter(Boolean)

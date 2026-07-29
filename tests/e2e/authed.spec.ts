@@ -155,19 +155,22 @@ test.describe("authenticated app", () => {
     expect(await animationName()).toBe("none");
   });
 
-  test("the Horizon band keeps the footprint of the emblem it replaced", async ({
+  test("the Horizon band stays two thirds of the emblem's old footprint", async ({
     page,
   }) => {
-    // The emblem was `w-full max-w-[320px]` over a 320x64 viewBox, so its height
-    // was min(bandWidth, 320) / 5 — 64px from 352px up, but SHORTER below that.
-    // A flat `h-16` looks equivalent and silently grows the header on small
-    // screens, which is the whole thing this swap was asked not to do.
+    // The band inherited the replaced emblem's height — min(width / 5, 64px),
+    // sized for an SVG lockup — and read as ~1.5x too much air for a hairline
+    // and a dot. Both terms shrank together to min(width / 7.5, 44px) so the
+    // ratio holds at every breakpoint: 320px is on the aspect ratio (38.4px),
+    // 390px is on the cap (44px), and a regression in either term shows up
+    // here. A flat `h-11` would pass the cap arm and silently grow the header
+    // on narrow screens, so the assertion is the whole curve, not one number.
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 860 });
       const band = page.locator(".horizon");
       const box = (await band.boundingBox())!;
       expect(box.height, `height at ${width}px`).toBeCloseTo(
-        Math.min(box.width, 320) / 5,
+        Math.min(box.width / 7.5, 44),
         1,
       );
     }

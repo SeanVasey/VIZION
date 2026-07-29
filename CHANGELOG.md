@@ -14,8 +14,15 @@ bar and the mode rig. It is replaced by **Horizon**
 (`src/components/editor/Horizon.tsx`): one edge-faded hairline (64% wide, capped
 at 240px) with a single 5px node breathing at its centre on a 4.4s cycle.
 
-A straight swap — Horizon keeps the emblem's exact footprint (a 64px box the
-page's `-mb-3` pulls to 52px), so no surrounding spacing changed.
+Horizon first shipped with the emblem's exact footprint, to keep the swap free
+of spacing changes. That footprint was sized for an SVG lockup, and once the
+lockup was gone it read as roughly 1.5x too much air above the composer for a
+hairline and a dot. The band is now two thirds as tall: `min(width / 7.5, 44px)`
+rather than `min(width / 5, 64px)` — 44px from 330px up, 38.4px at a 320px
+viewport, which the page's `-mb-3` pulls to 32px and 26.4px. Both terms of the
+`min` shrank together so the reduction holds at every breakpoint; capping alone
+would have left narrow screens where they were. Nothing else about the band
+moved.
 
 It reuses `--accent-ink` rather than adding a token: that role already exists
 and is theme-aware, so light mode keeps its darkened ink and no Laser lands on a
