@@ -3,6 +3,20 @@
 > Append after each phase: **what broke · what I changed · what to avoid next time.**
 > Read this file before starting the next phase.
 
+## 2026-07-29 — Whole-repository assessment
+
+**What the review found:** The strongest risks sit at system boundaries rather
+than in the UI: the live-only baseline Supabase schema prevents reproducible RLS
+verification and disaster recovery, and the model cost cap checks then records
+usage rather than reserving budget atomically. The application code and tests are
+otherwise unusually mature for the product's size.
+
+**What to carry forward:** Prioritize a sanitized baseline schema plus disposable
+restore/policy tests, then transactional spend reservations. Add performance,
+accessibility, and observability budgets before optimizing large client components;
+measure first and refactor them incrementally. Keep architecture prose synchronized
+with executable service-worker, provider, runtime, and CI configuration.
+
 ## Phase 0 + P1 — Shell
 
 **What we built:** full repo scaffold (CLAUDE.md v2.0, configs, CI, docs) + the
