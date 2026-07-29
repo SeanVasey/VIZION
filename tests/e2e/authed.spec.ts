@@ -135,6 +135,44 @@ test.describe("authenticated app", () => {
     expect(reserved).toBeGreaterThanOrEqual(navHeight);
   });
 
+  test("reduced effects actually silences the Horizon breathe", async ({ page }) => {
+    // Pinned in a real browser because the failure mode is a SPECIFICITY win,
+    // not a missing rule: the breathe hangs off
+    // `.horizon[data-state="idle"] .horizon-node` (0,3,0), so a gate written as
+    // `[data-reduced-effects] .horizon-node` (0,2,0) parses fine, reads fine,
+    // and loses. The unit test that only greps globals.css for the gate's text
+    // stayed green while the toggle did nothing.
+    const animationName = () =>
+      page.evaluate(
+        () => getComputedStyle(document.querySelector(".horizon-node")!).animationName,
+      );
+
+    expect(await animationName()).toBe("horizon-breathe");
+
+    await page.evaluate(() =>
+      document.documentElement.toggleAttribute("data-reduced-effects", true),
+    );
+    expect(await animationName()).toBe("none");
+  });
+
+  test("the Horizon band keeps the footprint of the emblem it replaced", async ({
+    page,
+  }) => {
+    // The emblem was `w-full max-w-[320px]` over a 320x64 viewBox, so its height
+    // was min(bandWidth, 320) / 5 — 64px from 352px up, but SHORTER below that.
+    // A flat `h-16` looks equivalent and silently grows the header on small
+    // screens, which is the whole thing this swap was asked not to do.
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 860 });
+      const band = page.locator(".horizon");
+      const box = (await band.boundingBox())!;
+      expect(box.height, `height at ${width}px`).toBeCloseTo(
+        Math.min(box.width, 320) / 5,
+        1,
+      );
+    }
+  });
+
   test("settings renders the signed-in identity", async ({ page }) => {
     await page.getByRole("navigation").getByRole("link", { name: "Settings" }).click();
     await page.waitForURL(/\/profile/);
