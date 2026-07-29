@@ -1577,3 +1577,34 @@ than as a puzzling failure in whichever spec ran first.
   `matchMedia(...).matches` inside the probe — an emulation that did not apply
   and a feature that does not work are indistinguishable from the assertion
   alone, and only one of them is your bug.
+- **"Keep the old footprint" is a safe default for a swap, not a permanent
+  spec.** Horizon reproduced the emblem's `min(width / 5, 64px)` exactly, which
+  was right for the swap and wrong a commit later: 64px of box was sized for an
+  SVG lockup, and once the lockup was a hairline and a 5px dot the same
+  footprint read as ~1.5x too much air. When the *content* of an element
+  changes class, re-derive its footprint from the new content instead of
+  inheriting the old one on the strength of "no spacing changed."
+- **When a box is pure padding, say so — then a "make it smaller" note is
+  unambiguous.** "Shrink the horizon" was read as the band's footprint and
+  written up as "two thirds of its height", which is indistinguishable from
+  "scale the artwork" to the person who asked. It took a marked-up screenshot to
+  establish that the 1px rule and 5px node were never in scope. The band's
+  height IS its dead air; the doc comment now leads with that instead of with
+  the ratio.
+- **A responsive formula that outlived its content should become a constant.**
+  The `aspect-[5/1] max-h-16` existed solely to track the replaced emblem's
+  `max-w-[320px]` viewBox. Once the contents were a hairline and a dot, tuning
+  `n` and the cap in step was arithmetic in service of nothing — a flat `h-7` is
+  the honest expression, and it cannot regress the growth it was guarding
+  against because it is below the old curve everywhere. Ask what the formula was
+  for before scaling it.
+- **A test that asserts "matches the thing it replaced" has to be rewritten when
+  the replacement is intentionally re-sized.** The e2e footprint check encoded
+  the swap's constraint, so it went red on the fix and looked like a regression.
+  Assert what the component now owns, and assert the invariant too: pinning band
+  height alone would have passed a change that scaled the rule and node down
+  with it — which was the one outcome explicitly ruled out.
+- **Two aims in one taste fix need two assertions.** "Less air" and "same mark"
+  both hold in the fixed state, and either one alone is satisfied by a uniform
+  shrink. Cheap to add, and it is the difference between a spec that documents
+  the request and one that documents a number.

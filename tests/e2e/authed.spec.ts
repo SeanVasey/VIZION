@@ -155,21 +155,35 @@ test.describe("authenticated app", () => {
     expect(await animationName()).toBe("none");
   });
 
-  test("the Horizon band keeps the footprint of the emblem it replaced", async ({
+  test("the Horizon band trims its dead air without shrinking the mark", async ({
     page,
   }) => {
-    // The emblem was `w-full max-w-[320px]` over a 320x64 viewBox, so its height
-    // was min(bandWidth, 320) / 5 — 64px from 352px up, but SHORTER below that.
-    // A flat `h-16` looks equivalent and silently grows the header on small
-    // screens, which is the whole thing this swap was asked not to do.
+    // The band's height IS its padding — the mark inside is a 1px rule and a
+    // 5px node at every size. It inherited the replaced emblem's
+    // min(width / 5, 64px), which was sized for an SVG lockup and left ~1.5x
+    // too much air once the lockup was a hairline; 28px is the trim.
+    //
+    // Both halves matter and they fail differently: shrinking the band is the
+    // fix, shrinking the rule or the node is the thing that was explicitly
+    // asked NOT to happen, and a height regression that scaled everything down
+    // together would satisfy either assertion alone. Two widths because the old
+    // height tracked viewport width — a flat number has to be checked flat.
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 860 });
-      const band = page.locator(".horizon");
-      const box = (await band.boundingBox())!;
-      expect(box.height, `height at ${width}px`).toBeCloseTo(
-        Math.min(box.width, 320) / 5,
+      expect((await page.locator(".horizon").boundingBox())!.height).toBeCloseTo(
+        28,
         1,
       );
+      expect(
+        (await page.locator(".horizon-rule").boundingBox())!.height,
+      ).toBeCloseTo(1, 1);
+      // getComputedStyle, not boundingBox: the node is mid-breathe and
+      // getBoundingClientRect() reports the SCALED box (up to 7.5px).
+      const node = await page.locator(".horizon-node").evaluate((el) => ({
+        width: getComputedStyle(el).width,
+        height: getComputedStyle(el).height,
+      }));
+      expect(node, `node at ${width}px`).toEqual({ width: "5px", height: "5px" });
     }
   });
 

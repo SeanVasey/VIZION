@@ -5,12 +5,24 @@
  * a third one. It replaces the old prompt-optics emblem, which repeated the
  * brand mark ~200px below the same mark in the top bar.
  *
- * It is a drop-in for that emblem and deliberately keeps its footprint. The SVG
- * was `w-full max-w-[320px]` over a 320x64 viewBox, so its height was
- * `min(width, 320) / 5` — 64px from 352px up, but SHORTER below that (57.6px at
- * a 320px viewport). `aspect-[5/1] max-h-16` reproduces that curve exactly from
- * the band's own width, so the swap adds no height at any breakpoint. A flat
- * `h-16` looks equivalent and quietly grows the header on small screens.
+ * Height is a flat `h-7` (28px), and it is ALL padding: the mark inside is a
+ * 1px rule and a 5px node at every size, so this number is the dead air above
+ * and below the hairline and nothing else. With the page's `py-5` above and the
+ * `-mb-3`-trimmed `gap-8` below, that puts 34px of clearance on each side of
+ * the rule.
+ *
+ * It replaced the emblem at `min(width / 5, 64px)` — 52px of clearance per side
+ * — to keep the swap free of spacing changes. That footprint was sized for an
+ * SVG lockup, and once the lockup was a hairline it read as ~1.5x too much air
+ * (2026-07 review). Shrink this to close that gap; never scale the rule or the
+ * node, which are the part that was asked to stay.
+ *
+ * A flat height is correct now precisely because the aspect ratio no longer is:
+ * it existed to track the emblem's `max-w-[320px]` viewBox so the band could not
+ * grow the header on narrow screens, and there is nothing left inside that
+ * scales with width. 28px is below the old curve at every viewport, so the
+ * failure mode it guarded against cannot recur — but raise this number and the
+ * guard is gone with it, so the e2e spec pins it at two widths.
  *
  * The rule is deliberately narrow (64%, capped at 240px) and fades to
  * transparent at both ends, so it can never be misread as a border belonging
@@ -33,7 +45,7 @@ export function Horizon({ className = "" }: { className?: string }) {
       aria-hidden="true"
       data-state="idle"
       className={[
-        "horizon flex aspect-[5/1] max-h-16 w-full items-center justify-center",
+        "horizon flex h-7 w-full items-center justify-center",
         className,
       ]
         .filter(Boolean)
