@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { EnhanceComposer } from "@/components/editor/EnhanceComposer";
-import { PromptFlow } from "@/components/editor/PromptFlow";
+import { Horizon } from "@/components/editor/Horizon";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = { title: "Enhance" };
@@ -16,11 +16,15 @@ export default function EnhancePage() {
     <>
       <ScreenHeader brand />
       <div className="mx-auto flex max-w-screen-sm flex-col gap-8 px-4 py-5">
-        {/* Hero — the animated prompt-optics graphic directly under the header
-            (the old guidance sentence lives on inside it as sr-only text, so
-            screen readers keep the orientation). Per-mode detail lives in the
-            ModeRig helper below the rig. */}
-        <PromptFlow className="-mb-3" />
+        {/* Orientation for screen readers — it used to live inside the hero
+            emblem; Horizon is purely decorative and carries no text, so the
+            sentence sits here instead. Per-mode detail lives in the ModeRig
+            helper below the rig. */}
+        <p className="sr-only">
+          Paste a prompt and VIZ(IO)N rewrites it for your target model — the six modes
+          below each transform it a different way.
+        </p>
+        <Horizon className="-mb-3" />
         <EnhanceComposer />
         <Footer inset />
       </div>

@@ -54,6 +54,7 @@ describe("reduced-effects gate covers every ambient layer", () => {
     ".result-shimmer::before",
     ".glass",
     ".dev-edge",
+    ".horizon-node",
   ])("%s is gated", (selector) => {
     expect(
       GATED_SELECTORS.some((s) => s.endsWith(` ${selector}`)),

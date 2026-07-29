@@ -6,6 +6,25 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — the Enhance hero emblem becomes Horizon
+
+The `PromptFlow` emblem repeated the `(│›◯)` mark about 200px below the same
+mark in the header, and read as a third full-width band stacked under the top
+bar and the mode rig. It is replaced by **Horizon**
+(`src/components/editor/Horizon.tsx`): one edge-faded hairline (64% wide, capped
+at 240px) with a single 5px node breathing at its centre on a 4.4s cycle.
+
+A straight swap — Horizon keeps the emblem's exact footprint (a 64px box the
+page's `-mb-3` pulls to 52px), so no surrounding spacing changed.
+
+It reuses `--accent-ink` rather than adding a token: that role already exists
+and is theme-aware, so light mode keeps its darkened ink and no Laser lands on a
+light surface (§6). Only `transform` and `opacity` animate, so the breathe stays
+on the compositor; the node's base declarations double as its reduced-motion
+rest state (`scale(1)` / `opacity: .9`), verified in both engines. The emblem's
+`sr-only` orientation sentence moves up to `page.tsx`; Horizon itself is
+`aria-hidden` with no role, text or tab stop.
+
 ### Added — end-to-end coverage of the app behind the auth gate
 
 Every e2e spec could previously only reach `/sign-in`, because middleware
