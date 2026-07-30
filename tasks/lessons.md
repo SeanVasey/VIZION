@@ -1652,3 +1652,22 @@ than as a puzzling failure in whichever spec ran first.
   one. My first assertion expected the single-backslash form and failed against
   correct code — the fix was the test, not the query. Assert what actually goes
   on the wire, and say why both layers are there.
+- **Check the plan before promising a dashboard toggle.** The security advisor
+  flagged leaked-password protection as disabled; it is a Pro-plan feature and
+  the org is on Free, so there was no switch to flip. The advisor does not say
+  that, and neither did I until I read the docs and called `get_organization`.
+  When a remediation is "enable X in the dashboard", confirm X exists for that
+  plan first — otherwise the advice sends someone hunting for a control that is
+  not there.
+- **A constant repeated at every call site is a rule with no owner.** The
+  password minimum lived as `8` in four places: one server const and three
+  `minLength={8}` attributes. Raising it is then a search-and-replace where a
+  miss produces the nastiest shape of bug — a form that accepts a value the
+  server rejects, or an input that permits less than the server requires. The
+  fix is a module plus a test that greps the call sites for a hardcoded number,
+  so the next change cannot half-land.
+- **Say what the rule is; do not let rejection teach it.** `minLength` cannot
+  express character classes, so the forms enforced something they never
+  described. Helper text derived from the same constant as the validator means
+  the copy cannot drift from what is enforced — and a test asserts the sentence
+  mentions the number and every class.

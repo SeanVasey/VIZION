@@ -6,6 +6,40 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — one password rule, 12 characters with character classes
+
+The account password minimum goes from 8 to **12**, and now also requires a
+lowercase letter, an uppercase letter and a number. It governs SETTING or
+CHANGING a password; existing passwords are untouched and keep working, so a rule
+change locks nobody out.
+
+`src/lib/auth/password.ts` is the single definition — `MIN_PASSWORD_LENGTH`,
+`validatePassword()` and `PASSWORD_RULE_TEXT`. The rule had been the literal `8`
+in four places (a `MIN_PASSWORD` const in `(auth)/actions.ts` plus three
+`minLength={8}` attributes across `SetPasswordForm` and `SettingsPanel`), so
+raising it meant finding all four and a miss would leave a form that accepts what
+the server rejects. A unit test now fails if any call site hardcodes a length
+again, or stops importing the shared module.
+
+Both forms state the rule under the inputs instead of letting the user discover it
+by rejection — `minLength` alone says nothing about character classes. The server
+still validates independently: `minLength` is a convenience a client can decline
+to honour.
+
+Not DIY auth (§6): Supabase Auth still owns the credential, hashes it and issues
+the session. This is input validation in front of `supabase.auth.updateUser`, the
+same category as checking that the two fields match.
+
+**Why classes, with a caveat.** The control that actually addresses credential
+stuffing is Supabase's leaked-password check against HaveIBeenPwned, and it is
+gated behind the Pro plan — this org is on Free, so it cannot be enabled. NIST SP
+800-63B §5.1.1.2 recommends against mandatory composition rules and for a
+breach-list check instead, so if this project moves to Pro, turning on "Prevent
+the use of leaked passwords" in Auth → Providers → Email is strictly better than
+the class checks and they can be relaxed. Recorded in the module's own comment so
+the tradeoff is visible at the point of change.
+
+
 ### Added — account-backed drafts and a "New prompt" button
 
 A floating + on Library and Settings takes you back to an empty composer. With

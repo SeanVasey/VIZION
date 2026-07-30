@@ -1,13 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { validatePassword } from "@/lib/auth/password";
 
 export interface ActionResult {
   ok: boolean;
   error?: string;
 }
-
-const MIN_PASSWORD = 8;
 
 /**
  * Set a durable password for the signed-in account and mark onboarding complete
@@ -21,9 +20,10 @@ export async function setPasswordAction(
   const password = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
 
-  if (password.length < MIN_PASSWORD) {
-    return { ok: false, error: `Use at least ${MIN_PASSWORD} characters.` };
-  }
+  // The server is the authority — the forms' `minLength` is a convenience that a
+  // client can simply not honour.
+  const weak = validatePassword(password);
+  if (weak) return { ok: false, error: weak };
   if (password !== confirm) {
     return { ok: false, error: "Passwords don't match." };
   }

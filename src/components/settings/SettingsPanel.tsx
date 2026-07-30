@@ -12,6 +12,7 @@ import { AvatarCropper } from "@/components/avatar-crop/AvatarCropper";
 import { Sheet } from "@/components/ui/Sheet";
 import { updateProfileAction, updateEmailAction } from "@/lib/profile/actions";
 import { setPasswordAction } from "@/app/(auth)/actions";
+import { MIN_PASSWORD_LENGTH, PASSWORD_RULE_TEXT } from "@/lib/auth/password";
 import { type TargetModelId } from "@/lib/constants";
 import { TargetPicker } from "@/components/models/TargetPicker";
 import {
@@ -523,7 +524,7 @@ function ChangePassword({
         type="password"
         autoComplete="new-password"
         required
-        minLength={8}
+        minLength={MIN_PASSWORD_LENGTH}
         placeholder="New password"
         className="font-body w-full rounded-lg border border-hair bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none"
       />
@@ -536,10 +537,14 @@ function ChangePassword({
         type="password"
         autoComplete="new-password"
         required
-        minLength={8}
+        minLength={MIN_PASSWORD_LENGTH}
         placeholder="Confirm password"
         className="font-body w-full rounded-lg border border-hair bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none"
       />
+      {/* State the rule up front. Discovering it by rejection is the worst way
+          to learn a password policy, and `minLength` alone says nothing about
+          the character classes the server also enforces. */}
+      <p className="font-body text-xs text-silver">{PASSWORD_RULE_TEXT}</p>
       <div className="flex gap-2">
         <button
           type="submit"
