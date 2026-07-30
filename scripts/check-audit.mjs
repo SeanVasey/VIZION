@@ -122,18 +122,59 @@ function verifyBraceExpansionPatched() {
     : `these copies do NOT contain the expansion limits: ${unpatched.join(", ")}`;
 }
 
+/**
+ * `npm audit --json`, with the payload actually validated.
+ *
+ * A non-zero exit is NORMAL when advisories exist, and npm still writes the
+ * report to stdout — so the exit code alone cannot be trusted either way. But
+ * npm ALSO writes JSON to stdout when the audit itself failed (registry 5xx or
+ * 403, offline, bad token): an object carrying `error` and no report at all.
+ *
+ * Returning that as a report is the one failure this gate must never have. It
+ * would parse, present zero advisories, satisfy every exemption check and exit
+ * 0 — passing loudest exactly when it can see nothing. So the shape is checked,
+ * and anything that is not a real report is a hard failure.
+ */
 function audit() {
+  let stdout;
   try {
-    // Non-zero exit is the normal case when advisories exist; the JSON on stdout
-    // is what matters.
-    return JSON.parse(execFileSync("npm", ["audit", "--json"], { encoding: "utf8" }));
+    stdout = execFileSync("npm", ["audit", "--json"], { encoding: "utf8" });
   } catch (err) {
-    if (err.stdout) return JSON.parse(err.stdout);
-    throw err;
+    if (!err.stdout) throw new Error(`npm audit could not be run: ${err.message}`);
+    stdout = err.stdout;
   }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    throw new Error(`npm audit did not return JSON: ${String(stdout).slice(0, 300)}`);
+  }
+
+  if (parsed.error) {
+    const e = parsed.error;
+    throw new Error(
+      `npm audit itself failed: ${e.summary ?? e.detail ?? e.code ?? JSON.stringify(e)}`,
+    );
+  }
+  // A real report always carries both, even with nothing to report.
+  if (typeof parsed.vulnerabilities !== "object" || typeof parsed.metadata !== "object") {
+    throw new Error(
+      "npm audit returned no report (missing `vulnerabilities`/`metadata`) — " +
+        "refusing to treat that as a clean tree.",
+    );
+  }
+  return parsed;
 }
 
-const report = audit();
+let report;
+try {
+  report = audit();
+} catch (err) {
+  console.error("Full-tree audit gate FAILED (could not obtain a report):");
+  console.error(`  ✗ ${err.message}`);
+  process.exit(1);
+}
 const advisories = new Map();
 for (const vuln of Object.values(report.vulnerabilities ?? {})) {
   for (const via of vuln.via ?? []) {
