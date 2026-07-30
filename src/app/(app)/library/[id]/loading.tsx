@@ -13,7 +13,7 @@ export default function PromptLoading() {
     <>
       <ScreenHeader title="Prompt" backHref="/library" />
       <div
-        className="mx-auto flex max-w-screen-sm flex-col gap-5 px-4 py-5"
+        className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5"
         role="status"
         aria-live="polite"
       >

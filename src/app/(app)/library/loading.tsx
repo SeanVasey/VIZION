@@ -18,7 +18,7 @@ export default function LibraryLoading() {
     <>
       <ScreenHeader title="Library" />
       <div
-        className="mx-auto flex max-w-screen-sm flex-col gap-5 px-4 py-5"
+        className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5"
         role="status"
         aria-live="polite"
       >

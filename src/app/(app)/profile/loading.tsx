@@ -11,7 +11,7 @@ export default function SettingsLoading() {
     <>
       <ScreenHeader title="Settings" />
       <div
-        className="mx-auto flex max-w-screen-sm flex-col gap-5 px-4 py-6"
+        className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5"
         role="status"
         aria-live="polite"
       >

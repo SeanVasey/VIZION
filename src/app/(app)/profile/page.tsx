@@ -32,7 +32,7 @@ export default async function SettingsPage({
   return (
     <>
       <ScreenHeader title="Settings" />
-      <div className="mx-auto max-w-screen-sm px-4 py-6">
+      <div className="mx-auto max-w-screen-sm px-4 py-5">
         {profile ? (
           <SettingsPanel
             profile={profile}
