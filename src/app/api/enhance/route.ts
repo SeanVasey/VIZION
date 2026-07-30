@@ -18,18 +18,8 @@ import {
   COST_CAP_USD_PER_DAY,
 } from "@/lib/providers/config";
 import { ProviderNotConfiguredError } from "@/lib/providers/errors";
-import {
-  REFINE_KINDS,
-  type EnhanceRefine,
-  type RefineKind,
-} from "@/lib/providers/formatters";
+import { REFINE_KINDS, type EnhanceRefine, type RefineKind } from "@/lib/providers/formatters";
 import { rateLimit } from "@/lib/security/rate-limit";
-import {
-  maxEnhanceCost,
-  releaseSpend,
-  reserveSpend,
-  settleSpend,
-} from "@/lib/security/spend";
 import { diffWords } from "@/lib/enhance/diff";
 import { resolveAutoTarget } from "@/lib/enhance/auto-target";
 import { isFormatId, type FormatId } from "@/lib/enhance/formats";
@@ -93,16 +83,16 @@ export async function POST(request: NextRequest) {
     refine,
     mediaContext,
   } = (body ?? {}) as {
-    input?: unknown;
-    mode?: unknown;
-    target?: unknown;
-    auto?: unknown;
-    format?: unknown;
-    length?: unknown;
-    thinkingLevel?: unknown;
-    refine?: unknown;
-    mediaContext?: unknown;
-  };
+      input?: unknown;
+      mode?: unknown;
+      target?: unknown;
+      auto?: unknown;
+      format?: unknown;
+      length?: unknown;
+      thinkingLevel?: unknown;
+      refine?: unknown;
+      mediaContext?: unknown;
+    };
 
   if (typeof input !== "string" || input.trim() === "") {
     return err(400, "Provide a prompt to enhance.");
@@ -211,22 +201,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Reserve the request's conservative maximum under a per-user DB lock.
-  // Parallel server instances therefore cannot all admit against one balance.
-  const reservation = await reserveSpend(
-    supabase,
-    maxEnhanceCost(typedTarget, input.length, thinkingLevel as string | undefined),
-  );
-  if ("error" in reservation && reservation.error === "rate") {
+  // --- Rate limit + cost cap (RLS scopes the window to this user) ---
+  const { data: windowRows, error: windowError } = await supabase.rpc("usage_window", {
+    p_rate_seconds: 60,
+  });
+  if (windowError) {
+    return err(500, "Couldn't check your usage limits. Try again.");
+  }
+  const win = windowRows?.[0] ?? { recent_count: 0, today_cost: 0 };
+  if (Number(win.recent_count) >= RATE_LIMIT_PER_MIN) {
     return err(429, "You're going fast — wait a moment and try again.");
   }
-  if ("error" in reservation && reservation.error === "cap") {
+  if (Number(win.today_cost) >= COST_CAP_USD_PER_DAY) {
     return err(429, "You've reached today's usage cap. It resets at midnight UTC.", {
       capReached: true,
     });
   }
-  if ("error" in reservation)
-    return err(500, "Couldn't reserve your usage allowance. Try again.");
 
   const typedThinkingLevel = thinkingLevel as ThinkingLevel | undefined;
   // The provider sees the user's prompt plus any reference context, clearly
@@ -305,7 +295,7 @@ export async function POST(request: NextRequest) {
         if (!result) throw new Error("The model stream ended without a result.");
 
         sendStatus("diffing");
-        const todayCost = reservation.todayCost + result.costUsd;
+        const todayCost = Number(win.today_cost) + result.costUsd;
         send({
           type: "done",
           result: {
@@ -367,13 +357,14 @@ export async function POST(request: NextRequest) {
         if (usage && (usage.tokenIn > 0 || usage.tokenOut > 0)) {
           const costUsd =
             result?.costUsd ?? computeCost(typedTarget, usage.tokenIn, usage.tokenOut);
-          const { error: ledgerError } = await settleSpend(supabase, reservation.id, {
+          const { error: ledgerError } = await supabase.from("usage_events").insert({
+            user_id: user.id,
             target: typedTarget,
             mode,
-            modelUsed: result?.modelUsed ?? TARGETS[typedTarget].model,
-            tokenIn: usage.tokenIn,
-            tokenOut: usage.tokenOut,
-            costUsd,
+            model_used: result?.modelUsed ?? TARGETS[typedTarget].model,
+            token_in: usage.tokenIn,
+            token_out: usage.tokenOut,
+            cost_usd: costUsd,
           });
           // The cap is only as good as this write — a silent failure would
           // let spend leak invisibly. (console.error survives prod stripping.)
@@ -385,12 +376,6 @@ export async function POST(request: NextRequest) {
               writeErrorLogLine("enhance", "usage ledger write", ledgerError),
             );
           }
-        } else {
-          const { error: releaseError } = await releaseSpend(supabase, reservation.id);
-          if (releaseError)
-            console.error(
-              writeErrorLogLine("enhance", "usage reservation release", releaseError),
-            );
         }
         try {
           controller.close();

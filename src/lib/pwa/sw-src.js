@@ -10,9 +10,10 @@
  * precache manifest (app shell + static assets). It must appear exactly once.
  *
  * Caching strategy (FINAL_PLAN §3):
- *  - Same-origin static assets (script/style/font/image) →
- *    StaleWhileRevalidate (`vizion-shell`). Authenticated navigations are
- *    network-only so account content never enters shared Cache Storage.
+ *  - App shell + same-origin static assets (navigations, script/style/font/image)
+ *    → StaleWhileRevalidate (`vizion-shell`). Instant loads, refresh in background.
+ *    The page purges this cache whenever the auth gate is shown (register-sw.ts)
+ *    so a signed-out browser is never served the previous session's HTML.
  *  - Model + auth endpoints are deliberately NOT routed: `/api/enhance` and
  *    `/api/media` are POST-only (a GET runtime route can never match them, and
  *    responses must never be cached), and Supabase `/auth/v1` responses carry
@@ -40,9 +41,8 @@ const SHELL_CACHE = "vizion-shell";
 // The offline navigation fallback. With auth gating, every app route redirects
 // depending on session state (so none is safe to precache as "the shell").
 // `/offline.html` is a static, auth-agnostic document that is always available;
-// authenticated documents are deliberately network-only: Cache Storage is
-// origin-wide, not account-scoped, so persisting rendered prompt/profile HTML
-// could expose one account's content after a session change on a shared device.
+// authenticated routes the user has visited are served from the runtime
+// stale-while-revalidate cache instead.
 const APP_SHELL_URL = "/offline.html";
 
 // --- Lifecycle ------------------------------------------------------------
@@ -66,12 +66,12 @@ self.addEventListener("message", (event) => {
 
 // --- Runtime routes -------------------------------------------------------
 
-// 1. Same-origin static assets → StaleWhileRevalidate. Navigations fall
-// through to the network and the catch handler below serves /offline.html.
+// 1. Navigations + same-origin static assets → StaleWhileRevalidate.
 // (Workbox does pass `sameOrigin`, but we check `url.origin` explicitly so the
 // same-origin guard is self-evident and not reliant on the callback shape.)
 const isShellAsset = ({ request, url }) => {
   if (url.origin !== self.location.origin) return false;
+  if (request.mode === "navigate") return true;
   return ["script", "style", "font", "image"].includes(request.destination);
 };
 

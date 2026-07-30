@@ -8,7 +8,6 @@
 
 export interface OutboxItem<T = unknown> {
   id: string;
-  userId: string;
   kind: string;
   payload: T;
   createdAt: number;
@@ -29,14 +28,10 @@ export type OutboxHandler = (payload: unknown) => Promise<boolean>;
  * (it stays for the next flush). Pure given the store + handlers.
  */
 export async function flushOutbox(
-  userId: string,
   handlers: Record<string, OutboxHandler>,
   store: OutboxStore,
 ): Promise<{ flushed: number; remaining: number }> {
-  const allItems = await store.all();
-  const items = allItems
-    .filter((item) => item.userId === userId)
-    .sort((a, b) => a.createdAt - b.createdAt);
+  const items = (await store.all()).sort((a, b) => a.createdAt - b.createdAt);
   let flushed = 0;
   for (const item of items) {
     const handler = handlers[item.kind];
@@ -106,7 +101,6 @@ export const idbStore: OutboxStore = {
 
 /** Enqueue a mutation for later replay (best-effort; never throws). */
 export async function enqueueOutbox(
-  userId: string,
   kind: string,
   payload: unknown,
   store: OutboxStore = idbStore,
@@ -114,7 +108,6 @@ export async function enqueueOutbox(
   try {
     await store.put({
       id: crypto.randomUUID(),
-      userId,
       kind,
       payload,
       createdAt: Date.now(),

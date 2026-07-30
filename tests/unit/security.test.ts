@@ -44,11 +44,10 @@ describe("flushOutbox", () => {
   it("removes items whose handler succeeds, oldest first", async () => {
     const order: string[] = [];
     const store = fakeStore([
-      { id: "2", userId: "a", kind: "save", payload: "b", createdAt: 2 },
-      { id: "1", userId: "a", kind: "save", payload: "a", createdAt: 1 },
+      { id: "2", kind: "save", payload: "b", createdAt: 2 },
+      { id: "1", kind: "save", payload: "a", createdAt: 1 },
     ]);
     const res = await flushOutbox(
-      "a",
       {
         save: async (p) => {
           order.push(p as string);
@@ -63,20 +62,15 @@ describe("flushOutbox", () => {
   });
 
   it("keeps an item whose handler returns false (still offline)", async () => {
-    const store = fakeStore([
-      { id: "1", userId: "a", kind: "save", payload: "x", createdAt: 1 },
-    ]);
-    const res = await flushOutbox("a", { save: async () => false }, store);
+    const store = fakeStore([{ id: "1", kind: "save", payload: "x", createdAt: 1 }]);
+    const res = await flushOutbox({ save: async () => false }, store);
     expect(res.flushed).toBe(0);
     expect(res.remaining).toBe(1);
   });
 
   it("keeps an item whose handler throws", async () => {
-    const store = fakeStore([
-      { id: "1", userId: "a", kind: "save", payload: "x", createdAt: 1 },
-    ]);
+    const store = fakeStore([{ id: "1", kind: "save", payload: "x", createdAt: 1 }]);
     const res = await flushOutbox(
-      "a",
       {
         save: async () => {
           throw new Error("network");
@@ -88,25 +82,8 @@ describe("flushOutbox", () => {
   });
 
   it("leaves items with an unknown kind untouched", async () => {
-    const store = fakeStore([
-      { id: "1", userId: "a", kind: "other", payload: "x", createdAt: 1 },
-    ]);
-    const res = await flushOutbox("a", { save: async () => true }, store);
+    const store = fakeStore([{ id: "1", kind: "other", payload: "x", createdAt: 1 }]);
+    const res = await flushOutbox({ save: async () => true }, store);
     expect(res.remaining).toBe(1);
-  });
-
-  it("never replays another account's queued work", async () => {
-    const handled: string[] = [];
-    const store = fakeStore([
-      { id: "1", userId: "a", kind: "save", payload: "private-a", createdAt: 1 },
-      { id: "2", userId: "b", kind: "save", payload: "private-b", createdAt: 2 },
-    ]);
-    const result = await flushOutbox(
-      "b",
-      { save: async (payload) => (handled.push(payload as string), true) },
-      store,
-    );
-    expect(handled).toEqual(["private-b"]);
-    expect(result).toEqual({ flushed: 1, remaining: 1 });
   });
 });

@@ -9,9 +9,11 @@ import { GEN_TARGETS, type GenTargetId } from "@/lib/media/types";
 import { sanitizeName } from "@/lib/media/context";
 import { savePromptAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
-import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { useCopy } from "@/components/ui/use-copy";
-import { highlightGenerationPrompt, stripEngineSyntax } from "@/lib/media/highlight";
+import {
+  highlightGenerationPrompt,
+  stripEngineSyntax,
+} from "@/lib/media/highlight";
 import type { MediaItem } from "@/lib/media/queue";
 
 /**
@@ -71,17 +73,9 @@ export function GenerateSheet({
       tokenOut: 0,
     };
     startSave(async () => {
-      const queue = async () => {
-        const { data } = await createBrowserClient().auth.getUser();
-        if (!data.user) {
-          setSaveError("Your session expired — sign in again before saving offline.");
-          return;
-        }
-        await enqueueOutbox(data.user.id, "save-prompt", payload);
-        setSaveQueued(true);
-      };
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await queue();
+        await enqueueOutbox("save-prompt", payload);
+        setSaveQueued(true);
         return;
       }
       try {
@@ -90,7 +84,8 @@ export function GenerateSheet({
         else setSaveError(res.error ?? "Couldn't save to the library.");
       } catch {
         if (typeof navigator !== "undefined" && navigator.onLine === false) {
-          await queue();
+          await enqueueOutbox("save-prompt", payload);
+          setSaveQueued(true);
         } else {
           setSaveError("Couldn't save to the library — try again.");
         }
@@ -194,7 +189,11 @@ export function GenerateSheet({
                   ) : (
                     <span
                       key={i}
-                      className={tok.kind === "flag" ? "text-accent" : "text-silver"}
+                      className={
+                        tok.kind === "flag"
+                          ? "text-accent"
+                          : "text-silver"
+                      }
                     >
                       {tok.text}
                     </span>
