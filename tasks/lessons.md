@@ -3,6 +3,19 @@
 > Append after each phase: **what broke · what I changed · what to avoid next time.**
 > Read this file before starting the next phase.
 
+## 2026-07-30 — Release-blocker remediation
+
+**What changed:** Model routes reserve a conservative maximum cost under a
+per-user Postgres transaction lock, then atomically settle the reservation and
+usage ledger. Library saves are transactional, a database trigger prevents
+cross-prompt current-version pointers, authenticated navigations no longer enter
+Cache Storage, and offline outbox entries are bound to their originating account.
+
+**What to carry forward:** Offline stores containing user work need an explicit
+account key; authenticated replay alone does not preserve the creator's identity.
+Cost gates must count settled usage and in-flight reservations. Origin-wide
+service-worker caches are not an appropriate store for authenticated HTML.
+
 ## 2026-07-29 — Whole-repository assessment
 
 **What the review found:** The strongest risks sit at system boundaries rather

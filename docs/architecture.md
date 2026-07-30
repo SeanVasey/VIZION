@@ -25,13 +25,14 @@ Supabase — Postgres (RLS) · Auth (magic/GitHub/Google) · Storage (avatars, m
 
 | Surface                               | Strategy                       | Cache            |
 | ------------------------------------- | ------------------------------ | ---------------- |
-| App shell + same-origin static assets | stale-while-revalidate         | `vizion-shell`   |
-| Auth / session + `/api/enhance`       | network-first (10s timeout)    | `vizion-enhance` |
-| Library / history reads               | network-first + cache fallback | `vizion-library` |
+| Same-origin static assets             | stale-while-revalidate         | `vizion-shell`   |
+| Authenticated navigations             | network-only + offline fallback | none            |
+| Auth / model APIs                     | network-only                   | none             |
 | Mutations (save/version)              | Background Sync (Android) /    | IndexedDB outbox |
 |                                       | `visibilitychange` flush (iOS) |                  |
 
-A failed navigation is caught and served the precached `/` shell. The SW is
+A failed navigation is served the auth-agnostic `/offline.html`; authenticated
+HTML never enters shared Cache Storage. The SW is
 hand-authored at `src/lib/pwa/sw-src.js` and compiled to `public/sw.js` by
 `scripts/build-sw.mjs` (Workbox `injectManifest`) via the `prebuild` hook.
 

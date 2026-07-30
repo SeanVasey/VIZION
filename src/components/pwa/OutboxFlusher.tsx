@@ -17,7 +17,7 @@ const handlers: Record<string, OutboxHandler> = {
  * the foreground (iOS has no reliable Background Sync). Rendered once by the
  * authenticated layout.
  */
-export function OutboxFlusher() {
+export function OutboxFlusher({ userId }: { userId: string }) {
   useEffect(() => {
     // Re-entrancy guard: `online` and `visibilitychange` often fire together
     // (returning to a foregrounded tab that just reconnected) and two
@@ -29,7 +29,7 @@ export function OutboxFlusher() {
       if (typeof navigator !== "undefined" && navigator.onLine) {
         flushing = true;
         // Never let an IndexedDB failure surface as an unhandled rejection.
-        void flushOutbox(handlers, idbStore)
+        void flushOutbox(userId, handlers, idbStore)
           .catch(() => {})
           .finally(() => {
             flushing = false;
@@ -46,7 +46,7 @@ export function OutboxFlusher() {
       window.removeEventListener("online", flush);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, []);
+  }, [userId]);
 
   return null;
 }
