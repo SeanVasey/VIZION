@@ -357,14 +357,19 @@ export async function POST(request: NextRequest) {
         if (usage && (usage.tokenIn > 0 || usage.tokenOut > 0)) {
           const costUsd =
             result?.costUsd ?? computeCost(typedTarget, usage.tokenIn, usage.tokenOut);
-          const { error: ledgerError } = await supabase.from("usage_events").insert({
-            user_id: user.id,
-            target: typedTarget,
-            mode,
-            model_used: result?.modelUsed ?? TARGETS[typedTarget].model,
-            token_in: usage.tokenIn,
-            token_out: usage.tokenOut,
-            cost_usd: costUsd,
+          // Written through `record_usage` rather than a direct INSERT: the
+          // function is SECURITY DEFINER and takes the owner from the verified
+          // JWT, so the client's own INSERT grant on `usage_events` can be
+          // withdrawn. That grant was what let a signed-in client post a
+          // negative `cost_usd` straight to PostgREST and drive the daily cap's
+          // `sum(cost_usd)` permanently below the limit.
+          const { error: ledgerError } = await supabase.rpc("record_usage", {
+            p_target: typedTarget,
+            p_mode: mode,
+            p_model_used: result?.modelUsed ?? TARGETS[typedTarget].model,
+            p_token_in: usage.tokenIn,
+            p_token_out: usage.tokenOut,
+            p_cost_usd: costUsd,
           });
           // The cap is only as good as this write — a silent failure would
           // let spend leak invisibly. (console.error survives prod stripping.)

@@ -6,6 +6,40 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Security — the daily cost cap could be switched off from the browser
+
+`usage_window()` derives `today_cost` from `sum(cost_usd)` over `usage_events`,
+and both model routes admit a request only while that sum is under the cap. The
+row feeding it was writable by the account it constrains: `authenticated` held
+INSERT, `usage_insert_own` accepted any row whose `user_id` matched, and no
+constraint bounded the amount. So a signed-in client holding the public anon key
+could post one row with a negative `cost_usd`, drive `today_cost` permanently
+below the cap, and spend without limit on the server's provider keys across all
+twelve. Magic-link sign-in creates accounts by default (`shouldCreateUser`
+defaults to `true`), so the prerequisite was an email address.
+
+Audited before the fix: 109 rows, zero negatives — the hole was open, never
+exploited.
+
+Two independent controls now close it. `usage_events` carries a CHECK constraint
+(`cost_usd`, `token_in`, `token_out` all `>= 0`), so a negative amount cannot
+exist at any privilege level; and the routes write through `record_usage()`, a
+SECURITY DEFINER function that takes the owner from the verified JWT and
+re-validates the amounts, so the direct table grant can be withdrawn.
+
+That withdrawal is a **second** migration
+(`20260730210000_usage_ledger_revoke.sql`) and is deliberately **not applied
+yet**. The build in production still writes the ledger with a direct INSERT;
+revoking the grant underneath it would fail every write with 42501, which the
+route swallows into a `console.error` while still returning 200 — spend would
+stop being counted and the cap would quietly stop working. Apply it only once
+this release is live. Ordering is in that file's header and pinned by
+`tests/unit/usage-ledger.test.ts`.
+
+Note for whoever re-lands the reverted atomic-spend work (#62): `spend_reserve`
+reads the same `sum(cost_usd)`, so it would have inherited this hole. The
+constraint is what makes that sum trustworthy.
+
 ### Fixed — the Thinking pill rendered two points larger than the Target pill above it
 
 Both rails asked for `text-sm`. Only one got it. Thinking was a native

@@ -398,6 +398,17 @@ export type Database = {
         };
         Returns: { id: string; storage_path: string }[];
       };
+      record_usage: {
+        Args: {
+          p_target: Database["public"]["Enums"]["model_target"];
+          p_mode: string;
+          p_model_used: string;
+          p_token_in: number;
+          p_token_out: number;
+          p_cost_usd: number;
+        };
+        Returns: undefined;
+      };
       usage_window: {
         Args: { p_rate_seconds: number };
         Returns: { recent_count: number; today_cost: number }[];
