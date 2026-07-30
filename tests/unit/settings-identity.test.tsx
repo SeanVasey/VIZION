@@ -80,6 +80,43 @@ describe("Settings identity (form-commit)", () => {
   });
 });
 
+describe("Display-name rule copy", () => {
+  const rule = () => document.getElementById("display-name-rule")!.textContent!;
+
+  it("does not end on a bare glyph, which reads as truncated text", () => {
+    renderPanel();
+    // Reported as "the text is cutoff". Nothing was clipped — the line ended
+    // "- or _", and a low unbracketed underscore at 12px looks like a cut
+    // sentence or a caret. Any terminal character but a bare - or _ is fine.
+    expect(rule()).not.toMatch(/[-_]\s*$/);
+    expect(rule()).toMatch(/hyphen/i);
+    expect(rule()).toMatch(/underscore/i);
+  });
+
+  it("states the bounds the field actually enforces", () => {
+    renderPanel();
+    const handle = screen.getByLabelText("Display name");
+    const valid = (v: string) => {
+      fireEvent.change(handle, { target: { value: v } });
+      return handle.getAttribute("aria-invalid") === "false";
+    };
+
+    // The copy claims 3–24; assert the field agrees at both edges rather than
+    // trusting the numbers, so copy and regex cannot drift apart silently.
+    expect(rule()).toContain("3");
+    expect(rule()).toContain("24");
+    expect(valid("ab")).toBe(false);
+    expect(valid("abc")).toBe(true);
+    expect(valid("a".repeat(24))).toBe(true);
+    expect(valid("a".repeat(25))).toBe(false);
+
+    // And that every class it names is accepted, none it omits is.
+    expect(valid("a1-b_c")).toBe(true);
+    expect(valid("Abc")).toBe(false);
+    expect(valid("a.b")).toBe(false);
+  });
+});
+
 describe("Settings email (distinct verified workflow)", () => {
   it("shows email read-only — no email input in the identity form", () => {
     renderPanel();

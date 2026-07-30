@@ -260,11 +260,20 @@ export function SettingsPanel({
               displayNameValid ? "border-hair" : "border-flare"
             }`}
           />
+          {/* Name the two symbols and keep the glyph in parentheses. Written as
+              a bare "- or _" the line ended on a low, unbracketed underscore at
+              12px, which reads as a truncated sentence or a stray caret — it was
+              reported as cut-off text, and nothing was actually clipped
+              (scrollWidth === clientWidth, no clipping ancestor). Words carry
+              the meaning; the parenthesised glyphs keep it exact, since "hyphen"
+              alone does not distinguish - from – for a value this is validated
+              against. Anything terminal but a bare glyph would do — do not
+              revert to one. */}
           <p
             id="display-name-rule"
             className={`font-body text-xs ${displayNameValid ? "text-silver" : "text-flare"}`}
           >
-            3–24 characters: lowercase letters, numbers, - or _
+            3–24 characters: lowercase letters, numbers, hyphen (-) or underscore (_)
           </p>
         </div>
         <div className="flex items-center justify-between gap-3">
