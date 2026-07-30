@@ -1917,6 +1917,40 @@ than as a puzzling failure in whichever spec ran first.
   it would have shipped with this hole intact underneath the new machinery.
   When a value is load-bearing for a guardrail, harden the value before
   hardening the logic that reads it.
+- **A reservation is a concurrency guard, not a worst-case bound.** The first
+  attempt at atomic spend reserved each request's theoretical maximum — full
+  output ceiling at list price — which on a $2.00/day cap made Fable 5 at max
+  effort reserve $3.20 and refused **every** request on an empty ledger,
+  permanently. The hold was 31x the largest request this project has ever
+  actually made. A hold only has to stop parallel requests from collectively
+  overshooting; sized as a worst case, the cap starts rejecting on the
+  *reservation* instead of on real spend. **Size a hold from observed behaviour
+  and clamp it to a fraction of the limit** — the clamp is what makes the
+  failure structurally impossible rather than merely fixed today.
+- **The fix that is worse than the bug still has to be caught by something.**
+  #62 was green: it typechecked, it had tests, and its SQL was well-written. What
+  it did not have was any test that compared the size of a hold to the size of
+  the cap. When a change introduces a new number that interacts with an existing
+  number, the test that matters is the one about their *relationship*, not about
+  either one being present.
+- **`create function` does not resolve identifiers in the body.** `spend_reserve`
+  declared `returns table (… reserved_usd numeric)` and summed the pending holds
+  with a bare `sum(reserved_usd)` over a table whose column has the same name.
+  The OUT parameter is in scope inside the body, so the reference is ambiguous —
+  but plpgsql only finds out when the function is CALLED. The migration applied
+  cleanly and reported success. **A migration that applies is not a function that
+  works**; call it once behind a rolled-back probe before believing it.
+- **Set the role before probing, and the probe tells you two things.** Running
+  the verification as `set local role authenticated` with real `request.jwt.claims`
+  exercises the exact path PostgREST uses. It caught the ambiguity above, and it
+  incidentally proved the lockdown: the probe's own final `count(*)` on
+  `usage_reservations` failed with 42501, which is the table being correctly
+  unreachable. A probe that runs as `postgres` would have shown neither.
+- **A comment-stripper that only knows `--` will validate your own prose.** The
+  first draft of `spend-atomicity.test.ts` asserted that `spend_settle` does not
+  raise `reservation_not_pending`, and matched the `/** … */` header sentence
+  explaining why it doesn't. Strip both comment forms before asserting on source
+  text, and prove each assertion fails against the version it is meant to catch.
 - **Regenerating a generated file is not always the smaller change.**
   `database.types.ts` says "do not edit by hand", but the committed copy is
   curated (non-alphabetical tables, trimmed helpers, Prettier semicolons) and

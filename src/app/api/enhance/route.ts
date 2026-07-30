@@ -20,6 +20,7 @@ import {
 import { ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { REFINE_KINDS, type EnhanceRefine, type RefineKind } from "@/lib/providers/formatters";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { reserveSpend, settleSpend, releaseSpend } from "@/lib/security/spend";
 import { diffWords } from "@/lib/enhance/diff";
 import { resolveAutoTarget } from "@/lib/enhance/auto-target";
 import { isFormatId, type FormatId } from "@/lib/enhance/formats";
@@ -201,21 +202,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // --- Rate limit + cost cap (RLS scopes the window to this user) ---
-  const { data: windowRows, error: windowError } = await supabase.rpc("usage_window", {
-    p_rate_seconds: 60,
-  });
-  if (windowError) {
+  // --- Rate limit + cost cap + the hold, decided together under one lock ---
+  // Reading a usage window and acting on it later is a race: the whole provider
+  // call sits between the read and the ledger write, so every request that
+  // started inside that gap saw the same balance and passed. `spend_reserve`
+  // takes the decision and the hold in one transaction, so a concurrent request
+  // sees this one even though its ledger row does not exist yet.
+  const reservation = await reserveSpend(supabase);
+  if ("error" in reservation) {
+    if (reservation.error === "rate") {
+      return err(429, "You're going fast — wait a moment and try again.");
+    }
+    if (reservation.error === "cap") {
+      return err(429, "You've reached today's usage cap. It resets at midnight UTC.", {
+        capReached: true,
+      });
+    }
     return err(500, "Couldn't check your usage limits. Try again.");
-  }
-  const win = windowRows?.[0] ?? { recent_count: 0, today_cost: 0 };
-  if (Number(win.recent_count) >= RATE_LIMIT_PER_MIN) {
-    return err(429, "You're going fast — wait a moment and try again.");
-  }
-  if (Number(win.today_cost) >= COST_CAP_USD_PER_DAY) {
-    return err(429, "You've reached today's usage cap. It resets at midnight UTC.", {
-      capReached: true,
-    });
   }
 
   const typedThinkingLevel = thinkingLevel as ThinkingLevel | undefined;
@@ -295,7 +298,7 @@ export async function POST(request: NextRequest) {
         if (!result) throw new Error("The model stream ended without a result.");
 
         sendStatus("diffing");
-        const todayCost = Number(win.today_cost) + result.costUsd;
+        const todayCost = reservation.todayCost + result.costUsd;
         send({
           type: "done",
           result: {
@@ -357,19 +360,17 @@ export async function POST(request: NextRequest) {
         if (usage && (usage.tokenIn > 0 || usage.tokenOut > 0)) {
           const costUsd =
             result?.costUsd ?? computeCost(typedTarget, usage.tokenIn, usage.tokenOut);
-          // Written through `record_usage` rather than a direct INSERT: the
-          // function is SECURITY DEFINER and takes the owner from the verified
-          // JWT, so the client's own INSERT grant on `usage_events` can be
-          // withdrawn. That grant was what let a signed-in client post a
-          // negative `cost_usd` straight to PostgREST and drive the daily cap's
-          // `sum(cost_usd)` permanently below the limit.
-          const { error: ledgerError } = await supabase.rpc("record_usage", {
-            p_target: typedTarget,
-            p_mode: mode,
-            p_model_used: result?.modelUsed ?? TARGETS[typedTarget].model,
-            p_token_in: usage.tokenIn,
-            p_token_out: usage.tokenOut,
-            p_cost_usd: costUsd,
+          // Settling records what the call really cost and drops this run's
+          // hold in one step. Like `record_usage` before it, the write happens
+          // inside a SECURITY DEFINER function that takes the owner from the
+          // verified JWT — the client holds no INSERT grant on `usage_events`.
+          const { error: ledgerError } = await settleSpend(supabase, reservation.id, {
+            target: typedTarget,
+            mode,
+            modelUsed: result?.modelUsed ?? TARGETS[typedTarget].model,
+            tokenIn: usage.tokenIn,
+            tokenOut: usage.tokenOut,
+            costUsd,
           });
           // The cap is only as good as this write — a silent failure would
           // let spend leak invisibly. (console.error survives prod stripping.)
@@ -379,6 +380,17 @@ export async function POST(request: NextRequest) {
           if (ledgerError) {
             console.error(
               writeErrorLogLine("enhance", "usage ledger write", ledgerError),
+            );
+          }
+        } else {
+          // Nothing billable happened — a 503 from the provider, an abort before
+          // the first delta. Drop the hold now instead of leaving it to the
+          // five-minute sweep, so two cancelled runs in a row don't refuse the
+          // third for a reason the user cannot see.
+          const { error: releaseError } = await releaseSpend(supabase, reservation.id);
+          if (releaseError) {
+            console.error(
+              writeErrorLogLine("enhance", "spend hold release", releaseError),
             );
           }
         }

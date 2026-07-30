@@ -5,7 +5,9 @@
  * store + clock) so it is unit-tested; the module-level store is the default.
  *
  * Note: serverless instances don't share memory, so this is a coarse layer, not
- * the source of truth. The DB `usage_window` cap is the durable enforcement.
+ * the source of truth. `spend_reserve` is the durable enforcement — it decides
+ * the rate limit, the cost cap and the hold together under one per-user lock,
+ * which is the part this guard cannot do.
  */
 
 interface Hit {
