@@ -1693,3 +1693,32 @@ than as a puzzling failure in whichever spec ran first.
   action call resolved before its continuation ran, so the assertions ran against
   a half-finished save and `router.refresh()` looked like it never happened.
   Waiting on the terminal effect makes the test assert the whole flow.
+- **A malformed Tailwind class passes lint, typecheck, tests and build.** A
+  botched sed left `itemsateems-center` in a className; nothing in the gate
+  looks at whether a utility exists, so the button silently lost its vertical
+  centering and the review bot caught what five green steps did not. Worse, my
+  own "undo the typo" patch searched for a variant with a space and no-op'd —
+  and my verification grep DID show the line missing from its results, which I
+  skimmed past. When a patch claims to fix something, assert the fixed state,
+  don't eyeball adjacent output.
+- **State set inside `startAction` is transition-priority and a discrete event
+  can beat it.** `setSavingEdit(true)` inside the transition meant Escape or a
+  scrim tap could be handled while the flag was still false, so a guard reading
+  it let the sheet close mid-save — clearing the very text the failure path
+  exists to preserve. Set guard flags synchronously, outside the transition.
+- **Disabling the footer button is not disabling the sheet.** `Sheet` routes
+  Escape, the scrim and its Close button all to `onClose`; guarding only the
+  Cancel button covered one of four ways out. When a component owns dismissal,
+  guard `onClose` itself.
+- **`useState` initialisers do not re-run when a prop changes.** Holding
+  `nextCursor` in state captured the page boundary at mount, so after
+  `router.refresh()` the cursor described the pre-edit ordering and skipped the
+  row the edit had displaced onto page 2. Derive from the prop while unpaged
+  (`undefined` = use the prop) instead of seeding state from it.
+- **`vi.waitFor` does not flush React; RTL's `waitFor` does.** Vitest's version
+  polls without `act`, so a `useTransition` pending flag never clears between
+  attempts and `toBeEnabled()` can never come true — passing alone, failing in
+  suite. Use `waitFor` from `@testing-library/react` for anything gated on React
+  committing. And `fireEvent.click` on a disabled button is a silent no-op, so
+  "the sheet never opened" is the symptom of a pending transition, not a broken
+  handler.

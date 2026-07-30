@@ -58,7 +58,22 @@ export function DraftsList({
   const setThinkingLevel = useUIStore((s) => s.setThinkingLevel);
 
   const [extra, setExtra] = useState<DraftCard[]>([]);
-  const [cursor, setCursor] = useState<string | null>(nextCursor);
+  /**
+   * The keyset cursor, but ONLY once we have paged past the server's first page.
+   *
+   * `undefined` means "not paged yet — use the `nextCursor` prop", which is the
+   * boundary of whatever page 1 the server most recently rendered. Holding the
+   * prop in `useState` instead looked equivalent and was not: `useState` does not
+   * re-initialise when `router.refresh()` supplies a new prop, so after an edit
+   * the cursor would still describe the PRE-edit page boundary. The edited row
+   * moves to the top of page 1 and displaces the old last row onto page 2, so a
+   * stale cursor starts after that displaced row and skips it permanently.
+   *
+   * `null` (as opposed to undefined) is a real answer: paged, and there is no
+   * next page.
+   */
+  const [pagedCursor, setPagedCursor] = useState<string | null | undefined>(undefined);
+  const cursor = pagedCursor === undefined ? nextCursor : pagedCursor;
   const [loadError, setLoadError] = useState<string | null>(null);
   const [confirmFor, setConfirmFor] = useState<DraftCard | null>(null);
   const [pending, startAction] = useTransition();
@@ -99,8 +114,13 @@ export function DraftsList({
 
   function saveEdit() {
     if (!editing || editBody === null) return;
+    // Set OUTSIDE the transition, on purpose. Inside `startAction` this is a
+    // transition-priority update, so a discrete event — Escape, a scrim tap —
+    // can be handled while `savingEdit` is still false, and the dismissal guard
+    // reads the stale value and lets the sheet close mid-save. Setting it here
+    // commits before the async work starts.
+    setSavingEdit(true);
     startAction(async () => {
-      setSavingEdit(true);
       const res = await updateDraftAction(editing.id, editBody).finally(() =>
         setSavingEdit(false),
       );
@@ -123,7 +143,10 @@ export function DraftsList({
       // while the refreshed page 1 shows the new one. The same row, twice,
       // disagreeing with itself.
       setExtra([]);
-      setCursor(nextCursor);
+      // Back to "not paged": the cursor comes from the refreshed prop, so it
+      // describes the page the server just rendered rather than the one it
+      // rendered before this edit reordered the list.
+      setPagedCursor(undefined);
       router.refresh();
     });
   }
@@ -192,7 +215,9 @@ export function DraftsList({
       }
       setLoadError(null);
       setExtra((xs) => [...xs, ...res.cards!]);
-      setCursor(res.nextCursor ?? null);
+      // `null`, not undefined — an exhausted list must not fall back to the
+      // prop and re-offer "Load more" for a page that returned nothing.
+      setPagedCursor(res.nextCursor ?? null);
     });
   }
 
@@ -313,7 +338,14 @@ export function DraftsList({
 
       <Sheet
         open={editing !== null}
-        onClose={closeEditor}
+        // Escape, the scrim and the Close button all route here, and disabling
+        // the footer Cancel button covered none of them. Dismissing mid-save
+        // ran closeEditor(), which cleared the edited text — so a save that then
+        // failed wrote its error into a closed sheet and the edit was gone,
+        // defeating the whole point of keeping it on failure.
+        onClose={() => {
+          if (!savingEdit) closeEditor();
+        }}
         title="Edit draft"
         footer={
           <div className="flex gap-2">
@@ -323,7 +355,7 @@ export function DraftsList({
               // Disabled until the full body has loaded: saving `null` would be
               // saving nothing, and saving the preview would truncate the draft.
               disabled={savingEdit || editBody === null || editBody.trim() === ""}
-              className="btn-laser flex min-h-[44px] flex-1 itemsateems-center justify-center px-5 text-sm disabled:opacity-50"
+              className="btn-laser flex min-h-[44px] flex-1 items-center justify-center px-5 text-sm disabled:opacity-50"
             >
               {savingEdit ? "Saving…" : "Save changes"}
             </button>

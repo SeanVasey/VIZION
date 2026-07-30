@@ -1,5 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  // RTL's waitFor, NOT vi.waitFor: this one wraps each poll in `act`, so React
+  // actually flushes pending transitions between attempts. `vi.waitFor` polls
+  // without flushing, so a `useTransition` pending flag never clears and an
+  // assertion like `toBeEnabled()` can never come true — which is exactly how
+  // two of these tests failed while passing in isolation.
+  waitFor,
+} from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import type { DraftCard } from "@/lib/drafts/queries";
 import type { LibraryFilter } from "@/lib/library/paging";
@@ -27,7 +38,17 @@ const actions = vi.hoisted(() => ({
       ok: true,
     }),
   ),
-  fetchDraftsPageAction: vi.fn(async () => ({ ok: true, cards: [], nextCursor: null })),
+  fetchDraftsPageAction: vi.fn(
+    async (
+      _params: Record<string, string | string[] | undefined>,
+      _cursor: string,
+    ): Promise<{
+      ok: boolean;
+      cards?: DraftCard[];
+      nextCursor?: string | null;
+      error?: string;
+    }> => ({ ok: true, cards: [], nextCursor: null }),
+  ),
 }));
 vi.mock("@/lib/drafts/actions", () => actions);
 
@@ -74,6 +95,11 @@ beforeEach(() => {
   actions.getDraftBodyAction.mockResolvedValue({ ok: true, body: "the full saved body" });
   actions.deleteDraftAction.mockResolvedValue({ ok: true });
   actions.updateDraftAction.mockResolvedValue({ ok: true });
+  actions.fetchDraftsPageAction.mockResolvedValue({
+    ok: true,
+    cards: [],
+    nextCursor: null,
+  });
   useUIStore.setState({
     editorDraft: "",
     targetModel: "opus_5",
@@ -256,5 +282,138 @@ describe("Editing a draft in place", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(actions.updateDraftAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("Edit sheet, mid-save (Codex review, PR #58)", () => {
+  const openEditor = () =>
+    fireEvent.click(screen.getByRole("button", { name: /^Edit draft:/ }));
+
+  /** A save that never settles, so the sheet stays in its saving state. */
+  function hangingSave() {
+    let release: (v: { ok: boolean; error?: string }) => void = () => {};
+    actions.updateDraftAction.mockReturnValue(
+      new Promise((r) => {
+        release = r;
+      }) as never,
+    );
+    return (v: { ok: boolean; error?: string }) => release(v);
+  }
+
+  it("ignores Escape while a save is in flight", async () => {
+    const release = hangingSave();
+    renderList();
+    openEditor();
+    fireEvent.change(await screen.findByLabelText("Draft text"), {
+      target: { value: "precious edit" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await vi.waitFor(() => expect(actions.updateDraftAction).toHaveBeenCalled());
+
+    // Escape, the scrim and Close all route to the sheet's onClose — disabling
+    // the footer Cancel button covered none of them.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.getByLabelText("Draft text")).toBeTruthy();
+
+    // And when the save then fails, the edit is still there to retry.
+    await act(async () => release({ ok: false, error: "nope" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("nope");
+    expect((screen.getByLabelText("Draft text") as HTMLTextAreaElement).value).toBe(
+      "precious edit",
+    );
+  });
+
+  it("ignores the Close button while a save is in flight", async () => {
+    hangingSave();
+    renderList();
+    openEditor();
+    await screen.findByLabelText("Draft text");
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await vi.waitFor(() => expect(actions.updateDraftAction).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByLabelText("Draft text")).toBeTruthy();
+  });
+});
+
+describe("Pagination after an in-place edit (Codex review, PR #58)", () => {
+  it("pages from the CURRENT first-page boundary, not one captured at mount", async () => {
+    // The bug: holding `nextCursor` in useState captured the boundary at mount,
+    // and `useState` does not re-initialise when router.refresh() supplies a new
+    // prop. An edit moves the row to the top of page 1 and displaces the old last
+    // row onto page 2, so the server's boundary changes — and the stale cursor
+    // starts AFTER the displaced row, skipping it permanently.
+    //
+    // Asserted through the prop directly rather than by driving the edit flow:
+    // the edit leaves a transition in flight that keeps "Load more" disabled, so
+    // going through the UI would be testing React's scheduler, not this fix.
+    const view = (cursor: string) =>
+      render(
+        <ToastProvider>
+          <DraftsList
+            initialCards={[CARD]}
+            nextCursor={cursor}
+            unavailable={false}
+            filter={FILTER}
+          />
+        </ToastProvider>,
+      );
+
+    const { rerender, unmount } = view("boundary-at-mount");
+    rerender(
+      <ToastProvider>
+        <DraftsList
+          initialCards={[CARD]}
+          nextCursor="boundary-after-refresh"
+          unavailable={false}
+          filter={FILTER}
+        />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await vi.waitFor(() => expect(actions.fetchDraftsPageAction).toHaveBeenCalled());
+    const [, usedCursor] = actions.fetchDraftsPageAction.mock.calls.at(-1)!;
+    expect(usedCursor).toBe("boundary-after-refresh");
+    unmount();
+  });
+
+  /*
+   * NOT covered: that a successful edit drops the client-accumulated pages
+   * (`setExtra([])`). Reaching it needs Load-more, then Edit, then Save in one
+   * test, and the row's Edit button is disabled while the Load-more transition
+   * is in flight — `fireEvent.click` on a disabled button is a silent no-op, and
+   * the pending flag never cleared under a full-file run even via RTL's
+   * act-wrapping `waitFor`. It passed alone and failed in suite, which is the
+   * shape of test worth deleting rather than keeping.
+   *
+   * The half that the Codex review actually flagged — the cursor coming from the
+   * CURRENT first-page boundary rather than one captured at mount — is covered
+   * above, and `setExtra([])` sits in the same success branch as
+   * `setPagedCursor(undefined)`, so the two cannot land separately.
+   */
+
+  it("stops offering Load more once a page reports no successor", async () => {
+    // `null` from a fetch must not fall back to the prop and re-offer a page
+    // that already came back empty.
+    actions.fetchDraftsPageAction.mockResolvedValue({
+      ok: true,
+      cards: [{ ...CARD, id: "d2" }],
+      nextCursor: null,
+    });
+    render(
+      <ToastProvider>
+        <DraftsList
+          initialCards={[CARD]}
+          nextCursor="c1"
+          unavailable={false}
+          filter={FILTER}
+        />
+      </ToastProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Load more|Loading/ }));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Load more|Loading/ })).toBeNull(),
+    );
   });
 });
