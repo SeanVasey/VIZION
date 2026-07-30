@@ -1895,3 +1895,34 @@ than as a puzzling failure in whichever spec ran first.
   constraint the paste affordance already documented. An in-flow panel under the
   rail reads as attached to its `?` and cannot be clipped; a portal would be the
   only way to float one, which is a lot of machinery for a tooltip.
+- **RLS answers "whose row is it", never "is the value sane".** The daily cost
+  cap is `sum(cost_usd)` over `usage_events`, and every policy on that table was
+  correct: owner-scoped INSERT, no UPDATE, no DELETE, `USING` and `WITH CHECK`
+  both present. It was still forgeable, because `authenticated` held INSERT and
+  nothing constrained the number — one negative row from the browser turned the
+  cap off for good. **A column an untrusted party can write, which an
+  authorization decision then sums, needs a CHECK constraint; the policy is not
+  the control.** Ask of every aggregate that gates something: who can write its
+  inputs, and what values are they allowed to write?
+- **Revoking a grant is a deploy-ordered change, and the order is the opposite
+  of a migration's.** Normally the migration lands first and the code follows.
+  A REVOKE inverts it: the running build still uses the privilege, so taking it
+  away first breaks production. Worse here than a hard failure — the ledger
+  write's error is logged and swallowed, so the route keeps returning 200 while
+  spend stops being counted. Split it into its own migration, put the ordering
+  in the header where `supabase migration up` will read it, and assert the
+  warning in a test so nobody merges the two files back together.
+- **A fix that only closes the hole you found is half a fix.** The reverted #62
+  work added atomic spend reservations that read the same `sum(cost_usd)` — so
+  it would have shipped with this hole intact underneath the new machinery.
+  When a value is load-bearing for a guardrail, harden the value before
+  hardening the logic that reads it.
+- **Regenerating a generated file is not always the smaller change.**
+  `database.types.ts` says "do not edit by hand", but the committed copy is
+  curated (non-alphabetical tables, trimmed helpers, Prettier semicolons) and
+  `model-target-enum.test.ts` parses it with a regex that requires those
+  semicolons. A wholesale `supabase gen types` would have reordered every table
+  and failed that contract. Adding the one new function signature — copied
+  verbatim from the generator's output, so it cannot drift from the database —
+  was both smaller and safer. Check what parses a generated file before
+  regenerating it.

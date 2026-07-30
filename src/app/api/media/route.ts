@@ -172,14 +172,17 @@ export async function POST(request: NextRequest) {
 
   const cfg = TARGETS[usedTarget];
   const costUsd = computeCost(usedTarget, extracted.tokenIn, extracted.tokenOut);
-  const { error: ledgerError } = await supabase.from("usage_events").insert({
-    user_id: user.id,
-    target: usedTarget,
-    mode: "extract",
-    model_used: cfg.model,
-    token_in: extracted.tokenIn,
-    token_out: extracted.tokenOut,
-    cost_usd: costUsd,
+  // Written through `record_usage` (SECURITY DEFINER, owner from the verified
+  // JWT) for the same reason as the sibling model route: it lets the client's
+  // direct INSERT grant on `usage_events` be withdrawn, closing the path that
+  // let a forged negative `cost_usd` defeat the daily cap.
+  const { error: ledgerError } = await supabase.rpc("record_usage", {
+    p_target: usedTarget,
+    p_mode: "extract",
+    p_model_used: cfg.model,
+    p_token_in: extracted.tokenIn,
+    p_token_out: extracted.tokenOut,
+    p_cost_usd: costUsd,
   });
   // The cap is only as good as this write (console.error survives prod).
   if (ledgerError) {
