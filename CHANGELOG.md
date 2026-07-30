@@ -6,6 +6,40 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — lint now rejects class names Tailwind does not recognise
+
+`eslint-plugin-tailwindcss`'s `no-custom-classname` is on for `src/`, with the
+project's own ~35 component/utility classes whitelisted in `eslint.config.mjs`.
+
+It exists because of a concrete miss: a botched patch left `itemsateems-center`
+in a className, Tailwind emitted no rule for it, and the Save button silently lost
+its vertical centering — while **lint, typecheck, 748 unit tests, the e2e suite
+and the production build were all green**, because nothing in that gate asks
+whether a utility exists. A review bot caught what five steps could not. Verified
+by reintroducing the exact typo: `Classname 'itemsateems-center' is not a Tailwind
+CSS class!`, via `npm run lint`, so it is genuinely in the gate.
+
+Only that one rule is enabled. `classnames-order`, `enforces-shorthand` and the
+rest are formatting opinions that would rewrite most of the codebase in one commit
+and bury real defects in the churn.
+
+Two constraints are now documented in `AGENTS.md`, both discovered the hard way:
+
+- **No brace patterns in `eslint.config.mjs`.** `package.json` overrides
+  `brace-expansion` to `^5` for security, but ESLint's `minimatch@3` expects `^1`
+  and calls it as `expand(...)` — so any `files`/`ignores` entry containing
+  `{a,b}` dies with `TypeError: expand is not a function` before a single file is
+  linted. Every pre-existing pattern happens to be brace-free, which is the only
+  reason this latent trap had never fired. Fixing it at the root would mean
+  loosening a security override, which is an owner decision.
+- **The plugin must stay on `3.x`** while Tailwind is on 3 (`4.x` peers on
+  Tailwind 4), and `settings.tailwindcss.config` must be an ABSOLUTE path — the
+  plugin resolves modules from `dirname(config)`, so a relative value fails with
+  `Could not resolve tailwindcss`.
+
+`npm audit` stays at 0 vulnerabilities with the new devDependency.
+
+
 ### Added — edit a saved draft in place
 
 Each row in the Drafts view gains an Edit button that opens the draft's text in a

@@ -1758,3 +1758,18 @@ than as a puzzling failure in whichever spec ran first.
   locked field "passes" while proving nothing. Without `user-event` as a
   dependency, assert the attribute that actually governs real typing, and say in
   the test why.
+- **Adding the lint rule found a second bug before it found any classes.** The
+  natural pattern `src/**/*.{ts,tsx}` crashed ESLint outright: this repo overrides
+  `brace-expansion` to ^5 while ESLint's `minimatch@3` expects ^1, so any braced
+  config pattern throws `expand is not a function`. Every existing pattern is
+  brace-free by luck, not design. When a new tool fails on arrival, suspect the
+  tree before the tool — and check whether the failure was always latent.
+- **A relative config path can break module resolution, not just file loading.**
+  `eslint-plugin-tailwindcss` derives its resolution root from
+  `dirname(settings.tailwindcss.config)`, so `"tailwind.config.ts"` yields `"."`
+  and it reports `Could not resolve tailwindcss` while the package sits in
+  `node_modules`. The error names the wrong thing; the fix is an absolute path.
+- **Enable the rule that catches the bug, not the ruleset.** The plugin ships
+  formatting rules (`classnames-order`, `enforces-shorthand`) that would rewrite
+  most of the codebase in one commit. One targeted rule keeps the diff reviewable
+  and the signal legible; a repo-wide reformat would have buried it.
