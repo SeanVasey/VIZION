@@ -19,6 +19,16 @@
  * fill, never the reverse (guardrail §6). Deliberately NOT `btn-laser`: that
  * class marks the app's single primary action per surface, and
  * `composer-reset.test.tsx` counts it to enforce exactly one.
+ *
+ * Two widths, because two callers want opposite things. `fill` lays the
+ * options out as EQUAL columns across the full container — one chassis with
+ * `repeat(n, 1fr)` cells, the same instrument shape as `ModeRig`, sized by the
+ * container instead of by the longest label. That is what the composer's Shape
+ * and Depth rails need: five and three multi-word labels at 390px used to
+ * overflow an intrinsically-sized pill, so "Few-shot" wrapped to two lines and
+ * the chassis clipped mid-segment. Without `fill` the control keeps its
+ * intrinsic inline width (Settings' theme picker, where three short labels sit
+ * beside body copy).
  */
 export function Segmented<T extends string>({
   options,
@@ -26,6 +36,7 @@ export function Segmented<T extends string>({
   onChange,
   label,
   className,
+  fill = false,
 }: {
   options: readonly { id: T; label: string }[];
   /** `null` selects nothing — the "unset / inherit the default" state. */
@@ -34,12 +45,28 @@ export function Segmented<T extends string>({
   /** Accessible group name. */
   label: string;
   className?: string;
+  /** Stretch to the container as equal columns (see the header). */
+  fill?: boolean;
 }) {
   return (
     <div
       role="group"
       aria-label={label}
-      className={`glass inline-flex rounded-xl p-1 ${className ?? ""}`}
+      className={[
+        "glass rounded-xl p-1",
+        // Equal columns come from an inline gridTemplateColumns rather than a
+        // `grid-cols-${n}` class: Tailwind only ships the classes it can see in
+        // the source, so an interpolated one is absent from the bundle.
+        fill ? "grid w-full" : "inline-flex",
+        className ?? "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={
+        fill
+          ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }
+          : undefined
+      }
     >
       {options.map((o) => {
         const active = value === o.id;
@@ -52,7 +79,16 @@ export function Segmented<T extends string>({
             className={[
               // min-h-[44px] rather than the settings control's old py-2 (~36px):
               // every tappable thing in the composer meets the 44pt target.
-              "font-body min-h-[44px] rounded-lg px-3 text-sm transition-colors",
+              // whitespace-nowrap on both widths: a label that wraps mid-control
+              // is the failure this component exists to avoid.
+              "font-body min-h-[44px] whitespace-nowrap rounded-lg transition-colors",
+              // Filled cells carry ModeRig's cell type (11px, tracked, cap-trim
+              // so the glyphs centre rather than the font's ascent headroom) —
+              // the size that lets six mode labels fit a 360px chassis, so five
+              // shape labels fit comfortably.
+              fill
+                ? "cap-trim px-1.5 text-[0.6875rem] font-medium tracking-wide"
+                : "px-3 text-sm",
               active ? "bg-laser text-on-laser" : "text-silver hover:text-chalk",
             ].join(" ")}
           >

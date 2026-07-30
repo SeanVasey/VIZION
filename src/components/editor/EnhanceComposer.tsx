@@ -432,24 +432,16 @@ export function EnhanceComposer() {
             control without removing the shortcut. Segmented buttons rather
             than a select: the rails stay outside the iOS focus-zoom rule. */}
         {activeMode === "reformat" && (
-          <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
-            <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
-              Shape
-            </span>
-            <div className="min-w-0 overflow-x-auto">
-              <Segmented
-                label="Output shape"
-                options={FORMAT_OPTIONS}
-                value={reformatFormat}
-                // Re-picking the active shape clears it, which is the only way
-                // back to "whichever fits" without a separate Auto segment
-                // competing for width on a 390px screen.
-                onChange={(next) =>
-                  setReformatFormat(next === reformatFormat ? null : next)
-                }
-              />
-            </div>
-          </div>
+          <SegmentedRail
+            caption="Shape"
+            label="Output shape"
+            options={FORMAT_OPTIONS}
+            value={reformatFormat}
+            // Re-picking the active shape clears it, which is the only way
+            // back to "whichever fits" without a separate Auto segment
+            // competing for width on a 390px screen.
+            onChange={(next) => setReformatFormat(next === reformatFormat ? null : next)}
+          />
         )}
 
         {/* Length rail — Condense and Expand only. The dial is shared but the
@@ -457,21 +449,15 @@ export function EnhanceComposer() {
             output and the aggressive end of Expand is the largest, so one set
             of words would read as a lie on one of the two. */}
         {lengthChoices && (
-          <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
-            <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
-              Depth
-            </span>
-            <div className="min-w-0 overflow-x-auto">
-              <Segmented
-                label="Length"
-                options={lengthChoices}
-                value={activeLength}
-                onChange={(next) =>
-                  setLengthForMode(activeMode, next === activeLength ? null : next)
-                }
-              />
-            </div>
-          </div>
+          <SegmentedRail
+            caption="Depth"
+            label="Length"
+            options={lengthChoices}
+            value={activeLength}
+            onChange={(next) =>
+              setLengthForMode(activeMode, next === activeLength ? null : next)
+            }
+          />
         )}
 
         {/* Prompt editor — Reddit Sans (input is NOT the output region). */}
@@ -682,5 +668,47 @@ export function EnhanceComposer() {
         onConfirm={performClear}
       />
     </section>
+  );
+}
+
+/**
+ * A composer rail carrying a segmented control (Shape · Depth).
+ *
+ * STACKED, not label-left/control-right like the Target and Thinking rails,
+ * and that is the whole point of the component. Those two rails hold ONE
+ * intrinsically-narrow pill; these hold three-to-five multi-word labels, and
+ * beside a caption there is only ~300px of a 390px screen left for them. The
+ * inline version overflowed it: the chassis clipped mid-segment and "Few-shot"
+ * broke across two lines, which made the rail visibly taller than its
+ * neighbours and misaligned the whole stack. Giving the control its own full
+ * -width line buys back the caption's width, so equal 1fr cells fit every
+ * label on one line at any roster size the rails use.
+ *
+ * The caption is a `<span>` + `aria-label` on the group rather than a `<label>`
+ * — the control is a button group, and a `<label>` has no single form element
+ * to point `htmlFor` at.
+ */
+function SegmentedRail<T extends string>({
+  caption,
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  /** Rail caption, in the rails' tracked micro-caps. */
+  caption: string;
+  /** Accessible name for the control itself. */
+  label: string;
+  options: readonly { id: T; label: string }[];
+  value: T | null;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 border-b border-hair px-3 py-2.5">
+      <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+        {caption}
+      </span>
+      <Segmented fill label={label} options={options} value={value} onChange={onChange} />
+    </div>
   );
 }

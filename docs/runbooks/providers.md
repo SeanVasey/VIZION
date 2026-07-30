@@ -108,21 +108,34 @@ translates it onto the provider's parameter:
 | Fable 5 · Opus 5 · Sonnet 5 | `output_config.effort` | low · medium · high · xhigh · max |
 | GPT-5.6 Sol / Luna / Terra | `reasoning_effort` | low · medium · high |
 | Gemini 3.6 Flash | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high |
+| Qwen3.7 Max | `enable_thinking` + `thinking_budget` (tokens) | low · medium · high · xhigh · max |
 | Grok 4.5 | `reasoning_effort` | low · medium · high |
 
 Notes that keep this working:
 
 - **"Auto" sends nothing** — the provider default applies (Gemini: `medium`
   dynamic; GPT-5.6: `medium`; Grok: `high`, reasoning can't be disabled;
-  Claude 5 family: thinking on by default at `high` effort).
+  Claude 5 family: thinking on by default at `high` effort; DashScope: whatever
+  `enable_thinking` defaults to for the served model).
 - **Gemini:** `thinkingLevel` and the Gemini-2.5-era `thinkingBudget` are
   mutually exclusive — the adapter only ever sends the former.
 - **Anthropic:** thinking bills as output tokens against `max_tokens`, so the
   adapter raises the output ceiling at `high` (32k) and `xhigh`/`max` (64k);
   never send the retired `thinking.budget_tokens` (400 on the Claude 5 family).
+- **Qwen:** the knob is a token BUDGET, not an effort word, so the ladder maps
+  onto budgets in `openai-compat.ts` (512 · 1k · 2k · 3k · 4k). Every step stays
+  at or under half of DashScope's **8192** output ceiling — reasoning that eats
+  the ceiling leaves nothing for the JSON envelope, which surfaces as "hit its
+  length limit" rather than a result. Thinking is only honoured on a streamed
+  request (ours always are) and arrives in `delta.reasoning_content`, which the
+  adapter never reads, so `content` stays clean JSON.
+- **A model tier is not a thinking level.** "Max" in `Qwen3.7 Max` is Alibaba's
+  flagship tier (beside Plus and Turbo). Reading it as a reasoning depth is what
+  left the target with no selector while its API took a budget all along — the
+  same class of mistake as inventing `gemini-3.6-thinking` above, in reverse.
 - **Cost:** higher levels spend more output tokens, which the daily cost cap
   counts like any other output — expect fewer runs per day at `max`.
-- The remaining eight targets' providers expose no per-request knob through
+- The remaining seven targets' providers expose no per-request knob through
   our adapters, so they show no selector.
 
 Note on cost: Fable 5 lists at $10/$50 per 1M tokens (in/out) — noticeably pricier than
@@ -137,6 +150,16 @@ defaults carry the K2.6/M2.7 list rates forward — override `PRICE_KIMI_*` /
 `PRICE_MINIMAX_*` if the published rates differ. GPT-5.6 Luna/Terra defaults
 ($1.00/$4.00, $0.20/$0.80) follow the family tiering below Sol — override
 `PRICE_GPT_LUNA_*` / `PRICE_GPT_TERRA_*` to match your account's rates.
+
+## Output ceilings (`max_tokens`)
+
+The OpenAI-compatible factory sends **16k** by default, which keeps a runaway
+generation bounded without truncating a real answer. It is a per-API fact, not a
+preference: **DashScope caps `qwen-max` at 8192** and rejects anything higher
+with `400 InternalError.Algo.InvalidParameter: Range of max_tokens should be
+[1, 8192]` — which failed *every* Qwen run until the provider declared its own
+`maxTokens`. When adding a compat provider, read its `max_tokens` range from the
+API reference rather than inheriting the default and hoping.
 
 ## Cost cap & rate limit
 

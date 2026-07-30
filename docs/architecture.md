@@ -82,12 +82,18 @@ adapter, which translates it onto that provider's parameter:
 | Anthropic (Fable 5 · Opus 5 · Sonnet 5) | `output_config.effort` | low · medium · high · xhigh · max |
 | OpenAI (GPT-5.6 Sol/Luna/Terra) | `reasoning_effort` | low · medium · high |
 | Google (Gemini 3.6 Flash) | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high |
+| Qwen (Qwen3.7 Max) | `enable_thinking` + `thinking_budget` (tokens) | low · medium · high · xhigh · max |
 | xAI (Grok 4.5) | `reasoning_effort` | low · medium · high |
 
 "Auto" (the default) sends nothing — the provider's own default applies. The
 selection persists per target in the UI store. Vendors' consumer-app picker
 labels (Gemini "Thinking"/"Fast", ChatGPT "Ultra"…) are marketing names for
 these values, not separate models or API strings.
+
+A model **TIER** is not a thinking level either. "Max" in `Qwen3.7 Max` names
+Alibaba's flagship tier (beside Plus and Turbo) and says nothing about
+reasoning depth — reading it as one is what left that target with no selector
+while its API took a `thinking_budget` all along.
 
 ## Data model (P2/P4)
 
