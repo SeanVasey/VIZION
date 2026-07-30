@@ -1960,3 +1960,36 @@ than as a puzzling failure in whichever spec ran first.
   verbatim from the generator's output, so it cannot drift from the database —
   was both smaller and safer. Check what parses a generated file before
   regenerating it.
+
+## 2026-07-30 — Mobile UI polish pass (skeleton fidelity · press variants · emoji retirement)
+
+- **A `loading.tsx` is a screenshot that can go stale.** The Enhance skeleton
+  still sketched a layout two redesigns old — a hero block and three pills
+  where the live page renders the Horizon hairline and a six-cell mode rig —
+  so every prefetched tab switch flashed the wrong layout before paint.
+  Nothing catches this: the skeleton compiles, tests green, and diverges
+  silently the moment the page it mirrors changes. **When a screen's layout
+  changes, its `loading.tsx` is part of the change**, the same way its e2e
+  spec is.
+- **One press affordance, two scales.** `.pressable`'s 10% scale was measured
+  for icon-sized targets; on a full-width CTA it reads as the card lurching.
+  Rather than exempt large buttons from press feedback (the `:active`
+  brightness they had is exactly the iOS-unreliable channel `usePressable`
+  exists to replace), `.pressable-subtle` carries the same instant-down /
+  eased-up contract at 3%. The variant is a second class, not a combined
+  selector — `ui-contracts.test.ts` matches rule heads with `^\.pressable$`
+  anchors, and a grouped `.pressable, .pressable-subtle { }` head would have
+  broken the guard that keeps the contract pinned.
+- **Emoji are platform-colored type, not icons.** `🖼 / 🎞 / 🎧` in the media
+  rows and `⟲` in the Activity heading sat next to carefully stroked SVGs and
+  rendered with whatever color, weight and baseline the OS emoji font chose.
+  The attach button's header comment had already documented this exact lesson
+  for 📎 — the fix (1.5px-stroke glyphs on the 24px grid) just hadn't been
+  applied to the survivors. When one call site documents a rule, grep for the
+  other violators while you're there.
+- **The scrim is part of the entrance.** `.sheet-in` rose the panel over 200ms
+  while its scrim popped to 80% Void on frame one — the flash read as the
+  overlay arriving *before* its content. Animating the wrapper's opacity
+  (`.scrim-in`, same duration/ease, end state = resting state so the global
+  reduced-motion collapse lands fully opaque) costs one keyframe and removes
+  the pop. Any overlay that fades its panel in should fade its scrim with it.
