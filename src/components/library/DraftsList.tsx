@@ -431,12 +431,19 @@ export function DraftsList({
             <label htmlFor="draft-edit-body" className="sr-only">
               Draft text
             </label>
+            {/* readOnly while saving, not disabled: the request has already
+                captured this value, so keystrokes typed after Save would be
+                discarded by closeEditor() on success while the server kept the
+                earlier snapshot — lost with no error. readOnly rather than
+                disabled keeps the text readable and selectable, and keeps focus,
+                for what is normally a brief moment. */}
             <textarea
               id="draft-edit-body"
               value={editBody}
               onChange={(e) => setEditBody(e.target.value)}
+              readOnly={savingEdit}
               rows={10}
-              className="font-body w-full resize-y rounded-lg border border-hair bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none"
+              className="font-body w-full resize-y rounded-lg border border-hair bg-surface px-3 py-2 text-sm text-text placeholder:text-muted read-only:opacity-60 focus:outline-none"
             />
             <p className="font-body text-xs text-silver">
               Editing the text only — target model and mode stay as saved. Open the

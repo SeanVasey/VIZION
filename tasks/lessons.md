@@ -1747,3 +1747,14 @@ than as a puzzling failure in whichever spec ran first.
   in the full run, passed in isolation, and passed the full run on a stashed
   clean tree AND again with the changes re-applied. Three data points, not one,
   and only then is "pre-existing flake" a claim rather than a hope.
+- **An in-flight request has already captured its input; lock the input.** The
+  edit textarea stayed editable while the save was in flight, so keystrokes typed
+  after pressing Save belonged to neither side — the request carried the earlier
+  snapshot, and `closeEditor()` discarded the newer local value on success. Lost
+  with no error. `readOnly` rather than `disabled`, so the text stays readable,
+  selectable and focused for what is normally a brief moment.
+- **`fireEvent.change` ignores `readOnly`.** It sets the value programmatically,
+  and readOnly is a user-interaction constraint — so a test that types into a
+  locked field "passes" while proving nothing. Without `user-event` as a
+  dependency, assert the attribute that actually governs real typing, and say in
+  the test why.

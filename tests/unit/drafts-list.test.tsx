@@ -78,6 +78,20 @@ const CARD: DraftCard = {
 
 const FILTER: LibraryFilter = { view: "drafts", sort: "updated" };
 
+/**
+ * Make the next save hang, so the sheet stays in its in-flight state; the
+ * returned function settles it. Module scope because two describes need it.
+ */
+function hangingSave() {
+  let release: (v: { ok: boolean; error?: string }) => void = () => {};
+  actions.updateDraftAction.mockReturnValue(
+    new Promise((r) => {
+      release = r;
+    }) as never,
+  );
+  return (v: { ok: boolean; error?: string }) => release(v);
+}
+
 function renderList(
   cards: DraftCard[] = [CARD],
   unavailable = false,
@@ -308,17 +322,6 @@ describe("Edit sheet, mid-save (Codex review, PR #58)", () => {
   const openEditor = () =>
     fireEvent.click(screen.getByRole("button", { name: /^Edit draft:/ }));
 
-  /** A save that never settles, so the sheet stays in its saving state. */
-  function hangingSave() {
-    let release: (v: { ok: boolean; error?: string }) => void = () => {};
-    actions.updateDraftAction.mockReturnValue(
-      new Promise((r) => {
-        release = r;
-      }) as never,
-    );
-    return (v: { ok: boolean; error?: string }) => release(v);
-  }
-
   it("ignores Escape while a save is in flight", async () => {
     const release = hangingSave();
     renderList();
@@ -458,6 +461,29 @@ describe("Transport failures and conflicts (Codex review, PR #58)", () => {
     expect((screen.getByLabelText("Draft text") as HTMLTextAreaElement).value).toBe(
       "precious edit",
     );
+  });
+
+  it("locks the textarea while the save is in flight", async () => {
+    // The request has already captured editBody. Keystrokes after Save would be
+    // thrown away by closeEditor() on success while the server kept the earlier
+    // snapshot — lost with no error.
+    //
+    // Asserted on the attribute rather than by typing: `fireEvent.change` sets
+    // the value programmatically and ignores readOnly (it is a user-interaction
+    // constraint), and user-event is not a dependency here. The attribute is
+    // what actually governs real typing.
+    const release = hangingSave();
+    renderList();
+    openEditor();
+    const box = await screen.findByLabelText("Draft text");
+    expect(box).not.toHaveAttribute("readonly");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await vi.waitFor(() => expect(box).toHaveAttribute("readonly"));
+
+    // ...and it is editable again once a failed save hands control back.
+    await act(async () => release({ ok: false, error: "nope" }));
+    expect(box).not.toHaveAttribute("readonly");
   });
 
   it("a REJECTED open reports the transport failure rather than crashing", async () => {
