@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/server";
 import { LibraryBrowser } from "@/components/library/LibraryBrowser";
 import { ActivityFeed } from "@/components/library/ActivityFeed";
+import { DraftsList } from "@/components/library/DraftsList";
 import { Footer } from "@/components/Footer";
-import { libraryHref, parseLibraryParams } from "@/lib/library/paging";
+import { queryDraftsPage } from "@/lib/drafts/queries";
+import {
+  isDraftsView,
+  libraryHref,
+  parseLibraryParams,
+  type LibraryFilter,
+} from "@/lib/library/paging";
 import {
   queryLibraryFacets,
   queryLibraryPage,
@@ -13,6 +21,25 @@ import {
 } from "@/lib/library/queries";
 
 export const metadata: Metadata = { title: "Library" };
+
+/**
+ * The Drafts view's own header row. The filter sheet lives inside
+ * `LibraryBrowser`, which this branch does not render — without a way back the
+ * user would be stranded in Drafts with only the browser Back button.
+ */
+function DraftsViewChrome({ filter }: { filter: LibraryFilter }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="font-display m-0 text-lg tracking-wide text-text">Drafts</h2>
+      <Link
+        href={libraryHref({ ...filter, view: "all" })}
+        className="tap-44 font-body inline-flex items-center text-sm text-accent transition-colors hover:text-chalk"
+      >
+        All prompts
+      </Link>
+    </div>
+  );
+}
 
 /**
  * Library — saved prompts with server-side search/filter/sort via URL params
@@ -26,6 +53,29 @@ export default async function LibraryPage({
 }) {
   const filter = parseLibraryParams(await searchParams);
   const supabase = await createClient();
+
+  // Drafts are a different relation, so this branches BEFORE queryLibraryPage —
+  // calling it for view=drafts would quietly return prompts. The prompt-only
+  // narrowing params (model/mode/tag/collection/q) do not apply here and are
+  // ignored rather than silently reinterpreted.
+  if (isDraftsView(filter)) {
+    const { cards: draftCards, nextCursor: draftCursor, unavailable } =
+      await queryDraftsPage(supabase);
+    return (
+      <>
+        <ScreenHeader title="Library" />
+        <div className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5">
+          <DraftsViewChrome filter={filter} />
+          <DraftsList
+            initialCards={draftCards}
+            nextCursor={draftCursor}
+            unavailable={unavailable}
+          />
+          <Footer inset />
+        </div>
+      </>
+    );
+  }
 
   let cards: PromptCard[];
   let nextCursor: string | null;

@@ -15,3 +15,19 @@ export function showsBottomNav(pathname: string | null): boolean {
     pathname.startsWith("/sign-in") || pathname.startsWith("/set-password")
   );
 }
+
+/**
+ * Does this route show the floating "New prompt" button?
+ *
+ * Library and Settings only — the two authed surfaces that are not the
+ * composer. /enhance is excluded because it already owns this action through
+ * the composer's own Clear, and /library/[id] because the prompt-detail screen
+ * carries its own actions that a floating control would compete with.
+ *
+ * An allowlist rather than "everything except /enhance": a new authed route
+ * should have to opt in to floating chrome, not inherit it silently.
+ */
+export function showsNewPromptFab(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return pathname === "/library" || pathname === "/profile";
+}

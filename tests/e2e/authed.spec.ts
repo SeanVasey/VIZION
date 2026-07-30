@@ -194,3 +194,77 @@ test.describe("authenticated app", () => {
     await expectNoUnhandledStubRoutes();
   });
 });
+
+/**
+ * The floating "New prompt" button and the Drafts view it feeds.
+ *
+ * Driven through the real app because the parts that can break are not in the
+ * component: the button is fixed chrome that has to clear the bottom nav, the
+ * save path crosses a server action into PostgREST, and the Drafts view is a
+ * different relation reached through the same URL filter grammar.
+ */
+test.describe("new prompt + drafts", () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+  });
+
+  test("is on Library and Settings, absent on the composer", async ({ page }) => {
+    const fab = page.getByRole("button", { name: "New prompt" });
+    // /enhance already owns this action through the composer's own Clear.
+    await expect(page).toHaveURL(/\/enhance$/);
+    await expect(fab).toHaveCount(0);
+
+    await page.getByRole("navigation").getByRole("link", { name: "Library" }).click();
+    await page.waitForURL(/\/library$/);
+    await expect(fab).toBeVisible();
+
+    await page.getByRole("navigation").getByRole("link", { name: "Settings" }).click();
+    await page.waitForURL(/\/profile$/);
+    await expect(fab).toBeVisible();
+  });
+
+  test("clears the bottom nav and keeps a 44px target", async ({ page }) => {
+    await page.goto("/library");
+    const fab = page.getByRole("button", { name: "New prompt" });
+    const box = (await fab.boundingBox())!;
+    const nav = (await page.getByRole("navigation").boundingBox())!;
+
+    // Trapped under the nav would make it unreachable — the whole point of
+    // pinning it to --bottom-nav-h rather than a hardcoded offset.
+    expect(box.y + box.height).toBeLessThanOrEqual(nav.y + 1);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  });
+
+  test("goes straight to an empty composer when there is no draft", async ({ page }) => {
+    await page.goto("/library");
+    await page.getByRole("button", { name: "New prompt" }).click();
+    await page.waitForURL(/\/enhance$/);
+    await expect(page.locator("#prompt-input")).toHaveValue("");
+  });
+
+  /*
+   * NOT covered here: the full save → list → resume journey.
+   *
+   * It needs a draft to exist before the button is pressed, and every way of
+   * arranging that proved unreliable on this container when both browser
+   * projects run at once. Typing loses a race with hydration against the
+   * CONTROLLED textarea (20s of retried fills never stuck in WebKit-under-load,
+   * while WebKit alone passed every time); seeding the persisted store key and
+   * reloading failed in both engines. Reaching the Drafts view is its own
+   * hazard: `sw-src.js` answers navigations itself (StaleWhileRevalidate, with
+   * setCatchHandler falling back to the precached /enhance shell), so a hard
+   * `page.goto` is served by the service worker — in WebKit it returned that
+   * shell instead of the Drafts page, and a repeat visit to one URL was served
+   * stale, which reads as "the delete did not happen" when the row was already
+   * gone from the database.
+   *
+   * A test that is green in one project and red in the other is worse than an
+   * absent one, so that journey is covered where it is deterministic:
+   * `tests/unit/new-prompt-fab.test.tsx` (save/discard/undo/cancel and the
+   * keep-the-draft-on-failure rule) and `tests/unit/drafts-list.test.tsx`
+   * (resume restores the whole composer state and drops the server copy).
+   * What remains here is what only a real engine can answer — where the button
+   * is, that it clears the nav, and that it is on the right routes.
+   */
+});

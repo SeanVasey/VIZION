@@ -6,6 +6,43 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — account-backed drafts and a "New prompt" button
+
+A floating + on Library and Settings takes you back to an empty composer. With
+nothing in the composer it goes straight there; with a prompt in progress it asks
+first, because the draft persists and starting fresh would otherwise destroy it.
+Save keeps it in your account, Discard throws it away (undoably — unlike Save,
+there is no server copy to fall back on), Cancel changes nothing.
+
+Drafts are server state, in a new `public.drafts` table with owner-only RLS
+(`drafts_<verb>_own`, shipped in the same migration per §6). `editorDraft` had
+only ever been in localStorage, which §6 calls convenience-only and iOS ITP
+evicts — a draft the user was told was "saved" has to survive eviction, a new
+device and a reinstall. Its own relation rather than a `prompts.is_draft` flag:
+every library read filters `prompts` on `deleted_at`/`archived_at` and nothing
+else, so a flag would have leaked drafts into the library, the facet counts and
+the activity feed until each was audited, and any future query would have to
+remember. A separate relation cannot leak by omission.
+
+Saved drafts appear under a Drafts view in the library (`/library?view=drafts`),
+reusing the existing filter/URL/back-button plumbing. A draft captures the whole
+composer state — body, target model, mode, thinking level — because resuming into
+whichever model happened to be selected later would silently change what you get
+back. Resuming is a **move**: the state is written into the composer and the
+server row is deleted, so the same work never exists in two places. The body is
+fetched before the delete, so a failed read loses nothing.
+
+The local draft is cleared only after a save reports `ok`. A pending migration
+(`unavailable`) counts as a failure for that purpose — clearing on a save that
+did not happen would destroy exactly the work the user asked to keep.
+
+**`supabase/migrations/20260730000000_drafts.sql` must be applied before this
+ships.** Until it is, the Drafts view says drafts aren't set up yet rather than
+"nothing saved" (which would be a lie about data the user may have) or an error
+(which would be alarming about a system that is merely incomplete), and the save
+path refuses and keeps the draft.
+
+
 ### Changed — the Enhance hero emblem becomes Horizon
 
 The `PromptFlow` emblem repeated the `(│›◯)` mark about 200px below the same

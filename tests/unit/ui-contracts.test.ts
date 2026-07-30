@@ -188,6 +188,11 @@ describe("UI contracts", () => {
       ["components/editor/KeyboardActionBar.tsx", "portaled to <body>"],
       ["components/NeuralMeshBackground.tsx", "root-level ambient layer"],
       ["components/nav/BottomNav.tsx", "root-level chrome"],
+      // Rendered in the (app) layout as a SIBLING of {children}, so its
+      // ancestors are SafeAreaProvider's div/main and ToastProvider's
+      // fragment — none of them .glass. It sits outside every page's panels,
+      // which is what keeps [data-scrolling] .glass from re-anchoring it.
+      ["components/nav/NewPromptFab.tsx", "authed-shell chrome, sibling of {children}"],
       ["components/settings/SettingsPanel.tsx", "root-level sibling in the panel"],
     ]);
 

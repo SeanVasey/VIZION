@@ -9,8 +9,23 @@ import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/con
 
 export const LIBRARY_PAGE_SIZE = 30;
 
-export const LIBRARY_VIEWS = ["all", "favorites", "archived"] as const;
+/**
+ * `drafts` is a view over a DIFFERENT relation (public.drafts), not a filter on
+ * prompts. It lives in this union anyway so the view switch, the URL shape, the
+ * filter badge and the back button all keep working through it — the alternative
+ * was a second parallel notion of "which library screen am I on".
+ *
+ * The consequence is that `queryLibraryPage` must never be called for it, since
+ * it would silently return prompts. `library/page.tsx` branches first;
+ * `isDraftsView` is the single predicate both sides read.
+ */
+export const LIBRARY_VIEWS = ["all", "favorites", "archived", "drafts"] as const;
 export type LibraryView = (typeof LIBRARY_VIEWS)[number];
+
+/** Does this filter target the drafts relation rather than prompts? */
+export function isDraftsView(filter: Pick<LibraryFilter, "view">): boolean {
+  return filter.view === "drafts";
+}
 
 export const LIBRARY_SORTS = ["updated", "created", "title"] as const;
 export type LibrarySort = (typeof LIBRARY_SORTS)[number];

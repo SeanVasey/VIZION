@@ -112,6 +112,10 @@ function seed() {
       },
     ],
     collections: [],
+    // Seeded empty: the Drafts view's default state is "no drafts", and the
+    // specs that need a draft create one through the UI (the FAB's Save
+    // path), which is the behaviour worth covering anyway.
+    drafts: [],
   };
 }
 
@@ -133,9 +137,25 @@ let tables = seed();
  * per-test: `fullyParallel` workers share this one process, so a mid-run reset
  * would wipe another worker's state underneath it.
  */
+/**
+ * Monotonic id source for inserted rows.
+ *
+ * NOT `tables[table].length + 1`, which is what this used to be. `fullyParallel`
+ * runs every project over the same stub process, so two workers inserting into
+ * the same table concurrently both read the same length and both mint the same
+ * id — after which an id-scoped DELETE removes BOTH rows and a `.single()` read
+ * can return the other worker's row. No spec inserted rows from two projects at
+ * once until the drafts specs did, which is why a stub that had been correct in
+ * practice for months was quietly wrong.
+ *
+ * Shared across tables on purpose: uniqueness is what matters, not density.
+ */
+let insertSeq = 0;
+
 function resetState() {
   tables = seed();
   unhandled.length = 0;
+  insertSeq = 0;
 }
 
 /* --------------------------------------------------------------------- jwt */
@@ -416,7 +436,7 @@ async function handleRequest(req, res) {
     if (req.method === "POST") {
       const body = await readBody(req);
       const inserted = (Array.isArray(body) ? body : [body]).map((row) => ({
-        id: `stub-${tables[table].length + 1}`,
+        id: `stub-${++insertSeq}`,
         created_at: NOW,
         updated_at: NOW,
         ...row,

@@ -1608,3 +1608,33 @@ than as a puzzling failure in whichever spec ran first.
   both hold in the fixed state, and either one alone is satisfied by a uniform
   shrink. Cheap to add, and it is the difference between a spec that documents
   the request and one that documents a number.
+- **A shared e2e stub becomes shared mutable state the moment a spec WRITES.**
+  `fullyParallel` runs every project against one stub process, reset once in
+  global setup. Read-only specs never noticed; the first specs to insert rows hit
+  id collisions (`stub-${length + 1}` computed concurrently by two workers mints
+  the same id, after which an id-scoped DELETE removes both rows) and assertions
+  about global emptiness that pass or fail on what the other project is doing.
+  Scope every assertion to a row you created, and never derive an id from a
+  length.
+- **A service worker that owns navigations owns your `page.goto` too.** Drafts
+  assertions failed while the database was already correct: `sw-src.js` is
+  StaleWhileRevalidate for navigations with a catch-handler falling back to the
+  precached `/enhance` shell, so a repeat `goto` was served stale and, in WebKit,
+  a fresh one was answered with the wrong document entirely. Client navigation
+  fetches RSC payloads and is unaffected — so this is a hazard of driving the app
+  with hard navigations, not a bug users meet.
+- **`fill()` on a CONTROLLED input is a race with hydration, and it fails
+  silently.** Pre-hydration the fill sets the DOM value; hydration then renders
+  the store's empty string and the text is gone. Under two-project load in
+  WebKit, 20s of retried fills never stuck while the same test passed alone. It
+  surfaced three layers away — as the FAB skipping its confirm dialog — which
+  looks like a component bug. Assert the controlled value survives before acting
+  on it; that assertion IS the check that the store holds it.
+- **Know when to stop converting a flaky e2e into a green one.** Four fixes in
+  (unique bodies, unique URLs, UI navigation, seeded store) the multi-step drafts
+  journey was still red in one engine, and one attempt had broken two previously
+  green tests. The journey moved to unit tests, where it is deterministic, and
+  the e2e kept only what needs a real engine — where the button is, that it
+  clears the nav, which routes show it. A spec green in one project and red in
+  another is worse than an absent one, and the comment in the file says why it
+  is absent.
