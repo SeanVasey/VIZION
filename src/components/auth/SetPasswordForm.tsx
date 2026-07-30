@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { setPasswordAction, type ActionResult } from "@/app/(auth)/actions";
+import { MIN_PASSWORD_LENGTH, PASSWORD_RULE_TEXT } from "@/lib/auth/password";
 
 /**
  * Magic-link onboarding (A4): convert a passwordless entry into a durable
@@ -30,7 +31,7 @@ export function SetPasswordForm() {
         type="password"
         autoComplete="new-password"
         required
-        minLength={8}
+        minLength={MIN_PASSWORD_LENGTH}
         placeholder="New password"
         className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-center text-base text-text placeholder:text-muted focus:outline-none"
       />
@@ -43,10 +44,13 @@ export function SetPasswordForm() {
         type="password"
         autoComplete="new-password"
         required
-        minLength={8}
+        minLength={MIN_PASSWORD_LENGTH}
         placeholder="Confirm password"
         className="glass font-body w-full rounded-xl bg-transparent px-4 py-3 text-center text-base text-text placeholder:text-muted focus:outline-none"
       />
+      {/* Stated, not discovered by rejection — and `minLength` says nothing
+          about the character classes the server also enforces. */}
+      <p className="font-body text-center text-xs text-silver">{PASSWORD_RULE_TEXT}</p>
       <button
         type="submit"
         disabled={pending}

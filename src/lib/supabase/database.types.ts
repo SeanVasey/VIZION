@@ -152,6 +152,44 @@ export type Database = {
         };
         Relationships: [];
       };
+      drafts: {
+        Row: {
+          id: string;
+          user_id: string;
+          body: string;
+          title: string;
+          target_model: Database["public"]["Enums"]["model_target"];
+          mode: Database["public"]["Enums"]["enhance_mode"];
+          /** `null` = Auto, matching an absent `thinkingLevels` entry. Text,
+           *  not an enum — THINKING_LEVELS has no database enum. */
+          thinking_level: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          body: string;
+          title: string;
+          target_model: Database["public"]["Enums"]["model_target"];
+          mode: Database["public"]["Enums"]["enhance_mode"];
+          thinking_level?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          body?: string;
+          title?: string;
+          target_model?: Database["public"]["Enums"]["model_target"];
+          mode?: Database["public"]["Enums"]["enhance_mode"];
+          thinking_level?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       prompt_versions: {
         Row: {
           id: string;

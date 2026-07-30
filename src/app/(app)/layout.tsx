@@ -4,6 +4,7 @@ import { needsPasswordOnboarding } from "@/lib/auth/onboarding";
 import { ProfileHydrator } from "@/components/ProfileHydrator";
 import { OutboxFlusher } from "@/components/pwa/OutboxFlusher";
 import { ToastProvider } from "@/components/ui/Toast";
+import { NewPromptFab } from "@/components/nav/NewPromptFab";
 
 /**
  * Authenticated app shell. Middleware guarantees a session here; this layout
@@ -35,6 +36,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <OutboxFlusher />
       {children}
+      {/* Inside ToastProvider, not the root layout: the button raises toasts,
+          and useToast throws outside the provider. Authed-only chrome belongs
+          in the authed shell anyway — `showsNewPromptFab` picks the routes. */}
+      <NewPromptFab />
     </ToastProvider>
   );
 }

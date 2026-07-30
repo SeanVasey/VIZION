@@ -3,8 +3,15 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/server";
 import { LibraryBrowser } from "@/components/library/LibraryBrowser";
 import { ActivityFeed } from "@/components/library/ActivityFeed";
+import { DraftsList } from "@/components/library/DraftsList";
+import { DraftsToolbar } from "@/components/library/DraftsToolbar";
 import { Footer } from "@/components/Footer";
-import { libraryHref, parseLibraryParams } from "@/lib/library/paging";
+import { queryDraftModelFacets, queryDraftsPage } from "@/lib/drafts/queries";
+import {
+  isDraftsView,
+  libraryHref,
+  parseLibraryParams,
+} from "@/lib/library/paging";
 import {
   queryLibraryFacets,
   queryLibraryPage,
@@ -14,11 +21,6 @@ import {
 
 export const metadata: Metadata = { title: "Library" };
 
-/**
- * Library — saved prompts with server-side search/filter/sort via URL params
- * and keyset cursor pagination (2026-07 UX audit), plus the activity feed.
- * Server state via Supabase, scoped by RLS.
- */
 export default async function LibraryPage({
   searchParams,
 }: {
@@ -26,6 +28,34 @@ export default async function LibraryPage({
 }) {
   const filter = parseLibraryParams(await searchParams);
   const supabase = await createClient();
+
+  // Drafts are a different relation, so this branches BEFORE queryLibraryPage —
+  // calling it for view=drafts would quietly return prompts. `q`, `model` and
+  // `mode` all map onto real draft columns and narrow this view too; `tag` and
+  // `collection` are prompts-only and have nothing to match, so they are ignored
+  // rather than reinterpreted into something the user did not ask for.
+  if (isDraftsView(filter)) {
+    const [{ cards: draftCards, nextCursor: draftCursor, unavailable }, modelFacets] =
+      await Promise.all([
+        queryDraftsPage(supabase, filter),
+        queryDraftModelFacets(supabase),
+      ]);
+    return (
+      <>
+        <ScreenHeader title="Library" />
+        <div className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5">
+          <DraftsToolbar filter={filter} modelFacets={modelFacets} />
+          <DraftsList
+            initialCards={draftCards}
+            nextCursor={draftCursor}
+            unavailable={unavailable}
+            filter={filter}
+          />
+          <Footer inset />
+        </div>
+      </>
+    );
+  }
 
   let cards: PromptCard[];
   let nextCursor: string | null;

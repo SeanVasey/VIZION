@@ -6,6 +6,84 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — one password rule, 12 characters with character classes
+
+The account password minimum goes from 8 to **12**, and now also requires a
+lowercase letter, an uppercase letter and a number. It governs SETTING or
+CHANGING a password; existing passwords are untouched and keep working, so a rule
+change locks nobody out.
+
+`src/lib/auth/password.ts` is the single definition — `MIN_PASSWORD_LENGTH`,
+`validatePassword()` and `PASSWORD_RULE_TEXT`. The rule had been the literal `8`
+in four places (a `MIN_PASSWORD` const in `(auth)/actions.ts` plus three
+`minLength={8}` attributes across `SetPasswordForm` and `SettingsPanel`), so
+raising it meant finding all four and a miss would leave a form that accepts what
+the server rejects. A unit test now fails if any call site hardcodes a length
+again, or stops importing the shared module.
+
+Both forms state the rule under the inputs instead of letting the user discover it
+by rejection — `minLength` alone says nothing about character classes. The server
+still validates independently: `minLength` is a convenience a client can decline
+to honour.
+
+Not DIY auth (§6): Supabase Auth still owns the credential, hashes it and issues
+the session. This is input validation in front of `supabase.auth.updateUser`, the
+same category as checking that the two fields match.
+
+**Why classes, with a caveat.** The control that actually addresses credential
+stuffing is Supabase's leaked-password check against HaveIBeenPwned, and it is
+gated behind the Pro plan — this org is on Free, so it cannot be enabled. NIST SP
+800-63B §5.1.1.2 recommends against mandatory composition rules and for a
+breach-list check instead, so if this project moves to Pro, turning on "Prevent
+the use of leaked passwords" in Auth → Providers → Email is strictly better than
+the class checks and they can be relaxed. Recorded in the module's own comment so
+the tradeoff is visible at the point of change.
+
+
+### Added — account-backed drafts and a "New prompt" button
+
+A floating + on Library and Settings takes you back to an empty composer. With
+nothing in the composer it goes straight there; with a prompt in progress it asks
+first, because the draft persists and starting fresh would otherwise destroy it.
+Save keeps it in your account, Discard throws it away (undoably — unlike Save,
+there is no server copy to fall back on), Cancel changes nothing.
+
+Drafts are server state, in a new `public.drafts` table with owner-only RLS
+(`drafts_<verb>_own`, shipped in the same migration per §6). `editorDraft` had
+only ever been in localStorage, which §6 calls convenience-only and iOS ITP
+evicts — a draft the user was told was "saved" has to survive eviction, a new
+device and a reinstall. Its own relation rather than a `prompts.is_draft` flag:
+every library read filters `prompts` on `deleted_at`/`archived_at` and nothing
+else, so a flag would have leaked drafts into the library, the facet counts and
+the activity feed until each was audited, and any future query would have to
+remember. A separate relation cannot leak by omission.
+
+Saved drafts appear under a Drafts view in the library (`/library?view=drafts`),
+reusing the existing filter/URL/back-button plumbing, and they are **searchable**:
+the view has its own search field and model chips. Search covers the body as well
+as the title, because a draft's title is only its derived first line — title-only
+search (what the prompts library does, where the user names the prompt) would miss
+what the draft is actually about. `model` and `mode` narrow drafts too since both
+are real columns; `tag` and `collection` are prompts-only and stay ignored rather
+than being reinterpreted. The filter is re-sent with "Load more", so page 2 is
+narrowed exactly like page 1. A draft captures the whole
+composer state — body, target model, mode, thinking level — because resuming into
+whichever model happened to be selected later would silently change what you get
+back. Resuming is a **move**: the state is written into the composer and the
+server row is deleted, so the same work never exists in two places. The body is
+fetched before the delete, so a failed read loses nothing.
+
+The local draft is cleared only after a save reports `ok`. A pending migration
+(`unavailable`) counts as a failure for that purpose — clearing on a save that
+did not happen would destroy exactly the work the user asked to keep.
+
+`supabase/migrations/20260730000000_drafts.sql` has been applied to the hosted
+project (2026-07-30). The client still degrades safely if it is ever missing: the
+Drafts view says drafts aren't set up yet rather than "nothing saved" (a lie about
+data the user may have) or an error (alarming about a system that is merely
+incomplete), and the save path refuses and keeps the draft.
+
+
 ### Changed — the Enhance hero emblem becomes Horizon
 
 The `PromptFlow` emblem repeated the `(│›◯)` mark about 200px below the same

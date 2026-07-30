@@ -66,6 +66,10 @@ const VIEW_LABEL: Record<LibraryView, string> = {
   all: "All",
   favorites: "Favorites",
   archived: "Archived",
+  // Reads as a fourth view, but it lists a different relation — see
+  // `isDraftsView`. The Record is exhaustive over LibraryView on purpose:
+  // adding a view without a label is a type error, not a blank chip.
+  drafts: "Drafts",
 };
 
 const SORT_LABEL: Record<LibrarySort, string> = {

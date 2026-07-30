@@ -1608,3 +1608,66 @@ than as a puzzling failure in whichever spec ran first.
   both hold in the fixed state, and either one alone is satisfied by a uniform
   shrink. Cheap to add, and it is the difference between a spec that documents
   the request and one that documents a number.
+- **A shared e2e stub becomes shared mutable state the moment a spec WRITES.**
+  `fullyParallel` runs every project against one stub process, reset once in
+  global setup. Read-only specs never noticed; the first specs to insert rows hit
+  id collisions (`stub-${length + 1}` computed concurrently by two workers mints
+  the same id, after which an id-scoped DELETE removes both rows) and assertions
+  about global emptiness that pass or fail on what the other project is doing.
+  Scope every assertion to a row you created, and never derive an id from a
+  length.
+- **A service worker that owns navigations owns your `page.goto` too.** Drafts
+  assertions failed while the database was already correct: `sw-src.js` is
+  StaleWhileRevalidate for navigations with a catch-handler falling back to the
+  precached `/enhance` shell, so a repeat `goto` was served stale and, in WebKit,
+  a fresh one was answered with the wrong document entirely. Client navigation
+  fetches RSC payloads and is unaffected — so this is a hazard of driving the app
+  with hard navigations, not a bug users meet.
+- **`fill()` on a CONTROLLED input is a race with hydration, and it fails
+  silently.** Pre-hydration the fill sets the DOM value; hydration then renders
+  the store's empty string and the text is gone. Under two-project load in
+  WebKit, 20s of retried fills never stuck while the same test passed alone. It
+  surfaced three layers away — as the FAB skipping its confirm dialog — which
+  looks like a component bug. Assert the controlled value survives before acting
+  on it; that assertion IS the check that the store holds it.
+- **Know when to stop converting a flaky e2e into a green one.** Four fixes in
+  (unique bodies, unique URLs, UI navigation, seeded store) the multi-step drafts
+  journey was still red in one engine, and one attempt had broken two previously
+  green tests. The journey moved to unit tests, where it is deterministic, and
+  the e2e kept only what needs a real engine — where the button is, that it
+  clears the nav, which routes show it. A spec green in one project and red in
+  another is worse than an absent one, and the comment in the file says why it
+  is absent.
+- **The e2e stub silently ignores filters it does not implement, which makes a
+  broken search look like a working one.** `applyFilters` skips any op outside
+  `SUPPORTED_OPS`, so a PostgREST `or=(title.ilike...,body.ilike...)` is dropped
+  entirely — an e2e "search returns the row" would have passed with the filter
+  doing nothing at all. Search is covered instead by asserting the emitted
+  builder calls against a recording fake, which is where the real bugs live:
+  unescaped `%`/`_` widening the match, and an unquoted comma or paren breaking
+  the or-grammar into a different query.
+- **Two escaping layers, and the wire form is the only honest assertion.**
+  `escapeLike` protects ilike wildcards; `quoteOrValue` then doubles those
+  backslashes for the quoted-value grammar, which PostgREST unescapes back to
+  one. My first assertion expected the single-backslash form and failed against
+  correct code — the fix was the test, not the query. Assert what actually goes
+  on the wire, and say why both layers are there.
+- **Check the plan before promising a dashboard toggle.** The security advisor
+  flagged leaked-password protection as disabled; it is a Pro-plan feature and
+  the org is on Free, so there was no switch to flip. The advisor does not say
+  that, and neither did I until I read the docs and called `get_organization`.
+  When a remediation is "enable X in the dashboard", confirm X exists for that
+  plan first — otherwise the advice sends someone hunting for a control that is
+  not there.
+- **A constant repeated at every call site is a rule with no owner.** The
+  password minimum lived as `8` in four places: one server const and three
+  `minLength={8}` attributes. Raising it is then a search-and-replace where a
+  miss produces the nastiest shape of bug — a form that accepts a value the
+  server rejects, or an input that permits less than the server requires. The
+  fix is a module plus a test that greps the call sites for a hardcoded number,
+  so the next change cannot half-land.
+- **Say what the rule is; do not let rejection teach it.** `minLength` cannot
+  express character classes, so the forms enforced something they never
+  described. Helper text derived from the same constant as the validator means
+  the copy cannot drift from what is enforced — and a test asserts the sentence
+  mentions the number and every class.
