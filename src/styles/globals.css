@@ -790,6 +790,23 @@
     }
   }
 
+  /* Overlay scrim entry — the panel rises with .sheet-in but its scrim used
+     to pop to 80% Void on the first frame, which read as a flash before the
+     panel arrived. Same duration/ease as the panel, same reduced-motion
+     posture: the end state is the natural one, so the collapse snaps to a
+     fully-opaque scrim. */
+  .scrim-in {
+    animation: scrim-in 200ms ease-out;
+  }
+  @keyframes scrim-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   /* Top-edge Laser shimmer for the active result surface (R4). */
   .result-shimmer {
     position: relative;
