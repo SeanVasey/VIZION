@@ -6,6 +6,56 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Security — concurrent requests could walk past the daily cost cap
+
+Both model routes read a usage window, called a provider, and only then wrote
+the ledger row. The whole provider call sits between the read and the write, so
+every request that started inside that gap saw the same balance and passed. The
+in-memory burst guard in front of it is per serverless instance and cannot
+converge on a platform that spins a fresh instance per concurrent invocation.
+
+Admission now happens in `spend_reserve`: the rate limit, the cap check and a
+hold are taken together under one per-user advisory lock, so a concurrent
+request sees the hold even though its ledger row does not exist yet. The run
+then settles (recording the real cost and dropping the hold) or releases. Holds
+older than five minutes are swept, so a killed function or a vanished client
+cannot eat headroom until midnight.
+
+**On the sizing, which is where the first attempt at this went wrong.** PR #62
+reserved each request's theoretical worst case — the target's full output
+ceiling at list price. Against the shipped $2.00/day cap that meant Fable 5 at
+max effort reserved $3.20, more than the entire cap, so **every** request was
+refused on an empty ledger, permanently; Opus 5 on Auto allowed two
+enhancements a day. Measured against this project's real history the hold was
+31x the largest request ever made (avg $0.014, p95 $0.052, max $0.102, and
+$1.58 of spend across 109 events all time). That is why #62 was reverted.
+
+The error was conceptual: a reservation is a **concurrency guard**, not a
+worst-case bound. It only has to be large enough that parallel requests cannot
+collectively overshoot. Sized as a worst case, the cap starts rejecting on the
+reservation instead of on real spend.
+
+So the hold is now derived from what the account actually spends — p95 of its
+own recent events with 3x headroom — and then clamped to a tenth of the cap.
+The clamp is the load-bearing part: it makes it structurally impossible for a
+hold to approach the cap, whatever later happens to list prices, output
+ceilings or the roster. On current data that is a $0.155 hold against a $2.00
+cap. A brand-new account holds the $0.01 floor.
+
+Admission also stays on committed spend (`today + pending >= cap`) rather than
+`today + pending + this hold > cap`, which is the specific comparison that
+refused the first request of the day.
+
+Two further corrections to that design: `spend_settle` writes the ledger row
+**unconditionally**, because a run slow enough to have been swept still spent
+the money and a spend the cap cannot see is worse than a stale hold; and the
+sizing lives in the database next to the account's history and the clamp, not
+in application code. `tests/unit/spend-atomicity.test.ts` pins all four
+decisions, and each assertion was checked to fail against the reverted version.
+
+`usage_window()` is no longer called by the application. It is left in place for
+now rather than dropped in the same change that stops using it.
+
 ### Security — the daily cost cap could be switched off from the browser
 
 `usage_window()` derives `today_cost` from `sum(cost_usd)` over `usage_events`,

@@ -126,9 +126,22 @@ describe("both model routes use the function", () => {
     ["media", source("src", "app", "api", "media", "route.ts")],
   ] as const;
 
+  /**
+   * Either SECURITY DEFINER writer satisfies the property this file is about.
+   *
+   * This started as `toMatch(/rpc\("record_usage"/)` and correctly went red
+   * when the routes moved to `spend_settle` for atomic admission — the name
+   * changed, the guarantee did not. Naming one function pinned the
+   * implementation; what matters is that the ledger is written through a
+   * DEFINER function that derives the owner from the JWT, so the client can
+   * hold no INSERT grant on `usage_events`. The negative assertion below is
+   * the half that must never loosen.
+   */
+  const DEFINER_LEDGER_WRITE = /\.rpc\(\s*"record_usage"|settleSpend\(/;
+
   for (const [name, src] of routes) {
-    it(`${name} records usage via the RPC`, () => {
-      expect(src).toMatch(/\.rpc\(\s*"record_usage"/);
+    it(`${name} records usage through a SECURITY DEFINER writer`, () => {
+      expect(src).toMatch(DEFINER_LEDGER_WRITE);
     });
 
     it(`${name} no longer inserts into usage_events directly`, () => {

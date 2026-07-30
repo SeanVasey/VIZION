@@ -22,6 +22,7 @@ import {
 } from "@/lib/providers/config";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { reserveSpend, settleSpend, releaseSpend } from "@/lib/security/spend";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
@@ -112,19 +113,6 @@ export async function POST(request: NextRequest) {
     return err(413, "Image is too large to analyze.");
   }
 
-  // Rate limit + cost cap (RLS scopes the window to this user).
-  const { data: windowRows, error: windowError } = await supabase.rpc("usage_window", {
-    p_rate_seconds: 60,
-  });
-  if (windowError) return err(500, "Couldn't check your usage limits.");
-  const win = windowRows?.[0] ?? { recent_count: 0, today_cost: 0 };
-  if (Number(win.recent_count) >= RATE_LIMIT_PER_MIN) {
-    return err(429, "You're going fast — wait a moment and try again.");
-  }
-  if (Number(win.today_cost) >= COST_CAP_USD_PER_DAY) {
-    return err(429, "You've reached today's usage cap.", { capReached: true });
-  }
-
   // Vision runs on the selected model. A text-only flagship (DeepSeek,
   // MiniMax, Qwen Max) can't take an image at all, so analysis is routed to
   // the first configured vision-capable provider up front. A config-shaped
@@ -132,6 +120,9 @@ export async function POST(request: NextRequest) {
   // retries once on the first other configured provider — a bad key for one
   // provider shouldn't cost the user the whole feature. Anything else
   // surfaces as-is.
+  //
+  // Resolved BEFORE the reservation so the "no vision model configured" 503
+  // returns without ever taking a hold it would then have to release.
   let usedTarget = typedTarget;
   if (!supportsVision(typedTarget)) {
     const redirect = visionFallbackTarget(typedTarget);
@@ -142,22 +133,37 @@ export async function POST(request: NextRequest) {
     }
     usedTarget = redirect;
   }
+
+  // Rate limit + cost cap + the hold, decided together under one lock — the
+  // same race the sibling model route had. One hold covers this request
+  // including its single cross-provider retry.
+  const reservation = await reserveSpend(supabase);
+  if ("error" in reservation) {
+    if (reservation.error === "rate") {
+      return err(429, "You're going fast — wait a moment and try again.");
+    }
+    if (reservation.error === "cap") {
+      return err(429, "You've reached today's usage cap.", { capReached: true });
+    }
+    return err(500, "Couldn't check your usage limits.");
+  }
+
   const visionOpts = { system: intentSpec.system, expect: intentSpec.expect };
   let extracted;
   try {
-    extracted = await describeImage(
-      parsed.base64,
-      parsed.mediaType,
-      usedTarget,
-      visionOpts,
-    );
-  } catch (e) {
-    const fallback = isVisionConfigError(e) ? visionFallbackTarget(usedTarget) : null;
-    if (!fallback) return visionError(e);
-    console.error(
-      `[media] vision on ${usedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
-    );
     try {
+      extracted = await describeImage(
+        parsed.base64,
+        parsed.mediaType,
+        usedTarget,
+        visionOpts,
+      );
+    } catch (e) {
+      const fallback = isVisionConfigError(e) ? visionFallbackTarget(usedTarget) : null;
+      if (!fallback) throw e;
+      console.error(
+        `[media] vision on ${usedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
+      );
       extracted = await describeImage(
         parsed.base64,
         parsed.mediaType,
@@ -165,24 +171,29 @@ export async function POST(request: NextRequest) {
         visionOpts,
       );
       usedTarget = fallback;
-    } catch (e2) {
-      return visionError(e2);
     }
+  } catch (e) {
+    // Every failure path out of the provider calls funnels here, so the hold
+    // cannot be stranded by an early return added later.
+    const { error: releaseError } = await releaseSpend(supabase, reservation.id);
+    if (releaseError) {
+      console.error(writeErrorLogLine("media", "spend hold release", releaseError));
+    }
+    return visionError(e);
   }
 
   const cfg = TARGETS[usedTarget];
   const costUsd = computeCost(usedTarget, extracted.tokenIn, extracted.tokenOut);
-  // Written through `record_usage` (SECURITY DEFINER, owner from the verified
-  // JWT) for the same reason as the sibling model route: it lets the client's
-  // direct INSERT grant on `usage_events` be withdrawn, closing the path that
-  // let a forged negative `cost_usd` defeat the daily cap.
-  const { error: ledgerError } = await supabase.rpc("record_usage", {
-    p_target: usedTarget,
-    p_mode: "extract",
-    p_model_used: cfg.model,
-    p_token_in: extracted.tokenIn,
-    p_token_out: extracted.tokenOut,
-    p_cost_usd: costUsd,
+  // Settling records the real cost and drops this run's hold in one step,
+  // inside a SECURITY DEFINER function that takes the owner from the verified
+  // JWT — the client holds no INSERT grant on `usage_events`.
+  const { error: ledgerError } = await settleSpend(supabase, reservation.id, {
+    target: usedTarget,
+    mode: "extract",
+    modelUsed: cfg.model,
+    tokenIn: extracted.tokenIn,
+    tokenOut: extracted.tokenOut,
+    costUsd,
   });
   // The cap is only as good as this write (console.error survives prod).
   if (ledgerError) {
@@ -194,7 +205,7 @@ export async function POST(request: NextRequest) {
     tokenIn: extracted.tokenIn,
     tokenOut: extracted.tokenOut,
     costUsd,
-    todayCost: Number(win.today_cost) + costUsd,
+    todayCost: reservation.todayCost + costUsd,
     capUsd: COST_CAP_USD_PER_DAY,
   };
 

@@ -313,6 +313,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      usage_reservations: {
+        Row: {
+          id: string;
+          user_id: string;
+          reserved_usd: number;
+          status: string;
+          created_at: string;
+          settled_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          reserved_usd: number;
+          status?: string;
+          created_at?: string;
+          settled_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          reserved_usd?: number;
+          status?: string;
+          created_at?: string;
+          settled_at?: string | null;
+        };
+        Relationships: [];
+      };
       oauth_identities: {
         Row: {
           id: string;
@@ -397,6 +424,30 @@ export type Database = {
           p_role?: string;
         };
         Returns: { id: string; storage_path: string }[];
+      };
+      spend_release: {
+        Args: { p_reservation_id: string };
+        Returns: undefined;
+      };
+      spend_reserve: {
+        Args: { p_cap: number; p_rate_limit: number; p_rate_seconds: number };
+        Returns: {
+          reservation_id: string;
+          today_cost: number;
+          reserved_usd: number;
+        }[];
+      };
+      spend_settle: {
+        Args: {
+          p_reservation_id: string;
+          p_target: Database["public"]["Enums"]["model_target"];
+          p_mode: string;
+          p_model_used: string;
+          p_token_in: number;
+          p_token_out: number;
+          p_cost_usd: number;
+        };
+        Returns: undefined;
       };
       record_usage: {
         Args: {
