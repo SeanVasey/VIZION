@@ -4,15 +4,14 @@ import { useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import {
   TARGET_THINKING_LEVELS,
-  THINKING_LEVEL_LABEL,
   type ModeId,
   type TargetModelId,
-  type ThinkingLevel,
 } from "@/lib/constants";
 import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { TargetPicker } from "@/components/models/TargetPicker";
+import { ThinkingPicker } from "@/components/models/ThinkingPicker";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
@@ -28,6 +27,18 @@ import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
 
 /** Frozen option list for the format rail — built once, not per render. */
 const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
+
+/**
+ * The control pill shared by the Target and Thinking rails.
+ *
+ * ONE string, two consumers, on purpose. The rails stack directly on top of
+ * each other, so the pills are read as a pair and any divergence in type size
+ * or padding reads as a bug — which is exactly what shipped while Thinking was
+ * a `<select>` (see ThinkingPicker's header for the iOS 16px floor that caused
+ * it). Two copies of the same class string is how that drift comes back.
+ */
+const RAIL_TRIGGER_CLASS =
+  "font-body inline-flex min-h-[44px] items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-2.5 text-sm text-text transition-colors hover:text-chalk";
 
 /**
  * Enhance composer.  Wires the mode instrument, the Reddit-Sans prompt editor,
@@ -371,58 +382,32 @@ export function EnhanceComposer() {
             onChange={setTargetModel}
             auto={autoTarget}
             onAutoChange={setAutoTarget}
-            triggerClassName="font-body inline-flex min-h-[44px] items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-2.5 text-sm text-text transition-colors hover:text-chalk"
+            triggerClassName={RAIL_TRIGGER_CLASS}
           />
         </div>
 
         {/* Thinking rail — reasoning depth, only for targets whose provider
             takes a per-request level (TARGET_THINKING_LEVELS). "Auto" sends
             nothing and leaves the provider's own default in place; the choice
-            persists per target, so switching models keeps each one's dial. */}
+            persists per target, so switching models keeps each one's dial.
+
+            Trigger + sheet rather than a `<select>`, on the same grounds as the
+            Target rail above it: a select is floored at 16px on iOS and would
+            render this pill's label larger than the one directly above it. The
+            caption is a `<span>` because there is no longer a form element for
+            `htmlFor` to point at — the trigger carries its own accessible name. */}
         {levelOptions && (
           <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
-            <label
-              htmlFor="thinking-level"
-              className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver"
-            >
+            <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
               Thinking
-            </label>
-            <div className="relative inline-flex items-center">
-              <select
-                id="thinking-level"
-                value={thinkingLevel ?? ""}
-                onChange={(e) =>
-                  setThinkingLevel(
-                    targetModel,
-                    e.target.value === "" ? null : (e.target.value as ThinkingLevel),
-                  )
-                }
-                className="font-body cursor-pointer appearance-none rounded-full bg-surface py-1.5 pl-4 pr-8 text-sm text-text focus:outline-none focus-visible:shadow-none"
-              >
-                <option value="" className="bg-onyx text-chalk">
-                  Auto
-                </option>
-                {levelOptions.map((level) => (
-                  <option key={level} value={level} className="bg-onyx text-chalk">
-                    {THINKING_LEVEL_LABEL[level]}
-                  </option>
-                ))}
-              </select>
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="pointer-events-none absolute right-2.5 h-4 w-4 text-silver"
-              >
-                <path
-                  d="M8 10l4 4 4-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+            </span>
+            <ThinkingPicker
+              label="Thinking depth"
+              value={thinkingLevel}
+              options={levelOptions}
+              onChange={(next) => setThinkingLevel(targetModel, next)}
+              triggerClassName={RAIL_TRIGGER_CLASS}
+            />
           </div>
         )}
 

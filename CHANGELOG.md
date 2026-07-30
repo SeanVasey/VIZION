@@ -6,6 +6,40 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the Thinking pill rendered two points larger than the Target pill above it
+
+Both rails asked for `text-sm`. Only one got it. Thinking was a native
+`<select>`, and `globals.css` floors `input, select, textarea` at 16px on iOS —
+Safari zooms the page when a focused control computes under 16px and rarely
+zooms back out — with `!important`, which out-specifies `text-sm`. So the
+select's "Auto" rendered 16px directly beneath a 14px "Opus 5", in two rails
+that are read as a pair.
+
+The floor is invisible to CI by construction: it sits behind a
+`-webkit-touch-callout` gate, which is an iOS-only filter precisely because the
+property does not exist elsewhere (see `docs/runbooks/ios-verification.md`).
+
+Thinking is now a trigger + sheet, the move `TargetPicker` already made for the
+same reason — a `<button>` is outside the rule's scope entirely. Both triggers
+take **one** class string (`RAIL_TRIGGER_CLASS`), so type size, padding, height
+and hover treatment cannot drift apart again, and the sheet buys the room to say
+what Auto actually does, which an `<option>` cannot. `tests/unit/thinking-rail.test.tsx`
+pins the parity and the absence of a replaced form control in the rails.
+
+### Changed — the attach control reads as an upload again
+
+The capability line ("images are analyzed; video contributes its first
+frame…") sat permanently under the media rail as a two-line paragraph, and
+paying for that space had squeezed the attach control down to a 12px text link
+with a 📎 emoji — the one thing in the tray that has to look like a button.
+
+The words now live behind a `?` in the rail, as a tap-toggled panel (in flow,
+because the composer chassis is `overflow-hidden` and would clip a floating
+one). Attach is a real bordered pill at the rails' `text-sm` with an upload
+mark, and the `Originals: stored` dial stays exactly where it was, one step
+smaller and quieter, since it reports a standing preference rather than an
+action.
+
 ### Fixed — Qwen3.7 Max ran into a 400 on every request, and had no thinking selector
 
 Two independent mistakes, both of which made "Max" look like the problem when it
