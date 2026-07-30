@@ -16,6 +16,7 @@ import { TransformationDiff } from "@/components/diff/TransformationDiff";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { PressableButton } from "@/components/ui/PressableButton";
 import { useToast } from "@/components/ui/Toast";
 import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
@@ -537,8 +538,8 @@ export function EnhanceComposer() {
             </button>
             {/* h-11 (44px tap target) with -my-1 so the rail keeps its height.
                 ENHANCE is the ONLY filled-Laser primary in the composer. */}
-            <button
-              type="button"
+            <PressableButton
+              subtle
               onClick={runEnhance}
               disabled={enhanceMutation.isPending || isEmpty}
               className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
@@ -551,7 +552,7 @@ export function EnhanceComposer() {
               ) : (
                 "► ENHANCE"
               )}
-            </button>
+            </PressableButton>
           </div>
         </div>
       </div>

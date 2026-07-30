@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ProviderIcon } from "@/components/auth/ProviderIcon";
+import { PressableButton } from "@/components/ui/PressableButton";
 
 type Status =
   | { kind: "idle" }
@@ -176,7 +177,8 @@ export function SignInForm({ initialError }: { initialError?: string }) {
             />
           </>
         )}
-        <button
+        <PressableButton
+          subtle
           type="submit"
           disabled={busy}
           className="btn-laser font-body flex min-h-[48px] items-center justify-center rounded-xl px-6 text-base disabled:opacity-60"
@@ -188,7 +190,7 @@ export function SignInForm({ initialError }: { initialError?: string }) {
             : withPassword
               ? "Sign in"
               : "Email me a magic link"}
-        </button>
+        </PressableButton>
         <button
           type="button"
           onClick={() => setWithPassword((v) => !v)}
