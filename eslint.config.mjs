@@ -91,15 +91,9 @@ const eslintConfig = [
    * would rewrite most of the codebase in one commit and bury real defects in
    * churn. This rule alone answers the question the gate could not: does this
    * class name mean anything?
-   *
-   * NOTE the file patterns are written out rather than as `src/**\/*.{ts,tsx}`.
-   * A brace pattern makes ESLint call `Minimatch.braceExpand`, and this repo
-   * overrides `brace-expansion` to ^5 while ESLint's `minimatch@3` expects ^1 —
-   * so ANY braced pattern here dies with "expand is not a function". The
-   * override is security-motivated and not mine to loosen — see AGENTS.md.
    */
   {
-    files: ["src/**/*.ts", "src/**/*.tsx"],
+    files: ["src/**/*.{ts,tsx}"],
     plugins: { tailwindcss: tailwind },
     settings: {
       tailwindcss: {

@@ -6,6 +6,38 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the `brace-expansion` override no longer breaks glob expansion
+
+`overrides` had a single blanket `"brace-expansion": "^5.0.8"`, which forced v5
+into `minimatch@3` — reached via `@eslint/config-array`, `@eslint/eslintrc`,
+eslint and three of its plugins. v5's CJS entry exports an **object**
+(`{ EXPANSION_MAX, EXPANSION_MAX_LENGTH, expand }`) while minimatch@3 does
+`require('brace-expansion')` and **calls the result**, so brace expansion through
+minimatch@3 died with `TypeError: expand is not a function`.
+
+That broke every braced glob reachable through minimatch@3 and went unnoticed
+because nothing in the repo used one. The commit that added the override recorded
+"5.0.8 still publishes a CJS require export, so minimatch@3 keeps working — the
+path `npm run lint` exercises", which was verified against a config with no braced
+pattern; the export exists but is not callable. An ESLint
+`files: ["src/**/*.{ts,tsx}"]` is the first thing to hit it.
+
+The override is now keyed per major — `brace-expansion@1` → `^1.1.17`,
+`@2` → `^2.1.3`, `@5` → `^5.0.8` — so every consumer gets an API it can actually
+call. Verified: `minimatch@3` loads its own nested `1.1.17`, and
+`new Minimatch("src/**/*.{ts,tsx}").braceExpand()` returns
+`["src/**/*.ts", "src/**/*.tsx"]`.
+
+**Tradeoff, taken deliberately.** The advisory range is `<=5.0.7`, so there is no
+patched 1.x or 2.x — the earlier commit was right about that. The full-tree
+`npm audit` therefore reports 14 high entries again, every one in dev tooling (the
+eslint chain and workbox-build), none in shipped code. CI gates
+`npm audit --omit=dev --audit-level=high`, which stays at **0**, and the full-tree
+step was already advisory-only (`|| true`). The alternative was keeping a silently
+broken glob engine in exchange for a tidier report about packages that never
+reach production.
+
+
 ### Added — lint now rejects class names Tailwind does not recognise
 
 `eslint-plugin-tailwindcss`'s `no-custom-classname` is on for `src/`, with the

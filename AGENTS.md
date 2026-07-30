@@ -59,16 +59,24 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
 - **Fonts are self-hosted** — `next/font/local` over woff2 vendored under
   `src/app/fonts/` — so the build needs no network for fonts. Any advice
   blaming a build failure on a font fetch predates that and is wrong.
-- **No brace patterns in `eslint.config.mjs`.** `package.json` overrides
-  `brace-expansion` to `^5` (security), but ESLint's `minimatch@3` — reached via
-  `@eslint/config-array` and `@eslint/eslintrc` — expects `^1` and calls it as
-  `expand(...)`. v5 has no such export, so ANY `files`/`ignores` pattern
-  containing `{a,b}` dies with `TypeError: expand is not a function` before a
-  single file is linted. The existing patterns are all brace-free, which is the
-  only reason this has never been seen. Write `src/**/*.ts` and `src/**/*.tsx`
-  as two entries rather than `src/**/*.{ts,tsx}`. Loosening the override to fix
-  it properly reintroduces whatever it was added to patch, so that is an owner
-  decision, not a drive-by.
+- **`brace-expansion` is overridden PER MAJOR, and it has to stay that way.**
+  A single blanket `"brace-expansion": "^5.0.8"` forces v5 into `minimatch@3`
+  (reached via `@eslint/config-array`, `@eslint/eslintrc`, eslint and three of
+  its plugins). v5's CJS entry exports an OBJECT —
+  `{ EXPANSION_MAX, EXPANSION_MAX_LENGTH, expand }` — while minimatch@3 does
+  `require('brace-expansion')` and calls the result, so brace expansion through
+  minimatch@3 dies with `TypeError: expand is not a function`. That broke every
+  braced glob in the tree, and it went unnoticed because nothing in the repo used
+  one: an ESLint `files: ["src/**/*.{ts,tsx}"]` is the first thing to hit it.
+  The keys are `brace-expansion@1` / `@2` / `@5`, each pinned to the newest
+  release of its own line, so every consumer gets an API it can actually call.
+  **Consequence, deliberately accepted:** the advisory range is `<=5.0.7`, so no
+  patched 1.x/2.x exists and the FULL-tree `npm audit` reports 14 high entries,
+  all in dev tooling (the eslint chain and workbox-build). CI gates
+  `npm audit --omit=dev --audit-level=high`, which stays at **0**, and the
+  full-tree step is already advisory-only (`|| true`). The alternative was a
+  silently broken glob engine in exchange for a cleaner advisory report on
+  dependencies that never ship.
 - **`eslint-plugin-tailwindcss` must stay on the `3.x` line** while this project
   is on Tailwind 3. `4.x` declares `peer tailwindcss@^4` and will not install
   without `--force`. Its `settings.tailwindcss.config` also has to be an

@@ -1773,3 +1773,19 @@ than as a puzzling failure in whichever spec ran first.
   formatting rules (`classnames-order`, `enforces-shorthand`) that would rewrite
   most of the codebase in one commit. One targeted rule keeps the diff reviewable
   and the signal legible; a repo-wide reformat would have buried it.
+- **"Still publishes a CJS export" is not "still callable".** The blanket
+  `brace-expansion@^5` override was justified with exactly that phrase, and v5
+  does publish CJS — but as `{ EXPANSION_MAX, EXPANSION_MAX_LENGTH, expand }`,
+  while `minimatch@3` requires the module and CALLS it. Forcing a major across an
+  API boundary breaks consumers whose range you overrode; check the export SHAPE,
+  not its existence.
+- **A dependency override that satisfies `npm audit` can silently break
+  behaviour, and the check that "proved" it was fine tested the wrong path.**
+  `npm run lint` passed because no ESLint pattern contained braces, so
+  `braceExpand` was never reached. Latent for days. When an override crosses a
+  major, exercise the API the overridden consumer actually calls.
+- **Advisory-clean is not free.** With no patched 1.x/2.x in existence, the choice
+  was a working glob engine with 14 dev-only advisories, or a clean full-tree
+  report with a broken one. Read what CI actually gates — here
+  `npm audit --omit=dev`, with the full-tree step already `|| true` — before
+  trading correctness for a number.
