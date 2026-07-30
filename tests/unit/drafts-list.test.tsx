@@ -22,6 +22,11 @@ const actions = vi.hoisted(() => ({
       ok: true,
     }),
   ),
+  updateDraftAction: vi.fn(
+    async (): Promise<{ ok: boolean; error?: string; unavailable?: boolean }> => ({
+      ok: true,
+    }),
+  ),
   fetchDraftsPageAction: vi.fn(async () => ({ ok: true, cards: [], nextCursor: null })),
 }));
 vi.mock("@/lib/drafts/actions", () => actions);
@@ -29,9 +34,14 @@ vi.mock("@/lib/drafts/actions", () => actions);
 import { DraftsList } from "@/components/library/DraftsList";
 import { useUIStore } from "@/stores/ui";
 
+const LONG_BODY = `first line of the draft\n${"x".repeat(400)}`;
+
 const CARD: DraftCard = {
   id: "d1",
   title: "the full saved body",
+  // A real card's preview is the first 160 characters of the body. Kept short
+  // here on purpose: an editor seeded from this instead of the fetched body
+  // would silently truncate the draft on save.
   preview: "the full saved body",
   target_model: "sonnet_5",
   mode: "expand",
@@ -63,6 +73,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   actions.getDraftBodyAction.mockResolvedValue({ ok: true, body: "the full saved body" });
   actions.deleteDraftAction.mockResolvedValue({ ok: true });
+  actions.updateDraftAction.mockResolvedValue({ ok: true });
   useUIStore.setState({
     editorDraft: "",
     targetModel: "opus_5",
@@ -140,5 +151,110 @@ describe("Drafts list", () => {
     // user may well have.
     renderList([], true);
     expect(screen.getByText(/aren't set up yet/i)).toBeTruthy();
+  });
+});
+
+describe("Editing a draft in place", () => {
+  const openEditor = () =>
+    fireEvent.click(screen.getByRole("button", { name: /^Edit draft:/ }));
+
+  it("seeds the editor from the FETCHED body, never the truncated preview", async () => {
+    actions.getDraftBodyAction.mockResolvedValue({ ok: true, body: LONG_BODY });
+    renderList();
+    openEditor();
+
+    const box = (await screen.findByLabelText("Draft text")) as HTMLTextAreaElement;
+    // The whole point: the row carries 160 characters, the editor must carry all
+    // of it, or saving destroys the rest.
+    expect(box.value).toBe(LONG_BODY);
+    expect(box.value).not.toBe(CARD.preview);
+  });
+
+  it("cannot save before the full body has arrived", async () => {
+    // Unresolved fetch — the editor is open but has nothing trustworthy in it.
+    actions.getDraftBodyAction.mockReturnValue(new Promise(() => {}) as never);
+    renderList();
+    openEditor();
+    expect(
+      await screen.findByRole("button", { name: /Save changes|Saving/ }),
+    ).toBeDisabled();
+    expect(screen.queryByLabelText("Draft text")).toBeNull();
+  });
+
+  it("saves the edited text and does NOT consume the draft", async () => {
+    renderList();
+    openEditor();
+    const box = await screen.findByLabelText("Draft text");
+    fireEvent.change(box, { target: { value: "reworded body" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    // Wait on the LAST step of the flow, not the first: the action call is
+    // recorded before its continuation runs, so waiting on it would assert
+    // against a half-finished save.
+    await vi.waitFor(() => expect(routerMock.refresh).toHaveBeenCalled());
+    expect(actions.updateDraftAction).toHaveBeenCalledWith("d1", "reworded body");
+    // In-place: unlike resume, the row survives and nothing navigates away.
+    expect(actions.deleteDraftAction).not.toHaveBeenCalled();
+    expect(routerMock.push).not.toHaveBeenCalled();
+    // And it does not leak into the live composer.
+    expect(useUIStore.getState().editorDraft).toBe("");
+  });
+
+  it("refuses to save an empty body", async () => {
+    renderList();
+    openEditor();
+    fireEvent.change(await screen.findByLabelText("Draft text"), {
+      target: { value: "   " },
+    });
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    expect(actions.updateDraftAction).not.toHaveBeenCalled();
+  });
+
+  it("keeps the editor open with the text intact when the save fails", async () => {
+    actions.updateDraftAction.mockResolvedValue({ ok: false, error: "nope" });
+    renderList();
+    openEditor();
+    const box = await screen.findByLabelText("Draft text");
+    fireEvent.change(box, { target: { value: "precious edit" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("nope");
+    // Closing here would throw away the edit the user just failed to save.
+    expect((screen.getByLabelText("Draft text") as HTMLTextAreaElement).value).toBe(
+      "precious edit",
+    );
+  });
+
+  it("reports a draft that has since been deleted instead of claiming success", async () => {
+    actions.updateDraftAction.mockResolvedValue({
+      ok: false,
+      error: "That draft is no longer there.",
+    });
+    renderList();
+    openEditor();
+    fireEvent.change(await screen.findByLabelText("Draft text"), {
+      target: { value: "edit into the void" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("no longer there");
+  });
+
+  it("surfaces a failed open without pretending the draft is empty", async () => {
+    actions.getDraftBodyAction.mockResolvedValue({ ok: false, error: "gone" });
+    renderList();
+    openEditor();
+    expect(await screen.findByText("gone")).toBeTruthy();
+    // An empty textarea would invite the user to overwrite the draft with it.
+    expect(screen.queryByLabelText("Draft text")).toBeNull();
+  });
+
+  it("cancel leaves the draft untouched", async () => {
+    renderList();
+    openEditor();
+    fireEvent.change(await screen.findByLabelText("Draft text"), {
+      target: { value: "abandoned" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(actions.updateDraftAction).not.toHaveBeenCalled();
   });
 });

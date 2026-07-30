@@ -1671,3 +1671,25 @@ than as a puzzling failure in whichever spec ran first.
   described. Helper text derived from the same constant as the validator means
   the copy cannot drift from what is enforced — and a test asserts the sentence
   mentions the number and every class.
+- **A list row is a projection; never seed an editor from it.** The Drafts card
+  carries a 160-character preview, and an edit sheet seeded from that would have
+  written the truncation back over the full draft on save — data loss with no
+  error, from code that reads perfectly. Fetch the real record, disable save
+  until it arrives, and show a failed fetch rather than an empty field that
+  invites the user to overwrite their own work. The test that proves it is the
+  one that fails when the seed comes from the preview.
+- **`default now()` fires on INSERT, not UPDATE.** With no trigger, an in-place
+  edit left `updated_at` at its original value, so a draft ordered
+  `updated_at desc` would be edited and still sink. Set it in the update, and
+  remember the second-order effect: bumping it REORDERS the list, which
+  invalidates any keyset cursor the client is holding, so accumulated pages have
+  to be dropped or the same row renders twice with different text.
+- **One `pending` flag for two operations mislabels both.** The shared
+  `useTransition` made the save button read "Saving…" while the sheet was still
+  *loading* the body — and it broke the tests, which is how I noticed. Separate
+  flags for separate operations; a spinner that lies about what it is doing is a
+  small bug that reads as a big one.
+- **Wait on the last step of an async flow, not the first.** `vi.waitFor` on the
+  action call resolved before its continuation ran, so the assertions ran against
+  a half-finished save and `router.refresh()` looked like it never happened.
+  Waiting on the terminal effect makes the test assert the whole flow.

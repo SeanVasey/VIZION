@@ -45,9 +45,18 @@ export interface DraftInput {
   thinkingLevel?: ThinkingLevel | null;
 }
 
+/** Body rules, shared by save and update so the two cannot diverge — an edit
+ *  that accepts what a save rejects is a constraint violation waiting to
+ *  surface as a raw Postgres message. */
+function validateBody(body: string): string | null {
+  if (!body.trim()) return "Nothing to save.";
+  if (body.length > MAX_BODY) return "That draft is too long to save.";
+  return null;
+}
+
 function validate(v: DraftInput): string | null {
-  if (!v.body.trim()) return "Nothing to save.";
-  if (v.body.length > MAX_BODY) return "That draft is too long to save.";
+  const badBody = validateBody(v.body);
+  if (badBody) return badBody;
   if (!MODE_IDS.has(v.mode)) return "Unknown mode.";
   if (!TARGET_IDS.has(v.target)) return "Unknown target model.";
   if (v.thinkingLevel && !LEVEL_IDS.has(v.thinkingLevel)) {
@@ -101,6 +110,60 @@ export async function saveDraftAction(v: DraftInput): Promise<DraftResult> {
     console.error(writeErrorLogLine("drafts", "save", error));
     return { ok: false, error: describeWriteError(error, "Couldn't save that draft.") };
   }
+
+  revalidatePath("/library");
+  return { ok: true, draftId: data.id };
+}
+
+/**
+ * Edit a saved draft in place, without consuming it.
+ *
+ * Resuming a draft is a MOVE: it lands in the composer and the row is deleted.
+ * That is right for "carry on writing this", and wrong for "fix a typo" or
+ * "reword this and leave it saved" — which previously meant resume, edit, and
+ * save a second time, with a window where the draft existed nowhere but this
+ * device. This is the in-place path.
+ *
+ * BODY ONLY, on purpose. target/mode/thinking level are the composer's own
+ * controls; editing them from a list row would mean rebuilding the mode rig and
+ * the target picker in a sheet, and resuming is the better route for that. The
+ * title is re-derived rather than editable for the same reason it is derived on
+ * save — it is a view of the first line, not a separate field to keep in sync.
+ *
+ * `updated_at` is set explicitly. The column defaults to now() on INSERT only,
+ * and there is no trigger, so without this an edited draft would keep its
+ * original timestamp and sink down a list ordered by `updated_at desc` — edited
+ * and apparently untouched.
+ *
+ * A row that no longer exists is reported as such rather than as success: RLS
+ * makes "not yours" and "not there" indistinguishable here, and both mean the
+ * user's edit did not land.
+ */
+export async function updateDraftAction(
+  draftId: string,
+  body: string,
+): Promise<DraftResult> {
+  const invalid = validateBody(body);
+  if (invalid) return { ok: false, error: invalid };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("drafts")
+    .update({
+      body,
+      title: deriveTitle(body),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", draftId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingDraftsTable(error)) return { ok: false, unavailable: true };
+    console.error(writeErrorLogLine("drafts", "update", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that draft.") };
+  }
+  if (!data) return { ok: false, error: "That draft is no longer there." };
 
   revalidatePath("/library");
   return { ok: true, draftId: data.id };

@@ -8,10 +8,12 @@ import { useUIStore } from "@/stores/ui";
 import { THINKING_LEVELS } from "@/lib/constants";
 import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
 import { MODEL_LABELS } from "@/lib/library/model-labels";
+import { Sheet } from "@/components/ui/Sheet";
 import {
   deleteDraftAction,
   fetchDraftsPageAction,
   getDraftBodyAction,
+  updateDraftAction,
 } from "@/lib/drafts/actions";
 import type { DraftCard } from "@/lib/drafts/queries";
 import { relativeTime } from "@/lib/library/util";
@@ -60,6 +62,71 @@ export function DraftsList({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [confirmFor, setConfirmFor] = useState<DraftCard | null>(null);
   const [pending, startAction] = useTransition();
+
+  /**
+   * In-place edit state. `body` is null until the full text has been fetched —
+   * the list row only holds a 160-character preview, and opening an editor
+   * seeded with a truncation would silently destroy the rest on save.
+   */
+  const [editing, setEditing] = useState<DraftCard | null>(null);
+  const [editBody, setEditBody] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  /** Tracked separately from the shared `pending`. Opening the sheet also runs a
+   *  transition (to fetch the body), and reusing `pending` for the save button
+   *  made it read "Saving…" while it was in fact still loading — the wrong word
+   *  for the wrong operation. */
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  function openEditor(card: DraftCard) {
+    setEditing(card);
+    setEditBody(null);
+    setEditError(null);
+    startAction(async () => {
+      const got = await getDraftBodyAction(card.id);
+      if (!got.ok || got.body === undefined) {
+        setEditError(got.error ?? "Couldn't open that draft.");
+        return;
+      }
+      setEditBody(got.body);
+    });
+  }
+
+  function closeEditor() {
+    setEditing(null);
+    setEditBody(null);
+    setEditError(null);
+  }
+
+  function saveEdit() {
+    if (!editing || editBody === null) return;
+    startAction(async () => {
+      setSavingEdit(true);
+      const res = await updateDraftAction(editing.id, editBody).finally(() =>
+        setSavingEdit(false),
+      );
+      if (!res.ok) {
+        // Stay open with the text intact — closing would throw away the edit
+        // the user just failed to save.
+        setEditError(
+          res.unavailable
+            ? "Drafts aren't set up on the server yet."
+            : (res.error ?? "Couldn't save that draft."),
+        );
+        return;
+      }
+      closeEditor();
+      toast({ text: "Draft updated" });
+      // Collapse back to the server's first page. An edit bumps `updated_at`,
+      // which moves the draft to the top of a list ordered by it — so the
+      // keyset cursor that produced pages 2+ no longer describes the same
+      // sequence, and a client-accumulated page would show the pre-edit text
+      // while the refreshed page 1 shows the new one. The same row, twice,
+      // disagreeing with itself.
+      setExtra([]);
+      setCursor(nextCursor);
+      router.refresh();
+    });
+  }
 
   const cards = [...initialCards, ...extra];
 
@@ -188,6 +255,24 @@ export function DraftsList({
               </button>
               <button
                 type="button"
+                onClick={() => openEditor(card)}
+                disabled={pending}
+                aria-label={`Edit draft: ${card.title}`}
+                className="tap-44 shrink-0 text-silver transition-colors hover:text-accent disabled:opacity-50"
+              >
+                {/* Pencil — 1.5px stroke, rounded joins (style-guide §1.4). */}
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+                  <path
+                    d="M4 20h4l10-10a2.5 2.5 0 0 0-3.5-3.5L4.5 16.5 4 20Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
                 onClick={() => setConfirmFor(card)}
                 disabled={pending}
                 aria-label={`Delete draft: ${card.title}`}
@@ -225,6 +310,62 @@ export function DraftsList({
           {pending ? "Loading…" : "Load more"}
         </button>
       )}
+
+      <Sheet
+        open={editing !== null}
+        onClose={closeEditor}
+        title="Edit draft"
+        footer={
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={saveEdit}
+              // Disabled until the full body has loaded: saving `null` would be
+              // saving nothing, and saving the preview would truncate the draft.
+              disabled={savingEdit || editBody === null || editBody.trim() === ""}
+              className="btn-laser flex min-h-[44px] flex-1 itemsateems-center justify-center px-5 text-sm disabled:opacity-50"
+            >
+              {savingEdit ? "Saving…" : "Save changes"}
+            </button>
+            <button
+              type="button"
+              onClick={closeEditor}
+              disabled={savingEdit}
+              className="btn-secondary flex min-h-[44px] items-center justify-center px-5 text-sm disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        }
+      >
+        {editBody === null ? (
+          <p className="font-body text-sm text-muted">
+            {editError ?? "Loading the full draft…"}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="draft-edit-body" className="sr-only">
+              Draft text
+            </label>
+            <textarea
+              id="draft-edit-body"
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+              rows={10}
+              className="font-body w-full resize-y rounded-lg border border-hair bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none"
+            />
+            <p className="font-body text-xs text-silver">
+              Editing the text only — target model and mode stay as saved. Open the
+              draft in the composer to change those.
+            </p>
+            {editError && (
+              <p role="alert" className="font-body text-sm text-flare">
+                {editError}
+              </p>
+            )}
+          </div>
+        )}
+      </Sheet>
 
       <ConfirmSheet
         open={confirmFor !== null}

@@ -6,6 +6,46 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — edit a saved draft in place
+
+Each row in the Drafts view gains an Edit button that opens the draft's text in a
+sheet and saves it back to the same row. Resuming a draft is a MOVE — it lands in
+the composer and the server row is deleted — which is right for "carry on writing
+this" and wrong for "fix a typo": that previously meant resume, edit, save again,
+with a window where the draft existed nowhere but the device.
+
+Body only, deliberately. Target model, mode and thinking level are the composer's
+own controls; editing them from a list row would mean rebuilding the mode rig and
+the target picker inside a sheet, and resuming is the better route. The sheet says
+so rather than leaving it to be discovered. The title is re-derived from the new
+first line, for the same reason it is derived on save — it is a view of the body,
+not a second field to keep in sync.
+
+Three things that would each have been a silent bug:
+
+- **The editor is seeded from the FETCHED body, never the row's preview.** A card
+  carries only the first 160 characters, so an editor seeded from it would have
+  truncated the draft the moment the user saved. Save is disabled until the full
+  body arrives, and a failed fetch shows the error instead of an empty textarea
+  inviting the user to overwrite their draft with it. A unit test fails if the
+  seed ever comes from the preview.
+- **`updated_at` is set explicitly.** The column defaults to `now()` on INSERT
+  only and there is no trigger, so an edited draft would otherwise keep its
+  original timestamp and sink in a list ordered by `updated_at desc` — edited and
+  apparently untouched.
+- **Client-accumulated pages collapse after a save.** The same bump reorders the
+  list, so the keyset cursor behind pages 2+ no longer describes that sequence;
+  without resetting, the edited row could appear twice, pre-edit and post-edit,
+  disagreeing with itself.
+
+A row that no longer exists is reported as such rather than as success — RLS makes
+"not yours" and "not there" indistinguishable, and both mean the edit did not
+land. A failed save keeps the sheet open with the text intact.
+
+The body rules are now shared between save and update, so an edit cannot accept
+what a save rejects and surface as a raw constraint violation.
+
+
 ### Changed — one password rule, 12 characters with character classes
 
 The account password minimum goes from 8 to **12**, and now also requires a
