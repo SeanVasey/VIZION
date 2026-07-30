@@ -6,6 +6,39 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — the full-tree audit is now a gate, not a printout
+
+`npm audit || true` printed 14 high entries and passed regardless, so a genuinely
+new advisory would have scrolled past among the known ones. `npm run audit:check`
+(`scripts/check-audit.mjs`) replaces it and fails on any advisory that is not a
+documented exemption.
+
+**On the 14 entries: they are one advisory, and it is a false positive.** All of
+them fan out from GHSA-mh99-v99m-4gvg on `brace-expansion` (range `<=5.0.7`); the
+other twelve package names are "depends on a vulnerable version of…" paths. The
+fix — CVE-2026-14257's `EXPANSION_MAX` / `EXPANSION_MAX_LENGTH` limits — **was
+backported to 1.1.17 and 2.1.3**, but the advisory range was never narrowed, so
+patched releases still match it.
+
+It also cannot be removed. `eslint@9` depends on `minimatch@^3.1.5`, and
+minimatch@3 does `require('brace-expansion')` and **calls** the result, while
+5.0.8 exports an object — so a 1.x is the only patched shape that consumer can
+use. **`npm audit` cannot reach 0 on the full tree while this project uses ESLint
+9**, and forcing it to (the previous blanket `^5` override) broke every braced
+glob in the tree instead.
+
+So the exemption is verified rather than asserted: the script re-checks that every
+installed copy of `brace-expansion` — at any nesting depth — actually contains the
+limits, and fails if one does not. An allowlist that cannot rot into a blanket
+ignore. Both failure modes are covered by negative tests: an unpatched copy fails
+the gate, and a non-exempt advisory fails the gate. The first of those caught a
+real bug in the script's own directory walk, which had been verifying only the
+root copy.
+
+The production gate (`npm audit --omit=dev --audit-level=high`) stays at **0** and
+is unchanged.
+
+
 ### Fixed — the `brace-expansion` override no longer breaks glob expansion
 
 `overrides` had a single blanket `"brace-expansion": "^5.0.8"`, which forced v5
@@ -28,14 +61,19 @@ call. Verified: `minimatch@3` loads its own nested `1.1.17`, and
 `new Minimatch("src/**/*.{ts,tsx}").braceExpand()` returns
 `["src/**/*.ts", "src/**/*.tsx"]`.
 
-**Tradeoff, taken deliberately.** The advisory range is `<=5.0.7`, so there is no
-patched 1.x or 2.x — the earlier commit was right about that. The full-tree
-`npm audit` therefore reports 14 high entries again, every one in dev tooling (the
-eslint chain and workbox-build), none in shipped code. CI gates
+**Tradeoff, taken deliberately.** The advisory range is `<=5.0.7`, so every 1.x
+and 2.x release matches it regardless of content. The full-tree `npm audit`
+therefore reports 14 high entries again, every one in dev tooling (the eslint
+chain and workbox-build), none in shipped code. CI gates
 `npm audit --omit=dev --audit-level=high`, which stays at **0**, and the full-tree
 step was already advisory-only (`|| true`). The alternative was keeping a silently
 broken glob engine in exchange for a tidier report about packages that never
 reach production.
+
+The pinned 1.x/2.x releases do carry the fix — see "the full-tree audit is now a
+gate" above, which supersedes this entry's original claim that no patched 1.x or
+2.x existed. The true statement is narrower: no patched release falls *outside*
+the advisory's range, because the range was never narrowed after the backport.
 
 
 ### Added — lint now rejects class names Tailwind does not recognise
@@ -1270,7 +1308,8 @@ production tree (`--omit=dev`), which is the gating CI step.
   patched copy), plus `js-yaml@^4.3.0`, `fast-uri@^3.1.4`, and
   `brace-expansion@^5.0.8`. The last one is the interesting case: the
   unbounded-expansion OOM advisory covers **everything ≤ 5.0.7**, so the 1.x
-  and 2.x lines have no patched release, and that single package was the root
+  and 2.x lines have no patched release <sup>[corrected below]</sup>, and that
+  single package was the root
   cause of fourteen reported entries cascading up through `minimatch` →
   `@eslint/config-array` / `@eslint/eslintrc` → `eslint` → `eslint-config-next`
   and its plugins, and through `filelist` → `jake` → `ejs` →
@@ -1281,6 +1320,14 @@ matrix was regenerated under sharp 0.35 and is **pixel-identical** to the
 committed PNGs (raw-buffer compare, max channel delta 0 — only PNG container
 bytes differ, so the shipped assets are left untouched), and the service
 worker still precaches its 21 entries under esbuild 0.28.
+
+> **Corrected after release.** "The 1.x and 2.x lines have no patched release"
+> was wrong. CVE-2026-14257's `EXPANSION_MAX` / `EXPANSION_MAX_LENGTH` limits
+> were backported to **1.1.17** and **2.1.3**; the advisory's `<=5.0.7` range
+> was simply never narrowed, so patched releases still match it. The blanket
+> `^5` override this entry describes was also actively harmful — it broke brace
+> expansion through `minimatch@3` — and is superseded by the per-major keys in
+> the Unreleased section.
 
 ### Changed — GPT-5.6 Luna + Terra join; Kimi and MiniMax move to K3 / M3 (sixteen models, twelve developers)
 

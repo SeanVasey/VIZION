@@ -1784,11 +1784,21 @@ than as a puzzling failure in whichever spec ran first.
   `npm run lint` passed because no ESLint pattern contained braces, so
   `braceExpand` was never reached. Latent for days. When an override crosses a
   major, exercise the API the overridden consumer actually calls.
-- **Advisory-clean is not free.** With no patched 1.x/2.x in existence, the choice
-  was a working glob engine with 14 dev-only advisories, or a clean full-tree
-  report with a broken one. Read what CI actually gates — here
-  `npm audit --omit=dev`, with the full-tree step already `|| true` — before
-  trading correctness for a number.
+- **Advisory-clean is not free.** With no 1.x/2.x release falling outside the
+  advisory's range, the choice was a working glob engine with 14 dev-only
+  advisories, or a clean full-tree report with a broken one. Read what CI actually
+  gates — here `npm audit --omit=dev`, with the full-tree step already `|| true` —
+  before trading correctness for a number.
+- **"Inside the advisory range" is not "vulnerable".** I wrote the lesson above as
+  "no patched 1.x/2.x in existence", which was false: the fix WAS backported to
+  1.1.17 and 2.1.3, and the range `<=5.0.7` just never got narrowed. Same numbers,
+  different conclusion — the entries are a false positive, not an accepted risk,
+  which is what makes a *verified* exemption (`scripts/check-audit.mjs` re-proving
+  the limits are present in every installed copy) the right answer instead of a
+  tradeoff. Check the fix's presence in the source before concluding a range means
+  what it appears to; and when that conclusion changes, chase down every place the
+  old one was written — it had propagated into AGENTS.md, two CHANGELOG entries and
+  here before a review bot flagged the contradiction.
 - **An async `startTransition` callback has left the transition scope by the time
   it resumes.** `router.refresh()` issued after an `await` inside
   `startAction(async () => ...)` is attached to no transition, so `pending` clears
@@ -1805,3 +1815,24 @@ than as a puzzling failure in whichever spec ran first.
   — one transition owns the refresh, and the control is not rendered while it is
   pending — and claiming a test for it would be claiming coverage that does not
   exist.
+- **`npm audit` ranges can be wrong; read the source before believing the
+  number.** GHSA-mh99-v99m-4gvg flags `brace-expansion <=5.0.7`, but 1.1.17 and
+  2.1.3 both contain the CVE-2026-14257 limits — the fix was backported and the
+  range was never narrowed. Two commits' worth of override churn went into
+  chasing a number that was already satisfied in code. `grep` for the fix.
+- **`|| true` on a security step is worse than no step.** It printed 14 entries
+  and passed, so a real new advisory had nowhere to show up. A gate that exempts
+  KNOWN findings and fails on everything else turns the same command from noise
+  into signal — and the exemption should re-prove itself (here: every installed
+  copy must actually contain the limits) so it cannot decay into an ignore-list.
+- **npm `overrides` cannot use a `file:` path for a nested dependency.** The spec
+  is resolved relative to the DEPENDING package, so `file:patches/x` becomes
+  `node_modules/minimatch/patches/x` and the install dies with ENOENT. A vendored
+  callable shim — the one solution that would have given both a clean number and
+  working code — is therefore not expressible. `install-links=true` does not
+  change the path resolution.
+- **Write the negative test even when the positive one passes.** The audit gate
+  passed on a clean tree AND on a deliberately-unpatched one, because its
+  directory walk never descended through `minimatch/` into nested node_modules.
+  The positive result was luck; only the negative test found it. This is the
+  second time this session a self-check was quietly proving nothing.

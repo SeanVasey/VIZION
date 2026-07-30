@@ -58,5 +58,9 @@ jobs:
         # the deployed runtime; a full-tree report is run separately as advisory.
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Security audit (full tree, advisory only)
-        run: npm audit || true
+      - name: Security audit (full tree, gated)
+        # NOT `npm audit || true`. That printed 14 high entries and passed
+        # regardless, so a genuinely new advisory would have scrolled past among
+        # the known ones. This fails on any advisory that is not a documented,
+        # SELF-VERIFYING exemption — see scripts/check-audit.mjs.
+        run: npm run audit:check
