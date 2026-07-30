@@ -443,7 +443,7 @@ export function SettingsPanel({
       {/* Avatar crop modal (scrim mixes alpha explicitly — slash opacity can't
           apply to var() tokens). */}
       {pickedFile && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-[color-mix(in_srgb,var(--void)_80%,transparent)]">
+        <div className="scrim-in fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-[color-mix(in_srgb,var(--void)_80%,transparent)]">
           <div
             role="presentation"
             onClick={(e) => {

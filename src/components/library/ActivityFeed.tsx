@@ -26,8 +26,19 @@ const VERB: Record<ActivityType, string> = {
 export function ActivityFeed({ events }: { events: Event[] }) {
   return (
     <section aria-label="Activity">
-      <h2 className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
-        <span aria-hidden="true">⟲ </span>Activity
+      <h2 className="font-body mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wider text-silver">
+        {/* Stroked history mark on the 24px grid — replaces the old ⟲ emoji,
+            which rendered in the platform font next to real SVG icons. */}
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5">
+          <path
+            d="M4 4v5h5M4.5 9a8 8 0 1 1-.4 5"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        Activity
       </h2>
       {events.length === 0 ? (
         <div className="glass rounded-2xl p-5 text-center text-sm text-muted">

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
+import { PressableButton } from "@/components/ui/PressableButton";
 
 /**
  * Confirmation variant of the bottom sheet — replaces window.confirm for
@@ -44,15 +45,15 @@ export function ConfirmSheet({
       title={title}
       footer={
         <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
+          <PressableButton
+            subtle
             onClick={onClose}
             className="btn-secondary flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm"
           >
             Cancel
-          </button>
-          <button
-            type="button"
+          </PressableButton>
+          <PressableButton
+            subtle
             disabled={blocked}
             onClick={() => {
               onConfirm();
@@ -63,7 +64,7 @@ export function ConfirmSheet({
             } flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm disabled:opacity-50`}
           >
             {confirmLabel}
-          </button>
+          </PressableButton>
         </div>
       }
     >

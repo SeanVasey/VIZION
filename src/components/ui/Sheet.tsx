@@ -78,7 +78,7 @@ export function Sheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex flex-col justify-end"
+      className="scrim-in fixed inset-0 z-[70] flex flex-col justify-end"
       onKeyDown={onKeyDown}
       onClick={(e) => {
         // Scrim click only — clicks inside the panel bubble with a different target.

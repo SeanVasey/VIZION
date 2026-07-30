@@ -13,7 +13,6 @@ import {
   rolesForKind,
   type AttachmentRole,
   type MediaAttributes,
-  type MediaKind,
 } from "@/lib/media/types";
 import {
   storeAttachment,
@@ -29,6 +28,7 @@ import { MediaPrivacySheet } from "@/components/media/MediaPrivacySheet";
 import { AttachmentDetailsSheet } from "@/components/media/AttachmentDetailsSheet";
 import { GenerateSheet } from "@/components/media/GenerateSheet";
 import { MediaManager } from "@/components/media/MediaManager";
+import { KindIcon } from "@/components/media/KindIcon";
 import type { Json } from "@/lib/supabase/database.types";
 
 /** The attach button's mark — an arrow leaving a tray, i.e. an upload.
@@ -57,12 +57,6 @@ const EXTRACTION =
 const MODEL_LABEL_MAP = new Map<string, string>(
   TARGET_MODELS.map((m) => [m.id, m.label]),
 );
-
-const KIND_GLYPH: Record<MediaKind, string> = {
-  image: "🖼",
-  video: "🎞",
-  audio: "🎧",
-};
 
 /** Route intent per role ("generate" analyzes like a reference). */
 const ROLE_INTENT: Record<
@@ -498,9 +492,9 @@ export function AttachmentTray({
                 ) : (
                   <span
                     aria-hidden="true"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-base"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-silver"
                   >
-                    {KIND_GLYPH[item.kind]}
+                    <KindIcon kind={item.kind} />
                   </span>
                 )}
                 <div className="min-w-0 flex-1">

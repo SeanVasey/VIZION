@@ -285,6 +285,20 @@
     transition-duration: 0s;
   }
 
+  /* The same instant-down / eased-up contract for LARGE controls (full-width
+     CTAs, sheet footer buttons). 10% is tuned for icon-sized targets; on a
+     300px button it reads as the whole card lurching, so this variant scales
+     3% and lets the button's own fill/filter carry the rest of the signal. */
+  .pressable-subtle {
+    transition:
+      transform 200ms cubic-bezier(0.2, 0.9, 0.3, 1),
+      color 200ms ease;
+  }
+  .pressable-subtle[data-pressed] {
+    transform: scale(0.97);
+    transition-duration: 0s;
+  }
+
   /* Bottom-nav tab — `.pressable` plus a wash, since a scale alone is easy to
      miss on a 64px bar under a thumb that is covering most of it. */
   .nav-tab {
@@ -314,7 +328,8 @@
      then carries the whole signal; on a bare `.pressable` icon button the
      colour change does. Either way the tap stays acknowledged. */
   @media (prefers-reduced-motion: reduce) {
-    .pressable[data-pressed] {
+    .pressable[data-pressed],
+    .pressable-subtle[data-pressed] {
       transform: none;
     }
   }
@@ -772,6 +787,23 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  /* Overlay scrim entry — the panel rises with .sheet-in but its scrim used
+     to pop to 80% Void on the first frame, which read as a flash before the
+     panel arrived. Same duration/ease as the panel, same reduced-motion
+     posture: the end state is the natural one, so the collapse snaps to a
+     fully-opaque scrim. */
+  .scrim-in {
+    animation: scrim-in 200ms ease-out;
+  }
+  @keyframes scrim-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 
