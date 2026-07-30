@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useUIStore } from "@/stores/ui";
 import { kindForMime, extractOnDevice, captureFrameDataUrl } from "@/lib/media/ondevice";
@@ -30,6 +30,25 @@ import { AttachmentDetailsSheet } from "@/components/media/AttachmentDetailsShee
 import { GenerateSheet } from "@/components/media/GenerateSheet";
 import { MediaManager } from "@/components/media/MediaManager";
 import type { Json } from "@/lib/supabase/database.types";
+
+/** The attach button's mark — an arrow leaving a tray, i.e. an upload.
+ *  Deliberately not the old 📎 emoji: a paperclip renders at whatever size and
+ *  weight the platform font decides, and next to a 12px label it read as
+ *  decoration on a text link rather than the button's verb. */
+function UploadGlyph({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className}>
+      <path
+        d="M12 15V4m0 0L8 8m4-4l4 4M5 15v3.5A1.5 1.5 0 006.5 20h11a1.5 1.5 0 001.5-1.5V15"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 /** Extraction pipeline flag (locked default: proxy, with on-device fallback). */
 const EXTRACTION =
@@ -141,6 +160,9 @@ export function AttachmentTray({
   );
   const [usedBytes, setUsedBytes] = useState(0);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  /** The rail's `?` disclosure — what each media kind actually contributes. */
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpId = useId();
   const [detailsFor, setDetailsFor] = useState<string | null>(null);
   const [roleFor, setRoleFor] = useState<string | null>(null);
   const [generateFor, setGenerateFor] = useState<string | null>(null);
@@ -581,7 +603,15 @@ export function AttachmentTray({
         </p>
       )}
 
-      {/* Attach rail — honest about what each kind contributes. */}
+      {/* Attach rail — the upload affordance, its help, and the storage dial.
+          The capability blurb used to sit under the rail as a permanent
+          two-line paragraph, which forced the attach control down to a bare
+          12px text link that no longer read as "upload a file". The words now
+          live behind the rail's `?`, which buys the button back its size: a
+          real bordered pill with an upload mark at the rails' `text-sm`. The
+          panel is IN FLOW rather than floating — the composer chassis is
+          `overflow-hidden`, and an absolutely-positioned tooltip would be
+          clipped by it (the same constraint the paste affordance is under). */}
       <input
         ref={fileInput}
         type="file"
@@ -593,31 +623,65 @@ export function AttachmentTray({
           e.target.value = "";
         }}
       />
-      <div className="flex items-center justify-between gap-2 px-3 py-1.5">
-        <button
-          type="button"
-          onClick={() => fileInput.current?.click()}
-          disabled={busy || (!budget.over ? false : mediaStoreByDefault)}
-          className="tap-44 font-body flex items-center gap-1.5 text-xs text-silver transition-colors hover:text-chalk disabled:opacity-50"
-        >
-          <span aria-hidden="true">📎</span>
-          {busy
-            ? "Working through your files…"
-            : budget.over && mediaStoreByDefault
-              ? "Storage full — remove media below"
-              : "Attach media"}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            disabled={busy || (!budget.over ? false : mediaStoreByDefault)}
+            className="glass pill font-body inline-flex min-h-[44px] items-center gap-2 px-3.5 py-1.5 text-left text-sm text-text transition-colors hover-hair disabled:opacity-50"
+          >
+            <UploadGlyph className="h-4 w-4 shrink-0 text-accent" />
+            {busy
+              ? "Working through your files…"
+              : budget.over && mediaStoreByDefault
+                ? "Storage full — remove media below"
+                : "Attach media"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setHelpOpen((v) => !v)}
+            // Escape closes it from the button that opened it — focus never
+            // leaves here, since the panel holds no controls of its own.
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && helpOpen) {
+                e.stopPropagation();
+                setHelpOpen(false);
+              }
+            }}
+            aria-expanded={helpOpen}
+            aria-controls={helpId}
+            aria-label="What happens to attached media?"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-silver transition-colors hover:text-chalk"
+          >
+            <span
+              aria-hidden="true"
+              className="font-body flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full border border-hair text-[0.625rem] leading-none"
+            >
+              ?
+            </span>
+          </button>
+        </div>
+        {/* The storage dial stays a real toggle but gets quieter: it reports a
+            standing preference and must not compete with the action beside it.
+            Sentence case, NOT the rails' micro-caps — that register belongs to
+            the captions (TARGET · THINKING), and borrowing it here would make a
+            control read as a label. */}
         <button
           type="button"
           onClick={() => setMediaStoreByDefault(!mediaStoreByDefault)}
           aria-pressed={mediaStoreByDefault}
-          className="tap-44 font-body text-[0.6875rem] text-silver transition-colors hover:text-chalk"
+          className="tap-44 font-body shrink-0 text-[0.625rem] text-silver transition-colors hover:text-chalk"
         >
-          Originals: {mediaStoreByDefault ? "stored" : "not kept"}
+          Originals{" "}
+          <span className="text-text">{mediaStoreByDefault ? "stored" : "not kept"}</span>
         </button>
       </div>
-      {items.length === 0 && (
-        <p className="font-body px-3 pb-2 text-[0.6875rem] leading-snug text-silver">
+      {helpOpen && (
+        <p
+          id={helpId}
+          className="font-body mx-3 mb-2 rounded-xl border border-hair bg-surface px-3 py-2 text-[0.6875rem] leading-snug text-silver"
+        >
           Images are analyzed; video contributes its first frame; audio contributes
           file metadata only.
         </p>

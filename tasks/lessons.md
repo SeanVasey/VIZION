@@ -1869,3 +1869,29 @@ than as a puzzling failure in whichever spec ran first.
   Playwright spec (sign in → pick target → screenshot the rail) reported
   `scrollWidth === clientWidth`, five equal 65px cells, one client rect each and
   44px heights. jsdom would have agreed with any of the broken versions too.
+- **A `<select>` cannot sit beside a `<button>` at the same type size on iOS.**
+  `globals.css` floors `input, select, textarea` at 16px (Safari zooms a focused
+  sub-16px control and rarely zooms back), `!important`, which beats `text-sm` —
+  so the Thinking rail's "Auto" rendered two points larger than the Target pill's
+  "Auto" one row above it, in the two rails users read as a pair. `TargetPicker`
+  had already left `<select>` for a different reason and inherited the fix for
+  free. **Rule: when a control has to match a non-form control's size, it cannot
+  be a replaced form element.** The floor is behind a `-webkit-touch-callout`
+  gate, which is iOS-only *by construction*, so CI can never see this class of
+  defect — only a phone or a reasoned read of the cascade will.
+- **Two copies of a class string is a drift generator.** The Target and Thinking
+  pills were "the same" by having identical literals in two places, which is how
+  they came to differ. One exported constant with two consumers makes the parity
+  structural, and `expect(a.className).toBe(b.className)` is then a test worth
+  writing — it fails on padding and height drift too, not just font size.
+- **Permanent helper text is paid for by the control beside it.** The media
+  rail's two-line capability blurb had pushed the attach control down to a 12px
+  text link with an emoji — the one affordance in the tray that must read as
+  "upload a file". Moving the words behind a `?` disclosure gave the button its
+  size back without deleting the information. Ask what a permanently-visible
+  explanation is costing the thing it explains.
+- **A disclosure panel inside `overflow-hidden` must be in flow, not floating.**
+  The composer chassis clips absolutely-positioned children — the same
+  constraint the paste affordance already documented. An in-flow panel under the
+  rail reads as attached to its `?` and cannot be clipped; a portal would be the
+  only way to float one, which is a lot of machinery for a tooltip.

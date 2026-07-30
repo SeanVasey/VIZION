@@ -25,6 +25,7 @@ const UI_ONLY_FILES = [
   "src/components/library/ActivityFeed.tsx",
   "src/components/Wordmark.tsx",
   "src/components/models/TargetPicker.tsx",
+  "src/components/models/ThinkingPicker.tsx",
   "src/components/ui/Sheet.tsx",
   "src/components/ui/Toast.tsx",
   "src/components/ui/ConfirmSheet.tsx",

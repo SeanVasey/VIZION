@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
+import { CheckGlyph } from "@/components/ui/CheckGlyph";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import {
   DEVELOPER_LABEL,
@@ -224,23 +225,6 @@ function TargetPickerSheet({
         ))}
       </div>
     </Sheet>
-  );
-}
-
-/** Checkmark, not a filled dot: the row is a choice in a list, and iOS marks
- *  the chosen one this way. */
-function CheckGlyph() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-accent">
-      <path
-        d="M5 12.5l4.5 4.5L19 7.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
