@@ -118,6 +118,22 @@ describe("format rail", () => {
     expect(screen.getByRole("group", { name: "Output shape" })).toBeTruthy();
   });
 
+  it("gives the five shapes equal columns across the rail", () => {
+    // Inline beside the caption there was ~300px for five multi-word labels at
+    // 390px: the chassis clipped and "Few-shot" wrapped to two lines. The rail
+    // stacks the caption above a full-width control so every label fits on one.
+    renderComposer();
+    const group = screen.getByRole("group", { name: "Output shape" });
+    expect(group.style.gridTemplateColumns).toBe(
+      `repeat(${FORMATS.length}, minmax(0, 1fr))`,
+    );
+    for (const id of FORMATS) {
+      expect(
+        screen.getByRole("button", { name: FORMAT_LABEL[id] }).className,
+      ).toContain("whitespace-nowrap");
+    }
+  });
+
   it.each(MODES.filter((m) => m.id !== "reformat").map((m) => m.id))(
     "is hidden in %s mode",
     (mode) => {

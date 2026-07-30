@@ -6,6 +6,43 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — Qwen3.7 Max ran into a 400 on every request, and had no thinking selector
+
+Two independent mistakes, both of which made "Max" look like the problem when it
+never was.
+
+`max_tokens` was the shared 16k default from the OpenAI-compatible factory, but
+**DashScope caps `qwen-max` at 8192** and rejects anything higher — so every Qwen
+run failed with `400 InternalError.Algo.InvalidParameter: Range of max_tokens
+should be [1, 8192]` before a token was generated. The ceiling is now a
+per-provider declaration (`maxTokens`), because it is a fact about the API, not a
+preference.
+
+The composer also showed **no Thinking rail** for this target. Qwen's reasoning
+knob is a token BUDGET (`enable_thinking` + `thinking_budget`), not an effort
+word, and the ladder maps onto it cleanly — so the target now offers
+low · medium · high · xhigh · max, each mapped to a budget at or under half the
+8192 ceiling so reasoning cannot consume the room the JSON envelope needs.
+**"Max" in `Qwen3.7 Max` is the model TIER** (Alibaba's flagship, beside Plus and
+Turbo) and says nothing about reasoning depth — the same class of mistake as
+inventing a `gemini-3.6-thinking` model string, in reverse.
+
+The body builder is now a pure, exported function (`buildCompatBody`), tested
+without SDK mocking, so both facts are pinned by tests rather than by comments.
+
+### Changed — the composer's Shape and Depth rails stop clipping their own labels
+
+Beside a caption there was ~300px of a 390px screen for five multi-word shape
+labels, and the intrinsically-sized pill overflowed it: the chassis clipped
+mid-segment and "Few-shot" wrapped to two lines, making the rail visibly taller
+than the Target and Thinking rails above it.
+
+Both rails now stack — caption above a full-width control — and `Segmented` grew
+a `fill` variant that lays its options out as equal `1fr` columns with ModeRig's
+cell type. Every label fits one line at 390px (measured: five 65px cells, no
+scroll, 44pt tap targets intact), and the active segment keeps Void ink on a
+Laser fill.
+
 ### Changed — the full-tree audit is now a gate, not a printout
 
 `npm audit || true` printed 14 high entries and passed regardless, so a genuinely

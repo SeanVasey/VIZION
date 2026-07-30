@@ -1836,3 +1836,36 @@ than as a puzzling failure in whichever spec ran first.
   directory walk never descended through `minimatch/` into nested node_modules.
   The positive result was luck; only the negative test found it. This is the
   second time this session a self-check was quietly proving nothing.
+- **A shared default is not a shared fact.** The OpenAI-compat factory's 16k
+  `max_tokens` was inherited by seven providers, one of which (DashScope) caps it
+  at 8192 and 400s above it — so Qwen3.7 Max failed *every* call from the day it
+  shipped, and nothing in the suite noticed because no test ever built its request
+  body. When a factory centralises a value that each API bounds differently, the
+  bound belongs in the per-provider config and the body builder belongs in a pure,
+  tested function.
+- **A model TIER is not a reasoning depth.** "Max" in `Qwen3.7 Max` names
+  Alibaba's flagship tier (beside Plus and Turbo); reading it as a thinking level
+  is why that target had no Thinking rail while its API took an
+  `enable_thinking`/`thinking_budget` pair all along. This is the
+  `gemini-3.6-thinking` lesson in reverse — the earlier one was a depth mistaken
+  for a model, this one a model mistaken for a depth. Check the provider's
+  parameter table both ways.
+- **A reasoning budget must leave room for the answer.** Thinking tokens bill
+  against the same output ceiling, so a budget at the ceiling turns a working
+  target into the adapter's "hit its length limit" error. Every Qwen step sits at
+  or under half of 8192, and a test asserts that ratio rather than the numbers.
+- **An intrinsically-sized control in a fixed-width rail is a wrap waiting to
+  happen.** Five multi-word labels beside a caption had ~300px of a 390px screen:
+  the chassis clipped and "Few-shot" broke onto a second line, which made the rail
+  taller than its neighbours — the kind of defect that reads as "ugly" long before
+  anyone can name it. Equal `1fr` cells sized by the CONTAINER (ModeRig's shape,
+  which already fits six labels) plus `whitespace-nowrap` removes the whole class.
+  Give the control its own line when the caption's width is what you are short of.
+- **`grid-cols-${n}` does not exist.** Tailwind only emits classes it can see in
+  the source, so an interpolated column count is silently absent at runtime — the
+  inline `gridTemplateColumns` is the version that works, and the test asserts the
+  style rather than the class for that reason.
+- **Measure the layout fix in a browser, then delete the harness.** A throwaway
+  Playwright spec (sign in → pick target → screenshot the rail) reported
+  `scrollWidth === clientWidth`, five equal 65px cells, one client rect each and
+  44px heights. jsdom would have agreed with any of the broken versions too.

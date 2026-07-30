@@ -148,6 +148,13 @@ export const TARGET_THINKING_LEVELS: Partial<
   gpt_5_6_luna: ["low", "medium", "high"],
   gpt_5_6_terra: ["low", "medium", "high"],
   gemini_3_6_flash: ["minimal", "low", "medium", "high"],
+  // DashScope's knob is a thinking BUDGET in tokens (enable_thinking +
+  // thinking_budget), so the full five-step ladder maps onto it — the budget
+  // per step lives with the adapter. "Max" in `Qwen3.7 Max` is the model TIER
+  // (Alibaba's flagship, beside Plus and Turbo), NOT a reasoning depth: the two
+  // are independent, and reading the tier as a thinking level is what left this
+  // target with no selector at all.
+  qwen3_7_max: ["low", "medium", "high", "xhigh", "max"],
   grok_4_5: ["low", "medium", "high"],
 };
 

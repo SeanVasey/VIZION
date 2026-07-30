@@ -1,9 +1,11 @@
 import "server-only";
 import OpenAI from "openai";
+import type { ThinkingLevel } from "@/lib/constants";
 import type { Provider } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
+  type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 
@@ -20,7 +22,8 @@ import {
  *   the final chunk; when none arrives the adapter falls back to its ~4
  *   chars/token estimate.
  * - Classic `max_tokens` (not `max_completion_tokens`) — the widest-supported
- *   output-ceiling field across compat APIs. 16k keeps runaways bounded.
+ *   output-ceiling field across compat APIs. 16k keeps runaways bounded, and a
+ *   provider whose API caps it lower declares its own (`maxTokens`).
  */
 interface CompatOptions {
   provider: Provider;
@@ -36,6 +39,61 @@ interface CompatOptions {
    *  (MiniMax M-series) emit inside `content` — left in, they'd corrupt the
    *  JSON envelope the adapter decodes. */
   stripThink?: boolean;
+  /** Output ceiling for this API. Defaults to 16k; declare it when the API
+   *  rejects that (DashScope caps `qwen-max` at 8192 and 400s above it, which
+   *  failed EVERY Qwen run — the ceiling is a per-API fact, not a preference). */
+  maxTokens?: number;
+  /** Thinking-token budget per app-wide level, for compat APIs whose reasoning
+   *  knob is a BUDGET rather than an effort word (DashScope: `enable_thinking`
+   *  + `thinking_budget`). Absent = this provider exposes no per-request knob,
+   *  so `TARGET_THINKING_LEVELS` must not list its targets either. */
+  thinkingBudget?: Partial<Record<ThinkingLevel, number>>;
+}
+
+/** The streaming request body, widened for the non-standard keys a compat API
+ *  may accept (DashScope's thinking pair). Unknown keys pass through the SDK
+ *  to the wire as-is. */
+export type CompatBody = OpenAI.ChatCompletionCreateParamsStreaming &
+  Record<string, unknown>;
+
+/**
+ * Pure request-body builder (exported for tests — no SDK mocking needed).
+ *
+ * `req.thinkingLevel` is already validated by the route against
+ * TARGET_THINKING_LEVELS, so a level with no budget entry simply sends nothing
+ * and the provider's own default applies — the same "Auto" semantics as every
+ * other adapter.
+ */
+export function buildCompatBody(
+  opts: CompatOptions,
+  system: string,
+  input: string,
+  model: string,
+  req: ProviderRequestOptions = {},
+): CompatBody {
+  const body: CompatBody = {
+    model,
+    max_tokens: opts.maxTokens ?? 16_000,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: input },
+    ],
+    ...(opts.jsonMode === false
+      ? {}
+      : { response_format: { type: "json_object" as const } }),
+    stream: true,
+  };
+  const budget = req.thinkingLevel
+    ? opts.thinkingBudget?.[req.thinkingLevel]
+    : undefined;
+  if (budget !== undefined) {
+    // DashScope only honours thinking on a streamed request, which this always
+    // is. Reasoning arrives in `delta.reasoning_content` — a field we never
+    // read — so the `content` stream stays clean JSON and needs no filter.
+    body.enable_thinking = true;
+    body.thinking_budget = budget;
+  }
+  return body;
 }
 
 export function makeOpenAICompatStream(opts: CompatOptions) {
@@ -43,6 +101,7 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
     system: string,
     input: string,
     model: string,
+    req: ProviderRequestOptions = {},
   ): AsyncGenerator<ProviderStreamChunk> {
     const apiKey = process.env[opts.keyEnv];
     if (!apiKey) throw new ProviderNotConfiguredError(opts.provider);
@@ -51,18 +110,9 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
     const filter = opts.stripThink ? createThinkFilter() : null;
 
     try {
-      const completion = await client.chat.completions.create({
-        model,
-        max_tokens: 16_000,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: input },
-        ],
-        ...(opts.jsonMode === false
-          ? {}
-          : { response_format: { type: "json_object" as const } }),
-        stream: true,
-      });
+      const completion = await client.chat.completions.create(
+        buildCompatBody(opts, system, input, model, req),
+      );
       for await (const chunk of completion) {
         let text = chunk.choices[0]?.delta?.content ?? "";
         if (text && filter) text = filter.push(text);
@@ -196,12 +246,35 @@ export const streamPerplexity = makeOpenAICompatStream({
   jsonMode: false,
 });
 
-/** Alibaba Model Studio's OpenAI-compatible endpoint (international region). */
+/**
+ * DashScope thinking budgets, in reasoning tokens, per app-wide level.
+ *
+ * Qwen's reasoning knob is a BUDGET, not an effort word, so the whole
+ * five-step ladder maps cleanly onto it. Every step stays well under the 8192
+ * output ceiling: reasoning that eats the ceiling leaves nothing for the JSON
+ * envelope, which surfaces as the adapter's "hit its length limit" error
+ * rather than as a result. `max` is half the ceiling for exactly that reason.
+ */
+const QWEN_THINKING_BUDGET: Partial<Record<ThinkingLevel, number>> = {
+  low: 512,
+  medium: 1024,
+  high: 2048,
+  xhigh: 3072,
+  max: 4096,
+};
+
+/** Alibaba Model Studio's OpenAI-compatible endpoint (international region).
+ *  "Max" in `Qwen3.7 Max` is the MODEL TIER — Alibaba's flagship, next to Plus
+ *  and Turbo — and says nothing about reasoning depth, which is the separate
+ *  per-request `enable_thinking`/`thinking_budget` pair below. */
 export const streamQwen = makeOpenAICompatStream({
   provider: "qwen",
   label: "Qwen",
   keyEnv: "DASHSCOPE_API_KEY",
   baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+  // DashScope rejects anything above 8192 here with a 400 InvalidParameter.
+  maxTokens: 8_192,
+  thinkingBudget: QWEN_THINKING_BUDGET,
 });
 
 /** Z.ai open platform (GLM). Reasoning arrives in a separate
