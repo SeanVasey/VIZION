@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         theme={profile?.theme ?? "system"}
         defaultModel={profile?.default_model ?? "opus_5"}
       />
-      <OutboxFlusher userId={user.id} />
+      <OutboxFlusher />
       {children}
       {/* Inside ToastProvider, not the root layout: the button raises toasts,
           and useToast throws outside the provider. Authed-only chrome belongs

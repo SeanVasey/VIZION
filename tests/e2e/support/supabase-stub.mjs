@@ -101,7 +101,6 @@ function seed() {
     // (the honest answer for a fresh account).
     media_assets: [],
     usage_events: [],
-    usage_reservations: [],
     activity_events: [
       {
         id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -396,108 +395,6 @@ async function handleRequest(req, res) {
   }
 
   // --- postgrest ----------------------------------------------------------
-  const rpc = pathname.match(/^\/rest\/v1\/rpc\/([a-z_]+)$/);
-  if (rpc && req.method === "POST") {
-    const name = rpc[1];
-    const body = await readBody(req);
-    if (name === "spend_reserve") {
-      const id = `stub-reservation-${++insertSeq}`;
-      tables.usage_reservations.push({
-        id,
-        user_id: E2E_USER.id,
-        reserved_usd: body.p_max_cost,
-        status: "pending",
-        created_at: NOW,
-        settled_at: null,
-      });
-      return send(res, 200, [{ reservation_id: id, today_cost: 0 }]);
-    }
-    if (name === "spend_settle" || name === "spend_release") {
-      const reservation = tables.usage_reservations.find(
-        (row) => row.id === body.p_reservation_id,
-      );
-      if (reservation)
-        reservation.status = name === "spend_settle" ? "settled" : "released";
-      if (name === "spend_settle") {
-        tables.usage_events.push({
-          id: `stub-${++insertSeq}`,
-          user_id: E2E_USER.id,
-          target: body.p_target,
-          mode: body.p_mode,
-          model_used: body.p_model_used,
-          token_in: body.p_token_in,
-          token_out: body.p_token_out,
-          cost_usd: body.p_cost_usd,
-          created_at: NOW,
-        });
-      }
-      return send(res, 204);
-    }
-    if (name === "library_save_prompt") {
-      const promptId = `stub-${++insertSeq}`;
-      const versionId = `stub-${++insertSeq}`;
-      tables.prompt_versions.push({
-        id: versionId,
-        prompt_id: promptId,
-        parent_ver: null,
-        input_text: body.p_input,
-        output_text: body.p_output,
-        rationale: body.p_rationale,
-        mode: body.p_mode,
-        model_used: body.p_model_used,
-        token_in: body.p_token_in,
-        token_out: body.p_token_out,
-        content_hash: body.p_content_hash,
-        created_at: NOW,
-      });
-      tables.prompts.push({
-        id: promptId,
-        user_id: E2E_USER.id,
-        title: body.p_title,
-        target_model: body.p_target,
-        tags: body.p_tags,
-        favorite: false,
-        archived_at: null,
-        deleted_at: null,
-        preview: body.p_output.slice(0, 200),
-        current_mode: body.p_mode,
-        collection_id: null,
-        current_ver: versionId,
-        created_at: NOW,
-        updated_at: NOW,
-        prompt_versions: [{ count: 1 }],
-      });
-      return send(res, 200, promptId);
-    }
-    if (name === "library_add_version") {
-      const prompt = tables.prompts.find((row) => row.id === body.p_prompt_id);
-      if (!prompt) return send(res, 400, { message: "prompt_not_found" });
-      const versionId = `stub-${++insertSeq}`;
-      tables.prompt_versions.push({
-        id: versionId,
-        prompt_id: prompt.id,
-        parent_ver: prompt.current_ver,
-        input_text: body.p_input,
-        output_text: body.p_output,
-        rationale: body.p_rationale,
-        mode: body.p_mode,
-        model_used: body.p_model_used,
-        token_in: body.p_token_in,
-        token_out: body.p_token_out,
-        content_hash: body.p_content_hash,
-        created_at: NOW,
-      });
-      Object.assign(prompt, {
-        current_ver: versionId,
-        preview: body.p_output.slice(0, 200),
-        current_mode: body.p_mode,
-      });
-      return send(res, 200, versionId);
-    }
-    unhandled.push(`${req.method} ${pathname} (unknown rpc)`);
-    return send(res, 501, { message: `stub: unknown rpc ${name}` });
-  }
-
   const rest = pathname.match(/^\/rest\/v1\/([a-z_]+)$/);
   if (rest) {
     const table = rest[1];
