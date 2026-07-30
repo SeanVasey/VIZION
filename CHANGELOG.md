@@ -28,13 +28,22 @@ SECURITY DEFINER function that takes the owner from the verified JWT and
 re-validates the amounts, so the direct table grant can be withdrawn.
 
 That withdrawal is a **second** migration
-(`20260730210000_usage_ledger_revoke.sql`) and is deliberately **not applied
-yet**. The build in production still writes the ledger with a direct INSERT;
-revoking the grant underneath it would fail every write with 42501, which the
-route swallows into a `console.error` while still returning 200 — spend would
-stop being counted and the cap would quietly stop working. Apply it only once
-this release is live. Ordering is in that file's header and pinned by
-`tests/unit/usage-ledger.test.ts`.
+(`20260730210000_usage_ledger_revoke.sql`), held back until this release was
+live: the previous build wrote the ledger with a direct INSERT, and revoking
+the grant underneath it fails every write with 42501 — which the route swallows
+into a `console.error` while still returning 200, so spend would stop being
+counted and the cap would quietly stop working. It was applied to the hosted
+project after the production deploy of this release, in that order. The rule
+stays in that file's header for any environment replayed from scratch, and is
+pinned by `tests/unit/usage-ledger.test.ts`.
+
+`usage_events` is now reachable from a client for SELECT only — which is what
+backs the composer's own cap readout. INSERT flows exclusively through
+`record_usage()`; UPDATE and DELETE remain denied by the absence of any policy
+*and* the absence of the grant. Verified against the live project under the
+`authenticated` role with real JWT claims, every probe rolled back: direct
+INSERT `DENIED (42501)`, `record_usage` allowed, `SELECT` allowed,
+`usage_window` allowed, ledger unchanged at 109 rows.
 
 Note for whoever re-lands the reverted atomic-spend work (#62): `spend_reserve`
 reads the same `sum(cost_usd)`, so it would have inherited this hole. The
