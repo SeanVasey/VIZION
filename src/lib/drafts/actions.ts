@@ -27,6 +27,11 @@ export interface DraftResult {
    *  generic failure so the UI can say so instead of blaming the user's
    *  connection, and so the caller can decline to destroy local work. */
   unavailable?: boolean;
+  /** The row still exists but has moved on since the caller read it — a
+   *  concurrent save elsewhere. Distinct from "gone", because the user's next
+   *  step differs: reopen to get the newer version, rather than accept it is
+   *  deleted. Either way the local text is kept. */
+  conflict?: boolean;
 }
 
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
@@ -135,13 +140,22 @@ export async function saveDraftAction(v: DraftInput): Promise<DraftResult> {
  * original timestamp and sink down a list ordered by `updated_at desc` — edited
  * and apparently untouched.
  *
- * A row that no longer exists is reported as such rather than as success: RLS
- * makes "not yours" and "not there" indistinguishable here, and both mean the
- * user's edit did not land.
+ * OPTIMISTIC CONCURRENCY. `expectedUpdatedAt` is the version the editor was
+ * opened against, and it is part of the WHERE clause — so the same draft open in
+ * two tabs cannot have the stale one silently overwrite the newer body. Without
+ * it the update was conditioned on the id alone and last-write-won, losing work
+ * saved elsewhere with no indication to either side.
+ *
+ * Matching zero rows is therefore ambiguous — deleted, or superseded — so the
+ * failure path reads the row back to say which. That read only runs when the
+ * update already matched nothing, so it costs nothing on the happy path, and it
+ * means a timestamp-formatting mismatch (were one ever introduced) would surface
+ * as a visible "changed elsewhere" rather than as lost data.
  */
 export async function updateDraftAction(
   draftId: string,
   body: string,
+  expectedUpdatedAt: string,
 ): Promise<DraftResult> {
   const invalid = validateBody(body);
   if (invalid) return { ok: false, error: invalid };
@@ -155,6 +169,7 @@ export async function updateDraftAction(
       updated_at: new Date().toISOString(),
     })
     .eq("id", draftId)
+    .eq("updated_at", expectedUpdatedAt)
     .select("id")
     .maybeSingle();
 
@@ -163,7 +178,21 @@ export async function updateDraftAction(
     console.error(writeErrorLogLine("drafts", "update", error));
     return { ok: false, error: describeWriteError(error, "Couldn't save that draft.") };
   }
-  if (!data) return { ok: false, error: "That draft is no longer there." };
+
+  if (!data) {
+    const { data: still } = await supabase
+      .from("drafts")
+      .select("id")
+      .eq("id", draftId)
+      .maybeSingle();
+    return {
+      ok: false,
+      conflict: Boolean(still),
+      error: still
+        ? "This draft changed somewhere else. Reopen it to get the latest version."
+        : "That draft is no longer there.",
+    };
+  }
 
   revalidatePath("/library");
   return { ok: true, draftId: data.id };
@@ -184,20 +213,28 @@ export async function deleteDraftAction(draftId: string): Promise<DraftResult> {
   return { ok: true };
 }
 
-/** The full body of one draft, for resuming it into the composer. Selected by
- *  id only — RLS scopes it to the owner. */
+/**
+ * The full body of one draft, for resuming or editing it. Selected by id only —
+ * RLS scopes it to the owner.
+ *
+ * `updatedAt` rides along as the version the caller is about to edit. It is the
+ * timestamp of the body actually being shown, which is what makes it a sound
+ * precondition — the list row's own `updated_at` could already be stale by the
+ * time the editor opens, and conditioning on that would reject a save against a
+ * body the user never saw.
+ */
 export async function getDraftBodyAction(
   draftId: string,
-): Promise<{ ok: boolean; body?: string; error?: string }> {
+): Promise<{ ok: boolean; body?: string; updatedAt?: string; error?: string }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("drafts")
-    .select("body")
+    .select("body, updated_at")
     .eq("id", draftId)
     .maybeSingle();
   if (error) return { ok: false, error: error.message };
   if (!data) return { ok: false, error: "That draft is no longer there." };
-  return { ok: true, body: data.body };
+  return { ok: true, body: data.body, updatedAt: data.updated_at };
 }
 
 /** Next page of drafts for the Drafts view's "Load more".

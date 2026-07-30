@@ -23,10 +23,12 @@ vi.mock("next/navigation", () => ({
 
 const actions = vi.hoisted(() => ({
   getDraftBodyAction: vi.fn(
-    async (): Promise<{ ok: boolean; body?: string; error?: string }> => ({
-      ok: true,
-      body: "the full saved body",
-    }),
+    async (): Promise<{
+      ok: boolean;
+      body?: string;
+      updatedAt?: string;
+      error?: string;
+    }> => ({ ok: true, body: "the full saved body", updatedAt: "2026-07-30T00:00:00Z" }),
   ),
   deleteDraftAction: vi.fn(
     async (): Promise<{ ok: boolean; error?: string; unavailable?: boolean }> => ({
@@ -34,9 +36,12 @@ const actions = vi.hoisted(() => ({
     }),
   ),
   updateDraftAction: vi.fn(
-    async (): Promise<{ ok: boolean; error?: string; unavailable?: boolean }> => ({
-      ok: true,
-    }),
+    async (): Promise<{
+      ok: boolean;
+      error?: string;
+      unavailable?: boolean;
+      conflict?: boolean;
+    }> => ({ ok: true }),
   ),
   fetchDraftsPageAction: vi.fn(
     async (
@@ -92,7 +97,11 @@ function renderList(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  actions.getDraftBodyAction.mockResolvedValue({ ok: true, body: "the full saved body" });
+  actions.getDraftBodyAction.mockResolvedValue({
+    ok: true,
+    body: "the full saved body",
+    updatedAt: "2026-07-30T00:00:00Z",
+  });
   actions.deleteDraftAction.mockResolvedValue({ ok: true });
   actions.updateDraftAction.mockResolvedValue({ ok: true });
   actions.fetchDraftsPageAction.mockResolvedValue({
@@ -185,7 +194,11 @@ describe("Editing a draft in place", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Edit draft:/ }));
 
   it("seeds the editor from the FETCHED body, never the truncated preview", async () => {
-    actions.getDraftBodyAction.mockResolvedValue({ ok: true, body: LONG_BODY });
+    actions.getDraftBodyAction.mockResolvedValue({
+      ok: true,
+      body: LONG_BODY,
+      updatedAt: "2026-07-30T00:00:00Z",
+    });
     renderList();
     openEditor();
 
@@ -218,7 +231,13 @@ describe("Editing a draft in place", () => {
     // recorded before its continuation runs, so waiting on it would assert
     // against a half-finished save.
     await vi.waitFor(() => expect(routerMock.refresh).toHaveBeenCalled());
-    expect(actions.updateDraftAction).toHaveBeenCalledWith("d1", "reworded body");
+    expect(actions.updateDraftAction).toHaveBeenCalledWith(
+      "d1",
+      "reworded body",
+      // The precondition is the version the FETCH returned, not the list row's —
+      // the row can be stale by the time the editor opens.
+      "2026-07-30T00:00:00Z",
+    );
     // In-place: unlike resume, the row survives and nothing navigates away.
     expect(actions.deleteDraftAction).not.toHaveBeenCalled();
     expect(routerMock.push).not.toHaveBeenCalled();
@@ -414,6 +433,67 @@ describe("Pagination after an in-place edit (Codex review, PR #58)", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Load more|Loading/ }));
     await vi.waitFor(() =>
       expect(screen.queryByRole("button", { name: /Load more|Loading/ })).toBeNull(),
+    );
+  });
+});
+
+describe("Transport failures and conflicts (Codex review, PR #58)", () => {
+  const openEditor = () =>
+    fireEvent.click(screen.getByRole("button", { name: /^Edit draft:/ }));
+
+  it("a REJECTED save keeps the sheet and the text, instead of hitting the error boundary", async () => {
+    // A server action rejects (rather than returning ok:false) when the request
+    // itself fails. Uncaught inside a transition that reaches the route error
+    // boundary, which unmounts this component — discarding the unsaved text via
+    // the very path meant to preserve it.
+    actions.updateDraftAction.mockRejectedValue(new Error("network down"));
+    renderList();
+    openEditor();
+    fireEvent.change(await screen.findByLabelText("Draft text"), {
+      target: { value: "precious edit" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't reach the server/i);
+    expect((screen.getByLabelText("Draft text") as HTMLTextAreaElement).value).toBe(
+      "precious edit",
+    );
+  });
+
+  it("a REJECTED open reports the transport failure rather than crashing", async () => {
+    actions.getDraftBodyAction.mockRejectedValue(new Error("network down"));
+    renderList();
+    openEditor();
+    expect(await screen.findByText(/couldn't reach the server/i)).toBeTruthy();
+    expect(screen.queryByLabelText("Draft text")).toBeNull();
+  });
+
+  it("a REJECTED delete surfaces an error rather than crashing", async () => {
+    actions.deleteDraftAction.mockRejectedValue(new Error("network down"));
+    renderList();
+    fireEvent.click(screen.getByRole("button", { name: /^Delete draft:/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete draft" }));
+    expect(await screen.findByText(/couldn't reach the server/i)).toBeTruthy();
+  });
+
+  it("a concurrent save elsewhere is reported as a conflict, not as deletion", async () => {
+    // Distinct from "no longer there": the user's next step is to reopen for the
+    // newer version, and either way the local text is kept.
+    actions.updateDraftAction.mockResolvedValue({
+      ok: false,
+      conflict: true,
+      error: "This draft changed somewhere else. Reopen it to get the latest version.",
+    });
+    renderList();
+    openEditor();
+    fireEvent.change(await screen.findByLabelText("Draft text"), {
+      target: { value: "my version" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/changed somewhere else/i);
+    expect((screen.getByLabelText("Draft text") as HTMLTextAreaElement).value).toBe(
+      "my version",
     );
   });
 });

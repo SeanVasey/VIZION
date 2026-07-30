@@ -38,9 +38,24 @@ Three things that would each have been a silent bug:
   without resetting, the edited row could appear twice, pre-edit and post-edit,
   disagreeing with itself.
 
+Saving is conditioned on the version the editor was opened against, so the same
+draft open in two tabs cannot have the stale one silently overwrite the newer
+body. The precondition is the `updated_at` returned by the body FETCH, not the
+list row's — the row can already be stale when the editor opens, and conditioning
+on that would reject a save against a body the user never saw. Zero rows matched
+is then ambiguous, so the failure path reads the row back and distinguishes
+"changed somewhere else" (reopen for the newer version) from "no longer there".
+
+Every server-action call in the view goes through a small `settle` helper. An
+action returns `{ ok: false }` for errors it can describe but REJECTS when the
+request itself fails, and an uncaught rejection inside a transition reaches the
+route error boundary and unmounts the component — which for the edit sheet meant
+the unsaved text was discarded by the very path meant to preserve it.
+
 A row that no longer exists is reported as such rather than as success — RLS makes
 "not yours" and "not there" indistinguishable, and both mean the edit did not
-land. A failed save keeps the sheet open with the text intact.
+land. A failed save keeps the sheet open with the text intact, and no dismissal
+path can close it mid-save.
 
 The body rules are now shared between save and update, so an edit cannot accept
 what a save rejects and surface as a raw constraint violation.

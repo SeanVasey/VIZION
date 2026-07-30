@@ -21,6 +21,29 @@ import { libraryHref, type LibraryFilter } from "@/lib/library/paging";
 
 const LEVELS = new Set<string>(THINKING_LEVELS);
 
+const TRANSPORT_FAILURE = "Couldn't reach the server — check your connection.";
+
+/**
+ * Run a server action so a TRANSPORT failure becomes a value, not a throw.
+ *
+ * A server action returns `{ ok: false }` for errors it can describe, but it
+ * REJECTS when the request itself fails — a dropped connection, a 500 from the
+ * edge. An uncaught rejection inside `startTransition` propagates to the route
+ * error boundary, which unmounts this component; for the edit sheet that means
+ * the user's unsaved text is discarded by the very path that exists to preserve
+ * it. Every awaited action here goes through this.
+ *
+ * The fallback is passed in rather than synthesised, so each call site states
+ * the shape of its own failure and the types line up exactly.
+ */
+async function settle<T>(work: Promise<T>, onTransportFailure: T): Promise<T> {
+  try {
+    return await work;
+  } catch {
+    return onTransportFailure;
+  }
+}
+
 /**
  * The Drafts view of the library — unfinished composer state saved to the
  * account, newest-edited first.
@@ -85,6 +108,11 @@ export function DraftsList({
    */
   const [editing, setEditing] = useState<DraftCard | null>(null);
   const [editBody, setEditBody] = useState<string | null>(null);
+  /** `updated_at` of the body the editor is showing, used as the save
+   *  precondition. Taken from the FETCH, not from the list row — the row's
+   *  timestamp can already be stale when the editor opens, and conditioning on
+   *  that would reject a save against a body the user never saw. */
+  const [editBaseVersion, setEditBaseVersion] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   /** Tracked separately from the shared `pending`. Opening the sheet also runs a
    *  transition (to fetch the body), and reusing `pending` for the save button
@@ -95,25 +123,31 @@ export function DraftsList({
   function openEditor(card: DraftCard) {
     setEditing(card);
     setEditBody(null);
+    setEditBaseVersion(null);
     setEditError(null);
     startAction(async () => {
-      const got = await getDraftBodyAction(card.id);
-      if (!got.ok || got.body === undefined) {
+      const got = await settle(getDraftBodyAction(card.id), {
+        ok: false,
+        error: TRANSPORT_FAILURE,
+      });
+      if (!got.ok || got.body === undefined || got.updatedAt === undefined) {
         setEditError(got.error ?? "Couldn't open that draft.");
         return;
       }
       setEditBody(got.body);
+      setEditBaseVersion(got.updatedAt);
     });
   }
 
   function closeEditor() {
     setEditing(null);
     setEditBody(null);
+    setEditBaseVersion(null);
     setEditError(null);
   }
 
   function saveEdit() {
-    if (!editing || editBody === null) return;
+    if (!editing || editBody === null || editBaseVersion === null) return;
     // Set OUTSIDE the transition, on purpose. Inside `startAction` this is a
     // transition-priority update, so a discrete event — Escape, a scrim tap —
     // can be handled while `savingEdit` is still false, and the dismissal guard
@@ -121,9 +155,10 @@ export function DraftsList({
     // commits before the async work starts.
     setSavingEdit(true);
     startAction(async () => {
-      const res = await updateDraftAction(editing.id, editBody).finally(() =>
-        setSavingEdit(false),
-      );
+      const res = await settle(updateDraftAction(editing.id, editBody, editBaseVersion), {
+        ok: false,
+        error: TRANSPORT_FAILURE,
+      }).finally(() => setSavingEdit(false));
       if (!res.ok) {
         // Stay open with the text intact — closing would throw away the edit
         // the user just failed to save.
@@ -155,7 +190,10 @@ export function DraftsList({
 
   function resume(card: DraftCard) {
     startAction(async () => {
-      const got = await getDraftBodyAction(card.id);
+      const got = await settle(getDraftBodyAction(card.id), {
+        ok: false,
+        error: TRANSPORT_FAILURE,
+      });
       if (!got.ok || got.body === undefined) {
         toast({ text: got.error ?? "Couldn't open that draft.", tone: "error" });
         return;
@@ -175,7 +213,10 @@ export function DraftsList({
       // same work does not exist twice. A failure here is not fatal — the body
       // is already in the composer — but it must not pass silently, or the user
       // ends up with the same work in two places and no idea why.
-      const dropped = await deleteDraftAction(card.id);
+      const dropped = await settle(deleteDraftAction(card.id), {
+        ok: false,
+        error: TRANSPORT_FAILURE,
+      });
       if (!dropped.ok) {
         toast({
           text: "Opened the draft, but it's still saved in your library.",
@@ -188,7 +229,10 @@ export function DraftsList({
 
   function remove(card: DraftCard) {
     startAction(async () => {
-      const res = await deleteDraftAction(card.id);
+      const res = await settle(deleteDraftAction(card.id), {
+        ok: false,
+        error: TRANSPORT_FAILURE,
+      });
       if (!res.ok) {
         toast({ text: res.error ?? "Couldn't delete that draft.", tone: "error" });
         return;
@@ -208,7 +252,10 @@ export function DraftsList({
       const params = Object.fromEntries(
         new URL(libraryHref(filter), "http://x").searchParams.entries(),
       );
-      const res = await fetchDraftsPageAction(params, cursor);
+      const res = await settle(fetchDraftsPageAction(params, cursor), {
+        ok: false,
+        error: TRANSPORT_FAILURE,
+      });
       if (!res.ok || !res.cards) {
         setLoadError(res.error ?? "Couldn't load more drafts.");
         return;
@@ -354,7 +401,12 @@ export function DraftsList({
               onClick={saveEdit}
               // Disabled until the full body has loaded: saving `null` would be
               // saving nothing, and saving the preview would truncate the draft.
-              disabled={savingEdit || editBody === null || editBody.trim() === ""}
+              disabled={
+                savingEdit ||
+                editBody === null ||
+                editBaseVersion === null ||
+                editBody.trim() === ""
+              }
               className="btn-laser flex min-h-[44px] flex-1 items-center justify-center px-5 text-sm disabled:opacity-50"
             >
               {savingEdit ? "Saving…" : "Save changes"}

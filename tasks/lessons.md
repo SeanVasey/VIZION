@@ -1722,3 +1722,28 @@ than as a puzzling failure in whichever spec ran first.
   committing. And `fireEvent.click` on a disabled button is a silent no-op, so
   "the sheet never opened" is the symptom of a pending transition, not a broken
   handler.
+- **Server actions REJECT on transport failure; they do not return
+  `{ ok: false }`.** Every awaited action in a client component therefore needs a
+  guard, or a dropped connection propagates out of the transition to the route
+  error boundary and unmounts the component. In an editor that is data loss
+  performed by the error path itself. One `settle(work, fallback)` helper at every
+  call site beats five try/catch blocks and makes the omission visible.
+- **Optimistic concurrency needs the version of the DATA SHOWN, not the row that
+  linked to it.** Conditioning the update on the list row's `updated_at` would
+  reject saves against a body the user is legitimately editing, because the row
+  can go stale between render and opening the editor. Carry the timestamp back
+  from the fetch that supplied the body.
+- **When a precondition can match zero rows, disambiguate on the failure path.**
+  `.eq(id).eq(updated_at)` matching nothing means deleted OR superseded, and the
+  user's next step differs. Reading the row back costs nothing on the happy path
+  and has a second benefit: a timestamp-format mismatch would surface as a
+  visible "changed elsewhere" rather than as silent data loss.
+- **A scripted replace that does not match is a silent no-op, twice over.** The
+  class typo came from one; the `toHaveBeenCalledWith` update came from another
+  (six spaces of indentation instead of four). Both looked applied. Assert the
+  post-state — grep for the new string, or let the test fail — rather than
+  trusting that the patch ran.
+- **Confirm a red e2e is flake before believing it.** A scroll-state test failed
+  in the full run, passed in isolation, and passed the full run on a stashed
+  clean tree AND again with the changes re-applied. Three data points, not one,
+  and only then is "pre-existing flake" a claim rather than a hope.
