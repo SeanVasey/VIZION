@@ -22,15 +22,21 @@ export default function EnhanceLoading() {
         aria-live="polite"
       >
         <span className="sr-only">Loading the composer…</span>
-        {/* Hero graphic. */}
-        <Skeleton className="mx-auto h-24 w-40 rounded-2xl" />
-        {/* Mode rig. */}
-        <div className="flex gap-2">
-          {Array.from({ length: 3 }, (_, i) => (
-            <Skeleton key={i} className="h-9 flex-1 rounded-full" />
-          ))}
+        {/* Horizon band — same h-7 footprint and -mb-3 trim as the real one,
+            sketched as its centre rule so nothing jumps when it paints. */}
+        <div className="-mb-3 flex h-7 items-center justify-center">
+          <Skeleton className="h-px w-[64%] max-w-[240px] rounded-full" />
         </div>
-        {/* Editor + target + CTA. */}
+        {/* Mode rig — six equal cells in one chassis, plus the helper line. */}
+        <div className="flex flex-col gap-2">
+          <div className="glass grid grid-cols-6 gap-1 rounded-2xl p-1">
+            {Array.from({ length: 6 }, (_, i) => (
+              <Skeleton key={i} className="min-h-[56px] rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="mx-auto h-3 w-3/5 rounded" />
+        </div>
+        {/* Editor + rails + CTA. */}
         <div className="glass rounded-2xl p-4">
           <Skeleton lines={3} />
         </div>
