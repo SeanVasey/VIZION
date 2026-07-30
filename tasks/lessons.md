@@ -1805,3 +1805,24 @@ than as a puzzling failure in whichever spec ran first.
   — one transition owns the refresh, and the control is not rendered while it is
   pending — and claiming a test for it would be claiming coverage that does not
   exist.
+- **`npm audit` ranges can be wrong; read the source before believing the
+  number.** GHSA-mh99-v99m-4gvg flags `brace-expansion <=5.0.7`, but 1.1.17 and
+  2.1.3 both contain the CVE-2026-14257 limits — the fix was backported and the
+  range was never narrowed. Two commits' worth of override churn went into
+  chasing a number that was already satisfied in code. `grep` for the fix.
+- **`|| true` on a security step is worse than no step.** It printed 14 entries
+  and passed, so a real new advisory had nowhere to show up. A gate that exempts
+  KNOWN findings and fails on everything else turns the same command from noise
+  into signal — and the exemption should re-prove itself (here: every installed
+  copy must actually contain the limits) so it cannot decay into an ignore-list.
+- **npm `overrides` cannot use a `file:` path for a nested dependency.** The spec
+  is resolved relative to the DEPENDING package, so `file:patches/x` becomes
+  `node_modules/minimatch/patches/x` and the install dies with ENOENT. A vendored
+  callable shim — the one solution that would have given both a clean number and
+  working code — is therefore not expressible. `install-links=true` does not
+  change the path resolution.
+- **Write the negative test even when the positive one passes.** The audit gate
+  passed on a clean tree AND on a deliberately-unpatched one, because its
+  directory walk never descended through `minimatch/` into nested node_modules.
+  The positive result was luck; only the negative test found it. This is the
+  second time this session a self-check was quietly proving nothing.

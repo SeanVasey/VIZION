@@ -6,6 +6,39 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — the full-tree audit is now a gate, not a printout
+
+`npm audit || true` printed 14 high entries and passed regardless, so a genuinely
+new advisory would have scrolled past among the known ones. `npm run audit:check`
+(`scripts/check-audit.mjs`) replaces it and fails on any advisory that is not a
+documented exemption.
+
+**On the 14 entries: they are one advisory, and it is a false positive.** All of
+them fan out from GHSA-mh99-v99m-4gvg on `brace-expansion` (range `<=5.0.7`); the
+other twelve package names are "depends on a vulnerable version of…" paths. The
+fix — CVE-2026-14257's `EXPANSION_MAX` / `EXPANSION_MAX_LENGTH` limits — **was
+backported to 1.1.17 and 2.1.3**, but the advisory range was never narrowed, so
+patched releases still match it.
+
+It also cannot be removed. `eslint@9` depends on `minimatch@^3.1.5`, and
+minimatch@3 does `require('brace-expansion')` and **calls** the result, while
+5.0.8 exports an object — so a 1.x is the only patched shape that consumer can
+use. **`npm audit` cannot reach 0 on the full tree while this project uses ESLint
+9**, and forcing it to (the previous blanket `^5` override) broke every braced
+glob in the tree instead.
+
+So the exemption is verified rather than asserted: the script re-checks that every
+installed copy of `brace-expansion` — at any nesting depth — actually contains the
+limits, and fails if one does not. An allowlist that cannot rot into a blanket
+ignore. Both failure modes are covered by negative tests: an unpatched copy fails
+the gate, and a non-exempt advisory fails the gate. The first of those caught a
+real bug in the script's own directory walk, which had been verifying only the
+root copy.
+
+The production gate (`npm audit --omit=dev --audit-level=high`) stays at **0** and
+is unchanged.
+
+
 ### Fixed — the `brace-expansion` override no longer breaks glob expansion
 
 `overrides` had a single blanket `"brace-expansion": "^5.0.8"`, which forced v5

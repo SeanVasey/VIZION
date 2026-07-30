@@ -74,9 +74,21 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
   patched 1.x/2.x exists and the FULL-tree `npm audit` reports 14 high entries,
   all in dev tooling (the eslint chain and workbox-build). CI gates
   `npm audit --omit=dev --audit-level=high`, which stays at **0**, and the
-  full-tree step is already advisory-only (`|| true`). The alternative was a
-  silently broken glob engine in exchange for a cleaner advisory report on
-  dependencies that never ship.
+  full-tree step is now GATED by `npm run audit:check` rather than
+  `npm audit || true`.
+- **The 14 full-tree entries are one advisory, and it is a false positive.** They
+  all fan out from GHSA-mh99-v99m-4gvg on `brace-expansion` (range `<=5.0.7`).
+  The fix — CVE-2026-14257's `EXPANSION_MAX` / `EXPANSION_MAX_LENGTH` limits —
+  WAS backported to 1.1.17 and 2.1.3; the advisory range was never narrowed, so
+  patched releases still match it. Verify for yourself:
+  `grep EXPANSION_MAX_LENGTH node_modules/minimatch/node_modules/brace-expansion/index.js`.
+  It also cannot be removed: `eslint@9` requires `minimatch@^3.1.5`, and
+  minimatch@3 calls brace-expansion as a function, so a 1.x is the only patched
+  shape available to it. **`npm audit` cannot reach 0 on the full tree while this
+  project uses ESLint 9** — which is why the gate verifies the exemption instead
+  of chasing the number. `scripts/check-audit.mjs` fails on any advisory that is
+  not exempt, AND re-proves each exemption by checking that every installed copy
+  really contains the limits, so the allowlist cannot rot into a blanket ignore.
 - **`eslint-plugin-tailwindcss` must stay on the `3.x` line** while this project
   is on Tailwind 3. `4.x` declares `peer tailwindcss@^4` and will not install
   without `--force`. Its `settings.tailwindcss.config` also has to be an
