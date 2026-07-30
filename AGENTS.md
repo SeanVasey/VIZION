@@ -70,9 +70,10 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
   one: an ESLint `files: ["src/**/*.{ts,tsx}"]` is the first thing to hit it.
   The keys are `brace-expansion@1` / `@2` / `@5`, each pinned to the newest
   release of its own line, so every consumer gets an API it can actually call.
-  **Consequence, deliberately accepted:** the advisory range is `<=5.0.7`, so no
-  patched 1.x/2.x exists and the FULL-tree `npm audit` reports 14 high entries,
-  all in dev tooling (the eslint chain and workbox-build). CI gates
+  **Consequence, deliberately accepted:** the advisory range is `<=5.0.7`, so
+  every 1.x and 2.x release matches it no matter how patched, and the FULL-tree
+  `npm audit` reports 14 high entries, all in dev tooling (the eslint chain and
+  workbox-build). See the next bullet for why that is a false positive. CI gates
   `npm audit --omit=dev --audit-level=high`, which stays at **0**, and the
   full-tree step is now GATED by `npm run audit:check` rather than
   `npm audit || true`.

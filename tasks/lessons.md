@@ -1784,11 +1784,21 @@ than as a puzzling failure in whichever spec ran first.
   `npm run lint` passed because no ESLint pattern contained braces, so
   `braceExpand` was never reached. Latent for days. When an override crosses a
   major, exercise the API the overridden consumer actually calls.
-- **Advisory-clean is not free.** With no patched 1.x/2.x in existence, the choice
-  was a working glob engine with 14 dev-only advisories, or a clean full-tree
-  report with a broken one. Read what CI actually gates — here
-  `npm audit --omit=dev`, with the full-tree step already `|| true` — before
-  trading correctness for a number.
+- **Advisory-clean is not free.** With no 1.x/2.x release falling outside the
+  advisory's range, the choice was a working glob engine with 14 dev-only
+  advisories, or a clean full-tree report with a broken one. Read what CI actually
+  gates — here `npm audit --omit=dev`, with the full-tree step already `|| true` —
+  before trading correctness for a number.
+- **"Inside the advisory range" is not "vulnerable".** I wrote the lesson above as
+  "no patched 1.x/2.x in existence", which was false: the fix WAS backported to
+  1.1.17 and 2.1.3, and the range `<=5.0.7` just never got narrowed. Same numbers,
+  different conclusion — the entries are a false positive, not an accepted risk,
+  which is what makes a *verified* exemption (`scripts/check-audit.mjs` re-proving
+  the limits are present in every installed copy) the right answer instead of a
+  tradeoff. Check the fix's presence in the source before concluding a range means
+  what it appears to; and when that conclusion changes, chase down every place the
+  old one was written — it had propagated into AGENTS.md, two CHANGELOG entries and
+  here before a review bot flagged the contradiction.
 - **An async `startTransition` callback has left the transition scope by the time
   it resumes.** `router.refresh()` issued after an `await` inside
   `startAction(async () => ...)` is attached to no transition, so `pending` clears

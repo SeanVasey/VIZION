@@ -61,14 +61,19 @@ call. Verified: `minimatch@3` loads its own nested `1.1.17`, and
 `new Minimatch("src/**/*.{ts,tsx}").braceExpand()` returns
 `["src/**/*.ts", "src/**/*.tsx"]`.
 
-**Tradeoff, taken deliberately.** The advisory range is `<=5.0.7`, so there is no
-patched 1.x or 2.x — the earlier commit was right about that. The full-tree
-`npm audit` therefore reports 14 high entries again, every one in dev tooling (the
-eslint chain and workbox-build), none in shipped code. CI gates
+**Tradeoff, taken deliberately.** The advisory range is `<=5.0.7`, so every 1.x
+and 2.x release matches it regardless of content. The full-tree `npm audit`
+therefore reports 14 high entries again, every one in dev tooling (the eslint
+chain and workbox-build), none in shipped code. CI gates
 `npm audit --omit=dev --audit-level=high`, which stays at **0**, and the full-tree
 step was already advisory-only (`|| true`). The alternative was keeping a silently
 broken glob engine in exchange for a tidier report about packages that never
 reach production.
+
+The pinned 1.x/2.x releases do carry the fix — see "the full-tree audit is now a
+gate" above, which supersedes this entry's original claim that no patched 1.x or
+2.x existed. The true statement is narrower: no patched release falls *outside*
+the advisory's range, because the range was never narrowed after the backport.
 
 
 ### Added — lint now rejects class names Tailwind does not recognise
@@ -1303,7 +1308,8 @@ production tree (`--omit=dev`), which is the gating CI step.
   patched copy), plus `js-yaml@^4.3.0`, `fast-uri@^3.1.4`, and
   `brace-expansion@^5.0.8`. The last one is the interesting case: the
   unbounded-expansion OOM advisory covers **everything ≤ 5.0.7**, so the 1.x
-  and 2.x lines have no patched release, and that single package was the root
+  and 2.x lines have no patched release <sup>[corrected below]</sup>, and that
+  single package was the root
   cause of fourteen reported entries cascading up through `minimatch` →
   `@eslint/config-array` / `@eslint/eslintrc` → `eslint` → `eslint-config-next`
   and its plugins, and through `filelist` → `jake` → `ejs` →
@@ -1314,6 +1320,14 @@ matrix was regenerated under sharp 0.35 and is **pixel-identical** to the
 committed PNGs (raw-buffer compare, max channel delta 0 — only PNG container
 bytes differ, so the shipped assets are left untouched), and the service
 worker still precaches its 21 entries under esbuild 0.28.
+
+> **Corrected after release.** "The 1.x and 2.x lines have no patched release"
+> was wrong. CVE-2026-14257's `EXPANSION_MAX` / `EXPANSION_MAX_LENGTH` limits
+> were backported to **1.1.17** and **2.1.3**; the advisory's `<=5.0.7` range
+> was simply never narrowed, so patched releases still match it. The blanket
+> `^5` override this entry describes was also actively harmful — it broke brace
+> expansion through `minimatch@3` — and is superseded by the per-major keys in
+> the Unreleased section.
 
 ### Changed — GPT-5.6 Luna + Terra join; Kimi and MiniMax move to K3 / M3 (sixteen models, twelve developers)
 
