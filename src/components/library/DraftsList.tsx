@@ -100,6 +100,24 @@ export function DraftsList({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [confirmFor, setConfirmFor] = useState<DraftCard | null>(null);
   const [pending, startAction] = useTransition();
+  /**
+   * A SEPARATE transition, entered synchronously, that owns `router.refresh()`.
+   *
+   * `startAction` runs an async callback, and once that callback has awaited,
+   * React is no longer inside the transition scope — so a `router.refresh()`
+   * called after the await is not attached to any transition and `pending` can
+   * go false while the refreshed props are still in flight. In that window
+   * `cursor` falls back to the still-OLD `nextCursor` prop, and paging from it
+   * re-creates the very skip the derivation was added to prevent.
+   *
+   * Calling refresh inside its own SYNCHRONOUS transition callback attaches it
+   * properly, so `refreshing` stays true until the new server render commits.
+   * Deadlock-free by construction: React always settles a transition, even if
+   * the refreshed props turn out identical — unlike gating on a prop actually
+   * changing, which would hide "Load more" forever when an edit happens not to
+   * move the page boundary.
+   */
+  const [refreshing, startRefresh] = useTransition();
 
   /**
    * In-place edit state. `body` is null until the full text has been fetched —
@@ -182,7 +200,7 @@ export function DraftsList({
       // describes the page the server just rendered rather than the one it
       // rendered before this edit reordered the list.
       setPagedCursor(undefined);
-      router.refresh();
+      startRefresh(() => router.refresh());
     });
   }
 
@@ -240,12 +258,13 @@ export function DraftsList({
       setExtra((xs) => xs.filter((x) => x.id !== card.id));
       setConfirmFor(null);
       toast({ text: "Draft deleted" });
-      router.refresh();
+      startRefresh(() => router.refresh());
     });
   }
 
   function loadMore() {
-    if (!cursor) return;
+    // `refreshing` means the props this cursor came from are being replaced.
+    if (!cursor || refreshing) return;
     startAction(async () => {
       // Derive the params from the same helper that builds the URL, so the
       // action re-parses precisely the filter this view is showing.
@@ -372,7 +391,10 @@ export function DraftsList({
         </p>
       )}
 
-      {cursor && (
+      {/* Hidden, not merely disabled, while a refresh is in flight: the cursor
+          on offer is the pre-refresh boundary, and a disabled-looking button
+          still invites a click the instant the flag clears. */}
+      {cursor && !refreshing && (
         <button
           type="button"
           onClick={loadMore}

@@ -1789,3 +1789,19 @@ than as a puzzling failure in whichever spec ran first.
   report with a broken one. Read what CI actually gates — here
   `npm audit --omit=dev`, with the full-tree step already `|| true` — before
   trading correctness for a number.
+- **An async `startTransition` callback has left the transition scope by the time
+  it resumes.** `router.refresh()` issued after an `await` inside
+  `startAction(async () => ...)` is attached to no transition, so `pending` clears
+  while the refreshed props are still arriving — and any state derived from those
+  props is briefly stale in a way the pending flag denies. Give `refresh()` its
+  own synchronous transition and gate on that.
+- **Gate on the transition settling, not on the prop changing.** Waiting for
+  `nextCursor` to differ would deadlock in the legitimate case where an edit does
+  not move the page boundary — the control would stay hidden forever. React always
+  settles a transition, so `refreshing` is the signal with no failure mode.
+- **Say when a window is real but untestable here.** The refresh gap cannot be
+  observed in jsdom: `router.refresh` is a no-op mock, so the transition settles
+  instantly and there is no window to assert against. The guarantee is structural
+  — one transition owns the refresh, and the control is not rendered while it is
+  pending — and claiming a test for it would be claiming coverage that does not
+  exist.

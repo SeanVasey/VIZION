@@ -104,6 +104,17 @@ Three things that would each have been a silent bug:
   without resetting, the edited row could appear twice, pre-edit and post-edit,
   disagreeing with itself.
 
+Pagination is suppressed while the post-save `router.refresh()` is in flight.
+`refresh()` is called inside its own SYNCHRONOUS transition, because `startAction`
+takes an async callback and React has left the transition scope by the time the
+awaited work finishes — so a refresh issued there is attached to nothing and the
+pending flag clears while the new props are still in flight. In that window
+`cursor` falls back to the pre-edit `nextCursor` prop, and paging from it
+re-creates exactly the skip the derivation was added to prevent. Gating on the
+refresh transition is deadlock-free: React always settles a transition, whereas
+waiting for a prop to actually change would hide "Load more" forever when an edit
+happens not to move the page boundary.
+
 Saving is conditioned on the version the editor was opened against, so the same
 draft open in two tabs cannot have the stale one silently overwrite the newer
 body. The precondition is the `updated_at` returned by the body FETCH, not the
