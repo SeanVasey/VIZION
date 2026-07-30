@@ -81,56 +81,27 @@ export async function savePromptAction(
 
   const promptTitle = title?.trim() || v.title?.trim() || deriveTitle(v.input);
 
-  const { data: prompt, error: pErr } = await supabase
-    .from("prompts")
-    .insert({ user_id: user.id, title: promptTitle, target_model: v.target, tags })
-    .select("id")
-    .single();
+  const { data: promptId, error: pErr } = await supabase.rpc("library_save_prompt", {
+    p_title: promptTitle,
+    p_target: v.target,
+    p_tags: tags,
+    p_input: v.input,
+    p_output: v.output,
+    p_rationale: v.rationale ?? null,
+    p_mode: v.mode,
+    p_model_used: v.modelUsed,
+    p_token_in: v.tokenIn,
+    p_token_out: v.tokenOut,
+    p_content_hash: hash,
+  });
   // A target the app offers but the DB enum lacks (unapplied migration) lands
   // here as Postgres 22P02 — surface the model, not the internal error text.
-  if (pErr || !prompt) {
+  if (pErr || !promptId) {
     return { ok: false, error: describeWriteError(pErr, "Couldn't save.") };
   }
 
-  const { data: ver, error: vErr } = await supabase
-    .from("prompt_versions")
-    .insert({
-      prompt_id: prompt.id,
-      input_text: v.input,
-      output_text: v.output,
-      rationale: v.rationale ?? null,
-      mode: v.mode,
-      model_used: v.modelUsed,
-      token_in: v.tokenIn,
-      token_out: v.tokenOut,
-      content_hash: hash,
-    })
-    .select("id")
-    .single();
-  if (vErr || !ver) {
-    return { ok: false, error: describeWriteError(vErr, "Couldn't save version.") };
-  }
-
-  await supabase
-    .from("prompts")
-    .update({
-      current_ver: ver.id,
-      preview: v.output.slice(0, 200),
-      current_mode: v.mode,
-    })
-    .eq("id", prompt.id);
-  await supabase.from("activity_events").insert([
-    {
-      user_id: user.id,
-      prompt_id: prompt.id,
-      type: "created",
-      meta: { title: promptTitle },
-    },
-    { user_id: user.id, prompt_id: prompt.id, type: "saved", meta: {} },
-  ]);
-
   revalidatePath("/library");
-  return { ok: true, promptId: prompt.id };
+  return { ok: true, promptId };
 }
 
 /** Append a new immutable version (parent = current) and make it current. */
@@ -166,38 +137,20 @@ export async function addVersionAction(
     }
   }
 
-  const { data: ver, error: vErr } = await supabase
-    .from("prompt_versions")
-    .insert({
-      prompt_id: promptId,
-      parent_ver: prompt?.current_ver ?? null,
-      input_text: v.input,
-      output_text: v.output,
-      rationale: v.rationale ?? null,
-      mode: v.mode,
-      model_used: v.modelUsed,
-      token_in: v.tokenIn,
-      token_out: v.tokenOut,
-      content_hash: hash,
-    })
-    .select("id")
-    .single();
+  const { data: ver, error: vErr } = await supabase.rpc("library_add_version", {
+    p_prompt_id: promptId,
+    p_input: v.input,
+    p_output: v.output,
+    p_rationale: v.rationale ?? null,
+    p_mode: v.mode,
+    p_model_used: v.modelUsed,
+    p_token_in: v.tokenIn,
+    p_token_out: v.tokenOut,
+    p_content_hash: hash,
+  });
   if (vErr || !ver) {
     return { ok: false, error: describeWriteError(vErr, "Couldn't save version.") };
   }
-
-  await supabase
-    .from("prompts")
-    .update({
-      current_ver: ver.id,
-      preview: v.output.slice(0, 200),
-      current_mode: v.mode,
-    })
-    .eq("id", promptId);
-  await supabase.from("activity_events").insert([
-    { user_id: user.id, prompt_id: promptId, type: "enhanced", meta: {} },
-    { user_id: user.id, prompt_id: promptId, type: "saved", meta: {} },
-  ]);
 
   revalidatePath(`/library/${promptId}`);
   revalidatePath("/library");
@@ -220,7 +173,10 @@ export async function restoreVersionAction(
     .from("prompt_versions")
     .select("output_text, mode")
     .eq("id", versionId)
+    .eq("prompt_id", promptId)
     .single();
+  if (!restored)
+    return { ok: false, error: "That version doesn't belong to this prompt." };
 
   // Grab the title in the same round trip so the activity feed can render
   // "Restored a version of “<title>”" instead of a dangling verb.
@@ -228,9 +184,8 @@ export async function restoreVersionAction(
     .from("prompts")
     .update({
       current_ver: versionId,
-      ...(restored
-        ? { preview: restored.output_text.slice(0, 200), current_mode: restored.mode }
-        : {}),
+      preview: restored.output_text.slice(0, 200),
+      current_mode: restored.mode,
     })
     .eq("id", promptId)
     .select("title")

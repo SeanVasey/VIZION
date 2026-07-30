@@ -22,6 +22,12 @@ import {
 } from "@/lib/providers/config";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { rateLimit } from "@/lib/security/rate-limit";
+import {
+  maxVisionCost,
+  releaseSpend,
+  reserveSpend,
+  settleSpend,
+} from "@/lib/security/spend";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
@@ -112,19 +118,6 @@ export async function POST(request: NextRequest) {
     return err(413, "Image is too large to analyze.");
   }
 
-  // Rate limit + cost cap (RLS scopes the window to this user).
-  const { data: windowRows, error: windowError } = await supabase.rpc("usage_window", {
-    p_rate_seconds: 60,
-  });
-  if (windowError) return err(500, "Couldn't check your usage limits.");
-  const win = windowRows?.[0] ?? { recent_count: 0, today_cost: 0 };
-  if (Number(win.recent_count) >= RATE_LIMIT_PER_MIN) {
-    return err(429, "You're going fast — wait a moment and try again.");
-  }
-  if (Number(win.today_cost) >= COST_CAP_USD_PER_DAY) {
-    return err(429, "You've reached today's usage cap.", { capReached: true });
-  }
-
   // Vision runs on the selected model. A text-only flagship (DeepSeek,
   // MiniMax, Qwen Max) can't take an image at all, so analysis is routed to
   // the first configured vision-capable provider up front. A config-shaped
@@ -142,6 +135,14 @@ export async function POST(request: NextRequest) {
     }
     usedTarget = redirect;
   }
+  let reservation = await reserveSpend(supabase, maxVisionCost(usedTarget));
+  if ("error" in reservation) {
+    if (reservation.error === "rate")
+      return err(429, "You're going fast — wait a moment and try again.");
+    if (reservation.error === "cap")
+      return err(429, "You've reached today's usage cap.", { capReached: true });
+    return err(500, "Couldn't reserve your usage allowance.");
+  }
   const visionOpts = { system: intentSpec.system, expect: intentSpec.expect };
   let extracted;
   try {
@@ -153,11 +154,22 @@ export async function POST(request: NextRequest) {
     );
   } catch (e) {
     const fallback = isVisionConfigError(e) ? visionFallbackTarget(usedTarget) : null;
+    await releaseSpend(supabase, reservation.id);
     if (!fallback) return visionError(e);
     console.error(
       `[media] vision on ${usedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
     );
     try {
+      const fallbackReservation = await reserveSpend(supabase, maxVisionCost(fallback));
+      if ("error" in fallbackReservation) {
+        return fallbackReservation.error === "cap"
+          ? err(429, "You've reached today's usage cap.", { capReached: true })
+          : err(
+              fallbackReservation.error === "rate" ? 429 : 500,
+              "Couldn't reserve the fallback usage allowance.",
+            );
+      }
+      reservation = fallbackReservation;
       extracted = await describeImage(
         parsed.base64,
         parsed.mediaType,
@@ -166,20 +178,20 @@ export async function POST(request: NextRequest) {
       );
       usedTarget = fallback;
     } catch (e2) {
+      await releaseSpend(supabase, reservation.id);
       return visionError(e2);
     }
   }
 
   const cfg = TARGETS[usedTarget];
   const costUsd = computeCost(usedTarget, extracted.tokenIn, extracted.tokenOut);
-  const { error: ledgerError } = await supabase.from("usage_events").insert({
-    user_id: user.id,
+  const { error: ledgerError } = await settleSpend(supabase, reservation.id, {
     target: usedTarget,
     mode: "extract",
-    model_used: cfg.model,
-    token_in: extracted.tokenIn,
-    token_out: extracted.tokenOut,
-    cost_usd: costUsd,
+    modelUsed: cfg.model,
+    tokenIn: extracted.tokenIn,
+    tokenOut: extracted.tokenOut,
+    costUsd,
   });
   // The cap is only as good as this write (console.error survives prod).
   if (ledgerError) {
@@ -191,7 +203,7 @@ export async function POST(request: NextRequest) {
     tokenIn: extracted.tokenIn,
     tokenOut: extracted.tokenOut,
     costUsd,
-    todayCost: Number(win.today_cost) + costUsd,
+    todayCost: reservation.todayCost + costUsd,
     capUsd: COST_CAP_USD_PER_DAY,
   };
 
