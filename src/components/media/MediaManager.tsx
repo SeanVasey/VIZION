@@ -15,12 +15,7 @@ import {
 import type { MediaKind } from "@/lib/media/types";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { MediaPreviewSheet } from "@/components/media/MediaPreviewSheet";
-
-const KIND_GLYPH: Record<MediaKind, string> = {
-  image: "🖼",
-  video: "🎞",
-  audio: "🎧",
-};
+import { KindIcon } from "@/components/media/KindIcon";
 
 /** What the preview sheet is showing — the row, plus its signed URL once minted. */
 interface Preview {
@@ -155,9 +150,9 @@ export function MediaManager({ onChanged }: { onChanged?: () => void }) {
     return (
       <span
         aria-hidden="true"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-base"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-silver"
       >
-        {KIND_GLYPH[asset.kind as MediaKind] ?? "🖼"}
+        <KindIcon kind={(asset.kind as MediaKind) ?? "image"} />
       </span>
     );
   }
