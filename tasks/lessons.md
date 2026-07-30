@@ -1638,3 +1638,17 @@ than as a puzzling failure in whichever spec ran first.
   clears the nav, which routes show it. A spec green in one project and red in
   another is worse than an absent one, and the comment in the file says why it
   is absent.
+- **The e2e stub silently ignores filters it does not implement, which makes a
+  broken search look like a working one.** `applyFilters` skips any op outside
+  `SUPPORTED_OPS`, so a PostgREST `or=(title.ilike...,body.ilike...)` is dropped
+  entirely — an e2e "search returns the row" would have passed with the filter
+  doing nothing at all. Search is covered instead by asserting the emitted
+  builder calls against a recording fake, which is where the real bugs live:
+  unescaped `%`/`_` widening the match, and an unquoted comma or paren breaking
+  the or-grammar into a different query.
+- **Two escaping layers, and the wire form is the only honest assertion.**
+  `escapeLike` protects ilike wildcards; `quoteOrValue` then doubles those
+  backslashes for the quoted-value grammar, which PostgREST unescapes back to
+  one. My first assertion expected the single-backslash form and failed against
+  correct code — the fix was the test, not the query. Assert what actually goes
+  on the wire, and say why both layers are there.

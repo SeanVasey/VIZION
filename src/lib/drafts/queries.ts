@@ -4,6 +4,7 @@ import {
   LIBRARY_PAGE_SIZE,
   decodeCursor,
   encodeCursor,
+  type LibraryFilter,
 } from "@/lib/library/paging";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -24,6 +25,19 @@ const UNDEFINED_TABLE = "PGRST205";
 
 export function isMissingDraftsTable(error: { code?: string | null } | null): boolean {
   return error?.code === UNDEFINED_TABLE;
+}
+
+/** Escape ilike wildcards in user input, so a literal % or _ in a search term
+ *  matches itself instead of everything. Mirrors `library/queries.ts`. */
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
+/** Quote a value for a PostgREST `or=()` expression. A search term can contain
+ *  commas and parens, which would otherwise break the filter grammar and turn a
+ *  harmless query into a 400 (or, worse, a different filter). */
+function quoteOrValue(v: string): string {
+  return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
 /** One Drafts-list row. Bodies are NOT fetched — the list renders the title
@@ -64,11 +78,26 @@ interface DraftRow {
  */
 export async function queryDraftsPage(
   supabase: Supabase,
+  filter: LibraryFilter,
   cursorRaw?: string,
 ): Promise<{ cards: DraftCard[]; nextCursor: string | null; unavailable: boolean }> {
   let q = supabase
     .from("drafts")
     .select("id, title, body, target_model, mode, thinking_level, created_at, updated_at");
+
+  // Search covers the BODY as well as the title. A draft's title is derived
+  // from its first line, so title-only search (what the prompts library does,
+  // where the user names the prompt) would miss everything the draft is
+  // actually about. `or` rather than two filters — those would AND.
+  if (filter.q) {
+    const like = `%${escapeLike(filter.q)}%`;
+    q = q.or(`title.ilike.${quoteOrValue(like)},body.ilike.${quoteOrValue(like)}`);
+  }
+  // model/mode are real draft columns, so they narrow here too. tag/collection
+  // are prompts-only and have nothing to match — they stay ignored rather than
+  // being reinterpreted into something the user did not ask for.
+  if (filter.model) q = q.eq("target_model", filter.model);
+  if (filter.mode) q = q.eq("mode", filter.mode);
 
   const cursor = cursorRaw ? decodeCursor(cursorRaw) : null;
   if (cursor) {
@@ -109,11 +138,19 @@ export async function queryDraftsPage(
   return { cards, nextCursor, unavailable: false };
 }
 
-/** Count of the user's drafts, for the view's facet badge. Capped: the badge
- *  is a rough "how many", not a total, and an unbounded count on every
- *  library render is not worth it. `null` = unavailable (migration pending). */
-export async function queryDraftCount(supabase: Supabase): Promise<number | null> {
-  const { data, error } = await supabase.from("drafts").select("id").limit(200);
+/** Models actually present in the user's drafts, with counts — so the Drafts
+ *  view's own filter offers only what is there, the same rule the prompts
+ *  library's model facet follows. `null` = unavailable (migration pending). */
+export async function queryDraftModelFacets(
+  supabase: Supabase,
+): Promise<{ id: string; count: number }[] | null> {
+  const { data, error } = await supabase.from("drafts").select("target_model").limit(1000);
   if (error) return null;
-  return (data ?? []).length;
+  const counts = new Map<string, number>();
+  for (const row of data ?? []) {
+    counts.set(row.target_model, (counts.get(row.target_model) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([id, count]) => ({ id, count }))
+    .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
 }

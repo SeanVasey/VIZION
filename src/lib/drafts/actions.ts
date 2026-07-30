@@ -11,6 +11,7 @@ import {
   type ThinkingLevel,
 } from "@/lib/constants";
 import { describeWriteError, writeErrorLogLine } from "@/lib/supabase/errors";
+import { parseLibraryParams } from "@/lib/library/paging";
 import { deriveTitle } from "@/lib/library/util";
 import {
   isMissingDraftsTable,
@@ -136,13 +137,23 @@ export async function getDraftBodyAction(
   return { ok: true, body: data.body };
 }
 
-/** Next page of drafts for the Drafts view's "Load more". */
+/** Next page of drafts for the Drafts view's "Load more".
+ *
+ *  Takes the raw searchParams rather than a LibraryFilter: the filter has to be
+ *  re-parsed server-side anyway (a client could send anything), and reusing
+ *  `parseLibraryParams` means page 2 is narrowed by exactly the same rules as
+ *  page 1 — the way "Load more" silently drops a filter otherwise. */
 export async function fetchDraftsPageAction(
+  params: Record<string, string | string[] | undefined>,
   cursor: string,
 ): Promise<{ ok: boolean; cards?: DraftCard[]; nextCursor?: string | null; error?: string }> {
   const supabase = await createClient();
   try {
-    const { cards, nextCursor } = await queryDraftsPage(supabase, cursor);
+    const { cards, nextCursor } = await queryDraftsPage(
+      supabase,
+      parseLibraryParams(params),
+      cursor,
+    );
     return { ok: true, cards, nextCursor };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Couldn't load more." };

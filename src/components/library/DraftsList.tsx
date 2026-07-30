@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useUIStore } from "@/stores/ui";
-import { TARGET_MODELS, THINKING_LEVELS } from "@/lib/constants";
+import { THINKING_LEVELS } from "@/lib/constants";
 import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
+import { MODEL_LABELS } from "@/lib/library/model-labels";
 import {
   deleteDraftAction,
   fetchDraftsPageAction,
@@ -14,8 +15,8 @@ import {
 } from "@/lib/drafts/actions";
 import type { DraftCard } from "@/lib/drafts/queries";
 import { relativeTime } from "@/lib/library/util";
+import { libraryHref, type LibraryFilter } from "@/lib/library/paging";
 
-const MODEL_LABEL = new Map(TARGET_MODELS.map((m) => [m.id, m.label]));
 const LEVELS = new Set<string>(THINKING_LEVELS);
 
 /**
@@ -38,10 +39,14 @@ export function DraftsList({
   initialCards,
   nextCursor,
   unavailable,
+  filter,
 }: {
   initialCards: DraftCard[];
   nextCursor: string | null;
   unavailable: boolean;
+  /** Re-sent with "Load more" so page 2 is narrowed exactly like page 1 — the
+   *  filter silently applying to the first page only is the classic bug here. */
+  filter: LibraryFilter;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -108,7 +113,12 @@ export function DraftsList({
   function loadMore() {
     if (!cursor) return;
     startAction(async () => {
-      const res = await fetchDraftsPageAction(cursor);
+      // Derive the params from the same helper that builds the URL, so the
+      // action re-parses precisely the filter this view is showing.
+      const params = Object.fromEntries(
+        new URL(libraryHref(filter), "http://x").searchParams.entries(),
+      );
+      const res = await fetchDraftsPageAction(params, cursor);
       if (!res.ok || !res.cards) {
         setLoadError(res.error ?? "Couldn't load more drafts.");
         return;
@@ -133,14 +143,18 @@ export function DraftsList({
   }
 
   if (cards.length === 0) {
+    // "No drafts" while a search is active would read as "you have none",
+    // which is a different and possibly false claim.
+    const narrowed = Boolean(filter.q || filter.model || filter.mode);
     return (
       <div className="glass rounded-2xl p-6 text-center">
         <p className="font-display text-balance text-xl tracking-wide text-text">
-          No drafts
+          {narrowed ? "No drafts match" : "No drafts"}
         </p>
         <p className="font-body mt-2 text-sm text-muted">
-          Start a new prompt with the + button and choose Save draft to keep an
-          unfinished one here.
+          {narrowed
+            ? "Try a different search, or clear the filter to see all your drafts."
+            : "Start a new prompt with the + button and choose Save draft to keep an unfinished one here."}
         </p>
       </div>
     );
@@ -165,7 +179,7 @@ export function DraftsList({
                   </p>
                 )}
                 <p className="font-body mt-2 flex flex-wrap items-center gap-x-2 text-xs text-silver">
-                  <span>{MODEL_LABEL.get(card.target_model as TargetModelId) ?? card.target_model}</span>
+                  <span>{MODEL_LABELS.get(card.target_model) ?? card.target_model}</span>
                   <span aria-hidden="true">·</span>
                   <span className="capitalize">{card.mode}</span>
                   <span aria-hidden="true">·</span>

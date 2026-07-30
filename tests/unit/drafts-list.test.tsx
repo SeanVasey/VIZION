@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import type { DraftCard } from "@/lib/drafts/queries";
+import type { LibraryFilter } from "@/lib/library/paging";
 
 const routerMock = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -39,10 +40,21 @@ const CARD: DraftCard = {
   updated_at: "2026-07-30T00:00:00Z",
 };
 
-function renderList(cards: DraftCard[] = [CARD], unavailable = false) {
+const FILTER: LibraryFilter = { view: "drafts", sort: "updated" };
+
+function renderList(
+  cards: DraftCard[] = [CARD],
+  unavailable = false,
+  filter: LibraryFilter = FILTER,
+) {
   return render(
     <ToastProvider>
-      <DraftsList initialCards={cards} nextCursor={null} unavailable={unavailable} />
+      <DraftsList
+        initialCards={cards}
+        nextCursor={null}
+        unavailable={unavailable}
+        filter={filter}
+      />
     </ToastProvider>,
   );
 }
@@ -110,6 +122,12 @@ describe("Drafts list", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Delete draft:/ }));
     expect(screen.getByText("Delete this draft?")).toBeTruthy();
     expect(actions.deleteDraftAction).not.toHaveBeenCalled();
+  });
+
+  it("does not claim you have no drafts when a search simply matched none", () => {
+    renderList([], false, { view: "drafts", sort: "updated", q: "otters" });
+    expect(screen.getByText("No drafts match")).toBeTruthy();
+    expect(screen.queryByText("No drafts")).toBeNull();
   });
 
   it("distinguishes an empty list from a missing table", () => {

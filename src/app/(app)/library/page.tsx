@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/server";
 import { LibraryBrowser } from "@/components/library/LibraryBrowser";
 import { ActivityFeed } from "@/components/library/ActivityFeed";
 import { DraftsList } from "@/components/library/DraftsList";
+import { DraftsToolbar } from "@/components/library/DraftsToolbar";
 import { Footer } from "@/components/Footer";
-import { queryDraftsPage } from "@/lib/drafts/queries";
+import { queryDraftModelFacets, queryDraftsPage } from "@/lib/drafts/queries";
 import {
   isDraftsView,
   libraryHref,
   parseLibraryParams,
-  type LibraryFilter,
 } from "@/lib/library/paging";
 import {
   queryLibraryFacets,
@@ -22,30 +21,6 @@ import {
 
 export const metadata: Metadata = { title: "Library" };
 
-/**
- * The Drafts view's own header row. The filter sheet lives inside
- * `LibraryBrowser`, which this branch does not render — without a way back the
- * user would be stranded in Drafts with only the browser Back button.
- */
-function DraftsViewChrome({ filter }: { filter: LibraryFilter }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="font-display m-0 text-lg tracking-wide text-text">Drafts</h2>
-      <Link
-        href={libraryHref({ ...filter, view: "all" })}
-        className="tap-44 font-body inline-flex items-center text-sm text-accent transition-colors hover:text-chalk"
-      >
-        All prompts
-      </Link>
-    </div>
-  );
-}
-
-/**
- * Library — saved prompts with server-side search/filter/sort via URL params
- * and keyset cursor pagination (2026-07 UX audit), plus the activity feed.
- * Server state via Supabase, scoped by RLS.
- */
 export default async function LibraryPage({
   searchParams,
 }: {
@@ -55,21 +30,26 @@ export default async function LibraryPage({
   const supabase = await createClient();
 
   // Drafts are a different relation, so this branches BEFORE queryLibraryPage —
-  // calling it for view=drafts would quietly return prompts. The prompt-only
-  // narrowing params (model/mode/tag/collection/q) do not apply here and are
-  // ignored rather than silently reinterpreted.
+  // calling it for view=drafts would quietly return prompts. `q`, `model` and
+  // `mode` all map onto real draft columns and narrow this view too; `tag` and
+  // `collection` are prompts-only and have nothing to match, so they are ignored
+  // rather than reinterpreted into something the user did not ask for.
   if (isDraftsView(filter)) {
-    const { cards: draftCards, nextCursor: draftCursor, unavailable } =
-      await queryDraftsPage(supabase);
+    const [{ cards: draftCards, nextCursor: draftCursor, unavailable }, modelFacets] =
+      await Promise.all([
+        queryDraftsPage(supabase, filter),
+        queryDraftModelFacets(supabase),
+      ]);
     return (
       <>
         <ScreenHeader title="Library" />
         <div className="mx-auto flex max-w-screen-sm flex-col gap-6 px-4 py-5">
-          <DraftsViewChrome filter={filter} />
+          <DraftsToolbar filter={filter} modelFacets={modelFacets} />
           <DraftsList
             initialCards={draftCards}
             nextCursor={draftCursor}
             unavailable={unavailable}
+            filter={filter}
           />
           <Footer inset />
         </div>

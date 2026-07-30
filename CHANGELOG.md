@@ -25,7 +25,14 @@ the activity feed until each was audited, and any future query would have to
 remember. A separate relation cannot leak by omission.
 
 Saved drafts appear under a Drafts view in the library (`/library?view=drafts`),
-reusing the existing filter/URL/back-button plumbing. A draft captures the whole
+reusing the existing filter/URL/back-button plumbing, and they are **searchable**:
+the view has its own search field and model chips. Search covers the body as well
+as the title, because a draft's title is only its derived first line — title-only
+search (what the prompts library does, where the user names the prompt) would miss
+what the draft is actually about. `model` and `mode` narrow drafts too since both
+are real columns; `tag` and `collection` are prompts-only and stay ignored rather
+than being reinterpreted. The filter is re-sent with "Load more", so page 2 is
+narrowed exactly like page 1. A draft captures the whole
 composer state — body, target model, mode, thinking level — because resuming into
 whichever model happened to be selected later would silently change what you get
 back. Resuming is a **move**: the state is written into the composer and the
@@ -36,11 +43,11 @@ The local draft is cleared only after a save reports `ok`. A pending migration
 (`unavailable`) counts as a failure for that purpose — clearing on a save that
 did not happen would destroy exactly the work the user asked to keep.
 
-**`supabase/migrations/20260730000000_drafts.sql` must be applied before this
-ships.** Until it is, the Drafts view says drafts aren't set up yet rather than
-"nothing saved" (which would be a lie about data the user may have) or an error
-(which would be alarming about a system that is merely incomplete), and the save
-path refuses and keeps the draft.
+`supabase/migrations/20260730000000_drafts.sql` has been applied to the hosted
+project (2026-07-30). The client still degrades safely if it is ever missing: the
+Drafts view says drafts aren't set up yet rather than "nothing saved" (a lie about
+data the user may have) or an error (alarming about a system that is merely
+incomplete), and the save path refuses and keeps the draft.
 
 
 ### Changed — the Enhance hero emblem becomes Horizon
