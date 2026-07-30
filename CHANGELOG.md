@@ -6,6 +6,138 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the `brace-expansion` override no longer breaks glob expansion
+
+`overrides` had a single blanket `"brace-expansion": "^5.0.8"`, which forced v5
+into `minimatch@3` — reached via `@eslint/config-array`, `@eslint/eslintrc`,
+eslint and three of its plugins. v5's CJS entry exports an **object**
+(`{ EXPANSION_MAX, EXPANSION_MAX_LENGTH, expand }`) while minimatch@3 does
+`require('brace-expansion')` and **calls the result**, so brace expansion through
+minimatch@3 died with `TypeError: expand is not a function`.
+
+That broke every braced glob reachable through minimatch@3 and went unnoticed
+because nothing in the repo used one. The commit that added the override recorded
+"5.0.8 still publishes a CJS require export, so minimatch@3 keeps working — the
+path `npm run lint` exercises", which was verified against a config with no braced
+pattern; the export exists but is not callable. An ESLint
+`files: ["src/**/*.{ts,tsx}"]` is the first thing to hit it.
+
+The override is now keyed per major — `brace-expansion@1` → `^1.1.17`,
+`@2` → `^2.1.3`, `@5` → `^5.0.8` — so every consumer gets an API it can actually
+call. Verified: `minimatch@3` loads its own nested `1.1.17`, and
+`new Minimatch("src/**/*.{ts,tsx}").braceExpand()` returns
+`["src/**/*.ts", "src/**/*.tsx"]`.
+
+**Tradeoff, taken deliberately.** The advisory range is `<=5.0.7`, so there is no
+patched 1.x or 2.x — the earlier commit was right about that. The full-tree
+`npm audit` therefore reports 14 high entries again, every one in dev tooling (the
+eslint chain and workbox-build), none in shipped code. CI gates
+`npm audit --omit=dev --audit-level=high`, which stays at **0**, and the full-tree
+step was already advisory-only (`|| true`). The alternative was keeping a silently
+broken glob engine in exchange for a tidier report about packages that never
+reach production.
+
+
+### Added — lint now rejects class names Tailwind does not recognise
+
+`eslint-plugin-tailwindcss`'s `no-custom-classname` is on for `src/`, with the
+project's own ~35 component/utility classes whitelisted in `eslint.config.mjs`.
+
+It exists because of a concrete miss: a botched patch left `itemsateems-center`
+in a className, Tailwind emitted no rule for it, and the Save button silently lost
+its vertical centering — while **lint, typecheck, 748 unit tests, the e2e suite
+and the production build were all green**, because nothing in that gate asks
+whether a utility exists. A review bot caught what five steps could not. Verified
+by reintroducing the exact typo: `Classname 'itemsateems-center' is not a Tailwind
+CSS class!`, via `npm run lint`, so it is genuinely in the gate.
+
+Only that one rule is enabled. `classnames-order`, `enforces-shorthand` and the
+rest are formatting opinions that would rewrite most of the codebase in one commit
+and bury real defects in the churn.
+
+Two constraints are now documented in `AGENTS.md`, both discovered the hard way:
+
+- **No brace patterns in `eslint.config.mjs`.** `package.json` overrides
+  `brace-expansion` to `^5` for security, but ESLint's `minimatch@3` expects `^1`
+  and calls it as `expand(...)` — so any `files`/`ignores` entry containing
+  `{a,b}` dies with `TypeError: expand is not a function` before a single file is
+  linted. Every pre-existing pattern happens to be brace-free, which is the only
+  reason this latent trap had never fired. Fixing it at the root would mean
+  loosening a security override, which is an owner decision.
+- **The plugin must stay on `3.x`** while Tailwind is on 3 (`4.x` peers on
+  Tailwind 4), and `settings.tailwindcss.config` must be an ABSOLUTE path — the
+  plugin resolves modules from `dirname(config)`, so a relative value fails with
+  `Could not resolve tailwindcss`.
+
+`npm audit` stays at 0 vulnerabilities with the new devDependency.
+
+
+### Added — edit a saved draft in place
+
+Each row in the Drafts view gains an Edit button that opens the draft's text in a
+sheet and saves it back to the same row. Resuming a draft is a MOVE — it lands in
+the composer and the server row is deleted — which is right for "carry on writing
+this" and wrong for "fix a typo": that previously meant resume, edit, save again,
+with a window where the draft existed nowhere but the device.
+
+Body only, deliberately. Target model, mode and thinking level are the composer's
+own controls; editing them from a list row would mean rebuilding the mode rig and
+the target picker inside a sheet, and resuming is the better route. The sheet says
+so rather than leaving it to be discovered. The title is re-derived from the new
+first line, for the same reason it is derived on save — it is a view of the body,
+not a second field to keep in sync.
+
+Three things that would each have been a silent bug:
+
+- **The editor is seeded from the FETCHED body, never the row's preview.** A card
+  carries only the first 160 characters, so an editor seeded from it would have
+  truncated the draft the moment the user saved. Save is disabled until the full
+  body arrives, and a failed fetch shows the error instead of an empty textarea
+  inviting the user to overwrite their draft with it. A unit test fails if the
+  seed ever comes from the preview.
+- **`updated_at` is set explicitly.** The column defaults to `now()` on INSERT
+  only and there is no trigger, so an edited draft would otherwise keep its
+  original timestamp and sink in a list ordered by `updated_at desc` — edited and
+  apparently untouched.
+- **Client-accumulated pages collapse after a save.** The same bump reorders the
+  list, so the keyset cursor behind pages 2+ no longer describes that sequence;
+  without resetting, the edited row could appear twice, pre-edit and post-edit,
+  disagreeing with itself.
+
+Pagination is suppressed while the post-save `router.refresh()` is in flight.
+`refresh()` is called inside its own SYNCHRONOUS transition, because `startAction`
+takes an async callback and React has left the transition scope by the time the
+awaited work finishes — so a refresh issued there is attached to nothing and the
+pending flag clears while the new props are still in flight. In that window
+`cursor` falls back to the pre-edit `nextCursor` prop, and paging from it
+re-creates exactly the skip the derivation was added to prevent. Gating on the
+refresh transition is deadlock-free: React always settles a transition, whereas
+waiting for a prop to actually change would hide "Load more" forever when an edit
+happens not to move the page boundary.
+
+Saving is conditioned on the version the editor was opened against, so the same
+draft open in two tabs cannot have the stale one silently overwrite the newer
+body. The precondition is the `updated_at` returned by the body FETCH, not the
+list row's — the row can already be stale when the editor opens, and conditioning
+on that would reject a save against a body the user never saw. Zero rows matched
+is then ambiguous, so the failure path reads the row back and distinguishes
+"changed somewhere else" (reopen for the newer version) from "no longer there".
+
+Every server-action call in the view goes through a small `settle` helper. An
+action returns `{ ok: false }` for errors it can describe but REJECTS when the
+request itself fails, and an uncaught rejection inside a transition reaches the
+route error boundary and unmounts the component — which for the edit sheet meant
+the unsaved text was discarded by the very path meant to preserve it.
+
+A row that no longer exists is reported as such rather than as success — RLS makes
+"not yours" and "not there" indistinguishable, and both mean the edit did not
+land. A failed save keeps the sheet open with the text intact, and no dismissal
+path can close it mid-save.
+
+The body rules are now shared between save and update, so an edit cannot accept
+what a save rejects and surface as a raw constraint violation.
+
+
 ### Changed — one password rule, 12 characters with character classes
 
 The account password minimum goes from 8 to **12**, and now also requires a

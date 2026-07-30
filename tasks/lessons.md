@@ -1671,3 +1671,137 @@ than as a puzzling failure in whichever spec ran first.
   described. Helper text derived from the same constant as the validator means
   the copy cannot drift from what is enforced — and a test asserts the sentence
   mentions the number and every class.
+- **A list row is a projection; never seed an editor from it.** The Drafts card
+  carries a 160-character preview, and an edit sheet seeded from that would have
+  written the truncation back over the full draft on save — data loss with no
+  error, from code that reads perfectly. Fetch the real record, disable save
+  until it arrives, and show a failed fetch rather than an empty field that
+  invites the user to overwrite their own work. The test that proves it is the
+  one that fails when the seed comes from the preview.
+- **`default now()` fires on INSERT, not UPDATE.** With no trigger, an in-place
+  edit left `updated_at` at its original value, so a draft ordered
+  `updated_at desc` would be edited and still sink. Set it in the update, and
+  remember the second-order effect: bumping it REORDERS the list, which
+  invalidates any keyset cursor the client is holding, so accumulated pages have
+  to be dropped or the same row renders twice with different text.
+- **One `pending` flag for two operations mislabels both.** The shared
+  `useTransition` made the save button read "Saving…" while the sheet was still
+  *loading* the body — and it broke the tests, which is how I noticed. Separate
+  flags for separate operations; a spinner that lies about what it is doing is a
+  small bug that reads as a big one.
+- **Wait on the last step of an async flow, not the first.** `vi.waitFor` on the
+  action call resolved before its continuation ran, so the assertions ran against
+  a half-finished save and `router.refresh()` looked like it never happened.
+  Waiting on the terminal effect makes the test assert the whole flow.
+- **A malformed Tailwind class passes lint, typecheck, tests and build.** A
+  botched sed left `itemsateems-center` in a className; nothing in the gate
+  looks at whether a utility exists, so the button silently lost its vertical
+  centering and the review bot caught what five green steps did not. Worse, my
+  own "undo the typo" patch searched for a variant with a space and no-op'd —
+  and my verification grep DID show the line missing from its results, which I
+  skimmed past. When a patch claims to fix something, assert the fixed state,
+  don't eyeball adjacent output.
+- **State set inside `startAction` is transition-priority and a discrete event
+  can beat it.** `setSavingEdit(true)` inside the transition meant Escape or a
+  scrim tap could be handled while the flag was still false, so a guard reading
+  it let the sheet close mid-save — clearing the very text the failure path
+  exists to preserve. Set guard flags synchronously, outside the transition.
+- **Disabling the footer button is not disabling the sheet.** `Sheet` routes
+  Escape, the scrim and its Close button all to `onClose`; guarding only the
+  Cancel button covered one of four ways out. When a component owns dismissal,
+  guard `onClose` itself.
+- **`useState` initialisers do not re-run when a prop changes.** Holding
+  `nextCursor` in state captured the page boundary at mount, so after
+  `router.refresh()` the cursor described the pre-edit ordering and skipped the
+  row the edit had displaced onto page 2. Derive from the prop while unpaged
+  (`undefined` = use the prop) instead of seeding state from it.
+- **`vi.waitFor` does not flush React; RTL's `waitFor` does.** Vitest's version
+  polls without `act`, so a `useTransition` pending flag never clears between
+  attempts and `toBeEnabled()` can never come true — passing alone, failing in
+  suite. Use `waitFor` from `@testing-library/react` for anything gated on React
+  committing. And `fireEvent.click` on a disabled button is a silent no-op, so
+  "the sheet never opened" is the symptom of a pending transition, not a broken
+  handler.
+- **Server actions REJECT on transport failure; they do not return
+  `{ ok: false }`.** Every awaited action in a client component therefore needs a
+  guard, or a dropped connection propagates out of the transition to the route
+  error boundary and unmounts the component. In an editor that is data loss
+  performed by the error path itself. One `settle(work, fallback)` helper at every
+  call site beats five try/catch blocks and makes the omission visible.
+- **Optimistic concurrency needs the version of the DATA SHOWN, not the row that
+  linked to it.** Conditioning the update on the list row's `updated_at` would
+  reject saves against a body the user is legitimately editing, because the row
+  can go stale between render and opening the editor. Carry the timestamp back
+  from the fetch that supplied the body.
+- **When a precondition can match zero rows, disambiguate on the failure path.**
+  `.eq(id).eq(updated_at)` matching nothing means deleted OR superseded, and the
+  user's next step differs. Reading the row back costs nothing on the happy path
+  and has a second benefit: a timestamp-format mismatch would surface as a
+  visible "changed elsewhere" rather than as silent data loss.
+- **A scripted replace that does not match is a silent no-op, twice over.** The
+  class typo came from one; the `toHaveBeenCalledWith` update came from another
+  (six spaces of indentation instead of four). Both looked applied. Assert the
+  post-state — grep for the new string, or let the test fail — rather than
+  trusting that the patch ran.
+- **Confirm a red e2e is flake before believing it.** A scroll-state test failed
+  in the full run, passed in isolation, and passed the full run on a stashed
+  clean tree AND again with the changes re-applied. Three data points, not one,
+  and only then is "pre-existing flake" a claim rather than a hope.
+- **An in-flight request has already captured its input; lock the input.** The
+  edit textarea stayed editable while the save was in flight, so keystrokes typed
+  after pressing Save belonged to neither side — the request carried the earlier
+  snapshot, and `closeEditor()` discarded the newer local value on success. Lost
+  with no error. `readOnly` rather than `disabled`, so the text stays readable,
+  selectable and focused for what is normally a brief moment.
+- **`fireEvent.change` ignores `readOnly`.** It sets the value programmatically,
+  and readOnly is a user-interaction constraint — so a test that types into a
+  locked field "passes" while proving nothing. Without `user-event` as a
+  dependency, assert the attribute that actually governs real typing, and say in
+  the test why.
+- **Adding the lint rule found a second bug before it found any classes.** The
+  natural pattern `src/**/*.{ts,tsx}` crashed ESLint outright: this repo overrides
+  `brace-expansion` to ^5 while ESLint's `minimatch@3` expects ^1, so any braced
+  config pattern throws `expand is not a function`. Every existing pattern is
+  brace-free by luck, not design. When a new tool fails on arrival, suspect the
+  tree before the tool — and check whether the failure was always latent.
+- **A relative config path can break module resolution, not just file loading.**
+  `eslint-plugin-tailwindcss` derives its resolution root from
+  `dirname(settings.tailwindcss.config)`, so `"tailwind.config.ts"` yields `"."`
+  and it reports `Could not resolve tailwindcss` while the package sits in
+  `node_modules`. The error names the wrong thing; the fix is an absolute path.
+- **Enable the rule that catches the bug, not the ruleset.** The plugin ships
+  formatting rules (`classnames-order`, `enforces-shorthand`) that would rewrite
+  most of the codebase in one commit. One targeted rule keeps the diff reviewable
+  and the signal legible; a repo-wide reformat would have buried it.
+- **"Still publishes a CJS export" is not "still callable".** The blanket
+  `brace-expansion@^5` override was justified with exactly that phrase, and v5
+  does publish CJS — but as `{ EXPANSION_MAX, EXPANSION_MAX_LENGTH, expand }`,
+  while `minimatch@3` requires the module and CALLS it. Forcing a major across an
+  API boundary breaks consumers whose range you overrode; check the export SHAPE,
+  not its existence.
+- **A dependency override that satisfies `npm audit` can silently break
+  behaviour, and the check that "proved" it was fine tested the wrong path.**
+  `npm run lint` passed because no ESLint pattern contained braces, so
+  `braceExpand` was never reached. Latent for days. When an override crosses a
+  major, exercise the API the overridden consumer actually calls.
+- **Advisory-clean is not free.** With no patched 1.x/2.x in existence, the choice
+  was a working glob engine with 14 dev-only advisories, or a clean full-tree
+  report with a broken one. Read what CI actually gates — here
+  `npm audit --omit=dev`, with the full-tree step already `|| true` — before
+  trading correctness for a number.
+- **An async `startTransition` callback has left the transition scope by the time
+  it resumes.** `router.refresh()` issued after an `await` inside
+  `startAction(async () => ...)` is attached to no transition, so `pending` clears
+  while the refreshed props are still arriving — and any state derived from those
+  props is briefly stale in a way the pending flag denies. Give `refresh()` its
+  own synchronous transition and gate on that.
+- **Gate on the transition settling, not on the prop changing.** Waiting for
+  `nextCursor` to differ would deadlock in the legitimate case where an edit does
+  not move the page boundary — the control would stay hidden forever. React always
+  settles a transition, so `refreshing` is the signal with no failure mode.
+- **Say when a window is real but untestable here.** The refresh gap cannot be
+  observed in jsdom: `router.refresh` is a no-op mock, so the transition settles
+  instantly and there is no window to assert against. The guarantee is structural
+  — one transition owns the refresh, and the control is not rendered while it is
+  pending — and claiming a test for it would be claiming coverage that does not
+  exist.
