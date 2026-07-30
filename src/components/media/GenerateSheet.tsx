@@ -10,10 +10,7 @@ import { sanitizeName } from "@/lib/media/context";
 import { savePromptAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useCopy } from "@/components/ui/use-copy";
-import {
-  highlightGenerationPrompt,
-  stripEngineSyntax,
-} from "@/lib/media/highlight";
+import { highlightGenerationPrompt, stripEngineSyntax } from "@/lib/media/highlight";
 import type { MediaItem } from "@/lib/media/queue";
 
 /**
@@ -33,6 +30,9 @@ export function GenerateSheet({
 }) {
   const editorDraft = useUIStore((s) => s.editorDraft);
   const targetModel = useUIStore((s) => s.targetModel);
+  // Recorded on the queued item so a replay cannot land in another
+  // account on a shared device (IndexedDB is origin-scoped).
+  const userId = useUIStore((s) => s.userId);
   const [engine, setEngine] = useState<GenTargetId>(item.genTarget ?? "midjourney");
   const [basePrompt, setBasePrompt] = useState("");
   const { copied, copy } = useCopy();
@@ -74,7 +74,7 @@ export function GenerateSheet({
     };
     startSave(async () => {
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await enqueueOutbox("save-prompt", payload);
+        await enqueueOutbox(userId ?? "", "save-prompt", payload);
         setSaveQueued(true);
         return;
       }
@@ -84,7 +84,7 @@ export function GenerateSheet({
         else setSaveError(res.error ?? "Couldn't save to the library.");
       } catch {
         if (typeof navigator !== "undefined" && navigator.onLine === false) {
-          await enqueueOutbox("save-prompt", payload);
+          await enqueueOutbox(userId ?? "", "save-prompt", payload);
           setSaveQueued(true);
         } else {
           setSaveError("Couldn't save to the library — try again.");
@@ -189,11 +189,7 @@ export function GenerateSheet({
                   ) : (
                     <span
                       key={i}
-                      className={
-                        tok.kind === "flag"
-                          ? "text-accent"
-                          : "text-silver"
-                      }
+                      className={tok.kind === "flag" ? "text-accent" : "text-silver"}
                     >
                       {tok.text}
                     </span>

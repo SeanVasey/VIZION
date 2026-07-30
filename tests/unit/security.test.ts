@@ -40,16 +40,19 @@ function fakeStore(initial: OutboxItem[] = []): OutboxStore {
   };
 }
 
+const OWNER = "user-a";
+
 describe("flushOutbox", () => {
   it("removes items whose handler succeeds, oldest first", async () => {
     const order: string[] = [];
     const store = fakeStore([
-      { id: "2", kind: "save", payload: "b", createdAt: 2 },
-      { id: "1", kind: "save", payload: "a", createdAt: 1 },
+      { id: "2", kind: "save", payload: "b", createdAt: 2, userId: OWNER },
+      { id: "1", kind: "save", payload: "a", createdAt: 1, userId: OWNER },
     ]);
     const res = await flushOutbox(
+      OWNER,
       {
-        save: async (p) => {
+        save: async (p: unknown) => {
           order.push(p as string);
           return true;
         },
@@ -62,15 +65,20 @@ describe("flushOutbox", () => {
   });
 
   it("keeps an item whose handler returns false (still offline)", async () => {
-    const store = fakeStore([{ id: "1", kind: "save", payload: "x", createdAt: 1 }]);
-    const res = await flushOutbox({ save: async () => false }, store);
+    const store = fakeStore([
+      { id: "1", kind: "save", payload: "x", createdAt: 1, userId: OWNER },
+    ]);
+    const res = await flushOutbox(OWNER, { save: async () => false }, store);
     expect(res.flushed).toBe(0);
     expect(res.remaining).toBe(1);
   });
 
   it("keeps an item whose handler throws", async () => {
-    const store = fakeStore([{ id: "1", kind: "save", payload: "x", createdAt: 1 }]);
+    const store = fakeStore([
+      { id: "1", kind: "save", payload: "x", createdAt: 1, userId: OWNER },
+    ]);
     const res = await flushOutbox(
+      OWNER,
       {
         save: async () => {
           throw new Error("network");
@@ -82,8 +90,56 @@ describe("flushOutbox", () => {
   });
 
   it("leaves items with an unknown kind untouched", async () => {
-    const store = fakeStore([{ id: "1", kind: "other", payload: "x", createdAt: 1 }]);
-    const res = await flushOutbox({ save: async () => true }, store);
+    const store = fakeStore([
+      { id: "1", kind: "other", payload: "x", createdAt: 1, userId: OWNER },
+    ]);
+    const res = await flushOutbox(OWNER, { save: async () => true }, store);
+    expect(res.remaining).toBe(1);
+  });
+
+  it("never replays another account's queued work", async () => {
+    // The failure this guards: IndexedDB is scoped to the ORIGIN, so on a
+    // shared device user A's queued draft was replayed under whoever signed in
+    // next — and savePromptAction takes the owner from the CURRENT session, so
+    // it landed in B's library with B's authorship in the activity feed.
+    const handled: string[] = [];
+    const store = fakeStore([
+      { id: "1", kind: "save", payload: "private-a", createdAt: 1, userId: "user-a" },
+      { id: "2", kind: "save", payload: "private-b", createdAt: 2, userId: "user-b" },
+    ]);
+    const res = await flushOutbox(
+      "user-b",
+      {
+        save: async (p: unknown) => {
+          handled.push(p as string);
+          return true;
+        },
+      },
+      store,
+    );
+    expect(handled).toEqual(["private-b"]);
+    expect(res.flushed).toBe(1);
+    // A's item is left in place, not deleted: they may sign back in here, and
+    // destroying unsaved work to tidy a queue is the worse failure.
+    expect(res.remaining).toBe(1);
+  });
+
+  it("never replays an item queued before owners were recorded", async () => {
+    // Items written by an earlier build have no userId. Replaying them would
+    // be the same cross-account write, so they are skipped and kept.
+    const handled: string[] = [];
+    const store = fakeStore([{ id: "1", kind: "save", payload: "legacy", createdAt: 1 }]);
+    const res = await flushOutbox(
+      "user-b",
+      {
+        save: async (p: unknown) => {
+          handled.push(p as string);
+          return true;
+        },
+      },
+      store,
+    );
+    expect(handled).toEqual([]);
     expect(res.remaining).toBe(1);
   });
 });

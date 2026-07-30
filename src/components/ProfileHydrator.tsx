@@ -13,17 +13,32 @@ import type { Theme, TargetModelId } from "@/lib/constants";
 export function ProfileHydrator({
   theme,
   defaultModel,
+  userId,
 }: {
   theme: Theme;
   defaultModel: TargetModelId;
+  userId: string;
 }) {
   const hydrated = useRef(false);
 
   useEffect(() => {
     if (hydrated.current) return;
     hydrated.current = true;
-    useUIStore.setState({ theme, targetModel: defaultModel });
-  }, [theme, defaultModel]);
+    const previous = useUIStore.getState().userId;
+    // `localStorage` is scoped to the ORIGIN, not to a session, so on a shared
+    // device the persisted `editorDraft` survives a sign-out and reappears in
+    // the next account's composer. A different id here is the only signal that
+    // happened. `previous === null` is a first load (or state from a build
+    // before this existed) — adopt the account rather than destroying a draft
+    // that probably belongs to it.
+    const accountChanged = previous !== null && previous !== userId;
+    useUIStore.setState({
+      theme,
+      targetModel: defaultModel,
+      userId,
+      ...(accountChanged ? { editorDraft: "" } : {}),
+    });
+  }, [theme, defaultModel, userId]);
 
   return null;
 }

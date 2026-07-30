@@ -1917,6 +1917,56 @@ than as a puzzling failure in whichever spec ran first.
   it would have shipped with this hole intact underneath the new machinery.
   When a value is load-bearing for a guardrail, harden the value before
   hardening the logic that reads it.
+- **Origin-scoped storage is not account-scoped storage.** IndexedDB and
+  `localStorage` are keyed to the origin, and both the offline outbox and the
+  persisted `editorDraft` treated them as if they were keyed to a session. On a
+  shared device that meant one account's queued save was replayed under whoever
+  signed in next — and the replay resolves the owner from the CURRENT session,
+  so it landed in the wrong library with the wrong authorship. **Anything
+  persisted client-side that represents user CONTENT needs the account id
+  written next to it**, and the read path has to filter on it. Preferences can
+  stay device-scoped; content cannot.
+- **"Not ok" is not the same as "not done".** The outbox removed an item only
+  when the handler returned `res.ok`, and `savePromptAction` returns
+  `{ok: false, duplicate}` when the content is already saved. So an item the
+  server had *already accepted* could never drain: every reconnect retried it,
+  and the duplicate check was the thing rejecting it. When a replay is
+  idempotent, the drain condition is **"is the world in the desired state"**,
+  not "did this call succeed".
+- **Removing a route is not the same as not caching.** Workbox's
+  `setCatchHandler` only runs for a request that some registered route handled.
+  Deleting the navigation route to stop caching account HTML therefore also
+  deleted the offline fallback: an unmatched navigation never enters Workbox, so
+  offline it fails to the browser's own error page. The fix is
+  `NetworkOnly` — still routed, never cached. PR #62 made the same removal with
+  the same wrong comment, so it shipped the same broken fallback; this is a
+  strong candidate for one of the "other issues" that got it reverted.
+  **Generalisation: when a framework's error handling is scoped to "things this
+  framework handled", opting something OUT of the framework opts it out of the
+  error handling too.**
+- **The only test that could catch it was the slowest one.** lint, typecheck,
+  852 unit tests and a clean build all passed with offline navigation broken.
+  `shell.spec.ts`'s offline spec — the single test that drives a real service
+  worker in a real browser — was the only thing that failed. When a subsystem
+  can only be exercised for real in one place, that place is load-bearing: do
+  not let it become the test everyone skips because it is slow, and add the
+  cheap structural assertion beside it so the next regression fails in
+  milliseconds instead.
+- **Scope a negative assertion to the thing you mean.** The test for the
+  service-worker cache leak started as `not.toMatch(/request.mode ===
+  "navigate"/)` over the whole file. That expression also appears in
+  `setCatchHandler`, which is what serves `/offline.html` when a navigation
+  FAILS — so the assertion, as written, demanded the deletion of offline support
+  in the name of fixing a cache leak. It went red immediately, which is the only
+  reason it was caught. Slice the region you actually mean before asserting
+  absence.
+- **Check whether the bug has already bitten before fixing it.** Before adding
+  the `current_ver` trigger and the transactional save, a single query asked the
+  live database for orphaned prompts and cross-prompt pointers: 40 prompts, 43
+  versions, zero of either. That answered three questions at once — no backfill
+  needed, the trigger cannot reject an existing row, and the integrity gap was
+  real but not yet realised. A constraint added without that check either fails
+  on apply or silently hides damage already done.
 - **A reservation is a concurrency guard, not a worst-case bound.** The first
   attempt at atomic spend reserved each request's theoretical maximum — full
   output ceiling at list price — which on a $2.00/day cap made Fable 5 at max

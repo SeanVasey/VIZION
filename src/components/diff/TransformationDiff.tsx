@@ -29,12 +29,9 @@ import {
   logShareAction,
 } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
+import { useUIStore } from "@/stores/ui";
 import { useCopy } from "@/components/ui/use-copy";
-import {
-  InputSegments,
-  OutputSegments,
-  REMOVED_CLASS,
-} from "@/components/diff/segments";
+import { InputSegments, OutputSegments, REMOVED_CLASS } from "@/components/diff/segments";
 import { CompareSheet } from "@/components/diff/CompareSheet";
 
 /** The original always starts collapsed (2026-07 product review): the improved
@@ -80,6 +77,12 @@ export function TransformationDiff({
   onAnswer?: (questions: string[], answers: string[]) => void;
 }) {
   const { copied, copy } = useCopy();
+  // Recorded on the queued item so an offline save replayed later cannot land
+  // in a different account on a shared device — IndexedDB is origin-scoped,
+  // and the replay resolves the owner from whoever is signed in at flush time.
+  // `?? ""` is defensive only (the authed layout hydrates this before any
+  // interaction) and fails CLOSED: an item with no owner is never replayed.
+  const userId = useUIStore((s) => s.userId);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [queued, setQueued] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -178,7 +181,8 @@ export function TransformationDiff({
   const changes = countChangedSections(result.diff);
   const keptCount = hunks.length - rejected.size;
   const originalLabel = refined ? "previous result" : "original";
-  const originalWords = diffInput.trim() === "" ? 0 : diffInput.trim().split(/\s+/).length;
+  const originalWords =
+    diffInput.trim() === "" ? 0 : diffInput.trim().split(/\s+/).length;
 
   function save() {
     setSaveError(null);
@@ -196,7 +200,7 @@ export function TransformationDiff({
     startSave(async () => {
       // Offline → queue to the outbox; it flushes on reconnect/foreground.
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await enqueueOutbox("save-prompt", payload);
+        await enqueueOutbox(userId ?? "", "save-prompt", payload);
         setQueued(true);
         return;
       }
@@ -206,7 +210,7 @@ export function TransformationDiff({
         else if (res.duplicate) setDuplicate(res.duplicate);
         else setSaveError(res.error ?? "Couldn't save.");
       } catch {
-        await enqueueOutbox("save-prompt", payload);
+        await enqueueOutbox(userId ?? "", "save-prompt", payload);
         setQueued(true);
       }
     });
@@ -296,12 +300,16 @@ export function TransformationDiff({
             </p>
             {/* Quick copy — a 44px tap target that doesn't inflate the header row. */}
             <PressableButton
-                            onClick={copyOutput}
+              onClick={copyOutput}
               aria-label={copied ? "Copied" : "Copy enhanced prompt"}
               className="-my-2 -mr-1.5 flex h-11 w-11 items-center justify-center rounded-full text-silver hover:text-chalk focus-visible:text-chalk"
             >
               {copied ? (
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-accent">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5 text-accent"
+                >
                   <path
                     d="M20 6L9 17l-5-5"
                     fill="none"
@@ -690,8 +698,9 @@ export function TransformationDiff({
         </div>
       ) : isShapePreserving(mode) ? (
         <p className="font-body text-center text-xs text-silver">
-          {MODE_LABEL[mode]} keeps your prompt&apos;s shape — {TARGET_LABEL[effectiveTarget]} ran
-          the rewrite, but no {TARGET_LABEL[effectiveTarget]}-specific formatting was applied.
+          {MODE_LABEL[mode]} keeps your prompt&apos;s shape —{" "}
+          {TARGET_LABEL[effectiveTarget]} ran the rewrite, but no{" "}
+          {TARGET_LABEL[effectiveTarget]}-specific formatting was applied.
         </p>
       ) : null}
 
