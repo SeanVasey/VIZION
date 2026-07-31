@@ -100,6 +100,49 @@ describe("the directory can build the database from nothing", () => {
   });
 });
 
+describe("the schema fingerprint covers what the baseline actually creates", () => {
+  // A comparison query is only as good as its WHERE clause, and a narrowed one
+  // fails silently: both sides agree, on less. The first cut of this filtered
+  // policies to `public` — which excluded all seven policies on
+  // storage.objects, the ones that scope avatar and media uploads to their
+  // owner — and inner-joined pg_roles for EXECUTE grants, which dropped PUBLIC
+  // (grantee OID 0 has no role row). Nine access-control facts, invisible.
+  const SQL = readFileSync(join(ROOT, "scripts", "pg-introspect.sql"), "utf8");
+
+  it("compares storage policies, not just public ones", () => {
+    expect(SQL).toMatch(
+      /pg_policies\s+where\s+schemaname\s+in\s*\(\s*'public',\s*'storage'\s*\)/i,
+    );
+  });
+
+  it("compares bucket configuration, which is where public-vs-private lives", () => {
+    expect(SQL).toMatch(/from storage\.buckets/i);
+  });
+
+  it("counts PUBLIC among the EXECUTE grantees", () => {
+    // `revoke execute … from … public` is a guardrail on SECURITY DEFINER
+    // routines; a fingerprint that cannot see PUBLIC cannot verify it.
+    expect(SQL).toMatch(/left join pg_roles/i);
+    expect(SQL).toContain("coalesce(r.rolname, 'PUBLIC')");
+  });
+
+  it("still creates the storage policies it claims to compare", () => {
+    const all = FILES.sort()
+      .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"))
+      .join("\n");
+    for (const policy of [
+      "avatars_owner_insert",
+      "avatars_owner_update",
+      "avatars_owner_delete",
+      "media_obj_select_own",
+      "media_obj_insert_own",
+      "media_obj_delete_own",
+    ]) {
+      expect(all, `no policy ${policy} on storage.objects`).toContain(policy);
+    }
+  });
+});
+
 describe("nothing points at a migration that no longer exists", () => {
   it("resolves every migration filename cited in code, scripts and runbooks", () => {
     // The filenames carry the reasoning: `spend.ts` explains the cap by

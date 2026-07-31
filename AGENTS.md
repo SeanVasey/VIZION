@@ -45,12 +45,19 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) **and** at least
   one of the twelve provider keys — one key buys you that developer's models
   only. `.env.example` is the shape of record.
-- **`supabase/migrations/` is incremental, not a schema.** The base tables
-  (`profiles`, `prompts`, `prompt_versions`, `usage_events`, `media_assets`)
-  were applied live and are **not** tracked; the files there only add to that
-  baseline — enum expansions, media roles, library organization, collections
-  (the last being the one tracked `create table`). Point a bare local Supabase
-  at the app and it will be missing the core tables.
+- **`supabase/migrations/` is the whole schema.** It starts at
+  `create type public.theme` and builds every table, enum, storage bucket and
+  RLS policy from nothing — point a bare local Supabase at it and you get the
+  real database. This was **not** true before 2026-07-31: the P2–P5 base tables
+  had been applied live and tracked nowhere, so the directory was a patch set
+  layered on a schema you had to already have. `npm run db:verify` replays the
+  whole thing against a throwaway Postgres and is the check that keeps it
+  honest; `docs/runbooks/migrations.md` is the procedure.
+- **Filenames are the hosted ledger's versions.** The Supabase CLI matches the
+  leading 14 digits against `supabase_migrations.schema_migrations`; a file
+  whose version is not there is not skipped, it is applied. Never rename one to
+  a "tidier" timestamp, and when you apply a migration make the file agree with
+  the version the ledger records.
 - **Chromium is the reliable e2e signal.** Playwright WebKit's service-worker
   and offline emulation is unreliable — `serviceWorker.ready` hangs and
   `reload()` throws internally — so the SW lifecycle + offline-fallback test is

@@ -15,6 +15,13 @@
 -- stripped them. If `function` is the only category that differs, compare
 --   md5(regexp_replace(regexp_replace(prosrc, '--[^\n]*', '', 'g'), '\s+', ' ', 'g'))
 -- per function before treating it as drift.
+--
+-- SCOPE. `column`, `constraint`, `index`, `grant` and `trigger` cover `public`
+-- only, deliberately: `scripts/pg-shim.sql` stands up a minimal
+-- storage.objects / storage.buckets rather than the platform's, so their shapes
+-- are expected to differ and comparing them would be noise, not signal. What
+-- the baseline actually creates in `storage` — the policies, the RLS flags and
+-- the bucket rows — IS compared, because those are the access controls.
 
 with facts as (
   -- Enums, with value order — an out-of-order `add value` is a real difference.
@@ -48,18 +55,34 @@ with facts as (
   select 'index', indexdef from pg_indexes where schemaname = 'public'
 
   union all
-  select 'rls', relname || ' rowsecurity=' || relrowsecurity::text
+  select 'rls', n.nspname || '.' || relname || ' rowsecurity=' || relrowsecurity::text
            || ' forced=' || relforcerowsecurity::text
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'r'
+   where c.relkind = 'r'
+     and (n.nspname = 'public' or (n.nspname, c.relname) in
+          (('storage', 'objects'), ('storage', 'buckets')))
 
   union all
+  -- `storage`, not just `public`. The baseline creates seven policies on
+  -- storage.objects — they are what scopes avatar and media uploads to their
+  -- owner — so a public-only filter would have let a restore with no per-user
+  -- isolation on either bucket fingerprint as identical.
   select 'policy',
-         tablename || ': ' || policyname || ' ' || cmd
+         schemaname || '.' || tablename || ': ' || policyname || ' ' || cmd
            || ' roles=' || array_to_string(roles, ',')
            || ' using=' || coalesce(qual, '-')
            || ' check=' || coalesce(with_check, '-')
-    from pg_policies where schemaname = 'public'
+    from pg_policies where schemaname in ('public', 'storage')
+
+  union all
+  -- Bucket configuration is DDL in every way that matters: `public` decides
+  -- whether media is served by URL or only by signed URL, and the mime
+  -- allowlist is an upload control. Both are set by INSERTs in the baseline.
+  select 'bucket',
+         id || ' public=' || public::text
+           || ' limit=' || coalesce(file_size_limit::text, '-')
+           || ' mime=[' || coalesce(array_to_string(allowed_mime_types, ','), '') || ']'
+    from storage.buckets
 
   union all
   select 'trigger', c.relname || ': ' || pg_get_triggerdef(tg.oid)
@@ -87,14 +110,22 @@ with facts as (
    where table_schema = 'public' and grantee in ('anon', 'authenticated', 'service_role')
 
   union all
+  -- LEFT join, and grantee 0 mapped to PUBLIC. `aclexplode` emits PUBLIC with
+  -- grantee OID 0, which has no pg_roles row — an inner join silently dropped
+  -- it. That is the grant that matters most here: EXECUTE is granted to PUBLIC
+  -- by default, several of these routines are SECURITY DEFINER, and the
+  -- baseline's `revoke execute … from … public` is precisely the control this
+  -- fingerprint exists to compare.
   select 'exec-grant',
-         p.proname || '(' || pg_get_function_identity_arguments(p.oid) || '): ' || r.rolname
+         p.proname || '(' || pg_get_function_identity_arguments(p.oid) || '): '
+           || coalesce(r.rolname, 'PUBLIC')
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-    join pg_roles r on r.oid = a.grantee
+    left join pg_roles r on r.oid = a.grantee
    where n.nspname = 'public' and a.privilege_type = 'EXECUTE'
-     and r.rolname in ('anon', 'authenticated', 'service_role')
+     and coalesce(r.rolname, 'PUBLIC') in
+         ('anon', 'authenticated', 'service_role', 'PUBLIC')
 )
 select category, count(*) as n, md5(string_agg(line, E'\n' order by line)) as digest
   from facts group by category order by category;

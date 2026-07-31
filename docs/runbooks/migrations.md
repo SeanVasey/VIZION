@@ -57,8 +57,19 @@ Supabase internals and worth a second look.
 
 **To compare against production**, run `scripts/pg-introspect.sql` on the hosted
 project (SQL editor, or the Supabase MCP `execute_sql`) and diff the two tables.
-Equal counts and equal digests in all ten rows means the repo reproduces the
+Equal counts and equal digests in all eleven rows means the repo reproduces the
 live schema.
+
+The fingerprint covers `public` **and** the parts of `storage` the baseline
+creates: the seven policies on `storage.objects` that scope avatar and media
+uploads to their owner, the RLS flags on both storage tables, and the two
+bucket rows (whether `media` is private, what mime types either accepts). It
+also counts `PUBLIC` among the EXECUTE grantees — `aclexplode` reports PUBLIC
+as grantee OID 0, which has no `pg_roles` row, so it is easy to drop by
+accident, and `revoke execute … from … public` on the SECURITY DEFINER routines
+is exactly the control worth comparing. The rest of `storage` is out of scope on
+purpose: `pg-shim.sql` builds a minimal `storage.objects`, so comparing its
+columns would be noise.
 
 One benign difference to expect: `--` comments inside a function body count
 toward the `function` digest, and the apply path that wrote the hosted schema

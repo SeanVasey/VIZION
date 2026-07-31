@@ -2211,3 +2211,17 @@ than as a puzzling failure in whichever spec ran first.
   the data directory reachable by it — and note that a per-session scratch dir
   may be `drwx------ root`, which that account cannot traverse no matter who
   owns the leaf.
+- **A comparison query is only as good as its WHERE clause, and a narrowed one
+  fails silently — both sides agree, on less.** The first schema fingerprint
+  filtered `pg_policies` to `public`, which excluded all seven policies on
+  `storage.objects` — the ones scoping avatar and media uploads to their owner
+  — and inner-joined `pg_roles` for EXECUTE grants, which dropped `PUBLIC`
+  (grantee OID 0 has no role row) — the grantee `revoke execute … from … public`
+  exists to remove. Nine access-control facts invisible, and every category
+  still read "identical". **When a check reports a match, ask what it could not
+  have seen.** Both were caught by an automated PR review, not by me.
+- **Recovering the schema made a doc false.** `AGENTS.md` still told every agent
+  the base tables were untracked and a bare Supabase would be missing them —
+  the mandatory startup contract, now contradicted by the change that fixed it.
+  A doc that states a limitation is a dependency of the work that removes it;
+  grep for the claim before you invalidate it.

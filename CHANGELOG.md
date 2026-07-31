@@ -34,21 +34,31 @@ same query run against production gives:
 
 | category   |   n | replayed == hosted |
 | ---------- | --: | ------------------ |
+| bucket     |   2 | ✓                  |
 | column     |  90 | ✓                  |
 | constraint |  37 | ✓                  |
 | enum       |   7 | ✓                  |
-| exec-grant |  24 | ✓                  |
+| exec-grant |  27 | ✓                  |
 | function   |  11 | comments only      |
 | grant      | 190 | ✓                  |
 | index      |  25 | ✓                  |
-| policy     |  28 | ✓                  |
-| rls        |  10 | ✓                  |
+| policy     |  34 | ✓                  |
+| rls        |  12 | ✓                  |
 | trigger    |   3 | ✓                  |
 
 The one difference is two `--` comments in `library_add_version` and three in
 `spend_reserve`: the apply path strips comments from function bodies, so the
 hosted copies carry none. With comments removed both bodies hash identically to
 the repo's — the schemas are the same schema.
+
+The first cut of that fingerprint was blind to nine access-control facts, all of
+them the kind a restore most needs checked: `pg_policies` was filtered to
+`public`, which excluded the seven policies on `storage.objects` that scope
+avatar and media uploads to their owner, and the EXECUTE-grant query inner-joined
+`pg_roles`, which silently dropped `PUBLIC` (grantee OID 0 has no role row) — the
+grantee that `revoke execute … from … public` on the SECURITY DEFINER routines
+exists to remove. Bucket configuration was uncompared too, so a `media` bucket
+restored public would have fingerprinted clean. All now included; all match.
 
 `tests/unit/model-target-enum.test.ts` loses its hand-written `BASELINE_LABELS`
 constant. It existed only because the `create type model_target` was missing, so
