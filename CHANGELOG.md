@@ -84,18 +84,27 @@ pressed. Panning was also drag-only, which is no path at all for a keyboard
 arrow keys nudge the image the way the equivalent drag would, and a press that
 never travelled centres the point it landed on. Dragging is unchanged.
 
-### Fixed — two live regions announced nothing
+Two details the trap has to get right, and initially didn't:
 
-A `role="status"` element that is inserted already carrying its message is not
-reliably announced; a screen reader announces *changes* inside a region it is
-already observing. Both of the affected regions were the only feedback their
-surface gives — "Saved ✓" after a settings write, and the notice that you are
-within 20% of the daily spend cap.
+- **The dialog root is a leading boundary, not just `first`.** It holds focus on
+  open and is `tabIndex={-1}`, so it never appears in the focusables list — and
+  Shift+Tab, plausibly the first keystroke a keyboard user makes, walked
+  straight out backwards.
+- **The trigger is disabled while the upload runs.** "Use photo" sets
+  `avatarBusy` and clears the file in one batch, so the button was already
+  `disabled` when focus was handed back — and `focus()` on a disabled control
+  is silently ignored, stranding focus on `<body>` for a network round trip.
+  Restoration now waits for the control to come back, gives up after 10s, and
+  stands down the moment the user puts focus somewhere themselves.
 
-Both are now mounted whether or not they have anything to say. Idle carries
-`sr-only` rather than an empty box: every call site sits in a `flex flex-col
-gap-*`, where a permanently-present static child would add a gap to each row,
-and an absolutely-positioned one is not a flex item.
+### Fixed — `Sheet` had the same leading-boundary gap, and could open unfocused
+
+The app's primary modal overlay shared the trap bug above verbatim. It also
+carried a second one: the focus effect is keyed on `open`, but the first render
+returns `null` behind an SSR guard, so on that pass `panelRef` is still empty.
+Every call site toggles closed → open, which re-runs the effect and hides it —
+but a `Sheet` rendered open from its first render never received focus at all.
+The effect is now gated on `mounted` as well, with both in the deps.
 
 ### Security — server actions no longer rest the whole tenant boundary on RLS
 

@@ -78,6 +78,21 @@ describe("Sheet", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close" }));
   });
 
+  it("wraps a Shift+Tab taken straight after open", () => {
+    // The panel itself holds focus on open and is `tabIndex={-1}`, so it never
+    // appears in the focusables list. Matching only against `first` therefore
+    // left the very first keystroke a keyboard user is likely to make —
+    // Shift+Tab, to reach the close button — escaping backwards past a scrim
+    // `aria-modal` had just declared impassable.
+    // Rendered open from the first render, not toggled — the focus effect has
+    // to survive the SSR guard's null pass to reach the panel at all.
+    render(<Host />);
+    const dialog = screen.getByRole("dialog");
+    expect(document.activeElement).toBe(dialog);
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Last" }));
+  });
+
   it("locks body scroll while open and releases it on unmount", () => {
     const { unmount } = render(<Host />);
     expect(document.body.style.overflow).toBe("hidden");

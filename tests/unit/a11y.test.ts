@@ -316,6 +316,20 @@ describe("the crop dialog behaves like the dialog it declares itself to be", () 
     expect(cropper).toMatch(/preventDefault\(\)[\s\S]{0,40}last\.focus\(\)/);
   });
 
+  it("counts the dialog root as a LEADING boundary, in both modal shapes", () => {
+    // Both hold focus on their own root on open, and both roots are
+    // `tabIndex={-1}` — so neither appears in `focusables`, and matching only
+    // against `first` let a Shift+Tab straight after open walk out backwards.
+    // Behaviour is driven for real in avatar-cropper.test.tsx / sheet.test.tsx;
+    // this is the "don't drop it from the other one" guard.
+    expect(cropper).toMatch(
+      /activeElement === first \|\| document\.activeElement === root/,
+    );
+    expect(strip(read("src/components/ui/Sheet.tsx"))).toMatch(
+      /activeElement === first \|\| document\.activeElement === panel/,
+    );
+  });
+
   it("hands focus back to a named trigger, not to whatever <body> was", () => {
     // The host opens this by clicking a display:none file input, so capturing
     // document.activeElement would restore focus to nothing.

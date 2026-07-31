@@ -36,8 +36,14 @@ export function Sheet({
   useEffect(() => setMounted(true), []);
 
   // Focus in on open, restore on close; lock body scroll while open.
+  //
+  // Gated on `mounted` as well as `open`, and both are deps: the first render
+  // returns null (the SSR guard below), so on that pass `panelRef` is still
+  // null and there is nothing to focus. Without `mounted` the effect never ran
+  // again, and a Sheet that is open from its very first render — rather than
+  // toggled from closed — silently kept focus outside itself.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !mounted) return;
     const previouslyFocused =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     (initialFocusRef?.current ?? panelRef.current)?.focus();
@@ -47,7 +53,7 @@ export function Sheet({
       document.body.style.overflow = prevOverflow;
       previouslyFocused?.focus();
     };
-  }, [open, initialFocusRef]);
+  }, [open, mounted, initialFocusRef]);
 
   if (!mounted || !open) return null;
 
@@ -67,7 +73,13 @@ export function Sheet({
     if (focusables.length === 0) return;
     const first = focusables[0]!;
     const last = focusables[focusables.length - 1]!;
-    if (e.shiftKey && document.activeElement === first) {
+    // The panel is a leading boundary as well as `first`. With no
+    // `initialFocusRef` the effect above focuses the panel itself, and the
+    // panel is `tabIndex={-1}` so it never appears in `focusables` — a
+    // Shift+Tab straight after open therefore escaped backwards past a scrim
+    // that `aria-modal` had just declared impassable.
+    const atStart = document.activeElement === first || document.activeElement === panel;
+    if (e.shiftKey && atStart) {
       e.preventDefault();
       last.focus();
     } else if (!e.shiftKey && document.activeElement === last) {

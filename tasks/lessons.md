@@ -2130,3 +2130,35 @@ than as a puzzling failure in whichever spec ran first.
   cold server and `.horizon` had no box yet. `retries` is 0 outside CI, so cold
   starts show as red. Re-run against the warm server before believing a
   regression: all 51 passed unchanged.
+- **A focus trap has two boundaries, and the root is usually the forgotten
+  one.** Both modals focus their own root on open, and both roots are
+  `tabIndex={-1}` so they never appear in the focusables list. Matching only
+  `document.activeElement === first` therefore left Shift+Tab — plausibly the
+  first keystroke a keyboard user makes, reaching for the close button — as the
+  one way out of a dialog whose `aria-modal` had just said there was nothing
+  behind it. Treat the root as a leading boundary alongside `first`.
+- **`focus()` on a disabled control is silently ignored.** Restoring focus to a
+  trigger that the same state change disabled looks correct and does nothing;
+  focus lands on `<body>` and stays there for as long as the work takes. If the
+  return target can be disabled, the restore has to be able to wait — bounded,
+  and standing down the moment the user puts focus somewhere themselves.
+- **An effect keyed on `open` can run before the thing it acts on exists.**
+  `Sheet`'s SSR guard returns null on the first render, so `panelRef` was empty
+  when the focus effect ran; every call site toggles closed → open, which
+  re-runs it and hid the gap. Anything gated on a `mounted` flag belongs in the
+  deps of every effect that touches the DOM it gates.
+- **A bot review is worth reading properly and worth checking.** Two of the
+  three findings above came from an automated PR review; both were real, and
+  verifying them against the code (rather than accepting or dismissing on sight)
+  is what turned up the third.
+- **`npm init -y --prefix <dir>` ignores `--prefix` and writes to the cwd.** It
+  rewrote the repo's own `package.json` — re-escaping the description and adding
+  `main`, `directories`, `keywords`, `author` and a `repository` URL pointing at
+  the local git proxy. Caught by diffing before committing. Scratch installs
+  belong in a scratch cwd, not behind a flag that only some subcommands honour.
+- **"Patched" is not the same as "outside the advisory range", in either
+  direction.** `brace-expansion` 1.1.17/2.1.3/5.0.8 accepted a `maxLength`
+  option, documented it, and did not apply it on two paths — while 5.0.8 sat
+  outside the `<=5.0.7` range and reported clean. Read the diff between the
+  pinned version and the latest patch; the advisory range answers a narrower
+  question than the one you are asking.

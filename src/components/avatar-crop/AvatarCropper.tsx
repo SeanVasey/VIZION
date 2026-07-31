@@ -70,9 +70,31 @@ export function AvatarCropper({
       (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     rootRef.current?.focus();
     return () => {
-      if (returnTo && returnTo !== document.body && returnTo.isConnected) {
+      if (!returnTo || returnTo === document.body || !returnTo.isConnected) return;
+      returnTo.focus();
+      if (document.activeElement === returnTo) return;
+
+      // The "Use photo" path sets `avatarBusy` and clears the file in one
+      // batch, so by the time this runs the trigger is already `disabled` for
+      // the upload — and `focus()` on a disabled control is ignored, which
+      // would strand focus on <body> for the length of a network round trip.
+      // Wait for the control to come back rather than dropping the user.
+      const observer = new MutationObserver(() => {
+        // Only if focus is still nowhere. If the user has clicked or tabbed
+        // somewhere in the meantime, taking it back would be the worse bug.
+        if (document.activeElement !== document.body) return stop();
         returnTo.focus();
+        if (document.activeElement === returnTo) stop();
+      });
+      const timer = setTimeout(stop, 10_000);
+      function stop() {
+        observer.disconnect();
+        clearTimeout(timer);
       }
+      observer.observe(returnTo, {
+        attributes: true,
+        attributeFilter: ["disabled"],
+      });
     };
   }, [returnFocusRef]);
 
@@ -235,7 +257,12 @@ export function AvatarCropper({
     if (focusables.length === 0) return;
     const first = focusables[0]!;
     const last = focusables[focusables.length - 1]!;
-    if (e.shiftKey && document.activeElement === first) {
+    // The root is a leading boundary as well as `first`. It holds focus on
+    // open — `tabIndex={-1}`, so it is deliberately not in `focusables` — and
+    // a Shift+Tab from there is a step backwards out of a dialog whose
+    // `aria-modal` has just told assistive tech there is nothing behind it.
+    const atStart = document.activeElement === first || document.activeElement === root;
+    if (e.shiftKey && atStart) {
       e.preventDefault();
       last.focus();
     } else if (!e.shiftKey && document.activeElement === last) {
