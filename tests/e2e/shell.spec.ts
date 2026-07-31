@@ -102,6 +102,82 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     expect(ring.boxShadow).not.toBe("none");
   });
 
+  test("the floating action button is a frosted lens, and keeps its ring", async ({
+    page,
+  }) => {
+    // The FAB is behind auth, so this pins the STYLESHEET contract the same
+    // way the nav test below does — and for the same reason: every claim here
+    // is a cascade-layer or paint-order outcome that no unit test can answer.
+    //
+    // Three of them, all previously wrong or absent on this button:
+    //   1. the Laser fill is TRANSLUCENT and lives on the ::before, because a
+    //      backdrop-filter on the fixed button itself detaches it from the
+    //      viewport edge in WebKit;
+    //   2. the blur is on that pseudo and NOT on the button;
+    //   3. focusing it still produces a ring. It used to carry the depth
+    //      shadow as a `shadow-[…]` utility, and a utility-layer box-shadow
+    //      beats the base-layer `:focus-visible` rule at equal specificity —
+    //      so a keyboard user got no indicator at all.
+    await page.goto("/sign-in");
+    await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<a id="probe-before" href="#">a</a>
+         <button id="probe-fab" class="pressable btn-laser fab-glass rounded-full">+</button>`,
+      );
+    });
+
+    const surface = await page.evaluate(() => {
+      const el = document.querySelector("#probe-fab")!;
+      const own = getComputedStyle(el);
+      const lens = getComputedStyle(el, "::before");
+      // color-mix serializes as `rgba(r, g, b, a)` in some engines and
+      // `color(srgb r g b / a)` in others; both omit alpha entirely when it
+      // is 1, which is the case this has to be able to fail on.
+      const alpha = (v: string) =>
+        Number(/\/\s*([\d.]+)\s*\)/.exec(v)?.[1] ?? /,\s*([\d.]+)\s*\)$/.exec(v)?.[1] ?? 1);
+      // WebKit only answers to the prefixed name, and it is not on the
+      // CSSStyleDeclaration type either — read both by property name.
+      const backdrop = (s: CSSStyleDeclaration) =>
+        s.backdropFilter || s.getPropertyValue("-webkit-backdrop-filter");
+      return {
+        ownBackdrop: backdrop(own),
+        ownBackgroundAlpha: alpha(own.backgroundColor),
+        lensBackdrop: backdrop(lens),
+        lensAlpha: alpha(lens.backgroundColor),
+        restLayers: own.boxShadow.split(/,(?![^(]*\))/).length,
+      };
+    });
+
+    // Blur on the pseudo, never on the fixed button.
+    expect(surface.lensBackdrop).toContain("blur");
+    expect(surface.ownBackdrop === "none" || surface.ownBackdrop === "").toBe(true);
+    // The tint moved to the pseudo with it — a tint left on the button would
+    // be inside the pseudo's own backdrop and get blurred instead of layered.
+    expect(surface.ownBackgroundAlpha).toBe(0);
+    // Frosted, not solid, and not so thin the accent stops carrying.
+    expect(surface.lensAlpha).toBeGreaterThanOrEqual(0.7);
+    expect(surface.lensAlpha).toBeLessThan(1);
+
+    // Arrive by keyboard: buttons only match :focus-visible after a keyboard
+    // interaction, so a bare .focus() would prove nothing.
+    await page.locator("#probe-before").focus();
+    await page.keyboard.press("Tab");
+    const focused = await page.evaluate(() => {
+      const el = document.querySelector("#probe-fab")!;
+      return {
+        isFocusVisible: el.matches(":focus-visible"),
+        boxShadow: getComputedStyle(el).boxShadow,
+      };
+    });
+    expect(focused.isFocusVisible).toBe(true);
+    // The ring is COMPOSED in front of the resting shadow rather than
+    // replacing it, so focusing adds layers instead of swapping them.
+    expect(focused.boxShadow.split(/,(?![^(]*\))/).length).toBeGreaterThan(
+      surface.restLayers,
+    );
+  });
+
   test("the nav's press affordance is instant down and eased up", async ({ page }) => {
     // The bottom bar is behind auth, so this pins the STYLESHEET contract
     // rather than a live tab — same approach as the focus-ring test above, and

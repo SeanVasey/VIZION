@@ -30,6 +30,12 @@ import { useKeyboardVisible } from "./use-keyboard-visible";
  * the worst outcome available here; `unavailable` (drafts migration pending) is
  * treated as exactly that kind of failure.
  *
+ * Surface: a frosted Laser lens (`.fab-glass`) rather than a solid fill. It is
+ * the only Laser fill that floats OVER content instead of sitting in the flow,
+ * so it is the only one that can hide something — 82% over a saturated blur
+ * lets the covered card read as tone while the accent stays the loudest thing
+ * on the screen. The measurements behind that number are on the CSS rule.
+ *
  * Position: the token-driven lane every other floating element uses
  * (`--bottom-nav-h` + the home-indicator inset), so clearance tracks the nav by
  * construction rather than by a duplicated magic number. It shares that lane
@@ -123,8 +129,15 @@ export function NewPromptFab() {
           // btn-laser is --on-laser ink on a Laser fill, never the reverse
           // (§6). rounded-full wins over its 12px radius because utilities
           // layer after components.
-          "pressable btn-laser fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full",
-          "shadow-[0_6px_20px_-4px_rgba(0,0,0,0.5)]",
+          //
+          // fab-glass frosts that fill to 82% over a saturated blur, and owns
+          // the depth shadow the class list used to carry as a `shadow-[…]`
+          // utility. That move is load-bearing, not tidying: a utility-layer
+          // box-shadow beat the base-layer :focus-visible ring at equal
+          // specificity, so this button had no keyboard focus indicator at
+          // all. `.fab-glass:focus-visible` composes the ring back in front
+          // of the shadow.
+          "pressable btn-laser fab-glass fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full",
           "transition-opacity duration-200 motion-reduce:transition-none",
           keyboardVisible ? "pointer-events-none opacity-0" : "opacity-100",
         ].join(" ")}

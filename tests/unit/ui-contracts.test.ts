@@ -46,11 +46,28 @@ describe("UI contracts", () => {
       expect(block(/\[data-scrolling\][^{]*glass-(chrome|nav)/)).toBe("");
     });
 
-    it("only ever stands down `.glass`, never the ambient or nav layers", () => {
+    it("stands down the FAB's lens too, with the prefixed property", () => {
+      // It is the one blurred surface that is FIXED over a list, so its
+      // snapshot is re-blurred on every frame of every scroll rather than only
+      // while it is itself on screen. No `background-image` here: the pseudo
+      // carries the tint and the blur, and no grain.
+      const decls = block(/^\[data-scrolling\]\s+\.fab-glass::before$/);
+      expect(decls, "no [data-scrolling] .fab-glass::before rule").not.toBe("");
+      expect(decls).toMatch(/(^|[\s;])backdrop-filter:\s*none/);
+      expect(decls).toMatch(/-webkit-backdrop-filter:\s*none/);
+    });
+
+    it("never stands down the ambient or nav layers", () => {
+      // An allowlist, not a count: the gate trades a visual for a frame budget,
+      // and every surface added to it has to be one where the blur is not
+      // load-bearing. `--chrome` is not (see above); the ambient layers are not
+      // blurred at all, so reaching them would only ever be a mistake.
       const heads = [...RULES.matchAll(/([^{}]+)\{/g)]
         .map((m) => m[1]!.trim())
         .filter((h) => h.includes("[data-scrolling]"));
-      expect(heads).toEqual(["[data-scrolling] .glass"]);
+      expect(new Set(heads)).toEqual(
+        new Set(["[data-scrolling] .glass", "[data-scrolling] .fab-glass::before"]),
+      );
     });
   });
 
