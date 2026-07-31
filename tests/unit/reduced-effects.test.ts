@@ -99,4 +99,41 @@ describe("glass depth tokens", () => {
     expect(barRule).not.toBeNull();
     expect(barRule![1]).not.toMatch(/backdrop-filter/);
   });
+
+  it("leaves the FAB's blur on its ::before layer too (same iOS rule)", () => {
+    // `.fab-glass` is fixed, so it is under the same constraint as the bars.
+    const pseudo = /\n\s*\.fab-glass::before\s*\{([^}]*)\}/.exec(CSS);
+    expect(pseudo).not.toBeNull();
+    expect(pseudo![1]).toMatch(/backdrop-filter:\s*blur/);
+    const own = /\n\s*\.fab-glass\s*\{([^}]*)\}/.exec(CSS);
+    expect(own).not.toBeNull();
+    expect(own![1]).not.toMatch(/backdrop-filter/);
+  });
+
+  it("keeps the FAB's Laser fill translucent but dominant", () => {
+    // The whole point of the frost: solid would be back to obscuring, and too
+    // thin would spend the §6 ink margin and the accent's presence at once.
+    const pseudo = /\n\s*\.fab-glass::before\s*\{([^}]*)\}/.exec(CSS)![1]!;
+    const mix = /color-mix\(in srgb,\s*var\(--laser\)\s*(\d+)%/.exec(pseudo);
+    expect(mix, "the FAB fill must be a --laser color-mix, not a raw token").not.toBeNull();
+    const pct = Number(mix![1]);
+    expect(pct).toBeGreaterThanOrEqual(75);
+    expect(pct).toBeLessThan(100);
+  });
+
+  it("composes the focus ring in front of the FAB's resting shadow", () => {
+    // box-shadow is one property: a components-layer shadow replaces the
+    // base-layer :focus-visible ring outright unless the ring is re-included.
+    const focus = /\n\s*\.fab-glass:focus-visible\s*\{([^}]*)\}/.exec(CSS);
+    expect(focus).not.toBeNull();
+    expect(focus![1]).toMatch(/var\(--focus-ring\)/);
+  });
+
+  it("stands the FAB's blur down while the page is moving", () => {
+    // It is fixed over a scrolling list, so its snapshot is re-blurred every
+    // frame — the strongest case in the app for the scroll gate.
+    expect(CSS).toMatch(
+      /\[data-scrolling\]\s+\.fab-glass::before\s*\{[^}]*backdrop-filter:\s*none/,
+    );
+  });
 });

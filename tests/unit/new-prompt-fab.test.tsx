@@ -183,4 +183,17 @@ describe("New prompt button", () => {
     renderFab();
     expect(screen.queryByRole("button", { name: "New prompt" })).toBeNull();
   });
+
+  it("wears the frosted Laser surface, and no shadow utility over its ring", () => {
+    renderFab();
+    const cls = fab().className;
+    // btn-laser carries the §6 contrast law (--on-laser ink on Laser);
+    // fab-glass frosts that fill and owns the depth shadow.
+    expect(cls).toMatch(/\bbtn-laser\b/);
+    expect(cls).toMatch(/\bfab-glass\b/);
+    // A utility-layer box-shadow outranks the base-layer :focus-visible ring
+    // at equal specificity, which is how this button lost its focus indicator
+    // in the first place. The shadow belongs to the component rule now.
+    expect(cls).not.toMatch(/\bshadow-/);
+  });
 });

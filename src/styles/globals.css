@@ -352,6 +352,83 @@
     filter: brightness(0.94);
   }
 
+  /* The floating "New prompt" button — the one Laser fill that sits ON TOP of
+     content rather than in the flow, so it is the one that has to stop hiding
+     what it covers.  A frosted Laser lens: the fill drops to 82% and a
+     saturated blur behind it turns the covered card into soft tone instead of
+     a hard occlusion, while the accent stays the loudest thing on the screen.
+
+     82% and not lower, because both limits here are luminance ones:
+       · Ink — --on-laser on the composited fill measures 10.7:1 over the dark
+         canvas and 15.5:1 over the light one (a solid fill is 15.8:1 in
+         both), so §6's contrast law keeps a wide margin.  The curve steepens
+         below ~60% and there is nothing worth buying down there.
+       · Presence — against the dark canvas the disc itself still reads 10.7:1,
+         so it cannot be missed.  On the LIGHT canvas the fill has never been
+         what makes it visible (Laser on chalk is 1.06:1 — that IS the §6 FAIL,
+         and it is equally true of the solid fill this replaces), so depth goes
+         on carrying the boundary there: the drop shadow stays, with a Laser
+         bloom beside it.
+
+     Ambient, but deliberately NOT under the Reduced-effects gate: that switch
+     silences background decoration (aurora, mesh, grain, card fields), and
+     this is a control's own surface — the same call `.glass`'s blur and the
+     focus ring's glow already make. */
+  .fab-glass {
+    --_fab-shadow:
+      0 6px 20px -4px rgba(0, 0, 0, 0.5),
+      0 0 24px var(--laser-glow);
+    /* The tint moves to the ::before with the blur; see below. */
+    background: transparent;
+    box-shadow: var(--_fab-shadow);
+    /* Its own composited layer, exactly as the chrome bars get one: a FIXED
+       element with a blur behind it detaches from the viewport edge under
+       WebKit's async scrolling otherwise.  `will-change` holds the layer
+       through the press, which swaps the transform out for `.pressable`'s
+       scale. */
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* box-shadow is a single property, so this layer's resting shadow replaces
+     the base :focus-visible ring outright and leaves a keyboard user with
+     nothing — the trap documented on --focus-ring.  Compose, ring first. */
+  .fab-glass:focus-visible {
+    box-shadow:
+      var(--focus-ring),
+      var(--_fab-shadow);
+  }
+
+  /* Blur AND tint both live here, not just the blur.  A negative-z-index child
+     paints AFTER its parent's own background, so a tint left on the button
+     would land INSIDE this pseudo's backdrop — blurred and re-saturated along
+     with the page instead of composited over it, which is the opposite of a
+     lens. */
+  .fab-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--laser) 82%, transparent);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  }
+
+  /* `.btn-laser`'s brightness filter cannot run here: a `filter` makes the
+     button a BACKDROP ROOT, which leaves the pseudo's backdrop-filter nothing
+     behind it to sample — the frost would blink off for the length of every
+     press.  The fill answers instead, going denser under a pointer, which is
+     also the moment obscuring matters least.  Touch feedback is unaffected:
+     it comes from `.pressable`, not from `:active`. */
+  .fab-glass:hover:not(:disabled),
+  .fab-glass:active:not(:disabled) {
+    filter: none;
+  }
+  .fab-glass:hover:not(:disabled)::before {
+    background: color-mix(in srgb, var(--laser) 92%, transparent);
+  }
+
   /* Secondary — surface fill, primary text, hairline.  Content-width/centered
      at the call site (the balance rule). */
   .btn-secondary {
@@ -576,6 +653,17 @@
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     background-image: none;
+  }
+
+  /* The FAB answers to the same gate, and has the strongest claim to it: it is
+     the one blurred surface that is FIXED over a list, so its snapshot region
+     is re-blurred on every frame of every scroll rather than only while it is
+     itself on screen. At 82% Laser over the ambient ground the stand-down is
+     no more visible than `.glass`'s. Kept a separate rule because the pseudo
+     carries no grain to silence. */
+  [data-scrolling] .fab-glass::before {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   /* Ambient mesh ground — quiet directional wash over Void; the animated

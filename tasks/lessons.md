@@ -2239,3 +2239,30 @@ than as a puzzling failure in whichever spec ran first.
   creates its stand-ins as the local superuser. A field that differs by
   construction is worse than no field: it trains you to ignore a red row.
   Scope it (`public` only, `<platform-managed>` elsewhere) and say why.
+- **A resting `shadow-[…]` utility on a focusable element deletes its focus
+  ring, and nothing anywhere says so.** The FAB carried its depth shadow as a
+  utility; `box-shadow` is one property, the utilities layer lands after base,
+  and `:focus-visible` and `.shadow-x` are both (0,1,0) — so the base ring lost
+  on layer order and the button had NO keyboard indicator. Verified by stashing
+  the change and reading `getComputedStyle` on the old class list in a real
+  engine: the focused shadow was the drop shadow alone. The `--focus-ring`
+  comment already warned that any *later-layer rule* setting a box-shadow must
+  re-include it; the case it does not cover is a **utility**, which is exactly
+  the form a shadow usually takes. Shadows on focusable elements belong in the
+  component rule, next to the `:focus-visible` that composes them.
+- **A negative-z-index pseudo paints AFTER its parent's own background, not
+  before it.** So `backdrop-filter` on `::before` + tint on the element does not
+  make a lens: the tint lands *inside* the pseudo's backdrop and gets blurred
+  and re-saturated with the page. Tint and blur have to travel together onto the
+  pseudo. (`.glass-nav` already did it that way; the reason was not written
+  down, so it read as arbitrary.)
+- **A `filter` makes an element a backdrop root, which silently disables
+  `backdrop-filter` inside it.** `.btn-laser`'s `:hover`/`:active`
+  `brightness()` would have blinked the FAB's frost off for the length of every
+  press. Where a blurred surface needs a press or hover state, move it to the
+  fill (`color-mix` percentage), not to a filter.
+- **Check the LIGHT theme before crediting a fill with visibility.** Laser on
+  chalk is 1.06:1 — the §6 FAIL — so on light the FAB's boundary has always
+  come from its drop shadow, not its colour. That is what made the translucency
+  safe to add there (it changes nothing that was carrying), and it is why the
+  shadow had to survive the move off the utility.
