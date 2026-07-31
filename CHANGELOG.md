@@ -6,6 +6,70 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Security — server actions no longer rest the whole tenant boundary on RLS
+
+Fourteen mutating server actions wrote with `.eq("id", …)` and nothing else, and
+most never established who was calling at all. RLS was the only thing standing
+between them and another account's row — and they are reachable by any
+authenticated client, not just by the UI.
+
+That is a single point of failure, not a defence: one dropped policy (a table
+recreated during a schema change, an `alter table … disable row level security`
+run during an incident) turns `deletePromptAction` into a cross-tenant delete,
+and nothing in the suite would notice. Every mutation now also carries
+`.eq("user_id", …)`, which costs one indexed column.
+
+Two reads mattered as much as the writes, because they return content rather
+than a boolean: `getDraftBodyAction` returns a draft's full text and
+`getVersionBodyAction` a version's full input and output. Both are now
+owner-scoped as well.
+
+`setCollectionAction` gained a real check rather than a predicate: a foreign-key
+constraint does **not** consult RLS, so a prompt could be filed into another
+account's collection — the FK only asks whether the row exists. It would then
+vanish from its owner's filters and belong to a collection they cannot see.
+
+### Security — the authorization gate had no tests, and now has 22
+
+`updateSession` gates every protected surface in the app and was covered by
+nothing. A typo in `PUBLIC_PREFIXES` — `/lib` for `/library` — would expose the
+library to anonymous users while lint, typecheck, the unit suite and the build
+all stayed green.
+
+`tests/unit/middleware-gate.test.ts` asserts the whole branch table: signed
+out, signed in, and Supabase not configured, across API routes, protected
+pages and public ones. It also pins the thing most likely to break silently —
+public prefixes match on a **segment boundary**, so `/authors` is not made
+public by `/auth`. That assertion was verified by injecting the bare
+`startsWith` bug: it fails, and only it fails.
+
+### Fixed — raw Postgres error text no longer reaches the user
+
+`describeWriteError` defaulted to returning the database's own message, on the
+reasoning that "RLS and constraint messages are useful as-is". They are, to an
+operator reading a log; to a user they are a toast naming a policy. Postgres
+text carries constraint, column, policy and function names, and
+`docs/runbooks/migrations.md` already records this passthrough putting
+`invalid input value for enum model_target: "gpt_5_6_terra"` in front of a user
+— the incident that produced the enum branch, while the general leak stayed.
+
+The default is now the caller's fallback. Known codes (`23505`, `23503`,
+`23514`, `42501`) get a sentence someone can act on; everything else gets the
+fallback, and the raw text goes to `writeErrorLogLine`, where an operator was
+going to look anyway. Thirteen call sites that returned `error.message`
+directly now route through it and log the original.
+
+### Fixed — documentation that described a system that does not exist
+
+`docs/architecture.md` still described `vizion-enhance` and `vizion-library`
+service-worker caches, which have never existed in the code, and a failed
+navigation being served "the precached `/` shell" rather than `/offline.html`.
+Both it and `CLAUDE.md` §7 described the provider routes as running on **Edge**
+and cited that as the DDoS posture; no route has ever declared
+`runtime = "edge"`, and they cannot — they import provider SDKs behind
+`server-only`. The service-worker table now matches `sw-src.js`, including why
+navigations are `NetworkOnly` rather than unrouted.
+
 ### Fixed — a library save was four writes, and three of them could fail silently
 
 Saving an enhancement wrote `prompts`, then `prompt_versions`, then the

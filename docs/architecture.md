@@ -12,10 +12,10 @@ Client (PWA, Next.js 15 · React 19)
   └─ Service worker strategies (below)
         │  HTTPS — model keys never client-side
         ▼
-Next Route Handlers (Edge) — Provider Adapter
+Next Route Handlers (Node serverless) — Provider Adapter
   ├─ /api/enhance   mode + target → per-model formatter → provider
   ├─ /api/media     extract → attributes (P5)
-  └─ per-user rate limit + cost cap + audit log
+  └─ atomic admission: rate limit + cost cap + hold, one per-user lock
         │
         ▼
 Supabase — Postgres (RLS) · Auth (magic/GitHub/Google) · Storage (avatars, media)
@@ -23,15 +23,28 @@ Supabase — Postgres (RLS) · Auth (magic/GitHub/Google) · Storage (avatars, m
 
 ## Service-worker strategy (FINAL_PLAN §3)
 
-| Surface                               | Strategy                       | Cache            |
-| ------------------------------------- | ------------------------------ | ---------------- |
-| App shell + same-origin static assets | stale-while-revalidate         | `vizion-shell`   |
-| Auth / session + `/api/enhance`       | network-first (10s timeout)    | `vizion-enhance` |
-| Library / history reads               | network-first + cache fallback | `vizion-library` |
-| Mutations (save/version)              | Background Sync (Android) /    | IndexedDB outbox |
-|                                       | `visibilitychange` flush (iOS) |                  |
+| Surface                   | Strategy                        | Cache            |
+| ------------------------- | ------------------------------- | ---------------- |
+| Same-origin static assets | stale-while-revalidate          | `vizion-shell`   |
+| Navigations               | **network-only** (never cached) | —                |
+| Mutations (save/version)  | `online` + `visibilitychange`   | IndexedDB outbox |
+|                           | flush, scoped to the account    |                  |
 
-A failed navigation is caught and served the precached `/` shell. The SW is
+Navigations are network-only because Cache Storage is origin-wide, not
+account-scoped, and `/library`, `/library/[id]` and `/profile` are
+server-rendered with the account's content. They are still _routed_ (via
+`NetworkOnly`) rather than left unmatched: `setCatchHandler` only runs for a
+request some Workbox route handled, so an unrouted navigation would fail
+offline to the browser's own error page instead of the fallback.
+
+`vizion-enhance` and `vizion-library` do not exist. The routes that would have
+populated them were removed — one targeted POST-only endpoints a GET runtime
+route can never match (its only live effect was caching Supabase `/auth/v1`
+session PII), the other targeted `/api/library` and `/api/prompts`, endpoints
+that have never existed. Library data flows through server components and
+server actions.
+
+A failed navigation is caught and served the precached `/offline.html`. The SW is
 hand-authored at `src/lib/pwa/sw-src.js` and compiled to `public/sw.js` by
 `scripts/build-sw.mjs` (Workbox `injectManifest`) via the `prebuild` hook.
 
@@ -77,13 +90,13 @@ Targets whose provider takes a per-request reasoning-depth option get a
 level rides the enhance request (validated server-side) into the provider
 adapter, which translates it onto that provider's parameter:
 
-| Provider | Parameter | Levels offered |
-| --- | --- | --- |
-| Anthropic (Fable 5 · Opus 5 · Sonnet 5) | `output_config.effort` | low · medium · high · xhigh · max |
-| OpenAI (GPT-5.6 Sol/Luna/Terra) | `reasoning_effort` | low · medium · high |
-| Google (Gemini 3.6 Flash) | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high |
-| Qwen (Qwen3.7 Max) | `enable_thinking` + `thinking_budget` (tokens) | low · medium · high · xhigh · max |
-| xAI (Grok 4.5) | `reasoning_effort` | low · medium · high |
+| Provider                                | Parameter                                       | Levels offered                    |
+| --------------------------------------- | ----------------------------------------------- | --------------------------------- |
+| Anthropic (Fable 5 · Opus 5 · Sonnet 5) | `output_config.effort`                          | low · medium · high · xhigh · max |
+| OpenAI (GPT-5.6 Sol/Luna/Terra)         | `reasoning_effort`                              | low · medium · high               |
+| Google (Gemini 3.6 Flash)               | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high     |
+| Qwen (Qwen3.7 Max)                      | `enable_thinking` + `thinking_budget` (tokens)  | low · medium · high · xhigh · max |
+| xAI (Grok 4.5)                          | `reasoning_effort`                              | low · medium · high               |
 
 "Auto" (the default) sends nothing — the provider's own default applies. The
 selection persists per target in the UI store. Vendors' consumer-app picker

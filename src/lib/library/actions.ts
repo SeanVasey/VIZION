@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
-import { describeWriteError } from "@/lib/supabase/errors";
+import { describeWriteError, writeErrorLogLine } from "@/lib/supabase/errors";
 import { deriveTitle } from "@/lib/library/util";
 import { contentHash } from "@/lib/library/hash";
 import { parseLibraryParams } from "@/lib/library/paging";
@@ -16,6 +16,29 @@ export interface SaveResult {
   /** Exact-duplicate detection: this content already exists in the library —
    *  offer "Save as new version" instead of minting a second identical card. */
   duplicate?: { promptId: string; title: string };
+}
+
+type Db = Awaited<ReturnType<typeof createClient>>;
+
+const SESSION_EXPIRED = "Your session expired — sign in again.";
+
+/**
+ * The signed-in user's id, or null.
+ *
+ * Every mutation below scopes its write with `.eq("user_id", …)` as well as
+ * relying on RLS. That redundancy is deliberate: RLS is otherwise the ONLY
+ * thing standing between one of these server actions — reachable by any
+ * authenticated client — and another account's row. A single dropped policy
+ * (a table recreated during a schema change, an `alter table … disable row
+ * level security` run during an incident) would turn `deletePromptAction` into
+ * a cross-tenant delete, and nothing in the suite would notice. The predicate
+ * costs one indexed column and removes the single point of failure.
+ */
+async function ownerId(supabase: Db): Promise<string | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
 }
 
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
@@ -132,6 +155,7 @@ export async function addVersionAction(
     .from("prompts")
     .select("current_ver")
     .eq("id", promptId)
+    .eq("user_id", user.id)
     .single();
 
   const hash = contentHash(v.input, v.output, v.mode);
@@ -208,9 +232,13 @@ export async function restoreVersionAction(
       current_mode: restored.mode,
     })
     .eq("id", promptId)
+    .eq("user_id", user.id)
     .select("title")
     .single();
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
 
   await supabase.from("activity_events").insert({
     user_id: user.id,
@@ -230,8 +258,17 @@ export async function updateTagsAction(
   tags: string[],
 ): Promise<SaveResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("prompts").update({ tags }).eq("id", promptId);
-  if (error) return { ok: false, error: error.message };
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  const { error } = await supabase
+    .from("prompts")
+    .update({ tags })
+    .eq("id", promptId)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath(`/library/${promptId}`);
   revalidatePath("/library");
   return { ok: true, promptId };
@@ -268,6 +305,18 @@ export async function getVersionBodyAction(
   versionId: string,
 ): Promise<{ ok: boolean; body?: VersionBody; error?: string }> {
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  // Owner-scoped through the parent as well as by id. This returns a version's
+  // full input and output, so RLS being the only control would make one
+  // dropped policy a cross-tenant read of prompt bodies.
+  const { data: owned } = await supabase
+    .from("prompts")
+    .select("id")
+    .eq("id", promptId)
+    .eq("user_id", uid)
+    .maybeSingle();
+  if (!owned) return { ok: false, error: "Version not found." };
   const { data, error } = await supabase
     .from("prompt_versions")
     .select("id, input_text, output_text, rationale")
@@ -275,7 +324,7 @@ export async function getVersionBodyAction(
     .eq("prompt_id", promptId)
     .single();
   if (error || !data) {
-    return { ok: false, error: error?.message ?? "Version not found." };
+    return { ok: false, error: describeWriteError(error, "Version not found.") };
   }
   return { ok: true, body: data };
 }
@@ -314,11 +363,17 @@ export async function updatePromptTitleAction(
     return { ok: false, error: "Give it a short name (1–120 characters)." };
   }
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   const { error } = await supabase
     .from("prompts")
     .update({ title: trimmed })
-    .eq("id", promptId);
-  if (error) return { ok: false, error: error.message };
+    .eq("id", promptId)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath(`/library/${promptId}`);
   revalidatePath("/library");
   return { ok: true, promptId };
@@ -329,11 +384,17 @@ export async function setFavoriteAction(
   favorite: boolean,
 ): Promise<SaveResult> {
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   const { error } = await supabase
     .from("prompts")
     .update({ favorite })
-    .eq("id", promptId);
-  if (error) return { ok: false, error: error.message };
+    .eq("id", promptId)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath("/library");
   return { ok: true, promptId };
 }
@@ -343,11 +404,17 @@ export async function setArchivedAction(
   archived: boolean,
 ): Promise<SaveResult> {
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   const { error } = await supabase
     .from("prompts")
     .update({ archived_at: archived ? new Date().toISOString() : null })
-    .eq("id", promptId);
-  if (error) return { ok: false, error: error.message };
+    .eq("id", promptId)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath("/library");
   return { ok: true, promptId };
 }
@@ -355,22 +422,34 @@ export async function setArchivedAction(
 /** Soft delete — the library-surface delete, recoverable via the Undo toast. */
 export async function softDeletePromptAction(promptId: string): Promise<SaveResult> {
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   const { error } = await supabase
     .from("prompts")
     .update({ deleted_at: new Date().toISOString() })
-    .eq("id", promptId);
-  if (error) return { ok: false, error: error.message };
+    .eq("id", promptId)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath("/library");
   return { ok: true, promptId };
 }
 
 export async function undoDeletePromptAction(promptId: string): Promise<SaveResult> {
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   const { error } = await supabase
     .from("prompts")
     .update({ deleted_at: null })
-    .eq("id", promptId);
-  if (error) return { ok: false, error: error.message };
+    .eq("id", promptId)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath("/library");
   return { ok: true, promptId };
 }
@@ -379,8 +458,17 @@ export async function undoDeletePromptAction(promptId: string): Promise<SaveResu
  *  archived prompts — the everyday delete is soft + undoable. */
 export async function deletePromptAction(promptId: string): Promise<SaveResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("prompts").delete().eq("id", promptId);
-  if (error) return { ok: false, error: error.message };
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  const { error } = await supabase
+    .from("prompts")
+    .delete()
+    .eq("id", promptId)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath("/library");
   return { ok: true };
 }
@@ -400,11 +488,30 @@ export async function setCollectionAction(
   collectionId: string | null,
 ): Promise<SaveResult> {
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  // A foreign-key check does NOT consult RLS, so without this a prompt could be
+  // filed into another account's collection: the FK only asks whether the row
+  // exists. The prompt would then vanish from its owner's collection filters
+  // and belong to a collection they cannot see.
+  if (collectionId !== null) {
+    const { data: owned } = await supabase
+      .from("collections")
+      .select("id")
+      .eq("id", collectionId)
+      .eq("user_id", uid)
+      .maybeSingle();
+    if (!owned) return { ok: false, error: "That collection doesn't exist." };
+  }
   const { error } = await supabase
     .from("prompts")
     .update({ collection_id: collectionId })
-    .eq("id", promptId);
-  if (error) return { ok: false, error: error.message };
+    .eq("id", promptId)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath("/library");
   return { ok: true, promptId };
 }
@@ -440,10 +547,13 @@ export async function renameCollectionAction(
     return { ok: false, error: "Give it a short name (1–60 characters)." };
   }
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   const { error } = await supabase
     .from("collections")
     .update({ name: trimmed, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", uid);
   if (error) return { ok: false, error: describeCollectionError(error) };
   revalidatePath("/library");
   return { ok: true };
@@ -455,8 +565,17 @@ export async function deleteCollectionAction(
   id: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = await createClient();
-  const { error } = await supabase.from("collections").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  const { error } = await supabase
+    .from("collections")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", uid);
+  if (error) {
+    console.error(writeErrorLogLine("library", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   revalidatePath("/library");
   return { ok: true };
 }

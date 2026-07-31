@@ -54,9 +54,20 @@ export function enumMismatch(
 }
 
 /**
- * A user-facing sentence for a failed write. Enum mismatches get an actionable
- * message naming the model by its display label; everything else keeps the
- * existing passthrough (RLS and constraint messages are useful as-is).
+ * A user-facing sentence for a failed write.
+ *
+ * The default is the CALLER'S FALLBACK, not the database's message. It used to
+ * be the other way round — "RLS and constraint messages are useful as-is" —
+ * and they are, to an operator reading a log, not to a user reading a toast.
+ * Postgres text carries constraint names, column names, policy names, function
+ * signatures and enum type names, and `docs/runbooks/migrations.md` records
+ * this exact passthrough putting `invalid input value for enum model_target:
+ * "gpt_5_6_terra"` in front of a user. That incident produced the enum branch
+ * below; the general leak stayed.
+ *
+ * Known codes get a sentence someone can act on. Everything else gets the
+ * fallback, and the raw text belongs in `writeErrorLogLine` — which is where an
+ * operator was always going to look anyway.
  */
 export function describeWriteError(
   error: DbWriteError | null | undefined,
@@ -70,7 +81,23 @@ export function describeWriteError(
     }
     return "That option isn't available on the server yet — pick another and try again.";
   }
-  return error?.message ?? fallback;
+  switch (error?.code) {
+    // unique_violation — the caller knows which uniqueness it meant, so this
+    // stays generic and `describeCollectionError` specialises it.
+    case "23505":
+      return "That already exists.";
+    // foreign_key_violation — the thing being referenced is gone.
+    case "23503":
+      return "Something it refers to is no longer there — refresh and try again.";
+    // check_violation — a value the schema refuses (e.g. a negative amount).
+    case "23514":
+      return "That value isn't allowed.";
+    // insufficient_privilege — an RLS denial. Never echo the policy name.
+    case "42501":
+      return "You don't have access to that.";
+    default:
+      return fallback;
+  }
 }
 
 /**
