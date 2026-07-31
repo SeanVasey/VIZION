@@ -60,6 +60,20 @@ grantee that `revoke execute … from … public` on the SECURITY DEFINER routin
 exists to remove. Bucket configuration was uncompared too, so a `media` bucket
 restored public would have fingerprinted clean. All now included; all match.
 
+Three more facts are recorded that no definition text carries, each of which
+would otherwise let a materially different schema compare equal: a policy's
+`permissive` flag (RESTRICTIVE composes with `AND`, so one flipped
+`storage.objects` INSERT policy denies every upload with both predicates
+unchanged), `pg_trigger.tgenabled` (`pg_get_triggerdef` reconstructs the same
+`CREATE TRIGGER` whether or not it fires — a disabled
+`enforce_prompt_current_version` lets `current_ver` point at another prompt's
+version), and function ownership (on a SECURITY DEFINER routine the owner _is_
+the privilege set the body runs with). Table ownership is compared for `public`
+only: a table's owner bypasses its own RLS unless `FORCE` is set, but the
+storage tables belong to `supabase_storage_admin` hosted and to the local
+superuser under the shim, so comparing those would differ on every run and mean
+nothing.
+
 `tests/unit/model-target-enum.test.ts` loses its hand-written `BASELINE_LABELS`
 constant. It existed only because the `create type model_target` was missing, so
 the enum replay had to be told where it started instead of reading it — a wrong

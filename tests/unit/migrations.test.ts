@@ -126,6 +126,31 @@ describe("the schema fingerprint covers what the baseline actually creates", () 
     expect(SQL).toContain("coalesce(r.rolname, 'PUBLIC')");
   });
 
+  it("records the three facts that no definition text carries", () => {
+    // Each of these is invisible in the thing you would naturally compare:
+    //  - `permissive`  — RESTRICTIVE composes with AND, not OR, so one flipped
+    //    storage INSERT policy denies every upload while both predicates, and
+    //    every other field of the policy, stay identical.
+    //  - `tgenabled`   — pg_get_triggerdef reconstructs the same CREATE TRIGGER
+    //    whether or not the trigger fires.
+    //  - function `owner` — on a SECURITY DEFINER routine the owner IS the
+    //    privilege set the body runs with.
+    expect(SQL).toMatch(/\|\|\s*' '\s*\|\|\s*permissive/);
+    expect(SQL).toMatch(/tg\.tgenabled/);
+    expect(SQL).toMatch(/' owner=' \|\| pg_get_userbyid\(p\.proowner\)/);
+  });
+
+  it("leaves the storage tables' ownership out, which the shim cannot match", () => {
+    // Hosted they belong to supabase_storage_admin; pg-shim.sql necessarily
+    // creates its stand-ins as the local superuser. Comparing that would differ
+    // on every run and mean nothing — but `public` ownership IS compared,
+    // because a table's owner bypasses its own RLS unless FORCE is set.
+    expect(SQL).toContain("owner=<platform-managed>");
+    expect(SQL).toMatch(
+      /when n\.nspname = 'public'\s*\n?\s*then ' owner=' \|\| pg_get_userbyid\(c\.relowner\)/,
+    );
+  });
+
   it("still creates the storage policies it claims to compare", () => {
     const all = FILES.sort()
       .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"))

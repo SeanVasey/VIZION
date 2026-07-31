@@ -71,6 +71,20 @@ is exactly the control worth comparing. The rest of `storage` is out of scope on
 purpose: `pg-shim.sql` builds a minimal `storage.objects`, so comparing its
 columns would be noise.
 
+Three facts are recorded that no definition text carries, each of which would
+otherwise let a materially different schema compare equal:
+
+| fact                     | what the obvious comparison misses                                                                                                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pg_policies.permissive` | RESTRICTIVE composes with `AND`, not `OR`. Flip one of the two `storage.objects` INSERT policies and every upload is denied — with both predicates, and every other field of the policy, unchanged. |
+| `pg_trigger.tgenabled`   | `pg_get_triggerdef` reconstructs the same `CREATE TRIGGER` whether or not it fires. A disabled `enforce_prompt_current_version` lets `prompts.current_ver` point at another prompt's version.        |
+| function owner           | On a SECURITY DEFINER routine the owner _is_ the privilege set the body runs with.                                                                                                                  |
+
+Table ownership is compared for `public` only — a table's owner bypasses its own
+RLS unless `FORCE` is set. The storage tables are excluded: they belong to
+`supabase_storage_admin` hosted and to the local superuser under the shim, so
+comparing them would differ on every run and mean nothing.
+
 One benign difference to expect: `--` comments inside a function body count
 toward the `function` digest, and the apply path that wrote the hosted schema
 strips them. If `function` is the only category that differs, re-compare with

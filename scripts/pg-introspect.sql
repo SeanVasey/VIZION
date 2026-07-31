@@ -55,8 +55,20 @@ with facts as (
   select 'index', indexdef from pg_indexes where schemaname = 'public'
 
   union all
+  -- Owner is part of the RLS fact: a table's owner bypasses its policies
+  -- unless FORCE is set, so "who owns this" and "is bypass forced off" are one
+  -- question, not two.
+  --
+  -- For `public` only. The storage tables are the platform's — hosted they
+  -- belong to `supabase_storage_admin`, and pg-shim.sql necessarily creates
+  -- its stand-ins as the local superuser, so comparing that would report a
+  -- difference on every run and mean nothing. Their RLS flags, which the
+  -- baseline does depend on, are still compared.
   select 'rls', n.nspname || '.' || relname || ' rowsecurity=' || relrowsecurity::text
            || ' forced=' || relforcerowsecurity::text
+           || case when n.nspname = 'public'
+                   then ' owner=' || pg_get_userbyid(c.relowner)
+                   else ' owner=<platform-managed>' end
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where c.relkind = 'r'
      and (n.nspname = 'public' or (n.nspname, c.relname) in
@@ -67,8 +79,14 @@ with facts as (
   -- storage.objects — they are what scopes avatar and media uploads to their
   -- owner — so a public-only filter would have let a restore with no per-user
   -- isolation on either bucket fingerprint as identical.
+  -- `permissive` is load-bearing, not metadata: RESTRICTIVE policies compose
+  -- with AND rather than OR, so flipping one of the two storage.objects INSERT
+  -- policies would require an upload to satisfy BOTH the avatar and the media
+  -- predicate — which no upload can — while the predicates themselves, and
+  -- therefore the rest of this fact, stayed identical.
   select 'policy',
          schemaname || '.' || tablename || ': ' || policyname || ' ' || cmd
+           || ' ' || permissive
            || ' roles=' || array_to_string(roles, ',')
            || ' using=' || coalesce(qual, '-')
            || ' check=' || coalesce(with_check, '-')
@@ -85,7 +103,13 @@ with facts as (
     from storage.buckets
 
   union all
+  -- `tgenabled` is not in the definition: `pg_get_triggerdef` reconstructs the
+  -- same CREATE TRIGGER whether the trigger fires or not. A disabled
+  -- `enforce_prompt_current_version` would leave the schema looking identical
+  -- while `prompts.current_ver` could point at another prompt's version.
+  -- O=origin (the normal enabled state) · D=disabled · R=replica · A=always.
   select 'trigger', c.relname || ': ' || pg_get_triggerdef(tg.oid)
+           || ' enabled=' || tg.tgenabled::text
     from pg_trigger tg
     join pg_class c on c.oid = tg.tgrelid
     join pg_namespace n on n.oid = c.relnamespace
@@ -93,10 +117,14 @@ with facts as (
 
   union all
   -- Signature, volatility, SECURITY DEFINER, the pinned search_path, body hash.
+  -- Owner matters most on the SECURITY DEFINER routines, where it IS the
+  -- privilege set the body runs with — `spend_reserve` owned by a different
+  -- role is a different function, with every other field here unchanged.
   select 'function',
          p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ') -> '
            || pg_get_function_result(p.oid)
            || ' vol=' || p.provolatile::text || ' secdef=' || p.prosecdef::text
+           || ' owner=' || pg_get_userbyid(p.proowner)
            || ' cfg=' || coalesce(array_to_string(p.proconfig, ','), '-')
            || ' body=' || md5(regexp_replace(coalesce(p.prosrc, ''), '\s+', ' ', 'g'))
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
