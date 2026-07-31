@@ -65,27 +65,27 @@ const COLUMN_PROBES = [
   {
     table: "media_assets",
     columns: ["original_name", "mime_type", "role", "status"],
-    migration: "20260727120000_media_roles_and_reservation.sql",
+    migration: "20260727091741_media_roles_and_reservation.sql",
   },
   {
     table: "prompts",
     columns: ["favorite", "archived_at", "deleted_at", "preview", "current_mode"],
-    migration: "20260727130000_library_organization.sql",
+    migration: "20260727093842_library_organization.sql",
   },
   {
     table: "prompt_versions",
     columns: ["content_hash"],
-    migration: "20260727130000_library_organization.sql",
+    migration: "20260727093842_library_organization.sql",
   },
   {
     table: "prompts",
     columns: ["collection_id"],
-    migration: "20260727140000_collections.sql",
+    migration: "20260727141615_collections.sql",
   },
   {
     table: "collections",
     columns: ["id", "name"],
-    migration: "20260727140000_collections.sql",
+    migration: "20260727141615_collections.sql",
   },
 ];
 
@@ -104,7 +104,7 @@ const FUNCTION_PROBES = [
       p_mime_type: "probe",
       p_ext: "bin",
     },
-    migration: "20260727120000_media_roles_and_reservation.sql",
+    migration: "20260727091741_media_roles_and_reservation.sql",
   },
 ];
 

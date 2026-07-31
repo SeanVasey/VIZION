@@ -6,6 +6,77 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the database could not be rebuilt from the repository
+
+Seven migrations — the entire P2–P5 base schema — were applied straight to the
+hosted project and existed only in its migration ledger. `supabase/migrations/`
+began at `alter type model_target add value`, on tables it never created:
+`profiles`, `oauth_identities`, `usage_events`, `prompts`, `prompt_versions`,
+`activity_events`, `media_assets`, five enums, both storage buckets and every
+RLS policy on them. A fresh environment could not be built, and a lost project
+could not be restored, from anything in git.
+
+Nothing caught it, because every later migration applies fine on top of a schema
+that is already there. The gap is invisible until the day someone needs it.
+
+All seven are recovered **verbatim** — not reconstructed from the current schema.
+`supabase_migrations.schema_migrations.statements` preserves the SQL as applied,
+comments included, and each file is byte-identical to what the ledger holds
+(md5, trailing whitespace trimmed).
+
+Verified by replay rather than by inspection: `npm run db:verify` stands up a
+throwaway PostgreSQL cluster, applies `scripts/pg-shim.sql` (the handful of
+platform objects the migrations bind to — `auth.uid`, `auth.users`,
+`storage.objects`/`buckets`/`foldername`, the `anon`/`authenticated` roles,
+pgcrypto in `extensions`), and runs all 23 migrations in order from empty.
+`scripts/pg-introspect.sql` then fingerprints the result per category, and the
+same query run against production gives:
+
+| category   |   n | replayed == hosted |
+| ---------- | --: | ------------------ |
+| column     |  90 | ✓                  |
+| constraint |  37 | ✓                  |
+| enum       |   7 | ✓                  |
+| exec-grant |  24 | ✓                  |
+| function   |  11 | comments only      |
+| grant      | 190 | ✓                  |
+| index      |  25 | ✓                  |
+| policy     |  28 | ✓                  |
+| rls        |  10 | ✓                  |
+| trigger    |   3 | ✓                  |
+
+The one difference is two `--` comments in `library_add_version` and three in
+`spend_reserve`: the apply path strips comments from function bodies, so the
+hosted copies carry none. With comments removed both bodies hash identically to
+the repo's — the schemas are the same schema.
+
+`tests/unit/model-target-enum.test.ts` loses its hand-written `BASELINE_LABELS`
+constant. It existed only because the `create type model_target` was missing, so
+the enum replay had to be told where it started instead of reading it — a wrong
+starting point would have made every downstream assertion agree with itself. It
+now parses the recovered migration, and fails loudly if the base schema ever
+goes missing again.
+
+### Fixed — `supabase db push` would have re-run sixteen migrations at production
+
+Not one of the sixteen 2026-07 migrations carried the version the hosted ledger
+recorded. They were named with hand-rounded timestamps (`20260730000000_drafts`)
+while the ledger held the real apply time (`20260730012046`). The CLI matches on
+those leading digits, so from the repo's side every one of them looked unapplied
+— and a `supabase db push` would have tried to run them all again, `create table
+public.collections` included, against the live database.
+
+All sixteen now carry the ledger's version. The rename is order-preserving:
+sorted by the ledger's real timestamps they fall in exactly the sequence the
+hand-numbered files did, verified before the rename rather than assumed.
+
+Five citations in `src/` and `scripts/` pointed at the old names — the filenames
+carry the reasoning, so `spend.ts` explains the cost cap by naming the migration
+that implements it. All updated, and `tests/unit/migrations.test.ts` now fails on
+a citation that does not resolve, which a comment otherwise never could. Dated
+records (CHANGELOG entries above, `docs/audits/`) keep the names the files had at
+the time.
+
 ### Fixed — warning text and "Saved ✓" were invisible in the light theme
 
 `--amber` and `--pulse` were declared once, in `:root`, and never overridden for

@@ -30,8 +30,8 @@ import { classifyReserveError } from "@/lib/security/spend";
 const ROOT = join(__dirname, "..", "..");
 const MIGRATIONS = join(ROOT, "supabase", "migrations");
 
-const RESERVATIONS = "20260730220000_atomic_spend_reservations.sql";
-const AMBIGUITY_FIX = "20260730230000_fix_spend_reserve_ambiguity.sql";
+const RESERVATIONS = "20260730203605_atomic_spend_reservations.sql";
+const AMBIGUITY_FIX = "20260730203737_fix_spend_reserve_ambiguity.sql";
 
 /** Comments stripped and whitespace collapsed, so prose can't satisfy an
  *  assertion and formatting can't break one.

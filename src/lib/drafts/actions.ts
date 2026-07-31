@@ -108,7 +108,7 @@ export async function saveDraftAction(v: DraftInput): Promise<DraftResult> {
     if (isMissingDraftsTable(error)) {
       console.error(
         "[drafts] save failed — the drafts table is absent. Apply " +
-          "supabase/migrations/20260730000000_drafts.sql to this project.",
+          "supabase/migrations/20260730012046_drafts.sql to this project.",
       );
       return { ok: false, unavailable: true, error: "Drafts aren't set up yet." };
     }

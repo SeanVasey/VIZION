@@ -2162,3 +2162,52 @@ than as a puzzling failure in whichever spec ran first.
   outside the `<=5.0.7` range and reported clean. Read the diff between the
   pinned version and the latest patch; the advisory range answers a narrower
   question than the one you are asking.
+
+## 2026-07-31 — P2–P5 baseline recovery (the repo could not rebuild the database)
+
+- **A migration directory that starts mid-history looks healthy.** Seven
+  migrations — every table, enum, bucket and policy the app rests on — were
+  applied straight to the hosted project and lived only in its ledger. Every
+  later migration applied fine on top, the CLI reported no drift, and the whole
+  suite was green: the gap only exists for someone building from scratch, and
+  nobody does that until the day they must. **Ask "does the first migration
+  create something, or alter something?"** — the answer is a one-line audit.
+- **The ledger keeps the SQL, so recovery beats reconstruction.**
+  `supabase_migrations.schema_migrations.statements` holds the statements as
+  applied, comments and all. Recovering from there gave files byte-identical to
+  what ran (md5-checked); reconstructing from `pg_dump` or from the current
+  catalog would have produced *a* schema that matches, with none of the
+  reasoning and no way to prove it was the same one.
+- **Verify a baseline by replaying it, not by reading it.** No Docker in this
+  container, but the Postgres server binaries were installed — `initdb` a
+  throwaway cluster, add a ~90-line shim for the platform objects the
+  migrations actually bind to, replay all 23, then fingerprint the result and
+  run the same query against production. Nine of ten categories matched
+  exactly, on the first try; the tenth was comments. Reading the SQL would have
+  told me none of that.
+- **Compare schemas by sorted facts, not by `pg_dump` diff.** Dump output is
+  ordered by OID and formatted per server version, so two identical schemas
+  produce different text. Hashing a sorted list of `category|fact` lines is
+  version-independent and localises a difference to one category instead of one
+  1,500-line diff.
+- **Filenames are not decoration — the CLI matches on them.** All sixteen
+  in-repo migrations carried hand-rounded timestamps that matched nothing in the
+  ledger, so `supabase db push` would have treated every one as unapplied and
+  re-run it against production. Whatever generates the version at apply time is
+  the authority; the file has to agree with it. Check order is preserved before
+  renaming (here the real times fell in the same sequence — but that was luck,
+  not a guarantee).
+- **A comment that names a file is a reference, and references rot silently.**
+  Renaming the migrations orphaned five citations in `src/` and `scripts/`; none
+  could fail to compile. A test that resolves every `\d{14}_*.sql` mentioned
+  under `src`/`scripts`/`tests`/`docs/runbooks` costs nothing and is the only
+  thing that would ever notice.
+- **A workaround is a record of a missing thing — delete it when the thing
+  arrives.** `BASELINE_LABELS` was hand-written *because* the `create type` was
+  hosted-only, and it made the enum replay assert its own starting point. The
+  moment the baseline landed the constant became derivable, and the test got
+  strictly stronger for being three lines longer.
+- **`initdb` refuses to run as root.** Drop to an unprivileged account and make
+  the data directory reachable by it — and note that a per-session scratch dir
+  may be `drwx------ root`, which that account cannot traverse no matter who
+  owns the leaf.

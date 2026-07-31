@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
  */
 
 const ROOT = join(__dirname, "..", "..");
-const MIGRATION = "20260730240000_library_integrity.sql";
+const MIGRATION = "20260730234204_library_integrity.sql";
 
 function sql(): string {
   return readFileSync(join(ROOT, "supabase", "migrations", MIGRATION), "utf8")
