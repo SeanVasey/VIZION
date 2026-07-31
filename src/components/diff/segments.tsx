@@ -6,10 +6,18 @@ import type { DiffSegment } from "@/lib/enhance/diff";
  * drift. Both bodies are OUTPUT REGIONS (mono at the call site).
  */
 
-/** How removed text reads wherever it is shown as proof of a change: struck
- *  through in Flare. `--flare` is a token that already darkens on light
- *  themes, so this passes contrast in both. */
-export const REMOVED_CLASS = "text-flare line-through opacity-70";
+/**
+ * How removed text reads wherever it is shown as proof of a change: struck
+ * through in Flare.
+ *
+ * NO `opacity-*`. `--flare` darkens on light themes so the raw token clears AA
+ * in both (4.79:1 dark / 5.64:1 light on glass) — but it clears it by 0.29,
+ * and the `opacity-70` this used to carry spent that headroom many times over:
+ * 2.98:1 dark, 3.59:1 light. There is no alpha that keeps this AA on dark, so
+ * the dim is gone rather than reduced; `line-through` was always what said
+ * "removed", the fade only said it more quietly.
+ */
+export const REMOVED_CLASS = "text-flare line-through";
 
 /** Input-side render: equal + removed (struck) reconstructs the input
  *  losslessly — nothing the author typed is hidden. */

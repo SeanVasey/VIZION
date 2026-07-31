@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   clampOffset,
   computeMaxOffset,
@@ -11,11 +11,26 @@ import {
 /** Edge length (px) of the on-screen square viewport (responsive max-width). */
 const VIEWPORT = 256;
 
+/** Arrow-key pan distance, in the same viewport px the drag math uses. */
+const PAN_STEP = 8;
+
+/** Pointer travel below this reads as a tap rather than a drag. */
+const TAP_SLOP = 4;
+
 export interface AvatarCropperProps {
   file: File;
   onCancel: () => void;
   onCropped: (blob: Blob) => void;
   busy?: boolean;
+  /**
+   * Where focus goes when the dialog closes (WCAG 2.4.3).
+   *
+   * The host opens this by clicking a `display:none` file input, so
+   * `document.activeElement` at mount is `<body>` — capturing it here and
+   * restoring on unmount would drop a keyboard user at the top of the page.
+   * The host names the control the user actually pressed instead.
+   */
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 /**
@@ -32,6 +47,7 @@ export function AvatarCropper({
   onCancel,
   onCropped,
   busy = false,
+  returnFocusRef,
 }: AvatarCropperProps) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -39,21 +55,36 @@ export function AvatarCropper({
   const [rendering, setRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const hintId = useId();
 
   // Move focus into the dialog once on open so keyboard/SR users land inside
-  // (the host scrim handles Escape + backdrop dismissal). A render-time ref
-  // callback would re-fire per render and steal focus from the zoom slider.
+  // (the host closes on Escape and on a backdrop click), and hand it back to
+  // the trigger on close. A render-time ref callback would re-fire per render
+  // and steal focus from the zoom slider.
   useEffect(() => {
+    // Resolved on the way IN, not in the cleanup: the host's trigger is
+    // mounted long before this dialog, so the ref is already populated, and
+    // reading it here keeps the cleanup free of a ref it doesn't own.
+    const returnTo =
+      returnFocusRef?.current ??
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     rootRef.current?.focus();
-  }, []);
+    return () => {
+      if (returnTo && returnTo !== document.body && returnTo.isConnected) {
+        returnTo.focus();
+      }
+    };
+  }, [returnFocusRef]);
 
   // Live drag bookkeeping (pointer id + start positions) without re-renders.
+  // `moved` separates a drag from a tap — see endDrag.
   const dragRef = useRef<{
     id: number;
     startX: number;
     startY: number;
     ox: number;
     oy: number;
+    moved: boolean;
   } | null>(null);
 
   // Load the File into an HTMLImageElement; revoke the object URL on cleanup.
@@ -94,6 +125,7 @@ export function AvatarCropper({
         startY: e.clientY,
         ox: offset.x,
         oy: offset.y,
+        moved: false,
       };
     },
     [busy, rendering, offset.x, offset.y],
@@ -103,16 +135,62 @@ export function AvatarCropper({
     (e: React.PointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current;
       if (!drag || drag.id !== e.pointerId) return;
-      const nextX = clampOffset(drag.ox + (e.clientX - drag.startX), maxX);
-      const nextY = clampOffset(drag.oy + (e.clientY - drag.startY), maxY);
-      setOffset({ x: nextX, y: nextY });
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP) drag.moved = true;
+      setOffset({
+        x: clampOffset(drag.ox + dx, maxX),
+        y: clampOffset(drag.oy + dy, maxY),
+      });
     },
     [maxX, maxY],
   );
 
-  const endDrag = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragRef.current?.id === e.pointerId) dragRef.current = null;
-  }, []);
+  const endDrag = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (!drag || drag.id !== e.pointerId) return;
+      dragRef.current = null;
+      // A press that never travelled is a TAP, and a tap centres the point it
+      // landed on. That is the single-pointer, no-dragging path WCAG 2.5.7
+      // asks for: panning was reachable only by holding and moving, which
+      // rules out anyone who can tap but cannot sustain a drag. Drag still
+      // works exactly as before — this only fires when it didn't happen.
+      if (drag.moved || e.type !== "pointerup") return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      setOffset({
+        x: clampOffset(drag.ox + (rect.left + rect.width / 2 - e.clientX), maxX),
+        y: clampOffset(drag.oy + (rect.top + rect.height / 2 - e.clientY), maxY),
+      });
+    },
+    [maxX, maxY],
+  );
+
+  // Keyboard pan (WCAG 2.1.1). Arrows move the image the way an equivalent
+  // drag would, so the two input paths agree. preventDefault stops the page
+  // behind the scrim scrolling instead.
+  const onViewportKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (busy || rendering) return;
+      const step: [number, number] | null =
+        e.key === "ArrowLeft"
+          ? [-PAN_STEP, 0]
+          : e.key === "ArrowRight"
+            ? [PAN_STEP, 0]
+            : e.key === "ArrowUp"
+              ? [0, -PAN_STEP]
+              : e.key === "ArrowDown"
+                ? [0, PAN_STEP]
+                : null;
+      if (!step) return;
+      e.preventDefault();
+      setOffset((o) => ({
+        x: clampOffset(o.x + step[0], maxX),
+        y: clampOffset(o.y + step[1], maxY),
+      }));
+    },
+    [busy, rendering, maxX, maxY],
+  );
 
   const onSave = useCallback(async () => {
     if (!image || busy || rendering) return;
@@ -143,6 +221,29 @@ export function AvatarCropper({
       })()
     : undefined;
 
+  // Focus trap. `aria-modal` tells assistive tech the rest of the page is not
+  // there; without this, Tab past "Use photo" walked straight into the settings
+  // form behind the scrim and kept going, so the two disagreed. Escape and the
+  // backdrop click stay with the host, which owns the busy state.
+  function onDialogKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== "Tab") return;
+    const root = rootRef.current;
+    if (!root) return;
+    const focusables = root.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0]!;
+    const last = focusables[focusables.length - 1]!;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
   return (
     <div
       role="dialog"
@@ -150,12 +251,21 @@ export function AvatarCropper({
       aria-label="Crop avatar"
       tabIndex={-1}
       ref={rootRef}
+      onKeyDown={onDialogKeyDown}
       className="glass flex w-full max-w-sm flex-col items-center gap-5 rounded-2xl p-5 focus:outline-none"
     >
+      <p id={hintId} className="sr-only">
+        Drag to pan, tap a point to centre it, or use the arrow keys.
+      </p>
       {/* Square viewport with a circular mask: dimmed corners + a ring. */}
       <div
+        role="group"
+        aria-label="Crop area"
+        aria-describedby={hintId}
+        tabIndex={0}
         className="relative w-full max-w-[256px] touch-none select-none overflow-hidden rounded-2xl bg-onyx"
         style={{ aspectRatio: "1 / 1" }}
+        onKeyDown={onViewportKeyDown}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}

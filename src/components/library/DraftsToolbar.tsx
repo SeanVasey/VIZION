@@ -108,7 +108,9 @@ export function DraftsToolbar({
               className={chip(filter.model === m.id)}
             >
               {MODEL_LABELS.get(m.id) ?? m.id}
-              <span className={filter.model === m.id ? "opacity-80" : "opacity-60"}>
+              {/* Dim only on the Laser fill — see countClass in
+                  LibraryFilterSheet for why the glass chip carries none. */}
+              <span className={filter.model === m.id ? "opacity-80" : undefined}>
                 {m.count}
               </span>
             </button>

@@ -2068,3 +2068,65 @@ than as a puzzling failure in whichever spec ran first.
   (`.scrim-in`, same duration/ease, end state = resting state so the global
   reduced-motion collapse lands fully opaque) costs one keyframe and removes
   the pop. Any overlay that fades its panel in should fade its scrim with it.
+
+## 2026-07-31 — Accessibility pass (contrast · tap targets · dialog · live regions)
+
+- **A role token is only defined for the themes it is declared in.** `--amber`
+  and `--pulse` lived in `:root` and nowhere else, so the light theme inherited
+  the dark values verbatim and rendered warning text at 1.41:1. Nothing catches
+  this: the token resolves, the class applies, the build is green, and the text
+  is simply not there. `tokens.css` declares the light theme **twice** — once
+  for `[data-theme="light"]` and once for the system-preference path — so
+  "declared for light" means *three* declarations, which is exactly what
+  `developer-accents.test.ts` had already learned about `--dev-peak`. The new
+  `a11y.test.ts` asserts the count.
+- **Split a token the moment it is both a fill and an ink.** `--laser` already
+  had this shape (`--laser` fills, `--accent-ink` writes) and the reason was
+  written down in §6 — but `--amber` and `--pulse` were introduced later as
+  single tokens doing both jobs, which made them unfixable in place: darkening
+  them for light would have broken `bg-amber` under `--on-laser`. The fix is
+  never "pick a compromise value", it is "these were two roles".
+- **`opacity-*` on a muted role is a contrast bug, not a style.** `--silver`
+  and `--flare` ARE the dim ones — 5.99:1 and 5.64:1 on light, a hair over AA.
+  Six surfaces then dimmed them again. In every case there was no smaller alpha
+  that worked, because the headroom was already spent; the answer was to delete
+  the utility, not tune it. If you want a subordinate tone, that is a token
+  choice, and if the palette has no dimmer token then the design has no dimmer
+  tone.
+- **A dim on a container multiplies into every child.** The per-change review
+  row's `opacity-60` compounded with the removed span's own `opacity-70` to
+  1.85:1, and dimmed a live button into looking disabled. Put a state dim on
+  the specific element the state is about, and check what colour survives it —
+  `--chalk` takes 60% and stays AA; `--flare` and `--silver` do not.
+- **A hit area you cannot see is a hit area you cannot aim.** `.tap-44` bleeds
+  12px past every edge and its own comment says adjacent extenders overlap with
+  the later sibling winning. Two 20px icons 8px apart therefore put Delete
+  under the right 4px of the visible pencil. The utility is safe only with
+  ≥24px of clearance; where controls are closer, use real padding with an equal
+  negative margin so the hit box is bounded and the layout is unchanged. jsdom
+  computes no boxes, so this is arithmetic in a test, not a rendered assertion.
+- **`aria-modal` is a claim you have to keep.** It tells assistive tech the rest
+  of the page is gone. `AvatarCropper` declared it with no focus trap, so Tab
+  walked into the settings form that AT had just been told did not exist. The
+  app's `Sheet` already had the trap — a second modal shape was written without
+  it. Also: a dialog cannot always capture its own return-focus target. This
+  one is opened by clicking a `display:none` input, so `document.activeElement`
+  at mount is `<body>`; the host has to name the control.
+- **A live region has to exist before the text it announces.** Rendering
+  `<p role="status">Saved ✓</p>` conditionally means the region and its content
+  arrive together, and screen readers announce *changes within* a region they
+  are already observing. Mount it always. Idle should be `sr-only` rather than
+  an empty box — every one of these sits inside a `flex flex-col gap-*`, and a
+  permanently-present static child adds a gap to every row, while an absolutely
+  positioned one is not a flex item at all.
+- **A test that says "there is no live region here" breaks correctly.** Two
+  specs asserted `getByRole("status")` / `queryByRole("status")` as a proxy for
+  "this surface uses a toast" / "this surface does not". A permanently mounted
+  empty region invalidated the proxy, not the contract — both were restated as
+  what they always meant (which region carries the text, and that every region
+  present is empty). Re-read the intent before relaxing the assertion.
+- **First-run e2e failures are not always failures.** Three specs timed out on
+  the run that also performed `next build` — the mobile-safari sign-in raced a
+  cold server and `.horizon` had no box yet. `retries` is 0 outside CI, so cold
+  starts show as red. Re-run against the warm server before believing a
+  regression: all 51 passed unchanged.

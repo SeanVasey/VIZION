@@ -549,7 +549,7 @@ export function AttachmentTray({
                 </p>
               )}
               {item.status === "ready" && item.error && (
-                <p className="font-body text-xs text-amber" role="status">
+                <p className="font-body text-xs text-amber-ink" role="status">
                   {item.error}
                 </p>
               )}
@@ -589,7 +589,7 @@ export function AttachmentTray({
       )}
       {capUsage && capUsage.todayCost >= capUsage.capUsd * 0.8 && (
         <p
-          className="font-body px-3 pt-2 text-center text-xs tabular-nums text-amber"
+          className="font-body px-3 pt-2 text-center text-xs tabular-nums text-amber-ink"
           role="status"
         >
           ⚠ ${capUsage.todayCost.toFixed(2)} of ${capUsage.capUsd.toFixed(2)} daily cap

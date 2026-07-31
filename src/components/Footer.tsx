@@ -38,6 +38,11 @@ export function Footer({ inset = false }: { inset?: boolean }) {
         }}
       />
 
+      {/* The two monograms keep their resting `opacity-45` (2.91:1 dark /
+          1.97:1 light). WCAG 1.4.11 exempts "a part of a logo or brand name"
+          from the 3:1 non-text minimum, and each anchor carries its own
+          aria-label, so nothing here is conveyed by the glyph alone. Hover
+          lifts them to 75% (6.04:1 dark). */}
       <div className="mb-5 flex items-center justify-center gap-5">
         {/* Vasey Multimedia — VM monogram */}
         <a
@@ -85,10 +90,16 @@ export function Footer({ inset = false }: { inset?: boolean }) {
       <p className="font-body mb-2 text-xs font-medium uppercase tracking-[0.25em] text-silver">
         A VASEY/AI Production
       </p>
-      <p className="font-mono mb-4 text-[11px] tabular-nums text-silver opacity-70">
+      {/* No `opacity-*` on either line. --silver IS the muted role — it is
+          already the dimmest text the palette defines (5.99:1 on the light
+          canvas, with almost no headroom), so a further alpha on top took the
+          version line to 3.13:1 and the copyright to 2.58:1 light / 4.26:1
+          dark. The 11px size against the 12px line above still carries the
+          hierarchy the alpha was there for. */}
+      <p className="font-mono mb-4 text-[11px] tabular-nums text-silver">
         VIZ(IO)N v{APP_VERSION} · Multi-Model Prompt Studio
       </p>
-      <p className="font-body text-[11px] leading-relaxed text-silver opacity-60">
+      <p className="font-body text-[11px] leading-relaxed text-silver">
         © {year}{" "}
         <a
           href="https://vaseymultimedia.com"

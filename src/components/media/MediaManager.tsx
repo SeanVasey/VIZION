@@ -168,7 +168,7 @@ export function MediaManager({ onChanged }: { onChanged?: () => void }) {
             {assetLabel(asset)}
           </span>
           {asset.status !== "ready" && (
-            <span className="font-body block text-[0.6875rem] text-amber">
+            <span className="font-body block text-[0.6875rem] text-amber-ink">
               Incomplete upload — safe to remove.
             </span>
           )}
@@ -187,7 +187,7 @@ export function MediaManager({ onChanged }: { onChanged?: () => void }) {
           Stored media
         </p>
         <span
-          className={`font-body text-xs tabular-nums ${budget.warn ? "text-amber" : "text-silver"}`}
+          className={`font-body text-xs tabular-nums ${budget.warn ? "text-amber-ink" : "text-silver"}`}
         >
           {formatBytes(usedBytes)} / {formatBytes(budget.quotaBytes)}
         </span>

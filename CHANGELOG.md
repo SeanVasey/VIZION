@@ -6,6 +6,97 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — warning text and "Saved ✓" were invisible in the light theme
+
+`--amber` and `--pulse` were declared once, in `:root`, and never overridden for
+light. Both are saturated light-tone hues, so as **text** on the light canvas
+they landed at **1.41:1** and **1.83:1** — the exact failure the contrast law
+(§6) already forbids for `--laser`, reached by the same route. Everything that
+warns the user rendered that way: the daily-cap notice, the media budget
+readout, the attachment quota, the "storage is nearly full" line — and the only
+confirmation that a setting saved.
+
+They take the same fix `--laser` did. `--amber-ink` / `--pulse-ink` are the
+text roles: aliased to the raw hue on dark, so **the dark theme is
+byte-identical**, and a deep same-hue tone on light (5.4–6.2:1 across page,
+glass and surface — the corridor `--accent-ink` and `--flare` already sit in).
+`--amber` and `--pulse` stay the fills, which never had a problem: `bg-amber`
+and `bg-pulse` carry `--on-laser` at 10:1+ in both themes, which is also why
+darkening the tokens in place was not available.
+
+Both light blocks are overridden, not just the explicit one — a token written
+into `:root[data-theme="light"]` alone leaves system-light users on the dark
+value.
+
+### Fixed — six surfaces stacked opacity on text that had no headroom left
+
+`--silver` and `--flare` are the muted and error roles: on the light canvas they
+are already 5.99:1 and 5.64:1, a fraction over AA. A static `opacity-*` on top
+spent that many times over, and it was on real content rather than decoration:
+
+| Surface                       | Was            | Now                    |
+| ----------------------------- | -------------- | ---------------------- |
+| Removed text in every diff    | 2.98 / 3.59    | 4.79 / 5.64            |
+| Footer copyright              | 4.26 / 2.58    | 10.03 / 5.99           |
+| Footer version line           | 5.40 / 3.13    | 10.03 / 5.99           |
+| Filter + drafts facet counts  | 3.86 / 2.71    | 8.09 / 6.68            |
+| Media/attachment detail keys  | 4.73 / 3.33    | 8.09 / 6.68            |
+
+(dark / light, on the surface each actually sits on.)
+
+No value was reduced, because there isn't one that works: with `--flare` at
+4.79:1 on dark glass, *any* alpha fails. `line-through` was always what said
+"removed" — the fade only said it more quietly. The two brand monograms keep
+their `opacity-45`: WCAG 1.4.11 exempts a logo or brand name from the 3:1
+minimum, and each anchor carries its own `aria-label`.
+
+The per-change review rows dimmed differently. `opacity-60` on the whole `<li>`
+multiplied into every child — the struck original fell to **1.85:1**, and the
+live Keep/Revert button was dimmed like a disabled control while being the row's
+only action. The dim now lands on the one span it is about, the edit that will
+not apply, where `--chalk` survives 60% at 5.91 / 4.95.
+
+### Fixed — the edit icon's right edge deleted the draft
+
+`.tap-44` centres a 44px pseudo on its element and bleeds 12px past every edge.
+Its own comment records that adjacent extended areas overlap and the later
+sibling wins — and the drafts row put two 20px icons 8px apart, both carrying
+it. The hit areas overlapped by 16px, so the **rightmost 4px of the visible
+pencil opened the delete confirmation**, and Edit's left bleed took the right
+4px of the Resume button.
+
+Real padding with an equal negative margin instead: a 28×44 hit box (clearing
+WCAG 2.5.8's 24×24 outright) whose layout footprint is still exactly 20×20. The
+two now meet at the midpoint of the gap rather than crossing it, and nothing
+moved by a pixel.
+
+### Fixed — the crop dialog was not the dialog it declared itself to be
+
+`AvatarCropper` sets `aria-modal="true"`, which tells assistive tech the rest of
+the page is not there. Nothing kept Tab inside it: past "Use photo" focus walked
+into the settings form behind the scrim and kept going. On close, focus was lost
+entirely — the host opens the cropper by clicking a `display:none` file input,
+so there was nothing for the browser to return to.
+
+It now traps Tab and hands focus back to the avatar button the user actually
+pressed. Panning was also drag-only, which is no path at all for a keyboard
+(2.1.1) and none for anyone who can tap but cannot sustain a drag (2.5.7):
+arrow keys nudge the image the way the equivalent drag would, and a press that
+never travelled centres the point it landed on. Dragging is unchanged.
+
+### Fixed — two live regions announced nothing
+
+A `role="status"` element that is inserted already carrying its message is not
+reliably announced; a screen reader announces *changes* inside a region it is
+already observing. Both of the affected regions were the only feedback their
+surface gives — "Saved ✓" after a settings write, and the notice that you are
+within 20% of the daily spend cap.
+
+Both are now mounted whether or not they have anything to say. Idle carries
+`sr-only` rather than an empty box: every call site sits in a `flex flex-col
+gap-*`, where a permanently-present static child would add a gap to each row,
+and an absolutely-positioned one is not a flex item.
+
 ### Security — server actions no longer rest the whole tenant boundary on RLS
 
 Fourteen mutating server actions wrote with `.eq("id", …)` and nothing else, and

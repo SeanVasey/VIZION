@@ -104,7 +104,10 @@ export function MediaPreviewSheet({
             .filter(([, v]) => v)
             .map(([k, v]) => (
               <div key={k} className="contents">
-                <dt className="text-silver opacity-70">{k}</dt>
+                {/* No opacity: --silver is already the muted role, and 70% of
+                    it is 3.33:1 on the light glass. The <dt>/<dd> colour split
+                    is what separates key from value. */}
+                <dt className="text-silver">{k}</dt>
                 <dd className="break-words text-chalk">{v}</dd>
               </div>
             ))}

@@ -178,7 +178,9 @@ export function AttachmentDetailsSheet({
               .filter(([, v]) => v)
               .map(([k, v]) => (
                 <div key={k} className="contents">
-                  <dt className="text-silver opacity-70">{k}</dt>
+                  {/* No opacity — see MediaPreviewSheet: 70% of --silver is
+                      3.33:1 on the light glass. */}
+                  <dt className="text-silver">{k}</dt>
                   <dd className="text-chalk">{v}</dd>
                 </div>
               ))}

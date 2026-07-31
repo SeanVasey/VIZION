@@ -108,6 +108,9 @@ export function SettingsPanel({
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  // The cropper hands focus back here on close. It can't capture the trigger
+  // itself: `fileInput` is display:none, so activeElement at open is <body>.
+  const avatarButton = useRef<HTMLButtonElement>(null);
   useEffect(() => setAvatarError(false), [profile.avatar_url]);
   useEffect(() => {
     if (!pickedFile) return;
@@ -180,6 +183,7 @@ export function SettingsPanel({
       {/* Identity header */}
       <div className="flex flex-col items-center gap-3 text-center">
         <button
+          ref={avatarButton}
           type="button"
           onClick={() => fileInput.current?.click()}
           disabled={avatarBusy}
@@ -307,7 +311,7 @@ export function SettingsPanel({
           </div>
         </Field>
         {pendingEmail && (
-          <p className="font-body rounded-lg border border-hair bg-surface px-3 py-2 text-xs text-amber">
+          <p className="font-body rounded-lg border border-hair bg-surface px-3 py-2 text-xs text-amber-ink">
             Confirmation sent to <span className="text-text">{pendingEmail}</span> —
             check that inbox to finish the change.{" "}
             <button
@@ -458,6 +462,7 @@ export function SettingsPanel({
             <AvatarCropper
               file={pickedFile}
               busy={avatarBusy}
+              returnFocusRef={avatarButton}
               onCancel={() => setPickedFile(null)}
               onCropped={onAvatarCropped}
             />

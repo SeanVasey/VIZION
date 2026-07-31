@@ -18,6 +18,17 @@ import { groupModelFacets, type FacetModel } from "@/lib/library/model-facets";
 
 const MODEL_META = new Map(TARGET_MODELS.map((m) => [m.id, m]));
 
+/**
+ * The trailing count's dim.
+ *
+ * On the Laser fill the ink starts at 15.77:1, so 80% still leaves 9.3:1. On
+ * the inactive glass chip the ink is `--silver`, the muted role itself — the
+ * matching 60% took it to 3.86:1 dark / 2.71:1 light, and no alpha that still
+ * reads as a dim clears AA on both. There the count sits at chip strength and
+ * the gap before it is what separates it from the label.
+ */
+const countClass = (active: boolean) => (active ? "opacity-80" : undefined);
+
 /** Module scope so the chip renderer below can share it with the sheet. */
 const chipClass = (active: boolean) =>
   [
@@ -57,7 +68,7 @@ function ModelChip({
         />
       )}
       {model.label}
-      <span className={active ? "opacity-80" : "opacity-60"}>{model.count}</span>
+      <span className={countClass(active)}>{model.count}</span>
     </button>
   );
 }
@@ -332,9 +343,7 @@ export function LibraryFilterSheet({
                   className={chip(pending.collection === c.id)}
                 >
                   {c.name}
-                  <span
-                    className={pending.collection === c.id ? "opacity-80" : "opacity-60"}
-                  >
+                  <span className={countClass(pending.collection === c.id)}>
                     {c.count}
                   </span>
                 </button>
