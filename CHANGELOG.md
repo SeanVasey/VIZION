@@ -6,6 +6,96 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — a library save was four writes, and three of them could fail silently
+
+Saving an enhancement wrote `prompts`, then `prompt_versions`, then the
+`current_ver` pointer, then two `activity_events` — as four independent
+statements, only the first two of which had their errors checked at all. A
+failure after the first left a prompt with no version and a null pointer: a card
+that renders an empty preview and opens to nothing. Worse, the content-hash
+duplicate check then had nothing to match on, so the user's retry minted a
+*second* orphan rather than being recognised as a repeat. A failure at the
+pointer update left the newest version invisible while the UI reported success.
+
+Both paths are now single `library_save_prompt` / `library_add_version` calls,
+so the whole save commits or none of it does. `library_add_version` also takes a
+row lock on the parent, so two concurrent appends cannot both claim the same
+`parent_ver`. Both are SECURITY **INVOKER**: authorization stays in RLS where it
+was, rather than moving into a function body.
+
+Audited before applying: 40 prompts, 43 versions, **zero** orphans and zero
+cross-prompt pointers — the hole was open but had not yet produced bad data, so
+no backfill was needed.
+
+### Fixed — `current_ver` could point at another prompt's version
+
+`restoreVersionAction` looked a version up by id alone. A version id belonging to
+a different prompt was accepted: the pointer crossed a prompt boundary while
+`preview` silently kept the old text. The sibling `getVersionBodyAction` had
+always carried the `prompt_id` predicate; this one hadn't.
+
+The action now carries it and fails closed, and a trigger enforces the same rule
+in the database — where a direct PostgREST write cannot route around it. It
+fires only on `insert or update of current_ver`, so renames, tags, favourites
+and soft deletes don't pay for the lookup.
+
+### Security — a queued offline save could land in someone else's library
+
+IndexedDB is scoped to the **origin**, not to a session, and the outbox replay
+resolves the owner from whoever is signed in at flush time. On a shared device:
+user A composes offline and the save queues; A signs out; B signs in; the
+flusher fires on `visibilitychange` and writes A's prompt into **B's** library,
+with B's authorship in the activity feed.
+
+Queued items now record the account that created them and only that account
+replays them. Items belonging to someone else — or to nobody, i.e. queued by a
+build before this existed — are skipped and *kept*, not deleted: the owner may
+sign back in on this device, and destroying unsaved work to tidy a queue is the
+worse failure.
+
+The same fix closes a separate bug in the same file: a save the server reports as
+a duplicate returned `ok: false`, so the item was never removed. Every `online`
+and every `visibilitychange` retried it, forever, and it could never succeed —
+the duplicate check was what rejected it. A duplicate now counts as drained,
+because the content already being in the library is the end state the replay was
+trying to reach.
+
+`editorDraft` leaked the same way through `localStorage`, which is also
+origin-scoped. The persisted state now remembers which account it belongs to and
+drops the draft when a different one signs in. A first load adopts the account
+instead of clearing, so nobody loses a draft that is probably theirs.
+
+### Security — the service worker cached authenticated page HTML
+
+`/library`, `/library/[id]` and `/profile` are server-rendered with the account's
+prompts, previews and email, and every navigation was written to `vizion-shell`
+under StaleWhileRevalidate — a cache that is origin-wide, not account-scoped.
+SWR serves the cached copy *first*, so after a session change a hard navigation
+could paint the previous account's content before revalidation replaced it. The
+purge on the auth gate was a mitigation, not a fix: it only fires on `/sign-in`,
+after the leak window.
+
+Navigations are now routed to **`NetworkOnly`** — not simply left unrouted,
+which is the obvious-looking fix and is wrong. `setCatchHandler` only runs for a
+request some Workbox route actually handled; a navigation matching no route
+never enters Workbox, so offline it fails to the browser's own error page and
+`/offline.html` is never served. Deleting the route removed offline navigation
+entirely. `NetworkOnly` gives both halves: nothing is written to Cache Storage,
+and the request stays inside Workbox so a failure reaches the fallback.
+
+That regression was caught by `shell.spec.ts`'s offline test — the only spec in
+the suite that drives the real service worker — after lint, typecheck, 852 unit
+tests and the build were all green. **The reverted PR #62 made the identical
+removal, with the same incorrect comment claiming the catch handler would still
+cover it**, so it shipped the same broken offline fallback.
+
+The unit test now asserts the routing, not just the absence of caching, so the
+next attempt fails in milliseconds rather than after a full browser run. Two
+traps are recorded in it: a blanket `not.toMatch(/request.mode === "navigate"/)`
+over the whole file would delete the fallback (`setCatchHandler` tests the same
+expression), and asserting only that navigations aren't cached misses that they
+must still be routed.
+
 ### Security — concurrent requests could walk past the daily cost cap
 
 Both model routes read a usage window, called a provider, and only then wrote

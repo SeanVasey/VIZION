@@ -11,6 +11,17 @@ export interface OutboxItem<T = unknown> {
   kind: string;
   payload: T;
   createdAt: number;
+  /**
+   * The account that queued this. IndexedDB is scoped to the ORIGIN, not to a
+   * session, so without this a draft queued by one user on a shared device is
+   * replayed under whoever happens to be signed in at flush time — and
+   * `savePromptAction` takes the owner from the current session, so it lands in
+   * the wrong library with the wrong authorship in the activity feed.
+   *
+   * Optional so items queued by an earlier build still parse; they are treated
+   * as belonging to nobody and are never replayed (see `flushOutbox`).
+   */
+  userId?: string;
 }
 
 export interface OutboxStore {
@@ -23,15 +34,24 @@ export interface OutboxStore {
 export type OutboxHandler = (payload: unknown) => Promise<boolean>;
 
 /**
- * Replay queued items oldest-first. An item is removed only when its handler
- * confirms success; the first failure for a kind stops that item being dropped
- * (it stays for the next flush). Pure given the store + handlers.
+ * Replay THIS ACCOUNT'S queued items oldest-first. An item is removed only when
+ * its handler confirms success; the first failure for a kind stops that item
+ * being dropped (it stays for the next flush). Pure given the store + handlers.
+ *
+ * Items belonging to another account — or to no account, i.e. queued by a build
+ * before `userId` existed — are skipped, never replayed and never removed. They
+ * are left in place rather than deleted because the owner may sign back in on
+ * this device, and destroying someone's unsaved work to tidy a queue is the
+ * worse failure.
  */
 export async function flushOutbox(
+  userId: string,
   handlers: Record<string, OutboxHandler>,
   store: OutboxStore,
 ): Promise<{ flushed: number; remaining: number }> {
-  const items = (await store.all()).sort((a, b) => a.createdAt - b.createdAt);
+  const items = (await store.all())
+    .filter((item) => item.userId === userId)
+    .sort((a, b) => a.createdAt - b.createdAt);
   let flushed = 0;
   for (const item of items) {
     const handler = handlers[item.kind];
@@ -101,6 +121,7 @@ export const idbStore: OutboxStore = {
 
 /** Enqueue a mutation for later replay (best-effort; never throws). */
 export async function enqueueOutbox(
+  userId: string,
   kind: string,
   payload: unknown,
   store: OutboxStore = idbStore,
@@ -111,6 +132,7 @@ export async function enqueueOutbox(
       kind,
       payload,
       createdAt: Date.now(),
+      userId,
     });
   } catch {
     /* IndexedDB unavailable (e.g. evicted) — nothing more we can do offline. */

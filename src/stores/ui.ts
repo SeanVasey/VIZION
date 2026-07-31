@@ -71,6 +71,18 @@ function debouncedLocalStorage(delay = 400): StateStorage {
 }
 
 interface UIState {
+  /**
+   * The account this persisted state belongs to, set by `ProfileHydrator`.
+   *
+   * Two jobs. It scopes the offline outbox, which is keyed to the ORIGIN in
+   * IndexedDB and would otherwise replay one account's queued draft into
+   * whoever signs in next. And because it is persisted, a mismatch on hydrate
+   * is how a shared device notices that the account changed and drops the
+   * previous user's `editorDraft` — `localStorage` is origin-scoped too.
+   *
+   * Null before the first hydrate (and for state written by an earlier build).
+   */
+  userId: string | null;
   theme: Theme;
   activeMode: ModeId;
   targetModel: TargetModelId;
@@ -121,6 +133,7 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
+      userId: null,
       theme: "system",
       activeMode: "clarify",
       targetModel: "opus_5",
@@ -182,7 +195,9 @@ export const useUIStore = create<UIState>()(
         for (const [key, level] of Object.entries(s.thinkingLevels ?? {})) {
           const id = valid.has(key) ? (key as TargetModelId) : LEGACY_TARGET_IDS[key];
           if (!id || typeof level !== "string") continue;
-          if ((TARGET_THINKING_LEVELS[id] as readonly string[] | undefined)?.includes(level)) {
+          if (
+            (TARGET_THINKING_LEVELS[id] as readonly string[] | undefined)?.includes(level)
+          ) {
             thinkingLevels[id] = level as ThinkingLevel;
           }
         }
@@ -201,6 +216,11 @@ export const useUIStore = create<UIState>()(
       // Draft is intentionally NOT persisted as the only copy — it is a
       // convenience cache; the editor also re-hydrates from the server in P2+.
       partialize: (state) => ({
+        // Persisted so the NEXT load can tell whether the account changed on
+        // this device. Absent key -> initial null under the shallow merge, so
+        // no version bump: a first load after this ships simply adopts the
+        // signed-in account without clearing anything.
+        userId: state.userId,
         theme: state.theme,
         activeMode: state.activeMode,
         targetModel: state.targetModel,

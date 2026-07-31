@@ -414,6 +414,36 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      library_add_version: {
+        Args: {
+          p_prompt_id: string;
+          p_input: string;
+          p_output: string;
+          p_rationale: string | null;
+          p_mode: Database["public"]["Enums"]["enhance_mode"];
+          p_model_used: string;
+          p_token_in: number;
+          p_token_out: number;
+          p_content_hash: string;
+        };
+        Returns: string;
+      };
+      library_save_prompt: {
+        Args: {
+          p_title: string;
+          p_target: Database["public"]["Enums"]["model_target"];
+          p_tags: string[];
+          p_input: string;
+          p_output: string;
+          p_rationale: string | null;
+          p_mode: Database["public"]["Enums"]["enhance_mode"];
+          p_model_used: string;
+          p_token_in: number;
+          p_token_out: number;
+          p_content_hash: string;
+        };
+        Returns: string;
+      };
       media_reserve: {
         Args: {
           p_kind: Database["public"]["Enums"]["media_kind"];

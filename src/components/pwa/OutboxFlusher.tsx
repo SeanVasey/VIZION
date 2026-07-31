@@ -8,7 +8,12 @@ import { savePromptAction } from "@/lib/library/actions";
 const handlers: Record<string, OutboxHandler> = {
   "save-prompt": async (payload) => {
     const res = await savePromptAction(payload as Parameters<typeof savePromptAction>[0]);
-    return res.ok;
+    // `duplicate` counts as drained. It means this exact content is already in
+    // the library — the end state the replay was trying to reach. Returning
+    // `res.ok` alone left such an item in the store forever: every `online` and
+    // every `visibilitychange` retried it, and it could never succeed, because
+    // the duplicate check is what was rejecting it.
+    return res.ok || Boolean(res.duplicate);
   },
 };
 
@@ -17,7 +22,7 @@ const handlers: Record<string, OutboxHandler> = {
  * the foreground (iOS has no reliable Background Sync). Rendered once by the
  * authenticated layout.
  */
-export function OutboxFlusher() {
+export function OutboxFlusher({ userId }: { userId: string }) {
   useEffect(() => {
     // Re-entrancy guard: `online` and `visibilitychange` often fire together
     // (returning to a foregrounded tab that just reconnected) and two
@@ -29,7 +34,7 @@ export function OutboxFlusher() {
       if (typeof navigator !== "undefined" && navigator.onLine) {
         flushing = true;
         // Never let an IndexedDB failure surface as an unhandled rejection.
-        void flushOutbox(handlers, idbStore)
+        void flushOutbox(userId, handlers, idbStore)
           .catch(() => {})
           .finally(() => {
             flushing = false;
@@ -46,7 +51,7 @@ export function OutboxFlusher() {
       window.removeEventListener("online", flush);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, []);
+  }, [userId]);
 
   return null;
 }
