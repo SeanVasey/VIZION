@@ -152,6 +152,25 @@ export async function saveDraftAction(v: DraftInput): Promise<DraftResult> {
  * means a timestamp-formatting mismatch (were one ever introduced) would surface
  * as a visible "changed elsewhere" rather than as lost data.
  */
+type Db = Awaited<ReturnType<typeof createClient>>;
+
+const SESSION_EXPIRED = "Your session expired — sign in again.";
+
+/**
+ * The signed-in user's id, or null.
+ *
+ * The mutations and the body read below scope on `user_id` as well as relying
+ * on RLS. Redundant by design: RLS is otherwise the only control between these
+ * server actions — reachable by any authenticated client — and another
+ * account's draft, and `getDraftBodyAction` returns the draft's full text.
+ */
+async function ownerId(supabase: Db): Promise<string | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
 export async function updateDraftAction(
   draftId: string,
   body: string,
@@ -161,6 +180,8 @@ export async function updateDraftAction(
   if (invalid) return { ok: false, error: invalid };
 
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   const { data, error } = await supabase
     .from("drafts")
     .update({
@@ -169,6 +190,7 @@ export async function updateDraftAction(
       updated_at: new Date().toISOString(),
     })
     .eq("id", draftId)
+    .eq("user_id", uid)
     .eq("updated_at", expectedUpdatedAt)
     .select("id")
     .maybeSingle();
@@ -184,6 +206,7 @@ export async function updateDraftAction(
       .from("drafts")
       .select("id")
       .eq("id", draftId)
+      .eq("user_id", uid)
       .maybeSingle();
     return {
       ok: false,
@@ -203,7 +226,13 @@ export async function updateDraftAction(
  *  server copy behind would fork it on the next save). */
 export async function deleteDraftAction(draftId: string): Promise<DraftResult> {
   const supabase = await createClient();
-  const { error } = await supabase.from("drafts").delete().eq("id", draftId);
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  const { error } = await supabase
+    .from("drafts")
+    .delete()
+    .eq("id", draftId)
+    .eq("user_id", uid);
   if (error) {
     if (isMissingDraftsTable(error)) return { ok: false, unavailable: true };
     console.error(writeErrorLogLine("drafts", "delete", error));
@@ -214,8 +243,9 @@ export async function deleteDraftAction(draftId: string): Promise<DraftResult> {
 }
 
 /**
- * The full body of one draft, for resuming or editing it. Selected by id only —
- * RLS scopes it to the owner.
+ * The full body of one draft, for resuming or editing it. Scoped by owner as
+ * well as by id: this returns the draft's full text, so RLS being the only
+ * control here would make one dropped policy a cross-tenant read.
  *
  * `updatedAt` rides along as the version the caller is about to edit. It is the
  * timestamp of the body actually being shown, which is what makes it a sound
@@ -227,12 +257,18 @@ export async function getDraftBodyAction(
   draftId: string,
 ): Promise<{ ok: boolean; body?: string; updatedAt?: string; error?: string }> {
   const supabase = await createClient();
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   const { data, error } = await supabase
     .from("drafts")
     .select("body, updated_at")
     .eq("id", draftId)
+    .eq("user_id", uid)
     .maybeSingle();
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error(writeErrorLogLine("drafts", "read", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't load that draft.") };
+  }
   if (!data) return { ok: false, error: "That draft is no longer there." };
   return { ok: true, body: data.body, updatedAt: data.updated_at };
 }
@@ -246,7 +282,12 @@ export async function getDraftBodyAction(
 export async function fetchDraftsPageAction(
   params: Record<string, string | string[] | undefined>,
   cursor: string,
-): Promise<{ ok: boolean; cards?: DraftCard[]; nextCursor?: string | null; error?: string }> {
+): Promise<{
+  ok: boolean;
+  cards?: DraftCard[];
+  nextCursor?: string | null;
+  error?: string;
+}> {
   const supabase = await createClient();
   try {
     const { cards, nextCursor } = await queryDraftsPage(

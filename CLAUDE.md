@@ -88,9 +88,13 @@ procedure in `docs/runbooks/release.md`.
 
 ## 7. Deploy
 
-Vercel (primary). Preview deploy per PR; production on `main`. Edge route handlers for
-the provider proxy give a DDoS-resistant posture. Secrets live in Vercel project env,
-never in the repo (`.env.example` documents the shape only).
+Vercel (primary). Preview deploy per PR; production on `main`. The provider-proxy
+routes run on the **Node** runtime, not Edge — they import the provider SDKs behind
+`server-only`, which Edge cannot load. (This section previously claimed Edge and cited
+it as the DDoS posture; no route has ever declared `runtime = "edge"`. The abuse
+control that actually exists is atomic per-user admission in `spend_reserve` — see
+§6.) Secrets live in Vercel project env, never in the repo (`.env.example` documents
+the shape only).
 
 ## 8. Project structure
 

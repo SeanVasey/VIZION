@@ -1917,6 +1917,31 @@ than as a puzzling failure in whichever spec ran first.
   it would have shipped with this hole intact underneath the new machinery.
   When a value is load-bearing for a guardrail, harden the value before
   hardening the logic that reads it.
+- **One control is not a defence, it is a single point of failure.** Fourteen
+  server actions wrote with `.eq("id", …)` and leaned entirely on RLS for the
+  tenant boundary. RLS was correct — but these actions are reachable by any
+  authenticated client, so one dropped policy turns `deletePromptAction` into a
+  cross-tenant delete with nothing to notice. **A predicate that costs one
+  indexed column is worth adding even when the control behind it is right**,
+  because the question is not "is RLS correct today" but "what happens the day
+  it isn't".
+- **A foreign key does not consult RLS.** `setCollectionAction` let a prompt be
+  filed into another account's collection: the FK only asks whether the
+  referenced row EXISTS, not whether the caller may see it. Any cross-table
+  reference supplied by a client needs an explicit ownership check; the
+  constraint is about referential integrity, never about authorization.
+- **"Useful as-is" is an operator's judgement, not a user's.** The error
+  passthrough was justified in a comment as "RLS and constraint messages are
+  useful as-is" — true for someone reading a log, false for someone reading a
+  toast, and the same file's own runbook records it leaking an enum name to a
+  user. **Split the audiences explicitly**: a mapped sentence for the user, the
+  raw text to the log. If one string is serving both, it is wrong for one.
+- **Test the branch table of the thing everything else depends on.** The
+  authorization gate had zero tests while ~90 files covered components. The
+  cheapest possible test — a table of (env, session, path) → outcome — took
+  minutes and immediately pinned a real hazard: public prefixes must match on a
+  segment boundary, or `/authors` becomes public because `/auth` is. Verified by
+  injecting the bare `startsWith` and watching exactly that assertion fail.
 - **Origin-scoped storage is not account-scoped storage.** IndexedDB and
   `localStorage` are keyed to the origin, and both the offline outbox and the
   persisted `editorDraft` treated them as if they were keyed to a session. On a

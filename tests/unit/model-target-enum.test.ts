@@ -263,24 +263,68 @@ describe("enum-mismatch write errors", () => {
     ).toBe("That option isn't available on the server yet — pick another and try again.");
   });
 
-  it("leaves every other write error's message untouched", () => {
-    // 22P02 also covers malformed uuid/numeric input, and RLS/constraint
-    // messages are useful verbatim — only the enum shape is rewritten.
+  it("never puts raw Postgres text in front of a user", () => {
+    // This assertion used to be the opposite — `toBe(rls.message)`, on the
+    // reasoning that "RLS and constraint messages are useful as-is". They are,
+    // to an operator reading a log; to a user they are a toast naming a policy.
+    // Postgres text carries constraint, column, policy and function names, and
+    // docs/runbooks/migrations.md records this passthrough already reaching a
+    // user once. The raw text now goes to writeErrorLogLine instead.
     const rls = { code: "42501", message: "new row violates row-level security policy" };
     expect(enumMismatch(rls)).toBeNull();
-    expect(describeWriteError(rls, "Couldn't save.")).toBe(rls.message);
+    const shown = describeWriteError(rls, "Couldn't save.");
+    expect(shown).not.toContain("row-level security");
+    expect(shown).not.toContain("policy");
+    expect(shown).toBe("You don't have access to that.");
+    // The operator still gets everything.
+    expect(writeErrorLogLine("library", "write", rls)).toContain(rls.message);
 
+    // 22P02 also covers malformed uuid/numeric input — not schema drift, so it
+    // must not claim a model is unavailable, and must not echo the value.
     const badUuid = {
       code: "22P02",
       message: 'invalid input syntax for type uuid: "nope"',
     };
     expect(enumMismatch(badUuid)).toBeNull();
-    expect(describeWriteError(badUuid, "Couldn't save.")).toBe(badUuid.message);
+    expect(describeWriteError(badUuid, "Couldn't save.")).toBe("Couldn't save.");
+
+    // Unrecognised codes fall back rather than leaking.
+    expect(
+      describeWriteError(
+        { code: "XX000", message: "function public.spend_reserve(...) does not exist" },
+        "Couldn't save.",
+      ),
+    ).toBe("Couldn't save.");
 
     expect(describeWriteError(null, "Couldn't save.")).toBe("Couldn't save.");
     expect(describeWriteError({ message: null }, "Couldn't save.")).toBe(
       "Couldn't save.",
     );
+  });
+
+  it("maps the constraint codes a user can act on", () => {
+    expect(describeWriteError({ code: "23505", message: "duplicate key" }, "x")).toBe(
+      "That already exists.",
+    );
+    expect(
+      describeWriteError({ code: "23503", message: "violates foreign key" }, "x"),
+    ).toContain("no longer there");
+    // 23514 is the usage_events non-negative check added in Phase 0.
+    expect(
+      describeWriteError(
+        {
+          code: "23514",
+          message: 'violates check constraint "usage_events_nonneg_amounts"',
+        },
+        "x",
+      ),
+    ).toBe("That value isn't allowed.");
+    // …and none of them echo the constraint name.
+    for (const code of ["23505", "23503", "23514"]) {
+      expect(
+        describeWriteError({ code, message: 'constraint "secret_internal_name"' }, "x"),
+      ).not.toContain("secret_internal_name");
+    }
   });
 
   it("names schema drift in the server log so an operator can act on it", () => {

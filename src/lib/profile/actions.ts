@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { describeWriteError } from "@/lib/supabase/errors";
+import { describeWriteError, writeErrorLogLine } from "@/lib/supabase/errors";
 import type { Database } from "@/lib/supabase/database.types";
 
 export interface ActionResult {
@@ -80,7 +80,10 @@ export async function updateEmailAction(email: string): Promise<ActionResult> {
 
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ email: trimmed });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error(writeErrorLogLine("profile", "write", error));
+    return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
   return { ok: true };
 }
 
@@ -104,10 +107,7 @@ export async function exportDataAction(): Promise<{
   const [profile, prompts, versions, media] = await Promise.all([
     supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("prompts").select("*").order("created_at", { ascending: true }),
-    supabase
-      .from("prompt_versions")
-      .select("*")
-      .order("created_at", { ascending: true }),
+    supabase.from("prompt_versions").select("*").order("created_at", { ascending: true }),
     supabase
       .from("media_assets")
       .select(
@@ -115,8 +115,7 @@ export async function exportDataAction(): Promise<{
       )
       .order("created_at", { ascending: true }),
   ]);
-  const failed =
-    profile.error ?? prompts.error ?? versions.error ?? media.error ?? null;
+  const failed = profile.error ?? prompts.error ?? versions.error ?? media.error ?? null;
   if (failed) return { ok: false, error: failed.message };
 
   return {
