@@ -30,14 +30,30 @@ const ROOT = join(__dirname, "..", "..");
 const MIGRATIONS_DIR = join(ROOT, "supabase", "migrations");
 
 /**
- * The enum's labels as of the last migration that predates this repo's
- * `supabase/migrations/` directory. The P2 base schema (`p2_auth_profile_schema`,
- * which holds the original `CREATE TYPE model_target`) was applied straight to
- * the hosted project and exists only in its migration ledger, so the replay
- * below needs it declared. Verified against the live enum: replaying every
- * in-repo migration onto this baseline reproduces the hosted label order exactly.
+ * The enum's starting labels, read from the `CREATE TYPE` itself.
+ *
+ * This used to be a hand-written constant, because `p2_auth_profile_schema` —
+ * which holds the original `CREATE TYPE model_target` — was applied straight to
+ * the hosted project and existed only in its migration ledger. The replay had
+ * nothing to start from, so the starting point was asserted rather than read,
+ * and a wrong one would have made every downstream assertion agree with itself.
+ * The baseline is in the repo now, so the replay starts where Postgres does.
  */
-const BASELINE_LABELS = ["opus_4_8", "gpt_5_5", "gemini_pro_3_1"];
+const CREATE_RE =
+  /CREATE\s+TYPE\s+(?:public\.)?model_target\s+AS\s+ENUM\s*\(([^)]*)\)/i;
+
+function readBaselineLabels(): string[] {
+  for (const file of readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()) {
+    const m = CREATE_RE.exec(stripComments(readFileSync(join(MIGRATIONS_DIR, file), "utf8")));
+    if (m) return [...m[1]!.matchAll(/'([^']+)'/g)].map((v) => v[1]!);
+  }
+  throw new Error(
+    "no `create type model_target as enum (…)` in supabase/migrations — the base " +
+      "schema is missing again, and the enum replay has no starting point.",
+  );
+}
 
 type EnumOp =
   | { kind: "rename"; from: string; to: string; migration: string }
@@ -92,7 +108,7 @@ function readEnumOps(): EnumOp[] {
 
 /** Replay the migrations onto the baseline, mirroring Postgres' semantics. */
 function replayEnum(ops: EnumOp[]): string[] {
-  const labels = [...BASELINE_LABELS];
+  const labels = readBaselineLabels();
   for (const op of ops) {
     if (op.kind === "rename") {
       const i = labels.indexOf(op.from);

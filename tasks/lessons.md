@@ -2162,3 +2162,80 @@ than as a puzzling failure in whichever spec ran first.
   outside the `<=5.0.7` range and reported clean. Read the diff between the
   pinned version and the latest patch; the advisory range answers a narrower
   question than the one you are asking.
+
+## 2026-07-31 — P2–P5 baseline recovery (the repo could not rebuild the database)
+
+- **A migration directory that starts mid-history looks healthy.** Seven
+  migrations — every table, enum, bucket and policy the app rests on — were
+  applied straight to the hosted project and lived only in its ledger. Every
+  later migration applied fine on top, the CLI reported no drift, and the whole
+  suite was green: the gap only exists for someone building from scratch, and
+  nobody does that until the day they must. **Ask "does the first migration
+  create something, or alter something?"** — the answer is a one-line audit.
+- **The ledger keeps the SQL, so recovery beats reconstruction.**
+  `supabase_migrations.schema_migrations.statements` holds the statements as
+  applied, comments and all. Recovering from there gave files byte-identical to
+  what ran (md5-checked); reconstructing from `pg_dump` or from the current
+  catalog would have produced *a* schema that matches, with none of the
+  reasoning and no way to prove it was the same one.
+- **Verify a baseline by replaying it, not by reading it.** No Docker in this
+  container, but the Postgres server binaries were installed — `initdb` a
+  throwaway cluster, add a ~90-line shim for the platform objects the
+  migrations actually bind to, replay all 23, then fingerprint the result and
+  run the same query against production. Nine of ten categories matched
+  exactly, on the first try; the tenth was comments. Reading the SQL would have
+  told me none of that.
+- **Compare schemas by sorted facts, not by `pg_dump` diff.** Dump output is
+  ordered by OID and formatted per server version, so two identical schemas
+  produce different text. Hashing a sorted list of `category|fact` lines is
+  version-independent and localises a difference to one category instead of one
+  1,500-line diff.
+- **Filenames are not decoration — the CLI matches on them.** All sixteen
+  in-repo migrations carried hand-rounded timestamps that matched nothing in the
+  ledger, so `supabase db push` would have treated every one as unapplied and
+  re-run it against production. Whatever generates the version at apply time is
+  the authority; the file has to agree with it. Check order is preserved before
+  renaming (here the real times fell in the same sequence — but that was luck,
+  not a guarantee).
+- **A comment that names a file is a reference, and references rot silently.**
+  Renaming the migrations orphaned five citations in `src/` and `scripts/`; none
+  could fail to compile. A test that resolves every `\d{14}_*.sql` mentioned
+  under `src`/`scripts`/`tests`/`docs/runbooks` costs nothing and is the only
+  thing that would ever notice.
+- **A workaround is a record of a missing thing — delete it when the thing
+  arrives.** `BASELINE_LABELS` was hand-written *because* the `create type` was
+  hosted-only, and it made the enum replay assert its own starting point. The
+  moment the baseline landed the constant became derivable, and the test got
+  strictly stronger for being three lines longer.
+- **`initdb` refuses to run as root.** Drop to an unprivileged account and make
+  the data directory reachable by it — and note that a per-session scratch dir
+  may be `drwx------ root`, which that account cannot traverse no matter who
+  owns the leaf.
+- **A comparison query is only as good as its WHERE clause, and a narrowed one
+  fails silently — both sides agree, on less.** The first schema fingerprint
+  filtered `pg_policies` to `public`, which excluded all seven policies on
+  `storage.objects` — the ones scoping avatar and media uploads to their owner
+  — and inner-joined `pg_roles` for EXECUTE grants, which dropped `PUBLIC`
+  (grantee OID 0 has no role row) — the grantee `revoke execute … from … public`
+  exists to remove. Nine access-control facts invisible, and every category
+  still read "identical". **When a check reports a match, ask what it could not
+  have seen.** Both were caught by an automated PR review, not by me.
+- **Recovering the schema made a doc false.** `AGENTS.md` still told every agent
+  the base tables were untracked and a bare Supabase would be missing them —
+  the mandatory startup contract, now contradicted by the change that fixed it.
+  A doc that states a limitation is a dependency of the work that removes it;
+  grep for the claim before you invalidate it.
+- **The definition text is not the object.** Three schema facts carry real
+  behaviour and appear nowhere in what you would naturally diff:
+  `pg_policies.permissive` (RESTRICTIVE composes with AND, so one flipped
+  policy can deny everything while every predicate stays identical),
+  `pg_trigger.tgenabled` (`pg_get_triggerdef` reconstructs the same
+  `CREATE TRIGGER` for a disabled trigger), and owner on a SECURITY DEFINER
+  function (the owner *is* the privilege set the body runs with). A `pg_dump`
+  diff would have missed the first two as well.
+- **Check whether a new comparison field is comparable before adding it.**
+  Adding table owner to the RLS fact immediately broke the match — hosted
+  storage tables belong to `supabase_storage_admin`, and the shim necessarily
+  creates its stand-ins as the local superuser. A field that differs by
+  construction is worse than no field: it trains you to ignore a red row.
+  Scope it (`public` only, `<platform-managed>` elsewhere) and say why.

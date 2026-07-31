@@ -6,7 +6,7 @@ prove they did.
 ## Why this runbook exists
 
 A committed migration is not an applied migration. On 2026-07-25,
-`20260726000000_kimi_k3_minimax_m3_gpt_tiers.sql` was committed to `main` and
+`20260725133703_kimi_k3_minimax_m3_gpt_tiers.sql` was committed to `main` and
 never applied, leaving the hosted `model_target` enum two migrations behind the
 app's sixteen-model roster. Four targets — GPT-5.6 Luna, GPT-5.6 Terra, Kimi K3,
 MiniMax M3 — failed **every** database write with Postgres `22P02`:
@@ -22,11 +22,79 @@ migration _file_, never the hosted schema.
 
 ## Source of truth
 
-`supabase/migrations/` holds every schema change from 2026-07 onward. The P2–P5
-base schema (`p2_auth_profile_schema` … `p5_media_assets`) was applied directly
-to the hosted project and exists only in its migration ledger — which is why
-`tests/unit/model-target-enum.test.ts` declares a `BASELINE_LABELS` constant for
-the pre-repo enum state.
+`supabase/migrations/` holds **every** schema change, including the P2–P5 base
+schema (`p2_auth_profile_schema` … `p5_media_assets`). That was not true until
+2026-07-31: those seven were applied directly to the hosted project and existed
+only in its migration ledger, so the database could not be rebuilt from the
+repository and nothing said so. They were recovered verbatim from
+`supabase_migrations.schema_migrations.statements` — which preserves the SQL as
+applied — and each file is byte-identical to what the ledger holds.
+
+**Filenames are the ledger's versions, not hand-picked timestamps.** The CLI
+matches the leading 14 digits against `supabase_migrations.schema_migrations`;
+a file whose version is not in the ledger is not "skipped", it is applied. Every
+one of the sixteen 2026-07 migrations carried a hand-rounded timestamp that
+matched nothing remote, so a `supabase db push` from this repo would have tried
+to re-run all sixteen against production — `create table public.collections`
+included. They now carry the versions the ledger recorded. `tests/unit/migrations.test.ts`
+keeps the naming parseable and the ordering stable.
+
+## Proving the directory can still build the database
+
+```bash
+npm run db:verify
+```
+
+Replays every migration, in filename order, against a throwaway PostgreSQL
+cluster, then prints a per-category fingerprint of the resulting `public`
+schema. Exits 2 (a skip, not a failure) when no server binaries are present.
+
+Prefer `supabase db reset` where Docker is available — it uses the platform's
+own image. `db:verify` is the fallback for environments without a daemon: it
+supplies the handful of platform objects the migrations bind to from
+`scripts/pg-shim.sql`. Anything the shim has to grow is a new dependency on
+Supabase internals and worth a second look.
+
+**To compare against production**, run `scripts/pg-introspect.sql` on the hosted
+project (SQL editor, or the Supabase MCP `execute_sql`) and diff the two tables.
+Equal counts and equal digests in all eleven rows means the repo reproduces the
+live schema.
+
+The fingerprint covers `public` **and** the parts of `storage` the baseline
+creates: the seven policies on `storage.objects` that scope avatar and media
+uploads to their owner, the RLS flags on both storage tables, and the two
+bucket rows (whether `media` is private, what mime types either accepts). It
+also counts `PUBLIC` among the EXECUTE grantees — `aclexplode` reports PUBLIC
+as grantee OID 0, which has no `pg_roles` row, so it is easy to drop by
+accident, and `revoke execute … from … public` on the SECURITY DEFINER routines
+is exactly the control worth comparing. The rest of `storage` is out of scope on
+purpose: `pg-shim.sql` builds a minimal `storage.objects`, so comparing its
+columns would be noise.
+
+Three facts are recorded that no definition text carries, each of which would
+otherwise let a materially different schema compare equal:
+
+| fact                     | what the obvious comparison misses                                                                                                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pg_policies.permissive` | RESTRICTIVE composes with `AND`, not `OR`. Flip one of the two `storage.objects` INSERT policies and every upload is denied — with both predicates, and every other field of the policy, unchanged. |
+| `pg_trigger.tgenabled`   | `pg_get_triggerdef` reconstructs the same `CREATE TRIGGER` whether or not it fires. A disabled `enforce_prompt_current_version` lets `prompts.current_ver` point at another prompt's version.        |
+| function owner           | On a SECURITY DEFINER routine the owner _is_ the privilege set the body runs with.                                                                                                                  |
+
+Table ownership is compared for `public` only — a table's owner bypasses its own
+RLS unless `FORCE` is set. The storage tables are excluded: they belong to
+`supabase_storage_admin` hosted and to the local superuser under the shim, so
+comparing them would differ on every run and mean nothing.
+
+One benign difference to expect: `--` comments inside a function body count
+toward the `function` digest, and the apply path that wrote the hosted schema
+strips them. If `function` is the only category that differs, re-compare with
+comments removed before calling it drift:
+
+```sql
+select proname, md5(regexp_replace(regexp_replace(prosrc, '--[^\n]*', '', 'g'), '\s+', ' ', 'g'))
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' order by 1;
+```
 
 ## Applying a migration
 

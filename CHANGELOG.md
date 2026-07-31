@@ -6,6 +6,101 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the database could not be rebuilt from the repository
+
+Seven migrations — the entire P2–P5 base schema — were applied straight to the
+hosted project and existed only in its migration ledger. `supabase/migrations/`
+began at `alter type model_target add value`, on tables it never created:
+`profiles`, `oauth_identities`, `usage_events`, `prompts`, `prompt_versions`,
+`activity_events`, `media_assets`, five enums, both storage buckets and every
+RLS policy on them. A fresh environment could not be built, and a lost project
+could not be restored, from anything in git.
+
+Nothing caught it, because every later migration applies fine on top of a schema
+that is already there. The gap is invisible until the day someone needs it.
+
+All seven are recovered **verbatim** — not reconstructed from the current schema.
+`supabase_migrations.schema_migrations.statements` preserves the SQL as applied,
+comments included, and each file is byte-identical to what the ledger holds
+(md5, trailing whitespace trimmed).
+
+Verified by replay rather than by inspection: `npm run db:verify` stands up a
+throwaway PostgreSQL cluster, applies `scripts/pg-shim.sql` (the handful of
+platform objects the migrations bind to — `auth.uid`, `auth.users`,
+`storage.objects`/`buckets`/`foldername`, the `anon`/`authenticated` roles,
+pgcrypto in `extensions`), and runs all 23 migrations in order from empty.
+`scripts/pg-introspect.sql` then fingerprints the result per category, and the
+same query run against production gives:
+
+| category   |   n | replayed == hosted |
+| ---------- | --: | ------------------ |
+| bucket     |   2 | ✓                  |
+| column     |  90 | ✓                  |
+| constraint |  37 | ✓                  |
+| enum       |   7 | ✓                  |
+| exec-grant |  27 | ✓                  |
+| function   |  11 | comments only      |
+| grant      | 190 | ✓                  |
+| index      |  25 | ✓                  |
+| policy     |  34 | ✓                  |
+| rls        |  12 | ✓                  |
+| trigger    |   3 | ✓                  |
+
+The one difference is two `--` comments in `library_add_version` and three in
+`spend_reserve`: the apply path strips comments from function bodies, so the
+hosted copies carry none. With comments removed both bodies hash identically to
+the repo's — the schemas are the same schema.
+
+The first cut of that fingerprint was blind to nine access-control facts, all of
+them the kind a restore most needs checked: `pg_policies` was filtered to
+`public`, which excluded the seven policies on `storage.objects` that scope
+avatar and media uploads to their owner, and the EXECUTE-grant query inner-joined
+`pg_roles`, which silently dropped `PUBLIC` (grantee OID 0 has no role row) — the
+grantee that `revoke execute … from … public` on the SECURITY DEFINER routines
+exists to remove. Bucket configuration was uncompared too, so a `media` bucket
+restored public would have fingerprinted clean. All now included; all match.
+
+Three more facts are recorded that no definition text carries, each of which
+would otherwise let a materially different schema compare equal: a policy's
+`permissive` flag (RESTRICTIVE composes with `AND`, so one flipped
+`storage.objects` INSERT policy denies every upload with both predicates
+unchanged), `pg_trigger.tgenabled` (`pg_get_triggerdef` reconstructs the same
+`CREATE TRIGGER` whether or not it fires — a disabled
+`enforce_prompt_current_version` lets `current_ver` point at another prompt's
+version), and function ownership (on a SECURITY DEFINER routine the owner _is_
+the privilege set the body runs with). Table ownership is compared for `public`
+only: a table's owner bypasses its own RLS unless `FORCE` is set, but the
+storage tables belong to `supabase_storage_admin` hosted and to the local
+superuser under the shim, so comparing those would differ on every run and mean
+nothing.
+
+`tests/unit/model-target-enum.test.ts` loses its hand-written `BASELINE_LABELS`
+constant. It existed only because the `create type model_target` was missing, so
+the enum replay had to be told where it started instead of reading it — a wrong
+starting point would have made every downstream assertion agree with itself. It
+now parses the recovered migration, and fails loudly if the base schema ever
+goes missing again.
+
+### Fixed — `supabase db push` would have re-run sixteen migrations at production
+
+Not one of the sixteen 2026-07 migrations carried the version the hosted ledger
+recorded. They were named with hand-rounded timestamps (`20260730000000_drafts`)
+while the ledger held the real apply time (`20260730012046`). The CLI matches on
+those leading digits, so from the repo's side every one of them looked unapplied
+— and a `supabase db push` would have tried to run them all again, `create table
+public.collections` included, against the live database.
+
+All sixteen now carry the ledger's version. The rename is order-preserving:
+sorted by the ledger's real timestamps they fall in exactly the sequence the
+hand-numbered files did, verified before the rename rather than assumed.
+
+Five citations in `src/` and `scripts/` pointed at the old names — the filenames
+carry the reasoning, so `spend.ts` explains the cost cap by naming the migration
+that implements it. All updated, and `tests/unit/migrations.test.ts` now fails on
+a citation that does not resolve, which a comment otherwise never could. Dated
+records (CHANGELOG entries above, `docs/audits/`) keep the names the files had at
+the time.
+
 ### Fixed — warning text and "Saved ✓" were invisible in the light theme
 
 `--amber` and `--pulse` were declared once, in `:root`, and never overridden for

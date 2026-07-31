@@ -40,8 +40,8 @@ function stripComments(sql: string): string {
   return sql.replace(/--[^\n]*/g, "");
 }
 
-const INTEGRITY = "20260730200000_usage_ledger_integrity.sql";
-const REVOKE = "20260730210000_usage_ledger_revoke.sql";
+const INTEGRITY = "20260730200124_usage_ledger_integrity.sql";
+const REVOKE = "20260730202138_usage_ledger_revoke.sql";
 
 describe("usage_events cannot be forged", () => {
   const sql = stripComments(migration(INTEGRITY));

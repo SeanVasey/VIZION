@@ -18,7 +18,7 @@
  * permanently unusable, because one hold ($3.20) exceeded the whole cap. The
  * reserve is a concurrency guard, not a worst-case bound, so the database sizes
  * it from what the account actually spends and clamps it to a fraction of the
- * cap. See `supabase/migrations/20260730220000_atomic_spend_reservations.sql`.
+ * cap. See `supabase/migrations/20260730203605_atomic_spend_reservations.sql`.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";

@@ -115,6 +115,11 @@ ActivityEvent`. Every table carries `user_id`; RLS policy = `auth.uid() = user_i
 `PromptVersion` rows are immutable snapshots; `Prompt.current_ver` points at the active
 one. Full field-level schema in `VIZION-product-spec.md §5.1`.
 
+`supabase/migrations/` is the whole schema, from `create type public.theme`
+onward — not a patch set layered on a hosted base. `npm run db:verify` replays
+it from empty; `docs/runbooks/migrations.md` covers applying, verifying, and
+diffing against the hosted project.
+
 ## Offline / eviction posture
 
 Server is the source of truth. The client calls `navigator.storage.persist()`,

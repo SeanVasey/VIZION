@@ -11,7 +11,7 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * PostgREST's code for "that relation isn't in the schema cache" — what every
- * read here returns until `20260730000000_drafts.sql` is applied.
+ * read here returns until `20260730012046_drafts.sql` is applied.
  *
  * The migration lands by hand (owner applies it), so there is a window where
  * the client knows about drafts and the database does not. In that window the
