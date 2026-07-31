@@ -429,9 +429,7 @@ export function TransformationDiff({
               return (
                 <li
                   key={h.index}
-                  className={`flex items-center justify-between gap-3 py-2 ${
-                    isRejected ? "opacity-60" : ""
-                  }`}
+                  className="flex items-center justify-between gap-3 py-2"
                 >
                   {/* OUTPUT REGION: the change's before→after in mono. */}
                   <p className="mono min-w-0 break-words text-xs text-chalk">
@@ -441,7 +439,15 @@ export function TransformationDiff({
                     <span aria-hidden="true" className="font-body px-1.5 text-silver">
                       →
                     </span>
-                    <span className={isRejected ? undefined : "text-accent"}>
+                    {/* The rejected dim lands HERE, on the one span it is about
+                        — the edit that will not apply — instead of on the <li>.
+                        Row-wide it multiplied into every child: the struck
+                        original fell to 1.85:1 (0.6 × the removed span's own
+                        0.7), and the live Keep/Revert button was dimmed like a
+                        disabled control while still being the row's only
+                        action. --chalk survives 60% at 5.91:1 dark / 4.95:1
+                        light, which --flare and --silver do not. */}
+                    <span className={isRejected ? "opacity-60" : "text-accent"}>
                       {h.added.trim() === "" ? "∅" : h.added}
                     </span>
                   </p>

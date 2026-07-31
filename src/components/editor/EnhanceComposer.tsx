@@ -284,6 +284,14 @@ export function EnhanceComposer() {
     );
   }
 
+  // The daily-cap warning, resolved here so its live region can be mounted
+  // unconditionally in the tree below.
+  const capUsage = view?.result.usage;
+  const capWarning =
+    capUsage && capUsage.todayCost >= capUsage.capUsd * 0.8
+      ? `⚠ $${capUsage.todayCost.toFixed(2)} of $${capUsage.capUsd.toFixed(2)} daily cap used`
+      : null;
+
   return (
     <section className="flex flex-col gap-5">
       {/* An incoming shared prompt that would have overwritten real work.
@@ -563,7 +571,7 @@ export function EnhanceComposer() {
         <>
           <p
             className={`font-body text-center text-sm ${
-              enhanceMutation.error.capReached ? "text-amber" : "text-flare"
+              enhanceMutation.error.capReached ? "text-amber-ink" : "text-flare"
             }`}
             role="alert"
           >
@@ -585,13 +593,22 @@ export function EnhanceComposer() {
         </>
       )}
 
-      {/* Amber storage/quota-style warning as the daily cap approaches. */}
-      {view && view.result.usage.todayCost >= view.result.usage.capUsd * 0.8 && (
-        <p className="font-body text-center text-xs text-amber" role="status">
-          ⚠ ${view.result.usage.todayCost.toFixed(2)} of $
-          {view.result.usage.capUsd.toFixed(2)} daily cap used
-        </p>
-      )}
+      {/* Amber storage/quota-style warning as the daily cap approaches.
+
+          The region is mounted whether or not the warning applies: a
+          `role="status"` element that appears already carrying its text is not
+          reliably announced, and this is the only notice a user gets that they
+          are about to be cut off mid-session. Idle is `sr-only` (absolutely
+          positioned) so it is not a flex item and adds no gap to this column —
+          the same shape as FieldStatus. */}
+      <p
+        role="status"
+        className={
+          capWarning ? "font-body text-center text-xs text-amber-ink" : "sr-only"
+        }
+      >
+        {capWarning ?? ""}
+      </p>
 
       {/* Live stream surface while the run is in flight; the finished diff
           replaces it in the same footprint on done. */}

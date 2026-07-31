@@ -90,7 +90,17 @@ describe("composer Clear (was RESET)", () => {
       "",
     );
     expect(mockMutation.reset).toHaveBeenCalled();
-    expect(screen.getByRole("status")).toHaveTextContent("Composer cleared");
+    // getAllByRole, not getByRole: the composer now keeps a permanently
+    // mounted (and normally empty) status region for the daily-cap notice —
+    // a live region has to exist before its text lands to be announced. The
+    // contract here is unchanged: the clear is announced through a live
+    // region, not merely rendered.
+    expect(
+      screen
+        .getAllByRole("status")
+        .map((n) => n.textContent)
+        .join(" "),
+    ).toContain("Composer cleared");
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe(
       "my pasted draft",

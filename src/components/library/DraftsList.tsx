@@ -349,7 +349,17 @@ export function DraftsList({
                 onClick={() => openEditor(card)}
                 disabled={pending}
                 aria-label={`Edit draft: ${card.title}`}
-                className="tap-44 shrink-0 text-silver transition-colors hover:text-accent disabled:opacity-50"
+                // NOT .tap-44 here. That utility centres a 44px pseudo on the
+                // element and bleeds 12px past each edge; these two icons are
+                // 20px wide with an 8px gap, so the two hit areas overlapped by
+                // 16px and — per the utility's own rule, later sibling wins —
+                // the right 4px of the *visible pencil* fired Delete, while
+                // Edit's left bleed took the right 4px of the Resume button.
+                // Real padding + an equal negative margin instead: a 28×44 hit
+                // box (clears WCAG 2.5.8's 24×24 outright) whose layout
+                // footprint is still exactly 20×20, so nothing moves and the
+                // boxes meet at the midpoint of the gap without overlapping.
+                className="-mx-1 -my-3 shrink-0 px-1 py-3 text-silver transition-colors hover:text-accent disabled:opacity-50"
               >
                 {/* Pencil — 1.5px stroke, rounded joins (style-guide §1.4). */}
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
@@ -367,7 +377,8 @@ export function DraftsList({
                 onClick={() => setConfirmFor(card)}
                 disabled={pending}
                 aria-label={`Delete draft: ${card.title}`}
-                className="tap-44 shrink-0 text-silver transition-colors hover:text-flare disabled:opacity-50"
+                // Same 28×44 geometry as Edit above — the two meet, never overlap.
+                className="-mx-1 -my-3 shrink-0 px-1 py-3 text-silver transition-colors hover:text-flare disabled:opacity-50"
               >
                 {/* 1.5px stroke, rounded joins (style-guide §1.4). */}
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">

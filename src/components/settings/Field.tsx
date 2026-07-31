@@ -30,26 +30,48 @@ export function Divider() {
   return <div className="h-px bg-hair" />;
 }
 
-/** Per-control save status — rendered NEXT TO the control that changed
- *  (2026-07 UX audit), never as one global banner. */
+/**
+ * Per-control save status — rendered NEXT TO the control that changed
+ * (2026-07 UX audit), never as one global banner.
+ *
+ * The region is ALWAYS in the DOM. Returning null when idle meant the whole
+ * `role="status"` element was inserted together with its text, and a live
+ * region that arrives already populated is not reliably announced — screen
+ * readers watch a region they are already observing for changes. "Saved ✓" is
+ * the only confirmation a setting persisted, so a silent one is the whole
+ * feedback lost.
+ *
+ * Idle carries `sr-only` rather than an empty static box: every call site sits
+ * in a `flex flex-col gap-*`, where a permanently-present static child would
+ * add a gap to each row. `sr-only` is absolutely positioned, so it is not a
+ * flex item and costs no layout — and the node survives across the swap, which
+ * is the only property the announcement depends on.
+ */
 export function FieldStatus({ status }: { status: SettingStatus | undefined }) {
-  if (!status || status.state === "idle") return null;
+  const state = status?.state ?? "idle";
+  const idle = state === "idle";
   return (
     <p
       role="status"
-      className={`font-body text-xs ${
-        status.state === "saving"
-          ? "text-silver"
-          : status.state === "saved"
-            ? "text-pulse"
-            : "text-flare"
-      }`}
+      className={
+        idle
+          ? "sr-only"
+          : `font-body text-xs ${
+              state === "saving"
+                ? "text-silver"
+                : state === "saved"
+                  ? "text-pulse-ink"
+                  : "text-flare"
+            }`
+      }
     >
-      {status.state === "saving"
+      {state === "saving"
         ? "Saving…"
-        : status.state === "saved"
+        : state === "saved"
           ? "Saved ✓"
-          : status.message}
+          : state === "error"
+            ? status?.message
+            : ""}
     </p>
   );
 }

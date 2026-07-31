@@ -28,9 +28,17 @@ const config: Config = {
       // hairline dividers render invisible.
       hair: "var(--hair)",
       accent: "var(--accent-ink)",
-      pulse: "var(--pulse)",
       flare: "var(--flare)",
+      // Pulse and Amber follow the Laser split: the bare name is the FILL
+      // (bg-pulse / bg-amber, which carry --on-laser ink at 10:1+), the -ink
+      // name is the text/icon role that darkens on the light canvas. Tailwind
+      // still emits `text-pulse` / `text-amber` from these keys — they are the
+      // 1.83:1 and 1.41:1 failures, and nothing in the config can withdraw
+      // them, so tests/unit/contrast.test.ts is what holds the line.
+      pulse: "var(--pulse)",
       amber: "var(--amber)",
+      "pulse-ink": "var(--pulse-ink)",
+      "amber-ink": "var(--amber-ink)",
       // Theme-resolved semantic aliases (flip with [data-theme]).
       bg: "var(--bg)",
       surface: "var(--surface)",

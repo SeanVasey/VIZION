@@ -154,7 +154,16 @@ describe("?draft= conflict — the offer has no deadline", () => {
     renderComposer();
     // A toast would be role=status/alert and self-dismiss; the banner is
     // ordinary content that stays until answered.
-    expect(screen.queryByRole("status")).toBeNull();
+    //
+    // "no status element at all" no longer states that: the composer keeps one
+    // permanently mounted for the daily-cap notice, because a live region that
+    // arrives already carrying its text is not reliably announced. So the
+    // assertion is the thing it always meant — nothing is announcing this
+    // banner, and every live region on the surface is empty.
+    for (const region of screen.queryAllByRole("status")) {
+      expect(region.textContent).toBe("");
+    }
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("survives well past a toast's lifetime", () => {

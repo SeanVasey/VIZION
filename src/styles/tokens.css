@@ -41,8 +41,16 @@
      as a fill is unaffected. */
   --accent-ink: var(--laser);
   --flare: #ff5247; /* error / destructive              */
-  --pulse: #3dd68c; /* success (derived)                */
-  --amber: #ffc24b; /* warning (derived)                */
+  --pulse: #3dd68c; /* success FILL (derived)           */
+  --amber: #ffc24b; /* warning FILL (derived)           */
+  /* Pulse/Amber used AS TEXT/ICON.  Both are saturated light-tone hues, so on
+     the light canvas they land at 1.8:1 and 1.4:1 — the same failure --laser
+     has, and they take the same fix as --accent-ink: equal to the raw hue on
+     dark, a deep same-hue tone on light.  The FILL tokens above are unaffected
+     (a fill still carries --on-laser ink at 10:1+ in both themes), so the
+     "Queued", "Saved ✓ — open" and generate buttons do not move. */
+  --pulse-ink: var(--pulse);
+  --amber-ink: var(--amber);
 
   --laser-glow: rgba(183, 255, 60, 0.25);
 
@@ -95,6 +103,11 @@
      (flare is only ever used as text/border — never a fill). */
   --accent-ink: #3f6b00;
   --flare: #c81d10;
+  /* Same hue, deep enough to clear AA on all three light backdrops (page
+     5.6:1 / glass 6.2:1 / surface 6.2:1 for amber; 5.4 / 6.0 / 5.9 for
+     pulse) — the corridor --accent-ink (6.2) and --flare (5.6) already sit in. */
+  --amber-ink: #8a5200;
+  --pulse-ink: #0d7040;
 
   color-scheme: light;
 }
@@ -119,6 +132,8 @@
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.02'/%3E%3C/svg%3E");
     --accent-ink: #3f6b00;
     --flare: #c81d10;
+    --amber-ink: #8a5200;
+    --pulse-ink: #0d7040;
 
     color-scheme: light;
   }

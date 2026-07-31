@@ -508,7 +508,7 @@ export function PromptDetail({
             {/* Editing the draft or flipping the mode after the run doesn't
                 change what Save stores — label the mismatch honestly. */}
             {reviseStale && (
-              <p className="font-body mb-2 text-xs text-amber" role="status">
+              <p className="font-body mb-2 text-xs text-amber-ink" role="status">
                 Result from previous settings — re-enhance to match your edits.
                 Saving keeps the settings this result actually came from.
               </p>
