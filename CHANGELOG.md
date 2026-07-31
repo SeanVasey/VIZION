@@ -106,6 +106,43 @@ Every call site toggles closed → open, which re-runs the effect and hides it �
 but a `Sheet` rendered open from its first render never received focus at all.
 The effect is now gated on `mounted` as well, with both in the deps.
 
+### Security — `brace-expansion` moves to the releases that enforce `maxLength`
+
+The pinned 1.1.17 / 2.1.3 / 5.0.8 all accept and document a `maxLength` bound
+and then fail to apply it on two paths: `expandSequence` was called without it
+at all, and the recursive branch accumulated each alternative's results with
+`values.push.apply(...)` and no check. 1.1.18 / 2.1.4 / 5.0.9 thread the bound
+into the sequence expander and break out of a bounded loop on either limit.
+
+**This does not change the audit report, and no exploit is claimed here.** The
+advisory range is still `<=5.0.7`, which matches every 1.x and 2.x release
+whatever it contains, so the full-tree count stays at 14 high — all dev-only
+(the eslint chain and workbox-build). `npm audit --omit=dev --audit-level=high`,
+which is what CI gates, stays at **0** before and after. Several inputs aimed at
+the unbounded paths were bounded identically on old and new; the change rests on
+the diff, not on a reproduction.
+
+What it does fix is drift: the overrides were already caret ranges, so a fresh
+`npm install` anywhere resolved to the newer patches while the lockfile pinned
+CI and Vercel to the older ones. The override floors now name the patched
+versions. Verified that the regression the earlier per-major keying was
+introduced to fix stays fixed — `minimatch@3.1.5` loads its own nested 1.1.18
+and `new Minimatch("src/**/*.{ts,tsx}").braceExpand()` still returns both
+patterns.
+
+### Fixed — two live regions announced nothing
+
+A `role="status"` element that is inserted already carrying its message is not
+reliably announced; a screen reader announces *changes* inside a region it is
+already observing. Both of the affected regions were the only feedback their
+surface gives — "Saved ✓" after a settings write, and the notice that you are
+within 20% of the daily spend cap.
+
+Both are now mounted whether or not they have anything to say. Idle carries
+`sr-only` rather than an empty box: every call site sits in a `flex flex-col
+gap-*`, where a permanently-present static child would add a gap to each row,
+and an absolutely-positioned one is not a flex item.
+
 ### Security — server actions no longer rest the whole tenant boundary on RLS
 
 Fourteen mutating server actions wrote with `.eq("id", …)` and nothing else, and
