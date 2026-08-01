@@ -8,7 +8,8 @@ import {
 
 interface GeminiResponse {
   candidates?: {
-    content?: { parts?: { text?: string }[] };
+    /** `thought: true` marks reasoning parts — never enhancement output. */
+    content?: { parts?: { text?: string; thought?: boolean }[] };
     finishReason?: string;
   }[];
   usageMetadata?: {
@@ -18,6 +19,52 @@ interface GeminiResponse {
     thoughtsTokenCount?: number;
   };
   error?: { message?: string };
+}
+
+/**
+ * SSE events end at a blank line, and Gemini's endpoint delimits with CRLF —
+ * `\r\n\r\n` contains no adjacent `\n\n`, so a bare `indexOf("\n\n")` never
+ * matches a real production frame and the whole stream silently assembles to
+ * an empty string ("The model returned a non-JSON response." on every run).
+ * Accept either convention.
+ */
+const FRAME_BREAK = /\r?\n\r?\n/;
+
+/** Decode one SSE frame into stream chunks (shared by the read loop and the
+ *  end-of-stream flush — a final frame may arrive without its blank line). */
+function parseGeminiFrame(frame: string): ProviderStreamChunk[] {
+  const chunks: ProviderStreamChunk[] = [];
+  for (const line of frame.split("\n")) {
+    if (!line.startsWith("data:")) continue;
+    let data: GeminiResponse;
+    try {
+      data = JSON.parse(line.slice(5).trim()) as GeminiResponse;
+    } catch {
+      continue;
+    }
+    const text = (data.candidates?.[0]?.content?.parts ?? [])
+      // Reasoning parts stream interleaved with the answer when thinking is
+      // on; concatenating them corrupts the JSON envelope.
+      .filter((p) => p.thought !== true)
+      .map((p) => p.text ?? "")
+      .join("");
+    if (text) chunks.push({ text });
+    const finish = data.candidates?.[0]?.finishReason;
+    if (finish) chunks.push({ stopReason: finish });
+    if (data.usageMetadata) {
+      chunks.push({
+        usage: {
+          tokenIn: data.usageMetadata.promptTokenCount ?? 0,
+          // Thinking tokens are billed as output — dropping them
+          // undercounts the daily cost cap for the thinking target.
+          tokenOut:
+            (data.usageMetadata.candidatesTokenCount ?? 0) +
+            (data.usageMetadata.thoughtsTokenCount ?? 0),
+        },
+      });
+    }
+  }
+  return chunks;
 }
 
 /**
@@ -84,39 +131,16 @@ export async function* streamGoogle(
         const { done, value } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
-        let sep: number;
-        while ((sep = buf.indexOf("\n\n")) !== -1) {
-          const frame = buf.slice(0, sep);
-          buf = buf.slice(sep + 2);
-          for (const line of frame.split("\n")) {
-            if (!line.startsWith("data:")) continue;
-            let data: GeminiResponse;
-            try {
-              data = JSON.parse(line.slice(5).trim()) as GeminiResponse;
-            } catch {
-              continue;
-            }
-            const text = (data.candidates?.[0]?.content?.parts ?? [])
-              .map((p) => p.text ?? "")
-              .join("");
-            if (text) yield { text };
-            const finish = data.candidates?.[0]?.finishReason;
-            if (finish) yield { stopReason: finish };
-            if (data.usageMetadata) {
-              yield {
-                usage: {
-                  tokenIn: data.usageMetadata.promptTokenCount ?? 0,
-                  // Thinking tokens are billed as output — dropping them
-                  // undercounts the daily cost cap for the thinking target.
-                  tokenOut:
-                    (data.usageMetadata.candidatesTokenCount ?? 0) +
-                    (data.usageMetadata.thoughtsTokenCount ?? 0),
-                },
-              };
-            }
-          }
+        for (;;) {
+          const brk = FRAME_BREAK.exec(buf);
+          if (!brk) break;
+          const frame = buf.slice(0, brk.index);
+          buf = buf.slice(brk.index + brk[0].length);
+          for (const chunk of parseGeminiFrame(frame)) yield chunk;
         }
       }
+      // The stream can close on a frame with no trailing blank line.
+      for (const chunk of parseGeminiFrame(buf)) yield chunk;
     } finally {
       // Runs on errors AND early generator return (consumer aborted) — cancel
       // actually closes the upstream connection, then the lock is released.
