@@ -165,3 +165,48 @@ describe("updateSession — Supabase not configured", () => {
     expect(getUser).not.toHaveBeenCalled();
   });
 });
+
+describe("middleware matcher — the paths the gate never sees", () => {
+  /**
+   * The matcher is the OTHER half of the authorization story: a path it
+   * excludes bypasses `updateSession` entirely, so an exclusion is a public
+   * asset by fiat and a missing exclusion silently subjects a static asset to
+   * the auth redirect. Both failure modes have shipped: /robots.txt spent its
+   * life 307ing to /sign-in, and /offline.js — the offline page's recovery
+   * script — would have been auth-redirected during the SW's install-time
+   * precache on /sign-in, caching sign-in HTML under the script's key and
+   * killing offline recovery a second way (caught by Codex review on PR #76).
+   * Next compiles the pattern via path-to-regexp; anchoring it ^…$ models the
+   * same decision for whole pathnames.
+   */
+  const matcherRegex = (async () => {
+    const { config } = await import("@/middleware");
+    return new RegExp(`^${(config.matcher as string[])[0]}$`);
+  })();
+
+  it.each([
+    "/offline.html",
+    "/offline",
+    "/offline.js",
+    "/sw.js",
+    "/robots.txt",
+    "/favicon.ico",
+    "/manifest.webmanifest",
+    "/icons/icon-192.png",
+    "/splash/splash-828x1792.png",
+    "/brand/vizion-mark-token.svg",
+  ])("excludes the static asset %s", async (path) => {
+    expect((await matcherRegex).test(path)).toBe(false);
+  });
+
+  it.each([
+    "/",
+    "/sign-in",
+    "/enhance",
+    "/library",
+    "/api/enhance",
+    "/offline-mode", // a hypothetical APP route: only the exact static names are exempt
+  ])("still runs on %s", async (path) => {
+    expect((await matcherRegex).test(path)).toBe(true);
+  });
+});

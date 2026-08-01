@@ -11,9 +11,11 @@ import { cspDirectives, isHttpsOrigin } from "./src/lib/security/csp";
  * bootstrap plus Next's own inline scripts carry the nonce.
  *
  * What remains HERE is the static fallback for exactly the paths the
- * middleware matcher excludes and that can execute script: `offline.html`
- * (its inline reload script cannot receive a per-request nonce — it is a
- * static file) and `sw.js`. Those keep the previous `'unsafe-inline'` policy.
+ * middleware matcher excludes and that can execute script: `offline.html`,
+ * `/offline` (the same document at the URL Vercel's cleanUrls serves it
+ * from), and `sw.js`. The offline recovery script is the external
+ * /offline.js, so this policy needs no `'unsafe-inline'` — script-src is
+ * `'self'` alone.
  * The probe history for the websocket/connect-src rules lives with the
  * builder in src/lib/security/csp.ts.
  */
@@ -76,8 +78,8 @@ export function buildSecurityHeaders(httpsOrigin: boolean) {
   ];
 }
 
-/** The static-asset CSP (see the header comment): `'unsafe-inline'` script-src
- *  for the two middleware-excluded paths that can execute script. */
+/** The static-asset CSP (see the header comment): script-src `'self'` for the
+ *  middleware-excluded paths that can execute script. */
 export function staticCspHeader(httpsOrigin: boolean) {
   return {
     key: "Content-Security-Policy",
@@ -147,8 +149,15 @@ const nextConfig: NextConfig = {
       },
       {
         // The middleware matcher excludes offline.html — it still needs a
-        // policy for its inline reload script (static, so 'unsafe-inline').
+        // policy for the external recovery script it loads.
         source: "/offline.html",
+        headers: [staticCspHeader(HTTPS_ORIGIN)],
+      },
+      {
+        // Same document, the URL Vercel's cleanUrls actually serves it from
+        // (/offline.html 308s here in production). Locally this path is just
+        // the 404 page; the static policy is correct for that too.
+        source: "/offline",
         headers: [staticCspHeader(HTTPS_ORIGIN)],
       },
       {
