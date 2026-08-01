@@ -16,8 +16,9 @@ const config: Config = {
       current: "currentColor",
       // The seven locked roles (FINAL_PLAN §2) + Amber warning.
       void: "var(--void)",
-      "void-2": "var(--void-2)",
-      lift: "var(--lift)",
+      // --void-2 / --lift remain in tokens.css (the mesh-ground gradient reads
+      // them) but no `bg-void-2`/`text-lift` utility was ever consumed — the
+      // dead color keys are dropped (DEAD-003).
       onyx: "var(--onyx)",
       silver: "var(--silver)",
       chalk: "var(--chalk)",
@@ -34,7 +35,7 @@ const config: Config = {
       // name is the text/icon role that darkens on the light canvas. Tailwind
       // still emits `text-pulse` / `text-amber` from these keys — they are the
       // 1.83:1 and 1.41:1 failures, and nothing in the config can withdraw
-      // them, so tests/unit/contrast.test.ts is what holds the line.
+      // them, so tests/unit/a11y.test.ts is what holds the line (DSN-013).
       pulse: "var(--pulse)",
       amber: "var(--amber)",
       "pulse-ink": "var(--pulse-ink)",
@@ -77,17 +78,13 @@ const config: Config = {
         12: "calc(var(--space) * 12)" /* 48px */,
         16: "calc(var(--space) * 16)" /* 64px */,
       },
-      backdropBlur: {
-        glass: "16px",
-      },
       boxShadow: {
         // Focus edge-glow (style-guide §1.4). Ring in --accent-ink, not raw
         // --laser: a 1px laser stroke on light is the contrast-law FAIL (§6).
-        focus: "0 0 0 1px var(--accent-ink), 0 0 24px rgba(183, 255, 60, 0.25)",
-        hair: "inset 0 0 0 1px var(--hair)",
-      },
-      backgroundColor: {
-        glass: "var(--glass)",
+        // The glow reads --laser-glow (DSN-005) so retuning it can't silently
+        // fork the composer ring from every other focus ring. (boxShadow.hair
+        // and backgroundColor.glass dropped — zero consumers, DEAD-003.)
+        focus: "0 0 0 1px var(--accent-ink), 0 0 24px var(--laser-glow)",
       },
     },
   },

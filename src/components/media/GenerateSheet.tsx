@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { Sheet } from "@/components/ui/Sheet";
+import { PressableButton } from "@/components/ui/PressableButton";
 import { useUIStore } from "@/stores/ui";
 import { buildGenerationPrompt } from "@/lib/media/formatters";
 import { GEN_TARGETS, type GenTargetId } from "@/lib/media/types";
@@ -116,8 +117,8 @@ export function GenerateSheet({
       title={`Generate — ${sanitizeName(item.name, 24)}`}
       footer={
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
+          <PressableButton
+            subtle
             onClick={() => void copyPrompt()}
             className="btn-laser flex min-h-[44px] grow items-center justify-center rounded-xl px-4 text-sm"
           >
@@ -129,7 +130,7 @@ export function GenerateSheet({
             ) : (
               "Copy"
             )}
-          </button>
+          </PressableButton>
           {savedId ? (
             <Link
               href={`/library/${savedId}`}

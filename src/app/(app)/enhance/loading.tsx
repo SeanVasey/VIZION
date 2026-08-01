@@ -1,5 +1,6 @@
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { MODES } from "@/lib/constants";
 
 /**
  * Route-level loading boundary for Enhance.
@@ -29,9 +30,14 @@ export default function EnhanceLoading() {
         </div>
         {/* Mode rig — six equal cells in one chassis, plus the helper line. */}
         <div className="flex flex-col gap-2">
-          <div className="glass grid grid-cols-6 gap-1 rounded-2xl p-1">
-            {Array.from({ length: 6 }, (_, i) => (
-              <Skeleton key={i} className="min-h-[56px] rounded-xl" />
+          {/* Geometry matches the real ModeRig (DSN-008): gap-0 and the live
+              mode count, so the placeholder doesn't jump on hydration. */}
+          <div
+            style={{ gridTemplateColumns: `repeat(${MODES.length}, minmax(0, 1fr))` }}
+            className="glass grid gap-0 rounded-2xl p-1"
+          >
+            {MODES.map((m) => (
+              <Skeleton key={m.id} className="min-h-[56px] rounded-xl" />
             ))}
           </div>
           <Skeleton className="mx-auto h-3 w-3/5 rounded" />

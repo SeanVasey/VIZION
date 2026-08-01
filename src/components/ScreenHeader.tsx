@@ -33,7 +33,7 @@ export function ScreenHeader({
               width={36}
               height={36}
               priority
-              className="h-9 w-9 rounded-[10px]"
+              className="h-9 w-9 rounded-xl"
             />
             {/* The wordmark IS the screen's heading — every screen gets an h1
                 so the document outline never starts at an h2. */}

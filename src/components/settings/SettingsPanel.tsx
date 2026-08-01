@@ -400,7 +400,7 @@ export function SettingsPanel({
               aria-hidden="true"
               className={`h-6 w-6 rounded-full transition-transform ${
                 reducedEffects
-                  ? "translate-x-6 bg-[var(--on-laser)]"
+                  ? "translate-x-6 bg-on-laser"
                   : "translate-x-0 bg-silver"
               }`}
             />

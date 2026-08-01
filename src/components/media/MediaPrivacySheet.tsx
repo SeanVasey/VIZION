@@ -1,6 +1,7 @@
 "use client";
 
 import { Sheet } from "@/components/ui/Sheet";
+import { PressableButton } from "@/components/ui/PressableButton";
 
 /**
  * First-attach disclosure (2026-07 UX audit, privacy): upload, model
@@ -27,20 +28,20 @@ export function MediaPrivacySheet({
       title="Before you attach"
       footer={
         <div className="flex flex-col gap-2">
-          <button
-            type="button"
+          <PressableButton
+            subtle
             onClick={() => onChoose(true)}
             className="btn-laser flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm"
           >
             Attach &amp; store
-          </button>
-          <button
-            type="button"
+          </PressableButton>
+          <PressableButton
+            subtle
             onClick={() => onChoose(false)}
             className="btn-secondary flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm"
           >
             Analyze without keeping
-          </button>
+          </PressableButton>
         </div>
       }
     >

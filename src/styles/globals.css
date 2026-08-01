@@ -99,6 +99,28 @@
        the bar grows with the user's font scale, matching its rem-sized icons
        (h-6) and labels (text-xs); 4rem == 64px at the default 16px root. */
     --bottom-nav-h: 4rem;
+
+    /* Motion scale (DSN-011). Durations/easings were bare literals; the
+       ModeRig lens-lock 300ms was the only 300ms in the app with nothing to
+       answer to. These live here, not in the LOCKED tokens.css (its own
+       header forbids additions), same as the dev-accent layer. */
+    --motion-quick: 150ms;
+    --motion-slide: 300ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Floating-element clearance above the bottom nav (DSN-016). The sticky
+       result bar and the toast both sit this far above the nav + safe area;
+       they had drifted to 8px vs 12px. One token, one gap. */
+    --float-gap: 12px;
+
+    /* Shared scrim (DSN-010): the ~60%-Void wash behind inset "original"/
+       compare panels, duplicated as a raw color-mix at four sites. */
+    --scrim-panel: color-mix(in srgb, var(--void) 60%, transparent);
+
+    /* Heavy modal/viewfinder dim (DSN-020) — the AvatarCropper mask was the
+       only hardcoded rgba box-shadow in components. Void-based so it inverts
+       with the theme rather than sitting a fixed black over a light canvas. */
+    --scrim-heavy: color-mix(in srgb, var(--void) 78%, transparent);
   }
 
   body {
@@ -445,11 +467,15 @@
     border-radius: 12px;
     transition: filter 120ms ease;
   }
+  /* Explicit surface + border shift (DSN-021): brightness() on the light
+     theme's near-white --surface clamps to imperceptible. A color-mix toward
+     --text moves in BOTH themes. */
   .btn-secondary:hover:not(:disabled) {
-    filter: brightness(1.08);
+    background: color-mix(in srgb, var(--surface) 90%, var(--text) 10%);
+    border-color: color-mix(in srgb, var(--hair) 60%, var(--text) 40%);
   }
   .btn-secondary:active:not(:disabled) {
-    filter: brightness(1.06);
+    background: color-mix(in srgb, var(--surface) 84%, var(--text) 16%);
   }
 
   /* Destructive — Flare.  Used for sign-out / delete affordances. */

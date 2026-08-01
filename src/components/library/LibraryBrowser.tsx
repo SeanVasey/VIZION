@@ -623,6 +623,10 @@ const PromptRow = memo(function PromptRow({
           // --on-flare, not --on-laser: on the LIGHT theme's --flare #c81d10
           // the Void ink measures 3.30:1, an AA fail for this glyph. Dark is
           // byte-identical at 5.94:1; light flips to white at 5.77:1.
+          // Sanctioned --flare FILL (DSN-012 / ADR-0004): flare is text/border
+          // only everywhere else, but a full-bleed destructive swipe panel is
+          // the one place the fill IS the signal; --on-flare ink pairs at
+          // >=5.7:1 in both themes.
           className="flex w-[84px] items-center justify-center rounded-r-2xl bg-flare text-lg text-[color:var(--on-flare)]"
         >
           <XMark className="h-5 w-5" />

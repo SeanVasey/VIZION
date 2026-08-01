@@ -771,7 +771,7 @@ export function TransformationDiff({
           {originalWords} word{originalWords === 1 ? "" : "s"})
         </button>
         {showOriginal && (
-          <div className="mt-2 rounded-2xl border border-hair bg-[color-mix(in_srgb,var(--void)_60%,transparent)] p-4">
+          <div className="mt-2 rounded-2xl border border-hair bg-[var(--scrim-panel)] p-4">
             <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
               {refined ? "Previous result" : "Input"}
             </p>
@@ -794,7 +794,7 @@ export function TransformationDiff({
         <div
           className="sheet-in glass-chrome sticky z-30 -mx-1 flex items-center gap-2 rounded-2xl px-2 py-2"
           style={{
-            bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 8px)",
+            bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
           }}
         >
           <button

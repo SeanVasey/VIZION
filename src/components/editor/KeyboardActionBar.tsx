@@ -45,7 +45,10 @@ export function KeyboardActionBar({
 
   return createPortal(
     <div
-      className="glass-chrome fixed inset-x-0 z-40 flex items-center justify-between gap-3 px-4 py-2"
+      // glass-nav, not glass-chrome (DSN-001): this bar sits at the BOTTOM above
+      // the keyboard, so it mirrors the nav (top-rounded, upward shadow) rather
+      // than inheriting the top bar's bottom-rounded, downward-shadowed tier.
+      className="glass-nav fixed inset-x-0 z-40 flex items-center justify-between gap-3 px-4 py-2"
       style={{ bottom: `${inset}px` }}
     >
       <span className="font-body shrink-0 text-xs tabular-nums text-silver">

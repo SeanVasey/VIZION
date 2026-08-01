@@ -6,6 +6,39 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Design — audit Stage 2, Wave 4: token centralization, consumers, and design rulings
+
+Wave 4 clears the DSN track and records the design rulings Q1/Q6/Q7/Q8 in
+[ADR-0004](docs/decisions/0004-audit-design-rulings.md).
+
+Tokens first (in `globals.css`, not the LOCKED `tokens.css`):
+
+- Motion scale (`--motion-quick/--motion-slide/--ease-out`, DSN-011), a single
+  floating-clearance token (`--float-gap`, DSN-016 — the sticky bar, toast,
+  and FAB had drifted to 8 vs 12px), and shared scrims (`--scrim-panel`,
+  `--scrim-heavy`, DSN-010/020).
+- `tailwind.config` focus-glow reads `var(--laser-glow)` (DSN-005); the
+  contrast-guard citation points at the real test (DSN-013); dead entries
+  (`backdropBlur.glass`, `boxShadow.hair`, `backgroundColor.glass`,
+  `colors.void-2/lift`) removed (DEAD-003).
+
+Consumers:
+
+- KeyboardActionBar wears the bottom-anchored nav tier, not the top chrome
+  (DSN-001); a media-qualified light/dark `themeColor` pair (DSN-002); the
+  ModeRig grid + skeleton derive from `MODES.length` (DSN-006/008); the 320px
+  label overflow is fixed (DSN-007); `--scrim-heavy` tokenizes the avatar mask
+  (DSN-020); the squircle radius joins the ladder (DSN-017); light-theme
+  secondary-button feedback is perceptible (DSN-021); PressableButton on the
+  primary media-sheet footer CTAs (DSN-003).
+
+Rulings (ADR-0004): **Q1** — six ModeRig cells are canon; **Q6** — icon stroke
+weights are per-size optical (effective ~1.5px); **Q7** — a documented
+two-tier input recipe; **Q8** — the avatar mask is tokenized; **DSN-012** —
+the destructive swipe-panel `--flare` fill is a sanctioned exception. The
+z-index ladder is documented in `docs/architecture.md` (DSN-018). Deferred by
+owner call: the two coexisting appearance controls (DSN-019).
+
 ### Security + Accessibility — audit Stage 2, Wave 3
 
 Wave 3 clears the SEC and A11Y tracks plus `PRI-009/010/014` and lands ruling

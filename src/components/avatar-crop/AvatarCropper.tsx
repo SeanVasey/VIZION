@@ -319,7 +319,8 @@ export function AvatarCropper({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-[color-mix(in_srgb,var(--chalk)_40%,transparent)]"
           style={{
-            boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.55)",
+            // Tokenized (DSN-020): the viewfinder dim reads the scrim system.
+            boxShadow: "0 0 0 9999px var(--scrim-heavy)",
           }}
         />
       </div>

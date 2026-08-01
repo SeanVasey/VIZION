@@ -31,7 +31,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F1012",
+  // Media-qualified pair (DSN-002 / PWA-08): the OS chrome tint follows the
+  // theme instead of always reading the dark Void. Values are the dark/light
+  // page backgrounds from tokens.css (--bg).
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0F1012" },
+    { media: "(prefers-color-scheme: light)", color: "#EEF0F4" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,

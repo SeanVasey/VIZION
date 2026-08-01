@@ -27,7 +27,7 @@ export function CompareSheet({
   return (
     <Sheet open={open} onClose={onClose} title="Compare">
       <div className="flex flex-col gap-4">
-        <div className="rounded-2xl border border-hair bg-[color-mix(in_srgb,var(--void)_60%,transparent)] p-4">
+        <div className="rounded-2xl border border-hair bg-[var(--scrim-panel)] p-4">
           <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
             {refined ? "Previous result" : "Original"}
           </p>

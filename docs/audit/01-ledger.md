@@ -1070,7 +1070,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/editor/KeyboardActionBar.tsx; visible on /enhance whenever the software keyboard is open (iOS/Android)
 - **proposed_fix:** Swap glass-chrome for glass-nav on the bar (one class), giving top-rounded corners against content and an upward shadow onto the keyboard, matching the BottomNav treatment.
 - **verification:** On an iOS/Android viewport focus the composer textarea; inspect the bar above the keyboard: corners rounded on top, square on bottom, shadow cast upward (getComputedStyle borderTopLeftRadius=20px, boxShadow starts '0 -8px').
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: KeyboardActionBar wears .glass-nav (top-rounded, upward shadow) — the bottom-anchored mirror of the top chrome
 
 ### DSN-002 — Carry-forward PWA-08: viewport themeColor is still a single static dark #0F1012 with no media-qualified light variant
 
@@ -1079,7 +1079,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/layout.tsx, src/components/ThemeManager.tsx; every route's first paint for light-theme users
 - **proposed_fix:** Per the ledger's simpler alternative: emit themeColor as [{media:'(prefers-color-scheme: light)', color:'#EEF0F4'}, {color:'#0F1012'}] and restrict ThemeManager mutation to explicit user overrides — requires deciding the ownership rule the ledger flags.
 - **verification:** curl the rendered HTML head: two <meta name="theme-color"> tags, the light one media-qualified; cold-load in a light-scheme browser shows light chrome pre-hydration.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: media-qualified light/dark themeColor pair (#0F1012 / #EEF0F4) — PWA-08 closed
 
 ### DSN-003 — Press affordance divergence: ConfirmSheet footers use PressableButton but the identical footer CTAs in five other sheets are raw buttons with no touch feedback
 
@@ -1088,7 +1088,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** All sheet footers under src/components/{library,media,ui}, auth forms; touch feedback on iOS across /library, /enhance, /profile, /sign-in
 - **proposed_fix:** Adopt PressableButton subtle for sheet-footer and full-width CTAs matching the ConfirmSheet pattern (mechanical class-preserving swap; press scale 3% appears on tap).
 - **verification:** grep -rn '<button' src/components/library/LibraryFilterSheet.tsx returns none for footer CTAs; on-device tap shows the 0.97 scale; tests/unit suite stays green (976 passing baseline).
-- **disposition:** pending
+- **disposition:** partially-resolved — Stage 2 W4: PressableButton on the primary footer CTAs in MediaPrivacySheet and GenerateSheet; the remaining raw-button footers stay a follow-up (the <a>/<Link> footers need PressableLink)
 
 ### DSN-004 — Icon stroke-width drift: style guide canon is 1.5px on a 24px grid, but 1.75 and 2 ship at 14 sites, yielding effective weights from 1.17px to 1.75px
 
@@ -1097,7 +1097,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** 13 component files across nav, sheets, pickers, diff, library; every screen
 - **proposed_fix:** Ruling needed on whether the canon means nominal strokeWidth=1.5 on the 24 grid (then normalize 14 sites down) or effective rendered 1.5px (then 1.75-on-h-5 is the compliant optical compensation and the h-5/h-4 1.5s should be raised). Then normalize to one rule and record it in the style guide.
 - **verification:** grep -rn 'strokeWidth' src | grep -v '1.5' returns only sites the ruling explicitly blesses; visual pass over the picker sheet where CheckGlyph (2), chevron (1.75) and DeveloperIcon coexist.
-- **disposition:** pending
+- **disposition:** resolved (ruling Q6=b) — Stage 2 W4: per-size optical stroke weights blessed; ADR-0004 records the effective-~1.5px canon and the shared Glyph primitive is the 1.5px/24-grid reference
 
 ### DSN-005 — Focus-glow value defined twice: tailwind.config.ts boxShadow.focus hardcodes rgba(183,255,60,0.25) instead of var(--laser-glow)
 
@@ -1106,7 +1106,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tailwind.config.ts, src/components/editor/EnhanceComposer.tsx; the composer focus ring on /enhance
 - **proposed_fix:** Change boxShadow.focus to '0 0 0 1px var(--accent-ink), 0 0 24px var(--laser-glow)' — identical computed value today, single source of truth thereafter. Optionally drop unused boxShadow.hair.
 - **verification:** npm run build; getComputedStyle on the focused composer shows the identical box-shadow; grep 'rgba(183, 255, 60' outside tokens.css returns only the documented globals.css:939 fallback (or none if also cleaned).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: tailwind boxShadow.focus reads var(--laser-glow); the composer ring can't fork from the rest
 
 ### DSN-006 — Mode-count literals: ModeRig hardcodes 6 in grid-cols-6 and the indicator width calc while keyboard nav derives from MODES.length; the loading skeleton repeats 6 and mismatches gap
 
@@ -1116,7 +1116,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Derive both from MODES.length (inline gridTemplateColumns: repeat(MODES.length, minmax(0,1fr)); width: calc((100% - 0.5rem) / MODES.length) via template literal), reuse for the skeleton, and align the skeleton's gap to gap-0. No rendered change today.
 - **verification:** npx vitest run tests/unit/mode-rig.test.tsx tests/unit/horizon.test.ts; visual: indicator exactly covers the active cell at 360/390/430px; temporarily append a 7th mode locally and confirm the indicator still aligns.
 - **independently found by:** MOD ("Mode count hardcoded outside the mode table: the Enhance loading skeleton renders a literal 6-cell grid and th")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: ModeRig grid + indicator width derive from MODES.length via inline gridTemplateColumns; the skeleton uses MODES too
 
 ### DSN-007 — R5 partial: at a 320px viewport the 'Condense' and 'Reformat' labels overflow their ModeRig cells by ~5px with no overflow handling, and no test guards the gate's recorded 360/390/430 symmetry.
 
@@ -1125,7 +1125,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/editor/ModeRig.tsx; enhance route on 320px-class devices (iPhone SE)
 - **proposed_fix:** Blocked on the six-mode NEEDS-RULING above; the minimum viable change consistent with any ruling is an e2e assertion that label scrollWidth <= cell width at 320/360/390/430, which will pin whichever visual fix is approved.
 - **verification:** npx playwright test with viewport 320x860: for each role=radio cell assert (await label.evaluate(el => el.scrollWidth)) <= (await cell.boundingBox()).width
-- **disposition:** pending
+- **disposition:** resolved (ruling Q1=a) — Stage 2 W4: six cells blessed (ADR-0004); labels shrink a step below 360px so Condense/Reformat stop overflowing at 320px
 
 ### DSN-008 — The enhance loading skeleton draws the mode rig with gap-1 while the real ModeRig uses gap-0, so the placeholder geometry does not match the control it stands in for.
 
@@ -1134,7 +1134,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/(app)/enhance/loading.tsx only; brief route-transition flash on the enhance screen
 - **proposed_fix:** Change gap-1 to gap-0 in enhance/loading.tsx:32 so the skeleton's cell geometry matches ModeRig exactly.
 - **verification:** grep -n 'grid-cols-6' src/app/(app)/enhance/loading.tsx src/components/editor/ModeRig.tsx shows identical gap utilities; visual check of the enhance route loading state.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: the enhance skeleton uses gap-0 + MODES.length cells, matching the real rig
 
 ### DSN-009 — Sub-scale type sizes 10px and 11px ship as arbitrary values at 18 sites, outside the locked Major Third scale (12-39)
 
@@ -1152,7 +1152,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Sheet, avatar-crop modal, diff original panel, compare sheet; /enhance, /library, /profile overlays
 - **proposed_fix:** Introduce --scrim (void 80%) and --well (void 60%) tokens or .scrim/.well component classes and point all four sites at them; identical computed values.
 - **verification:** grep -rn 'void)_\?60%\|void) 80%\|void)_80%' src returns only the single definition; overlay screenshots unchanged in both themes.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: --scrim-panel token replaces the duplicated 60%-Void color-mix at the compare/original panels
 
 ### DSN-011 — No motion scale exists: all durations/easings are literals, and the ModeRig lens-lock indicator's 300ms ease-out is the only 300ms in the app with no token to answer to
 
@@ -1161,7 +1161,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/styles/globals.css, ModeRig, BottomNav, NewPromptFab, LibraryBrowser; motion consistency app-wide
 - **proposed_fix:** Declare a motion scale (--dur-quick 120ms, --dur-base 200ms, --dur-slow 300ms, --ease-press, --ease-out) in tokens.css or globals.css (both protected paths) and reference it; values unchanged.
 - **verification:** CSS output diff shows identical resolved durations; reduced-motion collapse (globals.css:151-161) still overrides everything.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: --motion-quick/--motion-slide/--ease-out motion tokens in globals.css; ModeRig lens-lock consumes them
 
 ### DSN-012 — Token-contract doc drift: tokens.css declares --flare is 'never a fill' but the library delete swipe panel fills with bg-flare
 
@@ -1170,7 +1170,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/styles/tokens.css comment accuracy; future agents reading the canon
 - **proposed_fix:** Amend the tokens.css comment to 'never a fill except the swipe delete panel, which pairs with --on-flare (see dev-accents.css)' — comment-only edit to a protected file.
 - **verification:** grep 'never a fill' tokens.css shows the amended clause; no CSS value changes (build output identical).
-- **disposition:** pending
+- **disposition:** resolved (ADR-0004) — Stage 2 W4: the destructive swipe-panel --flare fill is sanctioned and documented at its call site; flare stays text/border-only everywhere else
 
 ### DSN-013 — tailwind.config.ts cites a guard test that does not exist: tests/unit/contrast.test.ts
 
@@ -1179,7 +1179,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tailwind.config.ts comment; anyone auditing the contrast guard
 - **proposed_fix:** Update the comment to cite tests/unit/a11y.test.ts.
 - **verification:** grep -n 'contrast.test' tailwind.config.ts returns nothing; grep -n 'a11y.test' tailwind.config.ts returns the corrected citation.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: tailwind.config cites tests/unit/a11y.test.ts (the real guard), not the nonexistent contrast.test.ts
 
 ### DSN-014 — Arbitrary value duplicates a configured token utility: bg-[var(--on-laser)] where bg-on-laser exists
 
@@ -1188,7 +1188,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/settings/SettingsPanel.tsx:395; /profile
 - **proposed_fix:** Replace bg-[var(--on-laser)] with bg-on-laser (identical generated CSS). Optionally map --on-flare in the config so the last arbitrary color can also be named.
 - **verification:** npx vitest run tests/unit (settings tests pass); computed background-color of the knob unchanged.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: the reduced-effects knob uses bg-on-laser, not the arbitrary bg-[var(--on-laser)]
 
 ### DSN-015 — Single-line text inputs ship three divergent recipes (glass/xl/16px vs surface/lg/14px vs bare), and the picker trigger fallback string is duplicated against its own warning
 
@@ -1197,7 +1197,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Library, collection, confirm, drafts, settings, prompt-detail inputs; models pickers
 - **proposed_fix:** Ruling on which input recipe is canon (or that A=floating surfaces / B=settings forms is intentional two-tier); then extract one Input class per tier. The picker fallback consolidation (export one shared constant) is independently safe.
 - **verification:** grep for the recipe strings returns single definitions; visual pass over settings vs library search in both themes.
-- **disposition:** pending
+- **disposition:** resolved (ruling Q7=b, ADR-0004) — Stage 2 W4: two-tier input recipe documented (primary editor vs in-sheet fields); Q18 range input is a distinct control class
 
 ### DSN-016 — Floating bottom-edge offsets disagree (8px vs 12px above the nav) and env() safe-area fallbacks are applied inconsistently
 
@@ -1206,7 +1206,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Toast, FAB, diff action bar; /enhance and /library bottom edge
 - **proposed_fix:** Pick one gap (12px matches 2 of 3 sites) as a --float-gap token beside --bottom-nav-h, and standardize env(safe-area-inset-bottom, 0px). The 8→12 change moves the diff bar 4px.
 - **verification:** All three computed bottom values differ only by design intent; screenshot of /enhance result state with toast visible shows aligned rhythm.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: --float-gap token unifies the sticky bar, toast, and FAB clearance (was 8 vs 12px)
 
 ### DSN-017 — ScreenHeader app-icon squircle uses arbitrary rounded-[10px], off the radius ladder and slightly over-clipping the SVG's own 22% tile radius
 
@@ -1215,7 +1215,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/ScreenHeader.tsx; /enhance header (brand mode)
 - **proposed_fix:** Drop the CSS radius entirely (the SVG already carries its squircle on a transparent ground) or use rounded-lg (8px, inside the tile's 7.92px+0.43px margin, no clipping).
 - **verification:** Zoomed screenshot of the 36px header icon: lime glow ring corner intact, no shaved arc.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: ScreenHeader squircle uses rounded-xl (on the ladder), off the arbitrary rounded-[10px]
 
 ### DSN-018 — z-index ladder is coherent but its ordering contract lives only in one component comment; layers 60-100 are scattered arbitrary literals
 
@@ -1224,7 +1224,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Stacking order across all routes; maintainability only
 - **proposed_fix:** Record the ladder (ambient -10 / content 1-10 / chrome 30-50 / overlays 60-80 / a11y 100) in docs/architecture.md; optionally later promote to named tokens (that step would touch protected files).
 - **verification:** Doc section exists; grep inventory matches the documented ladder.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: the z-index ladder is documented in docs/architecture.md
 
 ### DSN-019 — Carry-forward UX-08: two appearance controls still coexist (per-screen ThemeToggle in every header plus ThemeSegmented in Settings)
 
@@ -1233,7 +1233,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** ScreenHeader (all routes), ThemeToggle, SettingsPanel
 - **proposed_fix:** Execute the ledger's P2 plan when scheduled (single owner in Settings); no action required by this audit beyond tracking.
 - **verification:** After the P2 change: grep ThemeToggle usage returns only Settings; header regains the space.
-- **disposition:** pending
+- **disposition:** still-open (deferred by adjudication) — two appearance controls; owner picks header-toggle vs Settings
 
 ### DSN-020 — AvatarCropper viewfinder mask is the only hardcoded rgba box-shadow in components, bypassing the token scrims
 
@@ -1242,7 +1242,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/avatar-crop/AvatarCropper.tsx; avatar crop modal on /profile
 - **proposed_fix:** Rule whether the crop mask stays photographic-neutral black (then add a comment and optionally a --mask token) or should follow the theme scrim (color-mix void 55%, which turns near-white on light).
 - **verification:** Ruling recorded; if changed, light-theme crop screenshot shows the chosen treatment and the drag/zoom e2e still passes.
-- **disposition:** pending
+- **disposition:** resolved (ruling Q8=a, ADR-0004) — Stage 2 W4: the AvatarCropper viewfinder mask reads --scrim-heavy (Void-based, theme-inverting) — no more hardcoded rgba
 
 ### DSN-021 — btn-secondary hover/active feedback is imperceptible on the light theme: brightness() on an already-white fill clamps
 
@@ -1251,7 +1251,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Every .btn-secondary (ConfirmSheet cancel, DraftsToolbar, sign-in providers, error/not-found pages); light theme, pointer devices only
 - **proposed_fix:** Give .btn-secondary a theme-robust hover (e.g. compose hover-hair's border color-mix, or a color-mix fill shift toward --text 4%) instead of/alongside brightness.
 - **verification:** In light theme hover a Cancel button and confirm a visible state change; screenshot diff dark theme unchanged.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: btn-secondary hover/active use an explicit surface+border color-mix shift, perceptible on the light theme where brightness() clamped
 
 ## Track A11Y
 
@@ -1577,7 +1577,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tailwind.config.ts only; no emitted CSS changes anywhere
 - **proposed_fix:** Remove extend.backdropBlur.glass, extend.boxShadow.hair, and extend.backgroundColor.glass. Keep colors.void-2 and colors.lift despite zero utility usage — they document the locked seven-role set (FINAL_PLAN section 2) and cost nothing under JIT.
 - **verification:** npm run build after removal produces byte-identical CSS output; grep -rn 'bg-glass|backdrop-blur-glass|shadow-hair' src tests remains 0
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: dead tailwind entries removed (backdropBlur.glass, boxShadow.hair, backgroundColor.glass, colors.void-2, colors.lift) — the --void-2/--lift CSS vars stay for the mesh gradient
 
 ### DEAD-004 — 14 exported symbols are consumed only inside their own module — the export keyword is unreachable surface (knip-flagged, each hand-verified by grep)
 
