@@ -1,5 +1,21 @@
 export type MediaKind = "image" | "video" | "audio";
 
+/**
+ * Exactly the `media` bucket's `allowed_mime_types` (MED-003) — the client
+ * admits what the server will store, so nothing reserves quota and then dies
+ * at the bucket with a raw storage error. Listing explicit types in the
+ * file-input `accept` also makes iOS transcode HEIC to JPEG at the picker.
+ * Change this list and the bucket migration together (pinned by a unit test).
+ */
+export const MEDIA_ALLOWED_MIME: Record<MediaKind, readonly string[]> = {
+  image: ["image/png", "image/jpeg", "image/webp", "image/gif"],
+  video: ["video/mp4", "video/webm", "video/quicktime"],
+  audio: ["audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4"],
+};
+
+/** Flat accept-attribute value for the file input. */
+export const MEDIA_ACCEPT = Object.values(MEDIA_ALLOWED_MIME).flat().join(",");
+
 /** Attributes VIZ(IO)N "reads" from an attached reference (product-spec §4.2).
  *  Audio never reaches a model (only file metadata is read), so there are no
  *  semantic audio fields — the old `tempo`/`timbre` were dead schema nothing

@@ -1,7 +1,11 @@
 import "server-only";
 import OpenAI from "openai";
 import type { ThinkingLevel } from "@/lib/constants";
-import type { Provider } from "@/lib/providers/config";
+import {
+  PROVIDER_MAX_RETRIES,
+  PROVIDER_TIMEOUT_MS,
+  type Provider,
+} from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -106,16 +110,39 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
     const apiKey = process.env[opts.keyEnv];
     if (!apiKey) throw new ProviderNotConfiguredError(opts.provider);
 
-    const client = new OpenAI({ apiKey, baseURL: opts.baseURL });
+    const client = new OpenAI({
+      apiKey,
+      baseURL: opts.baseURL,
+      timeout: PROVIDER_TIMEOUT_MS,
+      maxRetries: PROVIDER_MAX_RETRIES,
+    });
     const filter = opts.stripThink ? createThinkFilter() : null;
+    // Reasoning the provider bills but never surfaces in `content`: stripped
+    // <think> spans and `reasoning_content` deltas. Counted so the adapter's
+    // no-usage fallback estimate doesn't systematically exclude exactly the
+    // runs that think hardest (PRV-003). Real usage always wins.
+    let reasoningChars = 0;
+    // Filter accounting is cumulative (a tag can span chunks): stripped
+    // chars = everything pushed in minus everything emitted, settled after
+    // the final flush.
+    let filterIn = 0;
+    let filterOut = 0;
 
     try {
       const completion = await client.chat.completions.create(
         buildCompatBody(opts, system, input, model, req),
       );
       for await (const chunk of completion) {
-        let text = chunk.choices[0]?.delta?.content ?? "";
-        if (text && filter) text = filter.push(text);
+        const delta = chunk.choices[0]?.delta as
+          | { content?: string | null; reasoning_content?: string }
+          | undefined;
+        reasoningChars += delta?.reasoning_content?.length ?? 0;
+        let text = delta?.content ?? "";
+        if (text && filter) {
+          filterIn += text.length;
+          text = filter.push(text);
+          filterOut += text.length;
+        }
         if (text) yield { text };
         const finish = chunk.choices[0]?.finish_reason;
         if (finish) yield { stopReason: finish };
@@ -132,7 +159,14 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
       // but never completed into one — flush it so the envelope stays whole.
       if (filter) {
         const tail = filter.flush();
-        if (tail) yield { text: tail };
+        if (tail) {
+          yield { text: tail };
+          filterOut += tail.length;
+        }
+        reasoningChars += Math.max(0, filterIn - filterOut);
+      }
+      if (reasoningChars > 0) {
+        yield { estReasoningTokens: Math.ceil(reasoningChars / 4) };
       }
     } catch (error) {
       if (error instanceof ProviderNotConfiguredError) throw error;

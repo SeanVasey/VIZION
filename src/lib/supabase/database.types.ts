@@ -505,6 +505,10 @@ export type Database = {
           reserved_usd: number;
         }[];
       };
+      media_commit: {
+        Args: { p_id: string };
+        Returns: number;
+      };
       spend_settle: {
         Args: {
           p_reservation_id: string;

@@ -324,7 +324,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Replace diffWords with boundedDiffWords at route.ts:307 and make the done event's diff field optional (client already renders plain output when the library diff returns null; TransformationDiff needs the same over-budget fallback). Manual approval because it changes the SSE result contract for oversized outputs.
 - **verification:** Unit test asserting the route module imports boundedDiffWords and never diffWords; plus a timing probe: node -e over diff.ts diffing 10k vs 100k whitespace-kept tokens currently exceeds seconds/hundreds of MB, and returns null under the bound. Run: npx vitest run tests/unit/diff.test.ts
 - **adversarial verdict:** CONFIRMED — route.ts:307 provably calls unbounded diffWords (bounded variant exists but is client-only per grep); git shows the Anthropic ceiling was raised to 32k/64k in commit 1423e0f at 14:10 on 2026-07-27, hours AFTER the audit ledger (03:08) and the client-only DIFF-01 fix (09:59), so the worst case did grow post-audit; an empirical probe on the actual compiled module measured 6.3 s synchronous + ~770 MB heap at 8k x 16k tokens (128M cells), extrapolating to ~7 GB / 60+ s at the post-raise ~1.2e9-cell worst case — OOM before the done event, skipping the finally-block settle (spend.ts:110 confirms the 5-minute sweep). PR-1..PR-7 rulings cover platform APIs and taxonomy only, none touch diffing, and the repo's own audit rated this exact server path P0 — S1 stands.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: the route diffs via boundedDiffWords (diff: null over budget); TransformationDiff degrades to plain text with a 'too long to diff' note and hides Compare; provider-policy.test.ts pins the import
 
 ### PRI-002 — GitHub Actions still executes nothing: ci.yml has zero run records ever, all existing runs are stuck queued, and every quality gate remains local-only (P0 carry-forward)
 
@@ -485,7 +485,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Give refineBlock the same supersedence treatment the format knob already has: append a clause to each refine instruction stating it scopes/overrides the mode instruction's change limits and (for shorter/detail on shape-preserving modes) the FORMAT_PRESERVATION length clause for this pass only — e.g. 'This pass supersedes any earlier instruction that forbids the change it names; all other constraints stand.' Protected path, so wording needs owner approval.
 - **verification:** Unit test: for each RefineKind x ModeId, assert the built prompt does not simultaneously contain 'Make it meaningfully shorter' and 'Preserve the input's existing format, voice, and length' without a supersedence sentence between/after them; plus a semantic spot-check (PROD-04 harness pattern) that clarify+shorter actually shortens.
 - **adversarial verdict:** CONFIRMED — Executed the real buildSystemPrompt via tsx: clarify (persisted default, stores/ui.ts:138) + "Make shorter" yields "Make it meaningfully shorter" (offset 773) followed by "OUTPUT SHAPE — CRITICAL: ... Preserve the input's existing format, voice, and length" (offsets 888/1015) with no supersedence clause anywhere after the refine instruction (the only "replaces" hit is the unrelated questions clause); polish+detail simultaneously contains "Do NOT add, remove, reorder, or elaborate on ideas" and "Add depth". Reachability verified: handleRefine re-sends the same mode (EnhanceComposer.tsx:243) and chips render for all modes (onRefine always passed, line 639). The repo's own standard treats a weaker conflict as needing explicit supersedence (formatters.ts:165) and lessons.md names "a prompt that argues with itself" as the guarded defect class; no test asserts non-contradiction. No conflict with PR-1..PR-7 (platform rulings cover unrelated topics). S1 holds: default-mode paid refine path for all 16 targets composes a self-contradictory system prompt whose last CRITICAL-flagged clause countermands the user's clicked action.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: shorter/detail refine instructions carry an explicit supersedence clause and FORMAT_PRESERVATION cedes its length clause to those passes; pinned by formatters.test.ts non-contradiction cases
 
 ### MOD-002 — The locked product spec still defines FIVE modes and a five-value enum, while code comments cite it as the authority for SIX — a live mode-count assumption in an authoritative companion document
 
@@ -503,7 +503,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/editor/EnhanceComposer.tsx handleRefine; refinement quality for reformat/condense/expand runs (3 of 6 modes); no data or billing impact
 - **proposed_fix:** Ruling needed on which knobs carry into which refine kinds: format should plausibly persist on every refine of a reformat run (the shape was an explicit choice), but re-sending length into a 'shorter' refine would itself create a contradiction (e.g. Expand 'COMPREHENSIVE' + 'make shorter'). Minimum viable change once ruled: carry format in handleRefine for reformat; document length as deliberately dropped.
 - **verification:** After ruling: unit test in refine.test.tsx asserting mutate call [1] carries format='xml' when the first run was reformat+xml (and asserting the ruled length behavior).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (ruling Q4=a): the run's format/length snapshot rides view.submitted and re-sends on every refine and answered pass; refine.test.tsx pins the carry
 
 ### MOD-004 — scripts/check-model-enum.mjs never probes the hosted enhance_mode enum for 'polish' — the exact committed-but-unapplied drift class the script exists for, and the polish migration's own header declares deploy-blocking
 
@@ -512,7 +512,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/check-model-enum.mjs preflight coverage; on a drifted host, every Polish save/version write and Polish usage-ledger settle fails with Postgres 22P02 undetected by the preflight
 - **proposed_fix:** Add an enum-value probe using the same read-only PostgREST cast trick: GET /rest/v1/prompts?select=id&limit=0&current_mode=eq.polish — 200 = present, 400 matching /invalid input value for enum enhance_mode/ = missing; wire it into the existing drift reporting citing 20260701200716.
 - **verification:** node scripts/check-model-enum.mjs against a project without the polish migration exits 1 naming enhance_mode; against a current project prints a new check-pass line.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: check-model-enum.mjs probes hosted enhance_mode for 'polish' via the current_mode cast trick, wired into the drift report
 
 ### MOD-005 — ModeRig is a six-cell instrument while the R5 gate ledger records five modes, and the recorded five-cell arrangement claims (symmetry breakpoints, centered picker pill) no longer describe the shipped control - a ruling is needed on which is authoritative.
 
@@ -531,7 +531,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/enhance/route.ts finally block; daily cost-cap accounting accuracy on aborted runs only; no user-visible behavior
 - **proposed_fix:** Estimate from providerInput.length instead of input.length, and add the system-prompt share (either import buildSystemPrompt length or have the adapter expose its estimate); at minimum use providerInput which is already in scope.
 - **verification:** Unit test on the route's abort path (mock adapter throwing after first delta with no usage event) asserting settleSpend receives tokenIn >= ceil(providerInput.length/4).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: the abort-path estimate is ceil((buildSystemPrompt(...)+providerInput)/4), matching the adapter's own estimator
 
 ### MOD-007 — Envelope scanner's seek-buffer truncation (field.length + 16) cannot survive pathologically whitespace-padded '"output" :' keys split across chunks — streaming and salvage eligibility degrade while the final parse still succeeds
 
@@ -540,7 +540,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/json-stream.ts; streaming UX and salvage recovery for any provider emitting heavily padded JSON; final result correctness unaffected
 - **proposed_fix:** Bound the whitespace in the key regex (e.g. \s{0,8}) to match the retained tail, or retain a larger fixed tail (e.g. field.length + 64); add a stream.test.ts case for a whitespace-padded key split at every chunk boundary.
 - **verification:** npx vitest run tests/unit/stream.test.ts with a new case feeding '"output"' + 20 spaces + ':' + spaces + '"hi"' one char per push and asserting full decode.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: seek tail widened to field.length+64; stream.test.ts feeds a 40-space-padded key at every chunk size
 
 ## Track PRV
 
@@ -566,7 +566,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** On an auto-routed request, treat an out-of-ladder thinkingLevel as advisory and drop it instead of 400ing (route: when auto===true and level not in allowedLevels, set thinkingLevel undefined); alternatively the composer omits thinkingLevel whenever auto is on unless the level is valid for both Auto tiers. Route-side drop is the minimum change and also covers stale clients.
 - **verification:** Unit test posting {input:'x', mode:'polish', target:'gemini_3_6_flash', auto:true, thinkingLevel:'minimal'} to the route handler must return a 200 SSE stream (currently 400); re-run npx vitest run tests/unit/auto-routing-wire.test.tsx tests/unit/stream.test.ts
 - **adversarial verdict:** CONFIRMED — Verified every citation: EnhanceComposer.tsx:72-77 validates thinkingLevel only against the PINNED target's ladder and line 170 sends it beside auto:true (line 165), with the Thinking rail gated solely on levelOptions (line 408) and setAutoTarget (stores/ui.ts:164) clearing nothing; route.ts:122-128 resolves Auto FIRST via resolveAutoTarget (auto-target.ts:34-36 -> sonnet_5/opus_5 only), then lines 133-141 validate against TARGET_THINKING_LEVELS[resolvedTarget] and 400. constants.ts:144-146 shows both Anthropic ladders lack "minimal" and line 150 shows gemini_3_6_flash is the only target with it, so pinned Gemini + Minimal + Auto deterministically 400s ("That thinking level isn't available for this model") on every submit — surfaced as a hard EnhanceError (use-enhance.ts:148-156). Test gap confirmed: auto-routing-wire.test.tsx has auto cases but zero thinkingLevel/minimal coverage. No conflict with PR-1..PR-7 (all WebKit/taxonomy matters). Severity S1 holds: the UI constructs and persists this valid state (thinkingLevels and autoTarget both persist to localStorage), then the product's core action is deterministically blocked with a misleading error naming "this model" when the user chose Auto; borderline S2 given the narrow trigger (one model, one level, Auto opt-in) but not clearly inflated.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: under auto the route drops an out-of-ladder thinkingLevel (advisory) instead of 400ing a valid composer state
 
 ### PRV-002 — Timeout and retry policy is absent and non-uniform: the Google adapter's raw fetch has no timeout and no retries, while every SDK adapter silently inherits SDK defaults (600s timeout, 2 retries) that exceed the route's 60s window
 
@@ -575,7 +575,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** All files in src/lib/providers/ that open connections; POST /api/enhance and POST /api/media for all 16 targets, spend-hold hygiene under provider hangs
 - **proposed_fix:** Set an explicit sub-maxDuration timeout (e.g. 55_000ms) and an explicit maxRetries on every SDK client construction, and wrap the google.ts fetch with AbortSignal.timeout(55_000); document the uniform policy in one place (config.ts constant).
 - **verification:** grep -rn 'timeout|maxRetries|AbortSignal' src/lib/providers/*.ts shows every adapter configured; unit test asserting buildAnthropicParams/compat client options carry the timeout constant
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: PROVIDER_TIMEOUT_MS=55s / PROVIDER_MAX_RETRIES=0 on every SDK client, AbortSignal.timeout on both raw Gemini fetches; policy documented in config.ts, pinned by provider-policy.test.ts
 
 ### PRV-003 — Cost-cap token estimate systematically excludes reasoning tokens for OpenAI-compat providers when stream usage is absent
 
@@ -584,7 +584,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/adapter.ts, src/lib/providers/openai-compat.ts, src/app/api/enhance/route.ts; ledger accuracy for deepseek_v4, muse_spark_1_1, minimax_m3, kimi_k3, sonar_pro, qwen3_7_max, glm_5_2 targets
 - **proposed_fix:** Have the compat stream also count pre-filter chars (and add the active thinking_budget when enable_thinking was sent) into the fallback estimate, e.g. yield a rawChars/estimate hint or accumulate estimate-side chars before the think filter; keep provider-reported usage authoritative when present.
 - **verification:** Unit test in tests/unit/compat-adapter.test.ts: stream a response containing a 4000-char <think> span and no usage chunk; assert the adapter's fallback tokenOut reflects the stripped span (currently it does not)
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: compat stream counts stripped think spans + reasoning_content chars and yields estReasoningTokens; adapter adds the floor to its no-usage fallback; compat-stream.test.ts + usage-estimated.test.ts pin it
 
 ### PRV-004 — Provider key env names are duplicated between PROVIDER_KEY_ENV and per-adapter hardcoded strings with no test pinning the correspondence
 
@@ -593,7 +593,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/config.ts plus 7 adapter files; POST /api/enhance 503 contract
 - **proposed_fix:** Add a unit test asserting, for every Provider, that the adapter's key env name equals PROVIDER_KEY_ENV[provider] (export the compat opts or read the source constants); no runtime change.
 - **verification:** npx vitest run tests/unit/<new>provider-key-env.test.ts passes and fails when any single name is edited
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: provider-policy.test.ts asserts every adapter's key env equals PROVIDER_KEY_ENV per provider
 
 ### PRV-005 — Anthropic adapter error copy says 'Opus' for all three Anthropic targets, mislabeling Fable 5 and Sonnet 5 failures in user-facing messages
 
@@ -602,7 +602,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/anthropic.ts; enhance error surface for fable_5 and sonnet_5 runs
 - **proposed_fix:** Change the label to 'Anthropic request failed:' / 'Unknown Anthropic error.' (matching the provider-named pattern every other adapter uses).
 - **verification:** npx vitest run tests/unit/anthropic-adapter.test.ts (update any message assertion); grep -n 'Opus' src/lib/providers/anthropic.ts returns nothing
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: error copy says 'Anthropic request failed' / 'Unknown Anthropic error'
 
 ### PRV-006 — The 'thinking' SSE event is declared in the wire contract and handled by the client but nothing server-side ever emits it
 
@@ -612,7 +612,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Add a comment marking the event as reserved (never yet emitted) or remove the variant and the client case; comment-only is the zero-risk minimum.
 - **verification:** grep -rn '"thinking"' src/ shows the variant documented as reserved or gone; typecheck stays green
 - **independently found by:** MOD ("The 'thinking' stream event is declared in the SSE wire contract and handled by the client, but no producer in")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: the thinking event is documented RESERVED in stream-events.ts (kept for a future adapter, zero-risk)
 
 ### PRV-007 — Three targets ship floating provider aliases (deepseek-chat, mistral-large-latest, qwen-max) so an upstream model swap silently changes behavior and invalidates the target's price table
 
@@ -621,7 +621,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/config.ts; cost-cap accuracy and behavior stability for deepseek_v4, mistral_large_3, qwen3_7_max
 - **proposed_fix:** No default change without owner sign-off (D9 makes env the pin mechanism); minimum action is a runbook note listing the three floating aliases and the MODEL_*/PRICE_* overrides to set when the upstream alias moves.
 - **verification:** docs/runbooks/ contains the alias-pinning note naming MODEL_DEEPSEEK, MODEL_MISTRAL, MODEL_QWEN and their PRICE_* pairs
-- **disposition:** pending
+- **disposition:** partially-resolved — Stage 2 W2: deepseek pinned to deepseek-v4-pro (published rates 0.435/0.87) and qwen to qwen3.7-max, both verbatim from vendor model pages 2026-08-01; mistral-large-latest DELIBERATELY floats (no published exact id — inferring one risks the invented-model-string 404 class); pin lever + procedure in docs/runbooks/providers.md
 
 ### PRV-008 — Kimi K3, MiniMax M3, and GLM-5.2 default prices are self-declared carryovers from prior model series, pending published rates
 
@@ -630,7 +630,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/config.ts; daily cost cap accuracy for kimi_k3, minimax_m3, glm_5_2
 - **proposed_fix:** When each vendor publishes list rates, update the numEnv defaults (or set PRICE_* in Vercel) and add the 'check the deployed overrides' changelog line lessons.md prescribes; no change until rates are confirmed.
 - **verification:** Compare config.ts defaults against the vendors' published price pages at update time; unit cost via computeCost matches the published per-1M rates
-- **disposition:** pending
+- **disposition:** still-open (deferred by adjudication) — provisional rows marked in config.ts and docs/runbooks/providers.md names the PRICE_* levers; update when Moonshot/MiniMax/Z.ai publish rates
 
 ### PRV-009 — OpenAI enhance path caps completion at a flat 16k with no per-effort headroom, unlike the Anthropic path which doubles the ceiling for xhigh/max for the same reasons-bill-as-output mechanism
 
@@ -639,7 +639,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/openai.ts; gpt_5_6_sol/luna/terra at high reasoning effort on large inputs
 - **proposed_fix:** Mirror the Anthropic pattern: raise max_completion_tokens for reasoning_effort 'high' (e.g. 32_000), keeping the cost cap and maxDuration as the true bounds.
 - **verification:** Unit test on the OpenAI request builder (extract one like buildAnthropicParams/buildCompatBody) asserting the per-effort ceiling; watch prod logs for the 'hit its length limit' message on gpt targets
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: max_completion_tokens 32k at reasoning_effort high (16k otherwise), mirroring the Anthropic per-effort headroom
 
 ## Track MED
 
@@ -665,7 +665,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** New migration: tighten media_obj_insert_own to require exists(select 1 from public.media_assets where storage_path = name and user_id = auth.uid() and status = 'pending'), and add a reconciliation step (e.g. flip-to-ready RPC that reads storage.objects metadata->>'size' and corrects size_bytes, failing the row on gross mismatch). Deploy-order: policy change must land after the client that always reserves first (it already does).
 - **verification:** Against a test project: authenticated storage upload to media/{uid}/x.png without a media_reserve call must be rejected; reserve 1 byte then upload a 1 MB object must fail or correct size_bytes. Locally: assert the new policy SQL text in tests/unit/migrations.test.ts.
 - **adversarial verdict:** DOWNGRADED — Mechanics fully CONFIRMED in code. (a) media_obj_insert_own (20260613073450:49-52) gates only bucket_id='media' + folder=auth.uid(); no media_assets correlation, so a signed-in user can supabase.storage.from('media').upload() directly (the exact wrapper at AttachmentTray.tsx:96-100) with zero reservation — uncharged objects up to the 26214400-byte bucket limit, invisible to the meter which sums media_assets.size_bytes only (AttachmentTray.tsx:182-183, MediaManager.tsx:77). (b) media_reserve (20260727091741:57,68,80) stores the client-declared p_size_bytes = file.size (AttachmentTray.tsx:85,258,290) verbatim; reserve 1 byte then upload 25 MB. No reconciliation: grep of all migrations shows triggers only on prompts/profiles, no pg_cron, no storage.objects metadata comparison; /api/media is analysis-only and never mediates uploads. Not a PR-ruling disagreement. DOWNGRADE rationale: the exploit is authenticated-only and self-scoped (folder must equal auth.uid()) — no cross-tenant exposure, no auth bypass, no secret leak, and storage.objects RLS is present (just permissive-by-owner). invariant_ref is empty so 'invariant violation => min S1' does not attach, and CLAUDE.md §6's cost-cap guardrail is scoped to model routes, not the storage bucket. This is a real but bounded cost/abuse defect (storage-bill inflation by a valid account), which is S2, not S1.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (migration 20260801200000, applied): media_obj_insert_own requires a matching pending reservation, and the ready-flip is the media_commit RPC which reconciles size_bytes against storage metadata (pipeline commit dep; pinned by media-pipeline.test.ts)
 
 ### MED-002 — Server size limits disagree: bucket file_size_limit is 25 MB while media_reserve, admitFiles, and all user-facing copy enforce/state 50 MB, so any 25-50 MB file passes reservation and always fails at upload with a raw storage error
 
@@ -674,7 +674,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/media/pipeline.ts, src/lib/media/queue.ts, supabase/migrations (bucket config), docs/runbooks/media.md; every stored upload in the 25-50 MB band fails after two round trips with an unexplained error
 - **proposed_fix:** Rule which limit is authoritative: either raise the bucket file_size_limit to 52428800 (one-line migration updating storage.buckets) or add a 25 MB per-file client check in admitFiles plus an invalid_size guard at 25 MB in media_reserve, and correct the copy. Do not ship both limits disagreeing.
 - **verification:** After the ruling: unit test in tests/unit/media-queue.test.ts rejecting (or admitting) a 30 MB file per the chosen limit; manual: attach a 30 MB mp4 and confirm it either stores or is rejected pre-upload with the correct message.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (ruling Q3=a): bucket file_size_limit raised to 52428800, matching media_reserve, admitFiles, and every copy surface
 
 ### MED-003 — MIME acceptance diverges client vs server: client admits any image/*, video/*, audio/* but the bucket allows exactly 11 types, so common formats (image/heic, video/3gpp, audio/x-m4a, image/avif, image/svg+xml, audio/flac) reserve quota then fail upload with a raw storage error
 
@@ -683,7 +683,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/media/ondevice.ts (kindForMime), src/lib/media/queue.ts (admitFiles), src/components/media/AttachmentTray.tsx; stored-upload failures with raw error text for a set of common capture formats
 - **proposed_fix:** Minimum change: mirror the bucket allowlist in a shared constant consumed by admitFiles (reject unsupported subtypes up front with the existing 'Unsupported file type' reason) and in the input accept attribute. Alternative worth a product call: widen the bucket list (HEIC/AVIF/3gpp/x-m4a) or transcode stored images to JPEG client-side the way the analysis path already does.
 - **verification:** npx vitest run tests/unit/media-queue.test.ts after adding a case: admitFiles rejects {type:'image/heic'} while admitting {type:'image/jpeg'}; assert the constant equals the migration's allowed_mime_types list.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: MEDIA_ALLOWED_MIME mirrors the bucket's 11 types; kindForMime is allowlist-exact and the file input accepts the explicit list (which also makes iOS transcode HEIC at the picker)
 
 ### MED-004 — Failed vision calls are never billed: /api/media releases the spend hold and returns on any provider failure, and the failed first leg of the cross-provider retry is also unaccounted (prior DISC-06, still open)
 
@@ -692,7 +692,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/media/route.ts; the daily cost cap undercounts on failing/flaky providers — repeated failed analyses spend on server keys without ledger visibility
 - **proposed_fix:** Where the thrown error carries usage (extend describeImage to attach tokenIn/tokenOut when the provider reported them before failing), settle instead of release; at minimum settle the failed first attempt's tokens when the fallback path is taken, mirroring the enhance route's charge-on-abort stance.
 - **verification:** Unit test on the route with a mocked describeImage that throws after reporting usage: assert settleSpend (not releaseSpend) is called with the failed attempt's tokens.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: ProviderError carries provider-reported usage; describeGoogle attaches it; /api/media settles a failed leg that reported usage (per-leg rates) and sums the failed first leg into a fallback run's settle; media-route.test.ts pins both paths
 
 ### MED-005 — Upload-failure cleanup deletes the DB row without attempting object removal, so an upload that committed server-side while the client saw an error leaves an invisible orphaned storage object cleaned only by account deletion; pending rows themselves never expire automatically
 
@@ -701,7 +701,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/media/pipeline.ts; storage-cost hygiene per affected user; quota meter undercounts actual stored bytes
 - **proposed_fix:** In storeAttachment's upload-failure catch, best-effort deps.removeObject(reserved.storagePath).catch(() => {}) before the row delete — a not-found result is already modeled ({ notFound: true }), so the normal failure case is a cheap no-op.
 - **verification:** npx vitest run tests/unit/media-pipeline.test.ts after adding a case: uploadObject throws, assert removeObject was called with the reserved path before deleteRow.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: storeAttachment best-effort removeObject before the row delete on upload failure; pinned by media-pipeline.test.ts
 
 ### MED-006 — /api/media validates intent with the 'in' operator, which accepts Object.prototype keys ('toString', 'constructor') and silently falls back to default analysis while echoing the bogus intent back to the client
 
@@ -710,7 +710,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/media/route.ts only; direct-API callers get an inconsistent response shape
 - **proposed_fix:** Replace the check with !Object.hasOwn(INTENTS, intent) (or Object.keys(INTENTS).includes(intent)).
 - **verification:** Unit test: POST body {intent:'toString'} returns 400 'Unknown analysis intent.'
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: Object.hasOwn intent validation; prototype keys 400 (media-route.test.ts)
 
 ### MED-007 — docs/runbooks/media.md still documents the audio generation spec as 'Tempo / Timbre / Mood / Duration' though tempo/timbre were removed as dead schema and audioSpec emits only Mood and Duration
 
@@ -728,7 +728,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/unit; regression risk concentrated on the one media path that spends money
 - **proposed_fix:** Add tests/unit/media-route.test.ts mocking createClient/describeImage/spend helpers: 401 unauthenticated; 400 bad JSON/missing dataUrl/unknown target/unknown intent; 413 oversized base64; releaseSpend called exactly once on provider throw; settleSpend called with mode 'extract' and the fallback target after a config-shaped first failure; fallbackFrom present only when redirected.
 - **verification:** npx vitest run tests/unit/media-route.test.ts green; coverage report shows src/app/api/media/route.ts exercised.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: tests/unit/media-route.test.ts covers auth gate, validation, reserve/settle/release ladder, estimated marking, failed-leg billing, fallback contract, and the pre-hold 503
 
 ### MED-009 — MAX_IMAGE_BYTES (5 MB decoded) is unreachable in production: Vercel's 4.5 MB serverless request-body limit rejects the JSON envelope first, making the effective decoded ceiling ~3.37 MB and the in-route 413 dead code on the shipped platform
 
@@ -737,7 +737,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/media/route.ts; only self-hosted deployments without a body cap ever hit the in-route guard
 - **proposed_fix:** Comment-only: note at MAX_IMAGE_BYTES that the guard is a backstop for non-Vercel hosts and that the platform body cap (4.5 MB) binds first in production. Optionally lower the constant to match reality.
 - **verification:** Comment change only — npm run lint && npm run typecheck stay green; no runtime path changes.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: MAX_IMAGE_BYTES documented as a non-Vercel backstop (platform 4.5 MB body cap binds first)
 
 ## Track LIB
 
@@ -772,7 +772,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** supabase/migrations (new trigger); prompt_versions writes; PromptDetail default-compare path
 - **proposed_fix:** Extend enforce-style trigger to prompt_versions: before insert, if new.parent_ver is not null require exists(select 1 from prompt_versions v where v.id = new.parent_ver and v.prompt_id = new.prompt_id) and new.parent_ver <> new.id; raise 'parent_not_of_prompt' otherwise.
 - **verification:** SQL test on a branch DB: insert a version with parent_ver from a different prompt and with parent_ver = its own supplied id — both must raise; library_add_version continues to succeed.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (migration 20260801200000, applied): enforce_version_parent trigger — parent_ver must be a version of the same prompt and never self
 
 ### LIB-003 — LibraryBrowser keeps stale accumulated pages and a stale keyset cursor across router.refresh(), producing duplicate rows and permanently skipped rows at page seams
 
@@ -781,7 +781,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/library/LibraryBrowser.tsx; /library route for any user who taps Load more then mutates a card (favorite, archive, delete, rename, move)
 - **proposed_fix:** Port DraftsList's pattern: derive the effective cursor from the prop until paged (undefined sentinel), and reset extraCards + pagedCursor before every router.refresh() triggered by a mutation; optionally dedupe cards by id at concat.
 - **verification:** Unit test mirroring tests/unit/drafts-list.test.tsx:362 for LibraryBrowser: load page 2, mock a favorite toggle + refreshed initialCards containing a page-2 card, assert no duplicate card ids and that the next Load more uses the refreshed boundary.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: LibraryBrowser ports the DraftsList pattern (pagedCursor sentinel, refreshAfterMutation funnel incl. CardActionsSheet via onMutated, id-dedupe at concat, refresh in its own transition); seam tests in library-card.test.tsx
 
 ### LIB-004 — Duplicate-save race survives the content-hash fix: check-then-insert with no DB uniqueness and no cross-tab flush mutex can mint two identical prompt cards
 
@@ -790,7 +790,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/actions.ts, src/components/pwa/OutboxFlusher.tsx, supabase/migrations (new); affects savePromptAction from TransformationDiff, GenerateSheet, and outbox replay
 - **proposed_fix:** Cross-tab mutual exclusion for the flush (navigator.locks.request('vizion-outbox-flush', ...) with fallback), plus re-check the content hash inside library_save_prompt under pg_advisory_xact_lock(hashtext(auth.uid()::text || p_content_hash)) and return the existing prompt id as a duplicate.
 - **verification:** Unit test: flushOutbox invoked twice concurrently over a shared fake store with a handler that records invocations — assert the item's handler runs once. DB: two concurrent library_save_prompt calls with the same hash leave exactly one prompt.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: cross-tab Web Lock on the outbox flush (ifAvailable skip) + server-side pg_advisory_xact_lock per (owner,hash) with an under-lock duplicate re-check in library_save_prompt that converges both racers on one card (migration 20260801200000, applied)
 
 ### LIB-005 — queryLibraryFacets derives model counts, tags, and collection counts from an UNORDERED .limit(1000) slice — beyond 1000 prompts the facet numbers come from an arbitrary subset
 
@@ -799,7 +799,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/queries.ts, src/lib/drafts/queries.ts; filter sheet and Move-to-collection counts for libraries >1000 prompts
 - **proposed_fix:** Add a deterministic .order (e.g. updated_at desc) so the slice is at least stable/most-recent, and document the cap; longer term move to a grouped-count RPC since PostgREST aggregates are disabled (PGRST123 per the comment at queries.ts:146-150).
 - **verification:** Unit test asserting the emitted builder chain includes an order() call before limit(1000).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: both facet queries order by updated_at desc before the 1000 cap — a stable most-recent slice
 
 ### LIB-006 — Delete semantics enforced only in the UI: hard delete is not restricted to archived prompts server-side, and soft-deleted prompts remain fully readable and mutable via the detail route
 
@@ -808,7 +808,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/actions.ts, src/app/(app)/library/[id]/page.tsx; owner-only data (no cross-tenant exposure)
 - **proposed_fix:** Add `.not("archived_at", "is", null)` to deletePromptAction's WHERE; decide whether soft-deleted prompts should 404 or render a 'in trash — restore?' state on the detail route, and gate addVersion/restore on deleted_at is null.
 - **verification:** Unit test: deletePromptAction against a non-archived id matches zero rows; detail route returns notFound (or trash state) for a deleted_at-set prompt.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: hard delete requires archived_at server-side; addVersion/restore gate on deleted_at null; the detail route 404s soft-deleted prompts (trash browsing lands with Q9 in W3)
 
 ### LIB-007 — Outbox poison items retry forever and are never surfaced: a queued save whose payload later fails validation (e.g. its target was removed from the roster) can never drain, and the user's 'Queued — syncs when online' promise is silently broken
 
@@ -817,7 +817,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/pwa/OutboxFlusher.tsx, src/lib/pwa/outbox.ts, src/components/media/GenerateSheet.tsx
 - **proposed_fix:** Distinguish permanent rejections (validation errors) from transient ones in the handler result: park permanently-failed items under a dead-letter kind and surface a one-time toast ('A queued save couldn't be synced — open to recover the text'); handle res.duplicate in GenerateSheet like TransformationDiff does.
 - **verification:** Unit test in the flushOutbox suite (tests/unit/security.test.ts pattern): a handler reporting 'permanent' removes/parks the item after one attempt instead of leaving it for the next flush.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: poison/failed outbox items park after MAX_OUTBOX_ATTEMPTS with a one-time toast; GenerateSheet treats res.duplicate as the existing card (links it) instead of an error
 
 ### LIB-008 — Coverage asymmetry: queryLibraryPage's PostgREST emission and LibraryBrowser's page-seam behavior are untested, while the drafts twins of both are
 
@@ -826,7 +826,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/unit/ (new files); guards the two S2 pagination/dedupe findings against regression
 - **proposed_fix:** Add library-queries.test.ts (fakeSupabase recorder asserting deleted_at/archived filters, cursor or() grammar per sort incl. quoted title, PAGE_SIZE+1 sentinel) and a LibraryBrowser seam test mirroring drafts-list.test.tsx:362.
 - **verification:** npx vitest run tests/unit/library-queries.test.ts tests/unit/library-browser.test.tsx green.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: library-queries.test.ts (filters, sentinel, escaping, error propagation) + LibraryBrowser seam tests
 
 ### LIB-009 — Deleting a collection silently reorders the library: ON DELETE SET NULL fires the prompts updated_at trigger, bumping every released prompt to the top of the Recent sort
 
@@ -835,7 +835,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** supabase trigger definition; /library Recent ordering after a collection delete
 - **proposed_fix:** Scope the trigger: `create trigger prompts_set_updated_at before update on public.prompts for each row when (old.* is distinct from new.*)` is insufficient; instead exclude the pure collection release, e.g. a column-list trigger (before update of title, tags, favorite, archived_at, deleted_at, current_ver, preview, current_mode) or have set_updated_at skip when only collection_id changed.
 - **verification:** Branch-DB test: delete a collection with member prompts and assert their updated_at is unchanged.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (migration 20260801200000, applied): prompts_set_updated_at is a column-list trigger excluding collection_id — collection release/assignment no longer counts as recency
 
 ### LIB-010 — content_hash excludes target_model, so identical input/output/mode saved for a DIFFERENT destination model is flagged as a duplicate and 'Save as new version' files it under the wrong target
 
@@ -844,7 +844,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/hash.ts (formula change would need a coordinated SQL backfill — MANUAL territory), or UI copy in TransformationDiff
 - **proposed_fix:** Ruling needed: either (a) include target in the hash (requires new migration + backfill and loosens dedupe), or (b) keep the hash but have the duplicate card state the existing prompt's target and offer 'Save separately for <target>'. Option (b) avoids touching the pinned byte-match contract.
 - **verification:** Unit test on the duplicate branch asserting the chosen behavior; if (a), re-pin the fixture in tests/unit/library-hash.test.ts against a live DB digest.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (ruling Q5=a): target joined the hash formula in hash.ts + SQL backfill (parent prompt's target_model for historical rows); fixture re-pinned against the live digest
 
 ## Track SW
 
@@ -869,7 +869,7 @@ still-open or partial carry-forwards.
 - **verification:** Unit test: inject an OutboxStore whose put rejects, assert enqueueOutbox resolves false; component test forcing savePromptAction to throw while navigator.onLine is true, assert the error state renders and the queued chip does not.
 - **adversarial verdict:** CONFIRMED — Read all three cited files at HEAD (a4072e6, clean tree): outbox.ts:123-140 enqueueOutbox returns Promise<void> and its catch swallows all store.put failures; TransformationDiff.tsx:200-215 calls setQueued(true) unconditionally in both the offline branch and an ungated catch, so online savePromptAction throws also render "Queued"; GenerateSheet.tsx:85-92 has the correctly onLine-gated pattern, proving the divergence. Prior audit SAFE-02 (evaluation.md lines 56-63, ledger.json) rated exactly this P0; commit ecbd838 touched both files but only for SAFE-01 userId scoping — the void signature and ungated catch are unchanged. Platform rulings PR-1..PR-7 (vibration, share, WebGPU, splash, guest auth, taxonomy) do not cover this. Failure path is real: a rejecting IDB put (Private Browsing/quota) is swallowed, the UI shows "Queued — syncs when online", and the prompt persists nowhere, contradicting the "local cache never the only copy" guardrail. S1 severity holds: silent user data loss behind a false success indicator, but no cross-account/security/monetary dimension.
 - **independently found by:** PRI ("Offline save status is still not truthful when the queue write itself fails: enqueueOutbox swallows IndexedDB "); PRI ("Offline queue status is still untruthful: enqueueOutbox swallows every IndexedDB failure and the save path rep")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: enqueueOutbox returns whether the write landed; both save surfaces claim Queued only on a landed write with a real owner, and online failures report errors (GenerateSheet's gated shape everywhere)
 
 ### SW-002 — enqueueOutbox is called with userId ?? '' — an item queued before the UI store hydrates the account id is stranded forever: never replayed, never removed, while the UI says 'Queued'
 
@@ -878,7 +878,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/diff/TransformationDiff.tsx, src/components/media/GenerateSheet.tsx; offline save on /enhance and media generate
 - **proposed_fix:** Refuse to enqueue without an owner: if userId is falsy, fall through to the error path instead of enqueueing with "" — or plumb the authoritative user.id down as a prop the way the layout already does for OutboxFlusher.
 - **verification:** Unit test: enqueue with userId "" into a fake store, run flushOutbox with any real id, assert flushed 0 / remaining 1 (reproduces the strand); after fix, assert enqueue is refused or the real id is stamped.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: enqueueOutbox refuses a falsy userId and callers route the refusal to the error path
 
 ### SW-003 — Stale comments in register-sw.ts and sw-src.js still describe the pre-CACHE-01 behavior (visited page HTML cached in vizion-shell), contradicting the NetworkOnly navigation route in the same file
 
@@ -923,7 +923,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/pwa/OutboxFlusher.tsx, src/lib/pwa/outbox.ts; server action load from authed clients
 - **proposed_fix:** Record an attempts counter (or firstFailedAt) on the item and after a bounded number of confirmed non-transient rejections stop auto-retrying and surface the stranded draft to the user instead of silently retrying — dropping queued user data is a product decision, hence approval required.
 - **verification:** Unit test: handler that always returns false; after N flushes assert the item transitions to a surfaced/parked state rather than being retried on flush N+1.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: attempts counter + MAX_OUTBOX_ATTEMPTS=3 parking with a one-time surfaced toast; parked items are kept, never retried (security.test.ts pins the ladder)
 
 ## Track SEC
 
@@ -1406,7 +1406,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/pwa/OutboxFlusher.tsx, src/lib/pwa/outbox.ts; offline save replay path on every app foreground
 - **proposed_fix:** Add a runtime shape guard for the save-prompt payload before the cast; the ruling needed is disposition of a malformed item — outbox.ts:41-45 explicitly holds that destroying unsaved work is the worse failure, so dropping poison items vs. keeping them (current behavior, infinite silent retry) is an owner decision.
 - **verification:** Unit test: enqueue an item with kind save-prompt and payload {} — flushOutbox must neither throw nor loop-retry per the chosen semantics; npx vitest run tests/unit/outbox.test.ts
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (ruling Q10=a): isSavePromptPayload runtime guard on replay; malformed payloads park as poison immediately (kept, surfaced, never retried)
 
 ### TYP-003 — SSE client asserts each parsed frame as the EnhanceStreamEvent union without shape validation
 

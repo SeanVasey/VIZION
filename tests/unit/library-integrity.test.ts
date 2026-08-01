@@ -141,14 +141,14 @@ describe("the outbox is scoped to an account", () => {
 
   it("replays only this account's items", () => {
     expect(OUTBOX).toMatch(/export async function flushOutbox\(\s*userId: string,/);
-    expect(OUTBOX).toMatch(/\.filter\(\(item\) => item\.userId === userId\)/);
+    expect(OUTBOX).toMatch(/\.filter\(\(item\) => item\.userId === userId && !item\.parked\)/);
   });
 
   it("treats a duplicate as drained", () => {
     // `res.ok` alone left an item that the server already had in the store
     // forever: every online/visibilitychange retried it, and it could never
     // succeed because the duplicate check was what rejected it.
-    expect(FLUSHER).toMatch(/return res\.ok \|\| Boolean\(res\.duplicate\)/);
+    expect(FLUSHER).toMatch(/if \(res\.ok \|\| res\.duplicate\) return "done";/);
   });
 
   it("is given the owner by the authenticated layout", () => {

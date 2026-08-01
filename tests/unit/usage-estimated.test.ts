@@ -41,6 +41,28 @@ describe("usage estimate marking (INV-04 cost truth)", () => {
     expect(result.tokenOut).toBeGreaterThan(0);
   });
 
+  it("adds the provider's reasoning floor to the fallback estimate (PRV-003)", async () => {
+    feed(
+      { text: '{"output":"done","rationale":"why"}' },
+      { estReasoningTokens: 1000 },
+    );
+    const result = await drainDone();
+    expect(result.usageEstimated).toBe(true);
+    // ceil(raw/4) is ~9 tokens here — the floor must dominate.
+    expect(result.tokenOut).toBeGreaterThanOrEqual(1000);
+  });
+
+  it("ignores the reasoning floor when real usage arrives", async () => {
+    feed(
+      { text: '{"output":"done","rationale":"why"}' },
+      { estReasoningTokens: 1000 },
+      { usage: { tokenIn: 12, tokenOut: 9 } },
+    );
+    const result = await drainDone();
+    expect(result.tokenOut).toBe(9);
+    expect(result.usageEstimated).toBeUndefined();
+  });
+
   it("never marks provider-reported usage", async () => {
     feed(
       { text: '{"output":"done","rationale":"why"}' },

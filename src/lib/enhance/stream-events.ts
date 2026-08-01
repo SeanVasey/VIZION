@@ -27,7 +27,9 @@ export type StreamStep = keyof typeof STREAM_STEPS;
 export interface EnhanceResult {
   output: string;
   rationale: string;
-  diff: DiffSegment[];
+  /** Null when the pair exceeded DIFF_TOKEN_BUDGET (the server refuses the
+   *  unbounded O(n·m) LCS) — the client shows plain text + a note. */
+  diff: DiffSegment[] | null;
   tokenIn: number;
   tokenOut: number;
   modelUsed: string;
@@ -56,7 +58,9 @@ export interface EnhanceResult {
 
 export type EnhanceStreamEvent =
   | { type: "status"; step: StreamStep; label: string }
-  /** Provider-surfaced thinking/progress text; overrides the step label. */
+  /** Provider-surfaced thinking/progress text; overrides the step label.
+   *  RESERVED (PRV-006): no server path emits this yet — the client handler
+   *  exists so a future adapter can light it up without a client release. */
   | { type: "thinking"; text: string }
   /** Decoded characters of the output field, in order. */
   | { type: "delta"; text: string }

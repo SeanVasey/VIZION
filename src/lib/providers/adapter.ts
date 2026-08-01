@@ -126,6 +126,9 @@ export async function* enhanceStream({
   let stopReason: string | undefined;
   let tokenIn = 0;
   let tokenOut = 0;
+  // Billed-but-invisible reasoning tokens (PRV-003) — only ever consulted by
+  // the no-usage fallback below; provider-reported usage is authoritative.
+  let reasoningFloor = 0;
 
   for await (const chunk of streams[cfg.provider](system, input, cfg.model, {
     thinkingLevel,
@@ -143,6 +146,7 @@ export async function* enhanceStream({
       yield { type: "usage", tokenIn, tokenOut };
     }
     if (chunk.stopReason) stopReason = chunk.stopReason;
+    if (chunk.estReasoningTokens) reasoningFloor += chunk.estReasoningTokens;
   }
 
   // A provider that never reported usage (defensive) still must count against
@@ -154,7 +158,7 @@ export async function* enhanceStream({
     usageEstimated = true;
   }
   if (tokenOut === 0 && raw.length > 0) {
-    tokenOut = Math.ceil(raw.length / 4);
+    tokenOut = Math.ceil(raw.length / 4) + reasoningFloor;
     usageEstimated = true;
   }
 

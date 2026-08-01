@@ -1,4 +1,4 @@
-import type { MediaAttributes, MediaKind } from "@/lib/media/types";
+import { MEDIA_ALLOWED_MIME, type MediaAttributes, type MediaKind } from "@/lib/media/types";
 
 /**
  * On-device extraction (the "fast, private, limited" fallback per the locked
@@ -31,11 +31,15 @@ export function quantizePalette(data: Uint8ClampedArray, maxColors = 5): string[
     .map(([hex]) => hex);
 }
 
-/** Map a MIME type to our media kind. */
+/** Map a MIME type to our media kind — allowlist-exact, not prefix-based:
+ *  the bucket accepts eleven types, and a wildcard admit here let HEIC/3gpp/
+ *  x-m4a reserve quota and then fail at upload with a raw storage error
+ *  (MED-003). */
 export function kindForMime(mime: string): MediaKind | null {
-  if (mime.startsWith("image/")) return "image";
-  if (mime.startsWith("video/")) return "video";
-  if (mime.startsWith("audio/")) return "audio";
+  const normalized = mime.toLowerCase();
+  for (const kind of ["image", "video", "audio"] as const) {
+    if (MEDIA_ALLOWED_MIME[kind].includes(normalized)) return kind;
+  }
   return null;
 }
 

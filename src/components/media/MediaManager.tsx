@@ -105,6 +105,7 @@ export function MediaManager({ onChanged }: { onChanged?: () => void }) {
           throw new Error("unused");
         },
         uploadObject: async () => {},
+        commit: async () => {},
         setStatus: async () => {},
         deleteRow: async (id) => {
           const { error } = await supabase.from("media_assets").delete().eq("id", id);

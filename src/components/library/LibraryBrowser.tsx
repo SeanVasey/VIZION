@@ -78,12 +78,36 @@ export function LibraryBrowser({
   const [searchDraft, setSearchDraft] = useState(filter.q ?? "");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [extraCards, setExtraCards] = useState<PromptCard[]>([]);
-  const [cursor, setCursor] = useState<string | null>(nextCursor);
+  /** The keyset cursor, but ONLY once we have paged past the server's first
+   *  page. `undefined` = not paged yet — use the `nextCursor` prop, the
+   *  boundary of whatever page 1 the server most recently rendered. Holding
+   *  the prop in `useState` was the DraftsList bug replayed here (LIB-003):
+   *  state never re-initialises on `router.refresh()`, so a mutation that
+   *  displaced a row onto page 2 left a stale boundary that skipped it
+   *  forever. `null` is a real answer: paged, and there is no next page. */
+  const [pagedCursor, setPagedCursor] = useState<string | null | undefined>(undefined);
+  const cursor = pagedCursor === undefined ? nextCursor : pagedCursor;
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingMore, startLoadMore] = useTransition();
+  /** Owns router.refresh() so `cursor` cannot fall back to a stale prop while
+   *  the refreshed page 1 is still in flight — see DraftsList for the full
+   *  account of why the refresh needs its own synchronous transition. */
+  const [refreshing, startRefresh] = useTransition();
   const [menuFor, setMenuFor] = useState<PromptCard | null>(null);
 
-  const cards = [...initialCards, ...extraCards];
+  /** Every mutation funnels here: drop the accumulated pages and the paged
+   *  cursor BEFORE re-rendering page 1, so refreshed rows can't duplicate
+   *  stale copies and the next Load more pages from the current boundary. */
+  function refreshAfterMutation() {
+    setExtraCards([]);
+    setPagedCursor(undefined);
+    startRefresh(() => router.refresh());
+  }
+
+  // Belt to the reset's braces: never render the same card twice even if a
+  // refreshed page 1 overlaps a just-loaded extra page.
+  const seenIds = new Set(initialCards.map((c) => c.id));
+  const cards = [...initialCards, ...extraCards.filter((c) => !seenIds.has(c.id))];
   const activeFilters = countActiveFilters(filter);
   const isDefaultView = activeFilters === 0 && !filter.q;
   const collectionNames = new Map(facets.collections.map((c) => [c.id, c.name]));
@@ -100,13 +124,13 @@ export function LibraryBrowser({
         setLoadError(res.error ?? "Couldn't delete.");
         return;
       }
-      router.refresh();
+      refreshAfterMutation();
       toast({
         text: "Prompt deleted",
         action: {
           label: "Undo",
           onAction: () => {
-            void undoDeletePromptAction(p.id).then(() => router.refresh());
+            void undoDeletePromptAction(p.id).then(() => refreshAfterMutation());
           },
         },
       });
@@ -117,7 +141,7 @@ export function LibraryBrowser({
   function swipeFavorite(p: PromptCard) {
     void setFavoriteAction(p.id, !p.favorite).then((res) => {
       if (!res.ok) setLoadError(res.error ?? "Couldn't update favorites.");
-      else router.refresh();
+      else refreshAfterMutation();
     });
   }
 
@@ -138,7 +162,7 @@ export function LibraryBrowser({
       const res = await fetchLibraryPageAction(raw, current);
       if (res.ok && res.cards) {
         setExtraCards((prev) => [...prev, ...res.cards!]);
-        setCursor(res.nextCursor ?? null);
+        setPagedCursor(res.nextCursor ?? null);
       } else {
         setLoadError(res.error ?? "Couldn't load more.");
       }
@@ -259,7 +283,7 @@ export function LibraryBrowser({
         <button
           type="button"
           onClick={loadMore}
-          disabled={loadingMore}
+          disabled={loadingMore || refreshing}
           className="glass font-body min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
         >
           {loadingMore ? "Loading more…" : "Load more"}
@@ -282,6 +306,7 @@ export function LibraryBrowser({
           prompt={menuFor}
           collections={facets.collections}
           onClose={() => setMenuFor(null)}
+          onMutated={refreshAfterMutation}
         />
       )}
     </section>
@@ -294,12 +319,15 @@ function CardActionsSheet({
   prompt,
   collections,
   onClose,
+  onMutated,
 }: {
   prompt: PromptCard;
   collections: LibraryFacets["collections"];
   onClose: () => void;
+  /** Notify the browser a write landed — it resets pagination + refreshes
+   *  (LIB-003); the sheet must never call router.refresh() itself. */
+  onMutated: () => void;
 }) {
-  const router = useRouter();
   const { toast } = useToast();
   const [title, setTitle] = useState(prompt.title);
   const [error, setError] = useState<string | null>(null);
@@ -315,7 +343,7 @@ function CardActionsSheet({
         setError(res.error ?? "That didn't stick — try again.");
         return;
       }
-      router.refresh();
+      onMutated();
       if (close) onClose();
     });
   }
@@ -329,14 +357,14 @@ function CardActionsSheet({
         setError(res.error ?? "Couldn't delete.");
         return;
       }
-      router.refresh();
+      onMutated();
       onClose();
       toast({
         text: "Prompt deleted",
         action: {
           label: "Undo",
           onAction: () => {
-            void undoDeletePromptAction(id).then(() => router.refresh());
+            void undoDeletePromptAction(id).then(() => onMutated());
           },
         },
       });

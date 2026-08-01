@@ -154,6 +154,10 @@ export async function queryLibraryFacets(supabase: Supabase): Promise<LibraryFac
       .from("prompts")
       .select("target_model, tags, collection_id")
       .is("deleted_at", null)
+      // Deterministic slice (LIB-005): without an order, WHICH 1000 rows feed
+      // the counts is unspecified and shifts between requests — most-recent
+      // is at least stable and matches what the user sees first.
+      .order("updated_at", { ascending: false })
       .limit(1000),
     supabase.from("collections").select("id, name").order("name"),
   ]);

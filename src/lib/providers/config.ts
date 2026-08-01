@@ -74,11 +74,13 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
   },
   deepseek_v4: {
     provider: "deepseek",
-    // `deepseek-chat` tracks the current flagship (V4 as of 2026-07); pin an
-    // exact string via env if drift ever matters.
-    model: process.env.MODEL_DEEPSEEK ?? "deepseek-chat",
-    priceIn: numEnv("PRICE_DEEPSEEK_IN", 0.45),
-    priceOut: numEnv("PRICE_DEEPSEEK_OUT", 0.9),
+    // Pinned to the exact flagship id (PRV-007 — the floating `deepseek-chat`
+    // alias let an upstream swap silently change behavior and invalidate this
+    // price row). Id + rates from api-docs.deepseek.com, 2026-08-01; input
+    // rate is the cache-miss figure (the conservative one for the cap).
+    model: process.env.MODEL_DEEPSEEK ?? "deepseek-v4-pro",
+    priceIn: numEnv("PRICE_DEEPSEEK_IN", 0.435),
+    priceOut: numEnv("PRICE_DEEPSEEK_OUT", 0.87),
   },
   gemini_3_6_flash: {
     provider: "google",
@@ -108,8 +110,12 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
   },
   mistral_large_3: {
     provider: "mistral",
-    // `mistral-large-latest` tracks the current Large release (Large 3 as of
-    // 2025-12); pin an exact string via env if drift ever matters.
+    // STILL FLOATING (PRV-007, deliberate): Mistral publishes no exact wire
+    // string for the current Large 3 (v25.12) — only deprecated versions show
+    // the dated pattern (mistral-large-2411/-2407), and pinning an INFERRED
+    // "mistral-large-2512" risks 404ing every call (the invented-model-string
+    // incident class). Pin via MODEL_MISTRAL the day Mistral publishes the id;
+    // procedure in docs/runbooks/providers.md.
     model: process.env.MODEL_MISTRAL ?? "mistral-large-latest",
     priceIn: numEnv("PRICE_MISTRAL_IN", 2),
     priceOut: numEnv("PRICE_MISTRAL_OUT", 6),
@@ -130,9 +136,10 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
   },
   qwen3_7_max: {
     provider: "qwen",
-    // `qwen-max` tracks the current Max release (Qwen3.7 Max as of 2026-07);
-    // pin an exact snapshot via env if drift ever matters.
-    model: process.env.MODEL_QWEN ?? "qwen-max",
+    // Pinned to the exact release id (PRV-007) — Model Studio lists
+    // `qwen3.7-max` verbatim (alibabacloud.com/help/en/model-studio/models,
+    // 2026-08-01), so the roster label and the wire string finally agree.
+    model: process.env.MODEL_QWEN ?? "qwen3.7-max",
     priceIn: numEnv("PRICE_QWEN_IN", 1.25),
     priceOut: numEnv("PRICE_QWEN_OUT", 3.75),
   },
@@ -170,6 +177,17 @@ export function computeCost(
   // Round to 6 dp to match the numeric(10,6) column.
   return Math.round(cost * 1_000_000) / 1_000_000;
 }
+
+/**
+ * Uniform provider connection policy (PRV-002). Both model routes declare
+ * maxDuration=60; a provider connection that hangs past that is killed by the
+ * platform, which skips the finally-block that settles/releases the spend
+ * hold. Every adapter therefore bounds its own request UNDER the window:
+ * 55s per attempt, zero SDK retries — an invisible retry both risks running
+ * past the window and can double-bill upstream without a ledger row.
+ */
+export const PROVIDER_TIMEOUT_MS = 55_000;
+export const PROVIDER_MAX_RETRIES = 0;
 
 /** Per-user limits (env-overridable). Enforced on every model route. */
 export const RATE_LIMIT_PER_MIN = numEnv("RATE_LIMIT_PER_MIN", 20);

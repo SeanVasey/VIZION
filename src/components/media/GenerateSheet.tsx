@@ -74,18 +74,33 @@ export function GenerateSheet({
       tokenOut: 0,
     };
     startSave(async () => {
+      // Queue claims are gated on the write landing under a real owner
+      // (SW-001/SW-002) — see TransformationDiff for the incident shape.
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await enqueueOutbox(userId ?? "", "save-prompt", payload);
-        setSaveQueued(true);
+        if (userId && (await enqueueOutbox(userId, "save-prompt", payload))) {
+          setSaveQueued(true);
+        } else {
+          setSaveError(
+            "Couldn't queue this save on this device — copy the prompt before leaving.",
+          );
+        }
         return;
       }
       try {
         const res = await savePromptAction(payload);
         if (res.ok && res.promptId) setSavedId(res.promptId);
-        else setSaveError(res.error ?? "Couldn't save to the library.");
+        else if (res.duplicate) {
+          // This exact content is already in the library (LIB-007): link the
+          // existing card instead of reporting a failure over a success state.
+          setSavedId(res.duplicate.promptId);
+        } else setSaveError(res.error ?? "Couldn't save to the library.");
       } catch {
-        if (typeof navigator !== "undefined" && navigator.onLine === false) {
-          await enqueueOutbox(userId ?? "", "save-prompt", payload);
+        if (
+          typeof navigator !== "undefined" &&
+          navigator.onLine === false &&
+          userId &&
+          (await enqueueOutbox(userId, "save-prompt", payload))
+        ) {
           setSaveQueued(true);
         } else {
           setSaveError("Couldn't save to the library — try again.");

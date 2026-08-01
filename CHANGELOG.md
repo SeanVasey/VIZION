@@ -6,6 +6,104 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — audit Stage 2, Wave 2: correctness across the model, media, library, and offline paths
+
+Wave 2 clears the S1/S2 correctness findings (tracks MOD/PRV/MED/LIB/SW plus
+`PRI-001`) and lands rulings Q3–Q5 and Q10. One migration
+(`20260801200000_library_media_correctness.sql`, **applied to the hosted
+project**) carries the server-side halves.
+
+Model path:
+
+- **PRI-001.** `/api/enhance` diffs through `boundedDiffWords` — the unbounded
+  O(n·m) LCS on a 20k-char input × 64k-token output was ~10⁹ table cells,
+  enough to OOM the invocation mid-stream and skip the spend settle. Over
+  budget ⇒ `diff: null`; the result view shows plain text with a "too long to
+  diff" note and hides Compare.
+- **MOD-001.** "Make shorter"/"More detail" refine instructions now carry an
+  explicit supersedence clause, and the shape-preserving `OUTPUT SHAPE`
+  rule cedes its *length* clause to those passes — the default-mode refine no
+  longer composes a prompt whose last CRITICAL rule countermands the clicked
+  action.
+- **Q4 (MOD-003).** A run's format/length knobs are snapshotted with the
+  submission and re-sent on every refine and answered pass — an explicitly
+  chosen shape no longer silently regains "whichever fits" latitude.
+- **MOD-004.** `check:db-enum` probes the hosted `enhance_mode` enum for
+  `polish` — the committed-but-unapplied drift class the script exists for.
+- **MOD-006/MOD-007.** The abort-path token estimate includes the system
+  prompt + fenced context; the envelope scanner's seek tail survives
+  whitespace-padded keys split across chunks.
+- **PRV-001.** Auto no longer 400s a valid composer state: an out-of-ladder
+  thinking level on an auto-routed request is advisory and dropped.
+- **PRV-002.** One provider connection policy: 55s timeout / 0 retries on
+  every SDK client and both raw Gemini fetches — a hung provider can no
+  longer outlive `maxDuration` and strand the spend hold, and no invisible
+  retry can double-bill upstream.
+- **PRV-003.** Billed-but-invisible reasoning (stripped `<think>` spans,
+  `reasoning_content` deltas) now reaches the no-usage fallback estimate as
+  a floor — the daily cap stops undercounting exactly the runs that think
+  hardest.
+- **PRV-005/006/009.** Anthropic errors say "Anthropic" (not "Opus") for all
+  three targets; the never-emitted `thinking` SSE event is documented
+  reserved; OpenAI's completion ceiling doubles at high reasoning effort.
+- **PRV-007.** DeepSeek and Qwen pinned to exact published ids
+  (`deepseek-v4-pro` at the published $0.435/$0.87 rates, `qwen3.7-max`);
+  `mistral-large-latest` deliberately still floats — Mistral publishes no
+  exact id, and inventing one 404s every call. Pin levers + the provisional
+  price rows (`PRV-008`) documented in `docs/runbooks/providers.md`.
+  **Check the deployed `PRICE_DEEPSEEK_*` overrides** — a price change is a
+  cost-cap change.
+
+Media path:
+
+- **MED-001.** The storage INSERT policy now requires a matching *pending*
+  reservation, and the ready-flip is a new `media_commit` RPC that corrects
+  `size_bytes` from the uploaded object's real storage metadata — the
+  50 MB quota can no longer be bypassed by direct uploads or 1-byte
+  declarations.
+- **Q3 (MED-002).** The bucket limit is 50 MB, matching every promise the
+  product makes (it was 25 MB, so every 25–50 MB upload died post-reservation
+  with a raw storage error).
+- **MED-003.** The client admits exactly the bucket's 11 MIME types
+  (`MEDIA_ALLOWED_MIME`) — nothing reserves quota and then dies at the
+  bucket; the explicit `accept` list also makes iOS transcode HEIC at the
+  picker.
+- **MED-004.** Failed vision calls that *reported* usage are settled, not
+  released (per-leg rates; the failed first leg of a fallback run is summed
+  in) — "failed calls are free" was how a flaky provider spent invisibly.
+- **MED-005/006/009.** Upload-failure cleanup best-effort-removes the
+  storage object before deleting the row; intent validation uses
+  `Object.hasOwn`; `MAX_IMAGE_BYTES` documented as a non-Vercel backstop.
+  The route finally has handler tests (`media-route.test.ts`, MED-008).
+
+Library:
+
+- **LIB-002.** `parent_ver` is trigger-guarded: same prompt only, never self.
+- **LIB-003.** LibraryBrowser ports the DraftsList page-seam fix: mutations
+  reset accumulated pages + the keyset cursor before refreshing, and cards
+  dedupe by id — no more duplicated/permanently-skipped rows at page seams.
+- **LIB-004.** The duplicate-save race is closed from both sides: a cross-tab
+  Web Lock serializes outbox flushes, and `library_save_prompt` re-checks the
+  content hash under a per-(owner, hash) advisory lock, converging concurrent
+  identical saves on one card.
+- **Q5 (LIB-010).** The duplicate-detection hash includes the target — the
+  same content saved for a different destination model is a distinct prompt.
+  SQL backfill included; the live-DB fixture is re-pinned.
+- **LIB-005/006/009.** Facet queries use a stable most-recent slice; hard
+  delete requires `archived_at` server-side, trash prompts refuse new
+  versions/restores and 404 on the detail route; deleting a collection no
+  longer bumps every released prompt to the top of Recent.
+
+Offline outbox (SW-001/002/007, Q10):
+
+- "Queued — syncs when online" is now the truth: the queue write's success is
+  checked, a missing owner refuses to enqueue, and online server failures
+  report errors instead of promising a sync.
+- Replayed payloads are shape-validated; poison items park immediately,
+  server-rejected items park after 3 confirmed attempts — parked items are
+  kept (never deleted) and surfaced once via toast instead of retrying on
+  every foreground event forever.
+
 ### Fixed — audit Stage 2, Wave 1: the five invariant violations (PR #72 gate, `GO` received)
 
 The 2026-08-01 audit capstone (`docs/audit/`) found no S0 and five invariant

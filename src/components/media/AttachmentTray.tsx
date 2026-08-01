@@ -9,6 +9,7 @@ import { admitFiles, itemStepLabel, patchItem, type MediaItem } from "@/lib/medi
 import {
   DEFAULT_GEN_TARGET,
   DEFAULT_ROLE,
+  MEDIA_ACCEPT,
   ROLE_META,
   rolesForKind,
   type AttachmentRole,
@@ -98,6 +99,12 @@ function supabaseDeps(supabase: ReturnType<typeof createClient>): MediaStoreDeps
       const { error } = await supabase.storage
         .from("media")
         .upload(path, blob, { contentType, upsert: false });
+      if (error) throw new Error(error.message);
+    },
+    commit: async (id) => {
+      // The RPC measures the uploaded object and corrects size_bytes — the
+      // ready-flip and the quota reconciliation are one atomic step.
+      const { error } = await supabase.rpc("media_commit", { p_id: id });
       if (error) throw new Error(error.message);
     },
     setStatus: async (id, status) => {
@@ -615,7 +622,7 @@ export function AttachmentTray({
       <input
         ref={fileInput}
         type="file"
-        accept="image/*,video/*,audio/*"
+        accept={MEDIA_ACCEPT}
         multiple
         className="hidden"
         onChange={(e) => {

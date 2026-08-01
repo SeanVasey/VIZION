@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { rateLimit } from "@/lib/security/rate-limit";
-import { flushOutbox, type OutboxItem, type OutboxStore } from "@/lib/pwa/outbox";
+import { MAX_OUTBOX_ATTEMPTS, flushOutbox, type OutboxItem, type OutboxStore } from "@/lib/pwa/outbox";
 
 describe("rateLimit", () => {
   it("allows up to the limit, then blocks within the window", () => {
@@ -31,8 +31,10 @@ function fakeStore(initial: OutboxItem[] = []): OutboxStore {
   let items = [...initial];
   return {
     all: async () => [...items],
+    // Upsert by id — IndexedDB `put` semantics (keyPath "id"). An appending
+    // fake would double items the flush re-puts with an attempts counter.
     put: async (item) => {
-      items.push(item);
+      items = [...items.filter((i) => i.id !== item.id), item];
     },
     remove: async (id) => {
       items = items.filter((i) => i.id !== id);
@@ -54,7 +56,7 @@ describe("flushOutbox", () => {
       {
         save: async (p: unknown) => {
           order.push(p as string);
-          return true;
+          return "done" as const;
         },
       },
       store,
@@ -64,13 +66,79 @@ describe("flushOutbox", () => {
     expect(res.remaining).toBe(0);
   });
 
-  it("keeps an item whose handler returns false (still offline)", async () => {
+  it("keeps an item whose handler reports transient (still offline)", async () => {
     const store = fakeStore([
       { id: "1", kind: "save", payload: "x", createdAt: 1, userId: OWNER },
     ]);
-    const res = await flushOutbox(OWNER, { save: async () => false }, store);
+    const res = await flushOutbox(
+      OWNER,
+      { save: async () => "transient" as const },
+      store,
+    );
     expect(res.flushed).toBe(0);
     expect(res.remaining).toBe(1);
+    expect(res.parked).toBe(0);
+  });
+
+  it("parks an item after MAX_OUTBOX_ATTEMPTS confirmed rejections (SW-007)", async () => {
+    // A payload the server keeps rejecting must not fire one server action per
+    // foreground event for the life of the origin storage. Three confirmed
+    // rejections park it: kept (never deleted), skipped by later flushes,
+    // surfaced once via the parked count.
+    let calls = 0;
+    const store = fakeStore([
+      { id: "1", kind: "save", payload: "poison-ish", createdAt: 1, userId: OWNER },
+    ]);
+    const handlers = {
+      save: async () => {
+        calls += 1;
+        return "failed" as const;
+      },
+    };
+    const first = await flushOutbox(OWNER, handlers, store);
+    const second = await flushOutbox(OWNER, handlers, store);
+    const third = await flushOutbox(OWNER, handlers, store);
+    expect(calls).toBe(MAX_OUTBOX_ATTEMPTS);
+    expect(first.parked + second.parked + third.parked).toBe(1);
+    // Parked, not deleted — and never retried again.
+    const fourth = await flushOutbox(OWNER, handlers, store);
+    expect(calls).toBe(MAX_OUTBOX_ATTEMPTS);
+    expect(fourth.parked).toBe(0);
+    expect(fourth.remaining).toBe(1);
+  });
+
+  it("parks a poison item immediately without retrying (Q10)", async () => {
+    // A malformed persisted payload (an older build's shape) can never
+    // succeed on any flush — retrying it is pure waste.
+    let calls = 0;
+    const store = fakeStore([
+      { id: "1", kind: "save", payload: {}, createdAt: 1, userId: OWNER },
+    ]);
+    const res = await flushOutbox(
+      OWNER,
+      {
+        save: async () => {
+          calls += 1;
+          return "poison" as const;
+        },
+      },
+      store,
+    );
+    expect(calls).toBe(1);
+    expect(res.parked).toBe(1);
+    expect(res.remaining).toBe(1);
+    const again = await flushOutbox(
+      OWNER,
+      {
+        save: async () => {
+          calls += 1;
+          return "poison" as const;
+        },
+      },
+      store,
+    );
+    expect(calls).toBe(1); // parked items are never re-attempted
+    expect(again.parked).toBe(0);
   });
 
   it("keeps an item whose handler throws", async () => {
@@ -93,7 +161,11 @@ describe("flushOutbox", () => {
     const store = fakeStore([
       { id: "1", kind: "other", payload: "x", createdAt: 1, userId: OWNER },
     ]);
-    const res = await flushOutbox(OWNER, { save: async () => true }, store);
+    const res = await flushOutbox(
+      OWNER,
+      { save: async () => "done" as const },
+      store,
+    );
     expect(res.remaining).toBe(1);
   });
 
@@ -112,7 +184,7 @@ describe("flushOutbox", () => {
       {
         save: async (p: unknown) => {
           handled.push(p as string);
-          return true;
+          return "done" as const;
         },
       },
       store,
@@ -134,7 +206,7 @@ describe("flushOutbox", () => {
       {
         save: async (p: unknown) => {
           handled.push(p as string);
-          return true;
+          return "done" as const;
         },
       },
       store,

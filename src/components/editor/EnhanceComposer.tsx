@@ -24,8 +24,8 @@ import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
 import { SparkMark, WarningMark } from "@/components/ui/glyphs";
 import { useDraftParam } from "@/components/editor/use-draft-param";
-import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
-import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
+import { FORMATS, FORMAT_LABEL, type FormatId } from "@/lib/enhance/formats";
+import { LENGTHS, lengthOptions, type LengthId } from "@/lib/enhance/lengths";
 
 /** Frozen option list for the format rail — built once, not per render. */
 const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
@@ -103,7 +103,16 @@ export function EnhanceComposer() {
   // what makes Clear undoable: mutation.reset() wipes the mutation, not the
   // snapshot we can restore.
   const [view, setView] = useState<{
-    submitted: { input: string; mode: ModeId; target: TargetModelId };
+    submitted: {
+      input: string;
+      mode: ModeId;
+      target: TargetModelId;
+      /** The run's knob snapshot (Q4 ruling): refines re-send these so an
+       *  explicitly chosen shape/depth survives the pass instead of silently
+       *  regaining the "whichever fits" latitude. */
+      format?: FormatId;
+      length?: LengthId;
+    };
     result: EnhanceResponse;
     /** True once a refinement pass replaced the result — the diff's input
      *  side is then the previous result, not the author's original. */
@@ -153,7 +162,15 @@ export function EnhanceComposer() {
   function runEnhance() {
     const input = editorDraft.trim();
     if (!input) return;
-    const submitted = { input, mode: activeMode, target: targetModel };
+    const submitted = {
+      input,
+      mode: activeMode,
+      target: targetModel,
+      ...(activeMode === "reformat" && reformatFormat
+        ? { format: reformatFormat }
+        : {}),
+      ...(activeLength ? { length: activeLength } : {}),
+    };
     setView(null);
     enhanceMutation.mutate(
       {
@@ -243,6 +260,11 @@ export function EnhanceComposer() {
         input: currentOutput,
         mode: v.submitted.mode,
         target: refineTarget,
+        // The run's knob snapshot carries through (Q4): a chosen shape or
+        // depth was an explicit withdrawal of latitude — the refine keeps it,
+        // and the refine instruction supersedes it only where they conflict.
+        ...(v.submitted.format ? { format: v.submitted.format } : {}),
+        ...(v.submitted.length ? { length: v.submitted.length } : {}),
         ...(level ? { thinkingLevel: level } : {}),
         // Tone needs the author's ORIGINAL voice as reference material.
         refine: kind === "tone" ? { kind, baseInput: v.submitted.input } : { kind },
@@ -272,6 +294,8 @@ export function EnhanceComposer() {
       {
         input: v.submitted.input,
         mode: v.submitted.mode,
+        ...(v.submitted.format ? { format: v.submitted.format } : {}),
+        ...(v.submitted.length ? { length: v.submitted.length } : {}),
         target: answeredTarget,
         ...(level ? { thinkingLevel: level } : {}),
         refine: { kind: "answers", baseInput: block },

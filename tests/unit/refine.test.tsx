@@ -96,6 +96,30 @@ describe("refinement chips (composer wiring)", () => {
     expect(req.refine).toEqual({ kind: "tone", baseInput: "my original words" });
   });
 
+  it("carries the run's format knob through a refine (Q4 — a chosen shape persists)", () => {
+    useUIStore.setState({
+      editorDraft: "",
+      activeMode: "reformat",
+      targetModel: "opus_5",
+      reformatFormat: "xml",
+    });
+    render(
+      <ToastProvider>
+        <EnhanceComposer />
+      </ToastProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Prompt input"), {
+      target: { value: "my original words" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /enhance/i }));
+    const [first] = mockMutation.mutate.mock.calls[0]!;
+    expect(first).toMatchObject({ mode: "reformat", format: "xml" });
+    fireEvent.click(screen.getByRole("button", { name: "More detail" }));
+    const [refine] = mockMutation.mutate.mock.calls[1]!;
+    // The SUBMITTED run's knob rides the refine — not the live rail state.
+    expect(refine).toMatchObject({ format: "xml", refine: { kind: "detail" } });
+  });
+
   it("a refined result keeps the ORIGINAL submitted input for the save payload", () => {
     runEnhanceFirst();
     fireEvent.click(screen.getByRole("button", { name: "More detail" }));

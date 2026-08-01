@@ -56,6 +56,38 @@ function readRosterIds() {
 const MISSING_ENUM_RE = /invalid input value for enum model_target/i;
 
 /**
+ * Enum VALUES beyond model_target that the app writes — the polish migration's
+ * own header declares itself deploy-blocking, and a committed-but-unapplied
+ * `enhance_mode` value is exactly the incident class this script exists for
+ * (MOD-004): every Polish save and its usage-ledger settle 22P02s while all
+ * five local gates stay green. Probed with the same read-only cast trick
+ * through a column typed with the enum.
+ */
+const ENUM_VALUE_PROBES = [
+  {
+    enumName: "enhance_mode",
+    value: "polish",
+    table: "prompts",
+    column: "current_mode",
+    migration: "20260701200716_add_polish_enhance_mode.sql",
+  },
+];
+
+/** `present` | `missing` | `{ error }` for one enum value via a typed column. */
+async function probeEnumValue(baseUrl, key, { enumName, value, table, column }) {
+  const url = `${baseUrl}/rest/v1/${table}?select=id&limit=0&${column}=eq.${encodeURIComponent(value)}`;
+  const res = await fetch(url, {
+    headers: { apikey: key, authorization: `Bearer ${key}` },
+  });
+  if (res.ok) return "present";
+  const body = await res.text();
+  if (new RegExp(`invalid input value for enum ${enumName}`, "i").test(body)) {
+    return "missing";
+  }
+  return { error: `HTTP ${res.status}: ${body.slice(0, 300)}` };
+}
+
+/**
  * Columns the app's queries select that arrived via later migrations — the
  * same committed-but-unapplied drift class as the enum, probed the same
  * read-only way (`?select=<col>&limit=0` → 200 present / 400 42703 missing).
@@ -220,6 +252,22 @@ async function main() {
       );
     } else {
       console.error(`✗ column probe for '${cp.table}' failed: ${outcome.error}`);
+      process.exit(1);
+    }
+  }
+  for (const ep of ENUM_VALUE_PROBES) {
+    const outcome = await probeEnumValue(baseUrl, key, ep);
+    if (outcome === "present") {
+      console.log(`✓ hosted '${ep.enumName}' enum knows '${ep.value}'.`);
+    } else if (outcome === "missing") {
+      drifted = true;
+      console.error(
+        `✗ SCHEMA DRIFT — hosted '${ep.enumName}' enum is missing '${ep.value}'.\n` +
+          `  Every ${ep.value} save and its usage-ledger settle fails with 22P02.\n` +
+          `  Fix: apply supabase/migrations/${ep.migration}.`,
+      );
+    } else {
+      console.error(`✗ enum probe for '${ep.enumName}' failed: ${outcome.error}`);
       process.exit(1);
     }
   }

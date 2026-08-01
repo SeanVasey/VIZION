@@ -80,11 +80,18 @@ export interface EnhanceRefine {
   baseInput?: string;
 }
 
+// The trailing supersedence sentence on shorter/detail is load-bearing
+// (audit MOD-001): without it, "make shorter" on the default clarify mode is
+// countermanded by the CRITICAL length-preservation clause that follows it,
+// and detail/shorter argue with Polish's "do NOT add/remove" and Condense's
+// "strip to the minimum". The format knob set the precedent — a chosen knob
+// explicitly withdraws the latitude it replaces.
+const REFINE_SUPERSEDES =
+  "For this pass, this instruction supersedes any earlier rule that forbids or limits the change it names; every other constraint stands.";
+
 const REFINE_INSTRUCTIONS: Record<RefineKind, string> = {
-  shorter:
-    "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Make it meaningfully shorter while keeping every load-bearing instruction and constraint. Do not add new content.",
-  detail:
-    "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Add depth — concrete constraints, examples, and acceptance criteria it still lacks. Do not remove or weaken existing instructions.",
+  shorter: `REFINEMENT PASS: The input you receive is an already-enhanced prompt. Make it meaningfully shorter while keeping every load-bearing instruction and constraint. Do not add new content. ${REFINE_SUPERSEDES}`,
+  detail: `REFINEMENT PASS: The input you receive is an already-enhanced prompt. Add depth — concrete constraints, examples, and acceptance criteria it still lacks. Do not remove or weaken existing instructions. ${REFINE_SUPERSEDES}`,
   tone: "REFINEMENT PASS: The input you receive is an already-enhanced prompt that drifted from the author's voice. Rewrite it so the voice, phrasing habits, and register match the AUTHOR'S ORIGINAL below, while keeping the improvements.",
   // Deliberately does NOT open with "the input you receive is an
   // already-enhanced prompt" like its three siblings: for this pass the input
@@ -109,8 +116,18 @@ function refineBlock(refine?: EnhanceRefine): string[] {
   return ["", lines.join("\n")];
 }
 
-const FORMAT_PRESERVATION =
-  'OUTPUT SHAPE — CRITICAL: This governs the transformed prompt only (the "output" field), not the JSON envelope you must return. Preserve the input\'s existing format, voice, and length. If the input is a single sentence or a plain paragraph, keep the output a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use into the transformed prompt, and do NOT expand a short prose prompt into a structured document. The output will be pasted into the target engine — keep it clean, plain text unless the original was already structured.';
+/** The length-governing refine kinds — for these, FORMAT_PRESERVATION must
+ *  cede the length clause or the CRITICAL-flagged rule that follows the
+ *  refine block countermands the user's clicked action (audit MOD-001). */
+const LENGTH_REFINES = new Set<RefineKind>(["shorter", "detail"]);
+
+function formatPreservation(refine?: EnhanceRefine): string {
+  const lengthRule =
+    refine && LENGTH_REFINES.has(refine.kind)
+      ? "Preserve the input's existing format and voice; length for this pass is governed by the REFINEMENT PASS instruction above."
+      : "Preserve the input's existing format, voice, and length.";
+  return `OUTPUT SHAPE — CRITICAL: This governs the transformed prompt only (the "output" field), not the JSON envelope you must return. ${lengthRule} If the input is a single sentence or a plain paragraph, keep the output a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use into the transformed prompt, and do NOT expand a short prose prompt into a structured document. The output will be pasted into the target engine — keep it clean, plain text unless the original was already structured.`;
+}
 
 /**
  * The contract every mode's output must satisfy: the "output" field IS the
@@ -181,7 +198,9 @@ function knobBlock({ mode, format, length }: SystemPromptOptions): string[] {
 export function buildSystemPrompt(opts: SystemPromptOptions): string {
   const { mode, target, refine } = opts;
   const shapePreserving = SHAPE_PRESERVING.has(mode);
-  const conventions = shapePreserving ? FORMAT_PRESERVATION : TARGET_CONVENTIONS[target];
+  const conventions = shapePreserving
+    ? formatPreservation(refine)
+    : TARGET_CONVENTIONS[target];
   const outputContract = `${OUTPUT_CONTRACT_BASE} ${
     shapePreserving ? OUTPUT_STRUCTURE_FORBIDDEN : OUTPUT_STRUCTURE_ALLOWED
   }`;

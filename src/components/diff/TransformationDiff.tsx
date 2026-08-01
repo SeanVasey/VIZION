@@ -116,8 +116,13 @@ export function TransformationDiff({
   // Clarify's answers, positional against result.questions.
   const [answers, setAnswers] = useState<string[]>([]);
   const answeredCount = answers.filter((a) => a.trim() !== "").length;
-  const hunks = useMemo(() => toHunks(result.diff), [result]);
-  const hunkOf = useMemo(() => assignHunks(result.diff), [result]);
+  // result.diff is null when the pair exceeded the server's diff budget
+  // (PRI-001) — every consumer below degrades to plain text.
+  const hunks = useMemo(() => (result.diff ? toHunks(result.diff) : []), [result]);
+  const hunkOf = useMemo(
+    () => (result.diff ? assignHunks(result.diff) : []),
+    [result],
+  );
   const reviewable = mode === "polish" && hunks.length > 0;
 
   /** What Copy/Use/Save/Share/export all consume — the output with the
@@ -125,7 +130,7 @@ export function TransformationDiff({
    *  nothing was rejected or the mode isn't Polish). */
   const effectiveOutput = useMemo(
     () =>
-      reviewable && rejected.size > 0
+      reviewable && rejected.size > 0 && result.diff
         ? applyDecisions(result.diff, rejected)
         : result.output,
     [reviewable, rejected, result],
@@ -159,7 +164,7 @@ export function TransformationDiff({
   // a refine run) — drives the collapse threshold and the word count honestly.
   const diffInput = useMemo(
     () =>
-      result.diff
+      (result.diff ?? [])
         .filter((s) => s.op !== "added")
         .map((s) => s.text)
         .join(""),
@@ -179,7 +184,7 @@ export function TransformationDiff({
     setShowOriginal(ORIGINAL_STARTS_OPEN);
   }, [result]);
 
-  const changes = countChangedSections(result.diff);
+  const changes = result.diff ? countChangedSections(result.diff) : null;
   const keptCount = hunks.length - rejected.size;
   const originalLabel = refined ? "previous result" : "original";
   const originalWords =
@@ -200,9 +205,17 @@ export function TransformationDiff({
     };
     startSave(async () => {
       // Offline → queue to the outbox; it flushes on reconnect/foreground.
+      // "Queued" is claimed only when the queue write actually landed AND had
+      // an owner to land under (SW-001/SW-002) — a rejecting IndexedDB put or
+      // a pre-hydration save must say so, not promise a sync that can't come.
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await enqueueOutbox(userId ?? "", "save-prompt", payload);
-        setQueued(true);
+        if (userId && (await enqueueOutbox(userId, "save-prompt", payload))) {
+          setQueued(true);
+        } else {
+          setSaveError(
+            "Couldn't queue this save on this device — copy the text before leaving.",
+          );
+        }
         return;
       }
       try {
@@ -211,8 +224,18 @@ export function TransformationDiff({
         else if (res.duplicate) setDuplicate(res.duplicate);
         else setSaveError(res.error ?? "Couldn't save.");
       } catch {
-        await enqueueOutbox(userId ?? "", "save-prompt", payload);
-        setQueued(true);
+        // Gated on being offline (the GenerateSheet shape): an ONLINE server
+        // failure is an error to report, not a queue to promise.
+        if (
+          typeof navigator !== "undefined" &&
+          navigator.onLine === false &&
+          userId &&
+          (await enqueueOutbox(userId, "save-prompt", payload))
+        ) {
+          setQueued(true);
+        } else {
+          setSaveError("Couldn't save — try again.");
+        }
       }
     });
   }
@@ -297,7 +320,9 @@ export function TransformationDiff({
             <p className="font-body text-xs text-accent">
               {reviewable && rejected.size > 0
                 ? `${keptCount}/${hunks.length} changes kept`
-                : `${changes} changed section${changes === 1 ? "" : "s"}`}
+                : changes === null
+                  ? "too long to diff — showing plain text"
+                  : `${changes} changed section${changes === 1 ? "" : "s"}`}
             </p>
             {/* Quick copy — a 44px tap target that doesn't inflate the header row. */}
             <PressableButton
@@ -346,7 +371,11 @@ export function TransformationDiff({
         </div>
         {/* OUTPUT REGION: result text + diff tokens render in mono (JetBrains). */}
         <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
-          <OutputSegments segments={result.diff} hunkOf={hunkOf} rejected={rejected} />
+          {result.diff ? (
+            <OutputSegments segments={result.diff} hunkOf={hunkOf} rejected={rejected} />
+          ) : (
+            effectiveOutput
+          )}
         </p>
       </div>
 
@@ -531,13 +560,15 @@ export function TransformationDiff({
               Share
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setCompareOpen(true)}
-            className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
-          >
-            Compare
-          </button>
+          {result.diff && (
+            <button
+              type="button"
+              onClick={() => setCompareOpen(true)}
+              className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
+            >
+              Compare
+            </button>
+          )}
         </div>
 
         {/* Export strip — a micro-label cap plus equal format segments split by
@@ -747,7 +778,7 @@ export function TransformationDiff({
             {/* OUTPUT REGION: the input body renders in mono; removed tokens
                 are dimmed + struck — equal + removed reconstructs it losslessly. */}
             <p className="mono whitespace-pre-wrap break-words text-sm text-silver">
-              <InputSegments segments={result.diff} />
+              {result.diff ? <InputSegments segments={result.diff} /> : input}
             </p>
           </div>
         )}
@@ -792,14 +823,16 @@ export function TransformationDiff({
         </div>
       )}
 
-      <CompareSheet
-        open={compareOpen}
-        onClose={() => setCompareOpen(false)}
-        diff={result.diff}
-        refined={refined}
-        hunkOf={hunkOf}
-        rejected={rejected}
-      />
+      {result.diff && (
+        <CompareSheet
+          open={compareOpen}
+          onClose={() => setCompareOpen(false)}
+          diff={result.diff}
+          refined={refined}
+          hunkOf={hunkOf}
+          rejected={rejected}
+        />
+      )}
     </section>
   );
 }

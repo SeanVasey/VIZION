@@ -82,7 +82,7 @@ export async function savePromptAction(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
 
-  const hash = contentHash(v.input, v.output, v.mode);
+  const hash = contentHash(v.input, v.output, v.mode, v.target);
 
   // Duplicate lookup — RLS already confines rows to the owner; the inner
   // join (disambiguated via prompt_id — current_ver is a second FK path)
@@ -151,14 +151,18 @@ export async function addVersionAction(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
 
+  // `deleted_at is null`: a soft-deleted (trash) prompt is excluded from
+  // every list and the duplicate check, but kept accepting new versions —
+  // writes into the trash resurrect nothing and surprise everyone (LIB-006).
   const { data: prompt } = await supabase
     .from("prompts")
     .select("current_ver")
     .eq("id", promptId)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .single();
 
-  const hash = contentHash(v.input, v.output, v.mode);
+  const hash = contentHash(v.input, v.output, v.mode, v.target);
   // Appending the exact current content would be a no-op version — refuse.
   if (prompt?.current_ver) {
     const { data: cur } = await supabase
@@ -214,9 +218,10 @@ export async function restoreVersionAction(
   // returns a sentence instead of surfacing that as a raw write error.
   const { data: restored } = await supabase
     .from("prompt_versions")
-    .select("output_text, mode")
+    .select("output_text, mode, prompts!prompt_id!inner(deleted_at)")
     .eq("id", versionId)
     .eq("prompt_id", promptId)
+    .is("prompts.deleted_at", null)
     .single();
   if (!restored) {
     return { ok: false, error: "That version doesn't belong to this prompt." };
@@ -460,14 +465,22 @@ export async function deletePromptAction(promptId: string): Promise<SaveResult> 
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
-  const { error } = await supabase
+  // `.not("archived_at", "is", null)`: the "reserved for archived prompts"
+  // rule in the doc comment was enforced only by the UI hiding the button
+  // (LIB-006) — a direct call could permanently destroy an active prompt.
+  const { data, error } = await supabase
     .from("prompts")
     .delete()
     .eq("id", promptId)
-    .eq("user_id", uid);
+    .eq("user_id", uid)
+    .not("archived_at", "is", null)
+    .select("id");
   if (error) {
     console.error(writeErrorLogLine("library", "write", error));
     return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, error: "Only archived prompts can be permanently deleted." };
   }
   revalidatePath("/library");
   return { ok: true };

@@ -18,11 +18,16 @@ import {
   COST_CAP_USD_PER_DAY,
 } from "@/lib/providers/config";
 import { ProviderNotConfiguredError } from "@/lib/providers/errors";
-import { REFINE_KINDS, type EnhanceRefine, type RefineKind } from "@/lib/providers/formatters";
+import {
+  REFINE_KINDS,
+  buildSystemPrompt,
+  type EnhanceRefine,
+  type RefineKind,
+} from "@/lib/providers/formatters";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { reserveSpend, settleSpend, releaseSpend } from "@/lib/security/spend";
 import { getAppSettings, isOwnerUser } from "@/lib/owner/settings";
-import { diffWords } from "@/lib/enhance/diff";
+import { boundedDiffWords } from "@/lib/enhance/diff";
 import { resolveAutoTarget } from "@/lib/enhance/auto-target";
 import { isFormatId, type FormatId } from "@/lib/enhance/formats";
 import { isLengthId, type LengthId } from "@/lib/enhance/lengths";
@@ -138,14 +143,24 @@ export async function POST(request: NextRequest) {
   // Optional per-request reasoning depth — only the exact values the target's
   // provider accepts (TARGET_THINKING_LEVELS); anything else is a 400, so an
   // invented level can never reach a provider as a bad wire value.
+  //
+  // Under Auto the level was chosen against the PINNED model, not the one
+  // routing resolves — Gemini's 'minimal' is valid UI state that no Anthropic
+  // ladder accepts (PRV-001). The user asked for routing, not that dial, so
+  // an out-of-ladder level is advisory there: dropped, never a 400.
   const allowedLevels = TARGET_THINKING_LEVELS[typedTarget];
+  let typedThinkingLevel = thinkingLevel as ThinkingLevel | undefined;
   if (
     thinkingLevel !== undefined &&
     (typeof thinkingLevel !== "string" ||
       !allowedLevels ||
       !(allowedLevels as readonly string[]).includes(thinkingLevel))
   ) {
-    return err(400, "That thinking level isn't available for this model.");
+    if (auto && typeof thinkingLevel === "string") {
+      typedThinkingLevel = undefined;
+    } else {
+      return err(400, "That thinking level isn't available for this model.");
+    }
   }
   // Reformat's output shape. Validated for legality only — buildSystemPrompt
   // gates it by mode, so a format sent alongside any other mode is inert
@@ -229,7 +244,6 @@ export async function POST(request: NextRequest) {
     return err(500, "Couldn't check your usage limits. Try again.");
   }
 
-  const typedThinkingLevel = thinkingLevel as ThinkingLevel | undefined;
   // The provider sees the user's prompt plus any reference context, clearly
   // fenced and explicitly NOT a generation request; the diff below still
   // compares against the user's own input.
@@ -312,7 +326,11 @@ export async function POST(request: NextRequest) {
           result: {
             output: result.output,
             rationale: result.rationale,
-            diff: diffWords(input, result.output),
+            // Bounded (PRI-001): the unbounded O(n·m) LCS on a 20k-char input
+            // against a 64k-token output is ~10^9 table cells — enough to OOM
+            // the invocation and skip the finally-block settle. Over budget ⇒
+            // null; the client renders plain text with a "too long" note.
+            diff: boundedDiffWords(input, result.output),
             tokenIn: result.tokenIn,
             tokenOut: result.tokenOut,
             modelUsed: result.modelUsed,
@@ -363,9 +381,24 @@ export async function POST(request: NextRequest) {
         let ledgerEstimated = result?.usageEstimated ?? false;
         if (streamedChars > 0 && !result) {
           const estOut = Math.ceil(streamedChars / 4);
+          // Match the adapter's own estimator (MOD-006): the provider was
+          // sent the system prompt AND the fenced context, not the bare
+          // input — estimating from `input` under-counts the cap by the
+          // system prompt's ~500-750 tokens on every aborted run.
+          const estIn = Math.ceil(
+            (buildSystemPrompt({
+              mode: typedMode,
+              target: typedTarget,
+              refine: typedRefine,
+              format: format as FormatId | undefined,
+              length: length as LengthId | undefined,
+            }).length +
+              providerInput.length) /
+              4,
+          );
           usage = usage
             ? { ...usage, tokenOut: Math.max(usage.tokenOut, estOut) }
-            : { tokenIn: Math.ceil(input.length / 4), tokenOut: estOut };
+            : { tokenIn: estIn, tokenOut: estOut };
           // The abort-path numbers are estimates by construction.
           ledgerEstimated = true;
         }

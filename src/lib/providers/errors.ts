@@ -17,6 +17,11 @@ export class ProviderError extends Error {
     message: string,
     /** Upstream HTTP status, when the provider returned one (401, 404, …). */
     public status?: number,
+    /** Usage the provider REPORTED before failing (rare — some error bodies
+     *  carry it). Lets /api/media settle real consumption instead of
+     *  releasing the hold as if the call were free (MED-004). Never
+     *  invented: absent unless the wire actually said so. */
+    public usage?: { tokenIn: number; tokenOut: number },
   ) {
     super(message);
     this.name = "ProviderError";
@@ -33,6 +38,11 @@ export interface ProviderStreamChunk {
    *  "length", "MAX_TOKENS", …). Lets the adapter tell "hit the output
    *  ceiling" apart from "returned a malformed envelope". */
   stopReason?: string;
+  /** Reasoning tokens the provider BILLS as output but that never appear in
+   *  `text` (stripped <think> spans, `reasoning_content` deltas). A floor
+   *  contribution for the adapter's no-usage fallback estimate only —
+   *  ignored whenever the provider reports real usage (PRV-003). */
+  estReasoningTokens?: number;
 }
 
 /** Per-request tuning an adapter may honor. `thinkingLevel` is the user's

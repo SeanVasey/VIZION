@@ -22,6 +22,7 @@ function makeDeps(overrides: Partial<MediaStoreDeps> = {}): MediaStoreDeps {
   return {
     reserve: vi.fn(async () => ({ id: "a1", storagePath: "u1/x.jpg" })),
     uploadObject: vi.fn(async () => {}),
+    commit: vi.fn(async () => {}),
     setStatus: vi.fn(async () => {}),
     deleteRow: vi.fn(async () => {}),
     removeObject: vi.fn(async () => ({})),
@@ -47,7 +48,10 @@ describe("storeAttachment (reserve → upload → ready)", () => {
       FILE.blob,
       "image/jpeg",
     );
-    expect(deps.setStatus).toHaveBeenCalledWith("a1", "ready");
+    // The ready-flip is the measured commit (MED-001) — never a bare status
+    // update, which would trust the client-declared size.
+    expect(deps.commit).toHaveBeenCalledWith("a1");
+    expect(deps.setStatus).not.toHaveBeenCalled();
   });
 
   it("quota rejection surfaces the friendly message and uploads nothing", async () => {
@@ -69,6 +73,10 @@ describe("storeAttachment (reserve → upload → ready)", () => {
     });
     const out = await storeAttachment(deps, FILE);
     expect(out).toMatchObject({ ok: false, reason: "upload" });
+    // Best-effort object removal precedes the row delete (MED-005): an upload
+    // that committed server-side while the client saw an error must not
+    // strand an invisible object only account deletion would ever sweep.
+    expect(deps.removeObject).toHaveBeenCalledWith("u1/x.jpg");
     expect(deps.deleteRow).toHaveBeenCalledWith("a1");
     expect(deps.setStatus).not.toHaveBeenCalled();
   });
@@ -88,7 +96,7 @@ describe("storeAttachment (reserve → upload → ready)", () => {
 
   it("a failed ready-flip still reports success with a soft note", async () => {
     const deps = makeDeps({
-      setStatus: vi.fn(async () => {
+      commit: vi.fn(async () => {
         throw new Error("flaky");
       }),
     });
