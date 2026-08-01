@@ -39,9 +39,14 @@ export const config = {
    * the PWA shell installs and loads before auth. (offline.html and sw.js get
    * a static CSP from next.config.ts instead — they cannot take a nonce.
    * `offline$` is the same document at the URL Vercel's cleanUrls actually
-   * serves it from; without the exclusion it picks up the nonce policy here.)
+   * serves it from; without the exclusion it picks up the nonce policy here.
+   * `offline.js` is that document's recovery script: left matched, a
+   * signed-out fetch — including the SW's install-time precache on /sign-in —
+   * auth-redirects to HTML, which would poison the precache entry and leave
+   * offline recovery dead again. The matcher exclusions are pinned by
+   * tests/unit/middleware-gate.test.ts.)
    */
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sw.js|manifest.webmanifest|offline.html|offline$|icons/|splash/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sw.js|manifest.webmanifest|offline.html|offline.js|offline$|icons/|splash/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
   ],
 };
