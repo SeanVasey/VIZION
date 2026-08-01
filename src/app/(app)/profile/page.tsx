@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { createClient } from "@/lib/supabase/server";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
+import { getAppSettings, isOwnerUser } from "@/lib/owner/settings";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -29,6 +30,16 @@ export default async function SettingsPage({
     .eq("user_id", user!.id)
     .single();
 
+  // Owner console: the server decides visibility (OWNER_EMAIL / recorded
+  // claim); every write re-verifies independently of this flag.
+  const appSettings = await getAppSettings(supabase);
+  const owner = isOwnerUser(user, appSettings)
+    ? {
+        openAccess: appSettings.openAccess,
+        devAccentStrength: appSettings.devAccentStrength,
+      }
+    : null;
+
   return (
     <>
       <ScreenHeader title="Settings" />
@@ -39,6 +50,7 @@ export default async function SettingsPage({
             email={user!.email ?? ""}
             pendingEmail={user!.new_email ?? null}
             deleteError={rawDeleteError}
+            owner={owner}
           />
         ) : (
           <p className="glass rounded-2xl p-5 text-center text-sm text-muted">

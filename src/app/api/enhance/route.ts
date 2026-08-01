@@ -21,6 +21,7 @@ import { ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { REFINE_KINDS, type EnhanceRefine, type RefineKind } from "@/lib/providers/formatters";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { reserveSpend, settleSpend, releaseSpend } from "@/lib/security/spend";
+import { getAppSettings, isOwnerUser } from "@/lib/owner/settings";
 import { diffWords } from "@/lib/enhance/diff";
 import { resolveAutoTarget } from "@/lib/enhance/auto-target";
 import { isFormatId, type FormatId } from "@/lib/enhance/formats";
@@ -64,6 +65,13 @@ export async function POST(request: NextRequest) {
   // Cheap in-memory burst guard in front of the DB cost/rate window.
   if (!rateLimit(`enhance:${user.id}`, RATE_LIMIT_PER_MIN, 60_000).allowed) {
     return err(429, "You're going fast — wait a moment and try again.");
+  }
+
+  // Owner switch (app_settings.open_access): when closed, only the owner may
+  // spend against the provider keys. Checked before any parsing or reserve.
+  const appSettings = await getAppSettings(supabase);
+  if (!appSettings.openAccess && !isOwnerUser(user, appSettings)) {
+    return err(403, "The owner has closed access for other accounts.");
   }
 
   let body: unknown;

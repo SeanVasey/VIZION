@@ -24,6 +24,7 @@ import {
 import { useSettingWrite } from "@/components/settings/use-setting-write";
 import { DataPrivacySection } from "@/components/settings/DataPrivacySection";
 import { AboutSection } from "@/components/settings/AboutSection";
+import { OwnerSection } from "@/components/settings/OwnerSection";
 import type { Profile } from "@/lib/supabase/database.types";
 
 const AUTH_LABEL: Record<string, string> = {
@@ -62,6 +63,7 @@ export function SettingsPanel({
   email,
   pendingEmail,
   deleteError,
+  owner,
 }: {
   profile: Profile;
   email: string;
@@ -69,6 +71,9 @@ export function SettingsPanel({
   pendingEmail: string | null;
   /** delete_error query value the deletion route redirected back with. */
   deleteError?: string;
+  /** Owner console state — null for every non-owner account (the server
+   *  decides; see src/lib/owner/settings.ts). */
+  owner?: { openAccess: boolean; devAccentStrength: number } | null;
 }) {
   const router = useRouter();
   const setTargetModel = useUIStore((s) => s.setTargetModel);
@@ -402,6 +407,13 @@ export function SettingsPanel({
           Turns off the ambient background and shimmer on this device.
         </p>
       </SettingsSection>
+
+      {owner && (
+        <OwnerSection
+          openAccess={owner.openAccess}
+          devAccentStrength={owner.devAccentStrength}
+        />
+      )}
 
       <DataPrivacySection deleteError={deleteError} />
       <AboutSection />

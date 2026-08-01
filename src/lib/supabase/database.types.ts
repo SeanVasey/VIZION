@@ -128,6 +128,30 @@ export type Database = {
           },
         ];
       };
+      app_settings: {
+        Row: {
+          id: number;
+          owner_user_id: string | null;
+          open_access: boolean;
+          dev_accent_strength: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          owner_user_id?: string | null;
+          open_access?: boolean;
+          dev_accent_strength?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          owner_user_id?: string | null;
+          open_access?: boolean;
+          dev_accent_strength?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       collections: {
         Row: {
           id: string;
@@ -414,6 +438,17 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      claim_app_ownership: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      update_app_settings: {
+        Args: {
+          p_open_access?: boolean | null;
+          p_dev_accent_strength?: number | null;
+        };
+        Returns: undefined;
+      };
       library_add_version: {
         Args: {
           p_prompt_id: string;

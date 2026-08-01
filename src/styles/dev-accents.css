@@ -81,8 +81,13 @@
      in the design: no hex, no contrast figure, no semantic clearance and not
      the focus ring depends on it, which is why it is the thing that is cheap
      to be wrong about.  Turn it down to 20%/24% for a whisper, up to 34%/38%
-     for a statement. */
-  --dev-peak: 26%;
+     for a statement.
+
+     `--dev-peak-user` is the owner console's runtime override (app_settings.
+     dev_accent_strength, set by the authed layout): ONE stored number drives
+     both themes, because the light blocks below derive their +2% from it.
+     Unset, the defaults are exactly the shipped 26%/28%. */
+  --dev-peak: var(--dev-peak-user, 26%);
 
   /* Horizontal reach of that field.  48px is NOT a taste value and must not be
      raised without moving the card's `pr-12` with it.  The card's <a> reserves
@@ -113,8 +118,8 @@
 :root[data-theme="light"] {
   /* A tint on a near-white card reads mostly as a chroma shift rather than a
      lightness shift, so it needs slightly more alpha for the same perceptual
-     delta. */
-  --dev-peak: 28%;
+     delta — derived (+2%) so the owner knob stays one number. */
+  --dev-peak: calc(var(--dev-peak-user, 26%) + 2%);
   --on-flare: #ffffff;
 }
 
@@ -122,7 +127,7 @@
    user silently inherits the dark alpha AND the failing delete-panel ink. */
 @media (prefers-color-scheme: light) {
   :root[data-theme="system"] {
-    --dev-peak: 28%;
+    --dev-peak: calc(var(--dev-peak-user, 26%) + 2%);
     --on-flare: #ffffff;
   }
 }
