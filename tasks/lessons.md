@@ -2266,3 +2266,20 @@ than as a puzzling failure in whichever spec ran first.
   come from its drop shadow, not its colour. That is what made the translucency
   safe to add there (it changes nothing that was carrying), and it is why the
   shadow had to survive the move off the utility.
+
+## Wire-protocol test fixtures must mirror the wire, not the implementation
+
+- **A fixture authored to match the parser proves nothing about production.**
+  The Gemini adapter split SSE frames on `"\n\n"`; the unit fixture built its
+  stream with `"\n\n"` separators, so 7/7 tests stayed green while every
+  production run failed — `alt=sse` delimits events with CRLF, and
+  `\r\n\r\n` contains no adjacent `\n\n`, so zero frames ever parsed and the
+  run assembled to an empty string ("The model returned a non-JSON
+  response.", 2026-08 incident, fixed in PR #73).
+- **Rule:** when hand-rolling a wire protocol (SSE, NDJSON, multipart), source
+  the fixture bytes from a captured real response or the protocol spec's
+  permissive form — never from the same constants the implementation splits
+  on. Test the tolerant grammar (`\r?\n\r?\n`), the unterminated final frame,
+  and the interleaved variant (Gemini: `thought: true` parts).
+- Applies to: every fetch-based adapter in `src/lib/providers/`; the SDK-based
+  adapters are exempt only because the SDK owns the framing.

@@ -276,7 +276,23 @@ Rules as written in the capstone: full gate before every commit; failed
 verification reverts the fix; ~30-line overrun triggers re-adjudication;
 dispositions updated as work lands.
 
+## 7. Addendum — 2026-08-01 (post-Gate, PR #73)
+
+Owner-directed work merged outside the Gate (Gemini CRLF fix + owner console)
+surfaced four ledger entries (`01-ledger.md` addendum): `PRV-010` is already
+**resolved** in PR #73; the three below join the review queue:
+
+- **A11Y-012** (S2, AUTO-REVIEW): the pre-existing reduced-effects switch has
+  no accessible name — one-attribute fix, recommend **yes**, W3.
+- **Q17 / SEC-011** (NEEDS-RULING): closed access blocks the shell, signups,
+  and all provider spend, but existing sessions can still reach their own
+  RLS-scoped data via server actions. (a) Accept as designed — it is a
+  spend/registration control, and the closed screen says "your data is safe"
+  *(recommended)*; (b) extend the check into every server action.
+- **Q18 / DSN-022** (NEEDS-RULING): the owner console ships the app's first
+  native range input (accent-ink tinted). Fold into Q7's input-recipe ruling.
+
 ---
 
-**Stop. Awaiting rulings on Q1–Q16, MANUAL-APPROVE confirmations/overrides,
-and an explicit `GO`.**
+**Stop. Awaiting rulings on Q1–Q16 (+ Q17–Q18 above), MANUAL-APPROVE
+confirmations/overrides, and an explicit `GO`.**
