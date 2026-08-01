@@ -6,6 +6,31 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Post-review fixes (PR #75 code review)
+
+Three correctness follow-ups on the wave work, each with a test:
+
+- **Media quota (P1, extends `MED-001`).** `media_reserve` enforces the 50 MB
+  per-user quota against the client-*declared* byte count, and `media_commit`
+  corrected each row to its measured size without re-checking the aggregate — so
+  reserving many 1-byte declarations, uploading 50 MB into each, then committing
+  bypassed the ceiling. A new migration re-validates the *measured* aggregate at
+  commit under the same per-user advisory lock `media_reserve` takes, failing
+  closed over quota, so committed storage can never exceed it.
+- **Fallback cost attribution (P2).** In `/api/media`, a vision fallback that
+  reported usage and then threw was priced at the *original* target's rates and
+  ledgered under the wrong model (the active-target assignment sat after the
+  retry `await`). The target is now set before the retry, so the outer catch
+  bills the fallback leg correctly.
+- **Offline outbox parking (P2).** The `save-prompt` handler classified every
+  non-success as a permanent `failed`, so a batch of >30 queued saves — where
+  the 31st+ trip the per-user write limiter — parked the overflow permanently
+  after three flushes even though the window clears in under a minute.
+  `savePromptAction` now marks rate-limit and expired-session rejections
+  `retryable`, and the handler maps those to the existing `transient` outcome
+  (kept queued, never parked); validation and persistent write errors stay
+  bounded-then-parked.
+
 ### Performance — audit Stage 2, Wave 6: bundle, render, and cache work (measured)
 
 Wave 6 clears the PERF track plus `PRI-007` and ruling **Q14**. No behaviour

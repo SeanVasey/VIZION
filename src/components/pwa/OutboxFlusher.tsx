@@ -48,9 +48,15 @@ const handlers: Record<string, OutboxHandler> = {
     // every `visibilitychange` retried it, and it could never succeed, because
     // the duplicate check is what was rejecting it.
     if (res.ok || res.duplicate) return "done";
-    // A structured rejection: the server answered and said no (validation, an
-    // expired session, a write error). Bounded retries absorb a transient DB
-    // wobble; the attempts cap parks a payload the server will never accept.
+    // A transient rejection (rate-limit burst, an expired session) must NOT
+    // count toward the parking cap: a batch of >30 queued saves trips the
+    // per-user write limiter, and parking the overflow after three flushes
+    // would discard it even though the window clears in under a minute
+    // (Codex review, PR #75). It stays queued for the next flush.
+    if (res.retryable) return "transient";
+    // A definitive rejection (validation, a persistent write error): bounded
+    // retries absorb a transient DB wobble; the attempts cap then parks a
+    // payload the server will never accept.
     return "failed";
   },
 };

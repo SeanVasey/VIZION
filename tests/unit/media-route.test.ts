@@ -164,6 +164,28 @@ describe("POST /api/media", () => {
     expect(spend.settleSpend).toHaveBeenCalledTimes(1);
   });
 
+  it("bills a fallback leg that fails WITH usage to the fallback, not the original (Codex review, PR #75)", async () => {
+    // The original config-fails with NO usage (the 401/403 shape), then the
+    // fallback runs a model, REPORTS usage, and throws. Its tokens must settle
+    // under the fallback's target/model — pricing them at the original's rates
+    // and ledgering them under the original model corrupts the daily-cap.
+    vision.isVisionConfigError.mockReturnValue(true);
+    vision.visionFallbackTarget.mockReturnValue("gpt_5_6_sol");
+    vision.describeImage
+      .mockRejectedValueOnce(new ProviderError("anthropic", "key rejected", 403))
+      .mockRejectedValueOnce(
+        new ProviderError("openai", "content stop", 400, { tokenIn: 40, tokenOut: 12 }),
+      );
+    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5" }));
+    expect(res.status).toBe(502);
+    expect(spend.releaseSpend).not.toHaveBeenCalled();
+    expect(spend.settleSpend).toHaveBeenCalledWith(
+      supabaseMock,
+      "r1",
+      expect.objectContaining({ target: "gpt_5_6_sol", tokenIn: 40, tokenOut: 12 }),
+    );
+  });
+
   it("routes a text-only flagship to the fallback up front", async () => {
     vision.supportsVision.mockReturnValue(false);
     vision.visionFallbackTarget.mockReturnValue("opus_5");

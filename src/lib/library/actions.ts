@@ -17,6 +17,16 @@ export interface SaveResult {
   /** Exact-duplicate detection: this content already exists in the library —
    *  offer "Save as new version" instead of minting a second identical card. */
   duplicate?: { promptId: string; title: string };
+  /**
+   * A transient rejection the caller may safely retry later — a rate-limit
+   * burst or an expired session, distinct from a permanent one (validation, a
+   * persistent write error). The offline outbox reads this to keep a
+   * rate-limited save QUEUED instead of counting it toward MAX_OUTBOX_ATTEMPTS:
+   * a batch of >30 queued saves trips the per-user write limiter, and parking
+   * that overflow after three flushes discards it even though the limiter
+   * window clears in under a minute (Codex review, PR #75).
+   */
+  retryable?: boolean;
 }
 
 type Db = Awaited<ReturnType<typeof createClient>>;
@@ -81,9 +91,11 @@ export async function savePromptAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  if (!user) {
+    return { ok: false, error: "Your session expired — sign in again.", retryable: true };
+  }
   if (writeLimited(user.id, "library-write")) {
-    return { ok: false, error: RATE_LIMITED_MESSAGE };
+    return { ok: false, error: RATE_LIMITED_MESSAGE, retryable: true };
   }
 
   const hash = contentHash(v.input, v.output, v.mode, v.target);

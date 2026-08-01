@@ -196,13 +196,17 @@ export async function POST(request: NextRequest) {
       console.error(
         `[media] vision on ${usedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
       );
+      // Attribute the fallback leg to the FALLBACK's rates and model — set the
+      // active target BEFORE the await, so a fallback that reports usage and
+      // then throws is priced and ledgered by the outer catch at `fallback`,
+      // not left pointing at the original target (Codex review, PR #75).
+      usedTarget = fallback;
       extracted = await describeImage(
         parsed.base64,
         parsed.mediaType,
         fallback,
         visionOpts,
       );
-      usedTarget = fallback;
     }
   } catch (e) {
     // Every failure path out of the provider calls funnels here, so the hold

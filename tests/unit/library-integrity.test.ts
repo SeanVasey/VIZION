@@ -151,6 +151,18 @@ describe("the outbox is scoped to an account", () => {
     expect(FLUSHER).toMatch(/if \(res\.ok \|\| res\.duplicate\) return "done";/);
   });
 
+  it("keeps a retryable rejection queued instead of parking it (Codex review, PR #75)", () => {
+    // A rate-limit burst or an expired session is TRANSIENT — routing it to
+    // "failed" counted it toward MAX_OUTBOX_ATTEMPTS, so a batch of >30 queued
+    // saves that trips the per-user write limiter parked the overflow
+    // permanently even though the limiter window clears in under a minute.
+    expect(FLUSHER).toMatch(/if \(res\.retryable\) return "transient";/);
+    // savePromptAction marks exactly those two rejections retryable; validation
+    // and persistent write errors stay bounded-then-parked.
+    expect(ACTIONS).toMatch(/error: RATE_LIMITED_MESSAGE, retryable: true/);
+    expect(ACTIONS).toMatch(/Your session expired[^\n]*retryable: true/);
+  });
+
   it("is given the owner by the authenticated layout", () => {
     expect(FLUSHER).toMatch(/OutboxFlusher\(\{ userId \}: \{ userId: string \}\)/);
     expect(source("src", "app", "(app)", "layout.tsx")).toMatch(
