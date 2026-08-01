@@ -49,12 +49,17 @@ npm 10.9.7. All exit codes zero:
 | `npm run build` | 0 | compiled successfully; warnings below |
 | `npm audit` | 0 | **0 vulnerabilities** (info 0 / low 0 / moderate 0 / high 0 / critical 0) |
 
-`npm run test:e2e` was not part of the Stage 0 snapshot (the Playwright web
-server rebuilds the app with stub Supabase env, clobbering the measured build);
-it runs as part of the pre-commit gate for this audit's own commits.
-Environment note from `tasks/lessons.md`: WebKit system deps cannot install in
-this sandbox — `mobile-chrome` is the reliable local project; `mobile-safari`
-(WebKitGTK) is unavailable here.
+E2E (run after the measured build, since the Playwright web server rebuilds
+the app with stub Supabase env): `npx playwright test --project=mobile-chrome`
+— **27 passed, 0 failed** (46.1s). Environment caveats, recorded for honesty:
+`mobile-safari` (WebKitGTK) cannot run in this sandbox (WebKit is not
+installed and system deps cannot be added — consistent with
+`tasks/lessons.md`), and the container's pre-installed Chromium is build 1194
+while the lockfile's Playwright 1.60.0 expects 1223, so the run used
+container-level path aliases (outside the repo; nothing committed) mapping the
+1223 registry paths to the real 1194 binaries, plus a non-executable WebKit
+stub solely to satisfy the suite's all-projects preflight assertion. No WebKit
+test executed and none is claimed.
 
 Build warnings (baseline, not failures):
 
