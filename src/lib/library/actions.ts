@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { RATE_LIMITED_MESSAGE, writeLimited } from "@/lib/security/action-limit";
 import { createClient } from "@/lib/supabase/server";
 import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
 import { describeWriteError, writeErrorLogLine } from "@/lib/supabase/errors";
@@ -16,6 +17,16 @@ export interface SaveResult {
   /** Exact-duplicate detection: this content already exists in the library —
    *  offer "Save as new version" instead of minting a second identical card. */
   duplicate?: { promptId: string; title: string };
+  /**
+   * A transient rejection the caller may safely retry later — a rate-limit
+   * burst or an expired session, distinct from a permanent one (validation, a
+   * persistent write error). The offline outbox reads this to keep a
+   * rate-limited save QUEUED instead of counting it toward MAX_OUTBOX_ATTEMPTS:
+   * a batch of >30 queued saves trips the per-user write limiter, and parking
+   * that overflow after three flushes discards it even though the limiter
+   * window clears in under a minute (Codex review, PR #75).
+   */
+  retryable?: boolean;
 }
 
 type Db = Awaited<ReturnType<typeof createClient>>;
@@ -80,9 +91,14 @@ export async function savePromptAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  if (!user) {
+    return { ok: false, error: "Your session expired — sign in again.", retryable: true };
+  }
+  if (writeLimited(user.id, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE, retryable: true };
+  }
 
-  const hash = contentHash(v.input, v.output, v.mode);
+  const hash = contentHash(v.input, v.output, v.mode, v.target);
 
   // Duplicate lookup — RLS already confines rows to the owner; the inner
   // join (disambiguated via prompt_id — current_ver is a second FK path)
@@ -150,15 +166,22 @@ export async function addVersionAction(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  if (writeLimited(user.id, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
 
+  // `deleted_at is null`: a soft-deleted (trash) prompt is excluded from
+  // every list and the duplicate check, but kept accepting new versions —
+  // writes into the trash resurrect nothing and surprise everyone (LIB-006).
   const { data: prompt } = await supabase
     .from("prompts")
     .select("current_ver")
     .eq("id", promptId)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .single();
 
-  const hash = contentHash(v.input, v.output, v.mode);
+  const hash = contentHash(v.input, v.output, v.mode, v.target);
   // Appending the exact current content would be a no-op version — refuse.
   if (prompt?.current_ver) {
     const { data: cur } = await supabase
@@ -204,6 +227,9 @@ export async function restoreVersionAction(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  if (writeLimited(user.id, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
 
   // The card's preview + mode follow the restored version.
   // `.eq("prompt_id", promptId)` is the half that was missing: without it a
@@ -214,9 +240,10 @@ export async function restoreVersionAction(
   // returns a sentence instead of surfacing that as a raw write error.
   const { data: restored } = await supabase
     .from("prompt_versions")
-    .select("output_text, mode")
+    .select("output_text, mode, prompts!prompt_id!inner(deleted_at)")
     .eq("id", versionId)
     .eq("prompt_id", promptId)
+    .is("prompts.deleted_at", null)
     .single();
   if (!restored) {
     return { ok: false, error: "That version doesn't belong to this prompt." };
@@ -260,6 +287,9 @@ export async function updateTagsAction(
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("prompts")
     .update({ tags })
@@ -281,6 +311,9 @@ export async function logShareAction(promptId: string): Promise<SaveResult> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
+  if (writeLimited(user.id, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   await supabase.from("activity_events").insert({
     user_id: user.id,
     prompt_id: promptId,
@@ -349,7 +382,14 @@ export async function fetchLibraryPageAction(
     const page = await queryLibraryPage(supabase, parseLibraryParams(rawFilter), cursor);
     return { ok: true, ...page };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Couldn't load more." };
+    // Raw PostgREST text names columns/policies/enums — log it, say less
+    // (SEC-005; the mutation paths' describeWriteError policy).
+    console.error(
+      writeErrorLogLine("library", "page", {
+        message: e instanceof Error ? e.message : String(e),
+      }),
+    );
+    return { ok: false, error: "Couldn't load more." };
   }
 }
 
@@ -365,6 +405,9 @@ export async function updatePromptTitleAction(
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("prompts")
     .update({ title: trimmed })
@@ -386,6 +429,9 @@ export async function setFavoriteAction(
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("prompts")
     .update({ favorite })
@@ -406,6 +452,9 @@ export async function setArchivedAction(
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("prompts")
     .update({ archived_at: archived ? new Date().toISOString() : null })
@@ -424,6 +473,9 @@ export async function softDeletePromptAction(promptId: string): Promise<SaveResu
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("prompts")
     .update({ deleted_at: new Date().toISOString() })
@@ -441,6 +493,9 @@ export async function undoDeletePromptAction(promptId: string): Promise<SaveResu
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("prompts")
     .update({ deleted_at: null })
@@ -460,14 +515,29 @@ export async function deletePromptAction(promptId: string): Promise<SaveResult> 
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
-  const { error } = await supabase
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
+  // Archived OR trashed only (LIB-006 + Q9): the "reserved" rule in the doc
+  // comment was enforced only by the UI hiding the button — a direct call
+  // could permanently destroy an ACTIVE prompt. The trash sheet purges
+  // soft-deleted rows through here too.
+  const { data, error } = await supabase
     .from("prompts")
     .delete()
     .eq("id", promptId)
-    .eq("user_id", uid);
+    .eq("user_id", uid)
+    .or("archived_at.not.is.null,deleted_at.not.is.null")
+    .select("id");
   if (error) {
     console.error(writeErrorLogLine("library", "write", error));
     return { ok: false, error: describeWriteError(error, "Couldn't save that change.") };
+  }
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      error: "Only archived or deleted prompts can be permanently deleted.",
+    };
   }
   revalidatePath("/library");
   return { ok: true };
@@ -490,6 +560,9 @@ export async function setCollectionAction(
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   // A foreign-key check does NOT consult RLS, so without this a prompt could be
   // filed into another account's collection: the FK only asks whether the row
   // exists. The prompt would then vanish from its owner's collection filters
@@ -528,6 +601,9 @@ export async function createCollectionAction(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  if (writeLimited(user.id, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { data, error } = await supabase
     .from("collections")
     .insert({ user_id: user.id, name: trimmed })
@@ -549,6 +625,9 @@ export async function renameCollectionAction(
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("collections")
     .update({ name: trimmed, updated_at: new Date().toISOString() })
@@ -567,6 +646,9 @@ export async function deleteCollectionAction(
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "library-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("collections")
     .delete()

@@ -47,9 +47,11 @@ async function requestPersistentStorage(): Promise<void> {
 }
 
 /**
- * The runtime cache that holds visited page HTML (see sw-src.js). Purged
- * whenever the auth gate is shown so a signed-out browser is never served the
- * previous session's cached pages.
+ * The same-origin static-asset cache (script/style/font/image), StaleWhile-
+ * Revalidate. It holds NO page HTML — navigations are NetworkOnly and fall
+ * back to /offline.html (CACHE-01). Purged whenever the auth gate is shown, as
+ * defence in depth against a signed-out browser reading a prior session's
+ * cached assets.
  */
 const SHELL_CACHE = "vizion-shell";
 

@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
-import { buildSystemPrompt, parseEnhancePayload } from "@/lib/providers/formatters";
+import {
+  buildSystemPrompt,
+  parseEnhancePayload,
+  refineUserBlock,
+} from "@/lib/providers/formatters";
 import { MODES } from "@/lib/constants";
 import type { EnhanceRequest } from "@/lib/enhance/use-enhance";
 
@@ -103,8 +107,12 @@ describe("the questions contract in the system prompt", () => {
     expect(prompt).not.toContain(
       "ANSWERED PASS: The input you receive is an already-enhanced prompt",
     );
-    expect(prompt).toContain("<answers>");
-    expect(prompt).toContain("Q: a\nA: b");
+    // The Q&A rides the USER message now (SEC-003), fenced there — not the
+    // privileged system role.
+    const block = refineUserBlock({ kind: "answers", baseInput: "Q: a\nA: b" });
+    expect(block).toContain("<answers>");
+    expect(block).toContain("Q: a\nA: b");
+    expect(prompt).not.toContain("Q: a\nA: b");
   });
 
   it("forbids a second round of questions on the answered pass", () => {

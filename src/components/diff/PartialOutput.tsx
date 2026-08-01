@@ -1,6 +1,7 @@
 "use client";
 
 import { useCopy } from "@/components/ui/use-copy";
+import { CheckMark } from "@/components/ui/glyphs";
 
 /**
  * Card for output that streamed in before a run failed — a run that dies at
@@ -30,7 +31,14 @@ export function PartialOutput({
           onClick={() => void copy(text)}
           className="btn-secondary flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm"
         >
-          {copied ? "Copied ✓" : "Copy"}
+          {copied ? (
+            <span className="inline-flex items-center gap-1">
+              Copied
+              <CheckMark />
+            </span>
+          ) : (
+            "Copy"
+          )}
         </button>
         {onUse && (
           <button

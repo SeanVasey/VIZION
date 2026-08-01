@@ -68,7 +68,7 @@ export function assetLabel(
 }
 
 /** One entry of Supabase Storage's batch-sign response. */
-export interface SignedPath {
+interface SignedPath {
   path: string | null;
   signedUrl: string | null;
 }

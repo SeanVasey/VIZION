@@ -1,5 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
+import { PROVIDER_MAX_RETRIES, PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -28,7 +29,12 @@ export async function* streamXAI(
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("xai");
 
-  const client = new OpenAI({ apiKey, baseURL: XAI_BASE_URL });
+  const client = new OpenAI({
+    apiKey,
+    baseURL: XAI_BASE_URL,
+    timeout: PROVIDER_TIMEOUT_MS,
+    maxRetries: PROVIDER_MAX_RETRIES,
+  });
   const reasoningEffort = toReasoningEffort(opts.thinkingLevel);
 
   try {

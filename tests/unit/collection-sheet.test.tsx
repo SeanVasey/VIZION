@@ -26,6 +26,7 @@ const PROMPT: PromptCard = {
   updated_at: "2026-07-27T00:00:00Z",
   favorite: false,
   archived: false,
+  deleted: false,
   preview: null,
   mode: "target",
   versions: 1,

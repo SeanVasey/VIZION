@@ -13,10 +13,10 @@
  * in isolation.
  */
 
-export type Polarity = "light-on-dark" | "dark-on-light";
+type Polarity = "light-on-dark" | "dark-on-light";
 
 /** iOS `apple-mobile-web-app-status-bar-style` values we choose between. */
-export type StatusBarStyle = "black-translucent" | "default";
+type StatusBarStyle = "black-translucent" | "default";
 
 export interface SafeAreaPolarity {
   /** Relative luminance of the surface, 0 (black) – 1 (white). */

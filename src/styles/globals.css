@@ -99,6 +99,28 @@
        the bar grows with the user's font scale, matching its rem-sized icons
        (h-6) and labels (text-xs); 4rem == 64px at the default 16px root. */
     --bottom-nav-h: 4rem;
+
+    /* Motion scale (DSN-011). Durations/easings were bare literals; the
+       ModeRig lens-lock 300ms was the only 300ms in the app with nothing to
+       answer to. These live here, not in the LOCKED tokens.css (its own
+       header forbids additions), same as the dev-accent layer. */
+    --motion-quick: 150ms;
+    --motion-slide: 300ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Floating-element clearance above the bottom nav (DSN-016). The sticky
+       result bar and the toast both sit this far above the nav + safe area;
+       they had drifted to 8px vs 12px. One token, one gap. */
+    --float-gap: 12px;
+
+    /* Shared scrim (DSN-010): the ~60%-Void wash behind inset "original"/
+       compare panels, duplicated as a raw color-mix at four sites. */
+    --scrim-panel: color-mix(in srgb, var(--void) 60%, transparent);
+
+    /* Heavy modal/viewfinder dim (DSN-020) — the AvatarCropper mask was the
+       only hardcoded rgba box-shadow in components. Void-based so it inverts
+       with the theme rather than sitting a fixed black over a light canvas. */
+    --scrim-heavy: color-mix(in srgb, var(--void) 78%, transparent);
   }
 
   body {
@@ -140,7 +162,12 @@
       0 0 24px var(--laser-glow);
   }
   :focus-visible {
-    outline: none;
+    /* 2px TRANSPARENT outline, not `none` (A11Y-001): forced-colors mode
+       (Windows High Contrast) suppresses box-shadow — the entire ring
+       system — but paints a transparent outline as CanvasText, so keyboard
+       focus stays visible there. Invisible in normal themes. */
+    outline: 2px solid transparent;
+    outline-offset: 1px;
     box-shadow: var(--focus-ring);
     border-radius: 8px;
   }
@@ -440,11 +467,15 @@
     border-radius: 12px;
     transition: filter 120ms ease;
   }
+  /* Explicit surface + border shift (DSN-021): brightness() on the light
+     theme's near-white --surface clamps to imperceptible. A color-mix toward
+     --text moves in BOTH themes. */
   .btn-secondary:hover:not(:disabled) {
-    filter: brightness(1.08);
+    background: color-mix(in srgb, var(--surface) 90%, var(--text) 10%);
+    border-color: color-mix(in srgb, var(--hair) 60%, var(--text) 40%);
   }
   .btn-secondary:active:not(:disabled) {
-    filter: brightness(1.06);
+    background: color-mix(in srgb, var(--surface) 84%, var(--text) 16%);
   }
 
   /* Destructive — Flare.  Used for sign-out / delete affordances. */
@@ -895,7 +926,10 @@
     }
   }
 
-  /* Top-edge Laser shimmer for the active result surface (R4). */
+  /* Top-edge accent shimmer for the active result surface (R4).
+     --accent-ink, not raw --laser: a 1px Laser stroke measures 1.06:1 on the
+     light canvas (contrast law §6 — never a thin stroke on a light surface);
+     the ink resolves to Laser on dark, deep green (5.55:1) on light. */
   .result-shimmer {
     position: relative;
   }
@@ -907,10 +941,21 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      var(--laser) 50%,
+      var(--accent-ink) 50%,
       transparent 100%
     );
     opacity: 0.6;
+  }
+
+  /* Non-color selected-state cue (A11Y-003): active Laser fills measure
+     1.06–1.18:1 against the light chassis — invisible to color-blind and
+     low-vision users in the theme half of users see. The inset accent-ink
+     ring is the BottomNav-dot precedent generalized: on dark the ink IS
+     Laser (no visual change); on light it draws a 5.5:1 boundary. Composes
+     with the focus ring because :focus-visible box-shadow REPLACES this —
+     acceptable: focus indication supersedes selection while focused. */
+  .selected-ink {
+    box-shadow: inset 0 0 0 1.5px var(--accent-ink);
   }
 
   /* Live-stream progress bar: a Laser sweep gliding along a Hair track.
@@ -923,20 +968,23 @@
     border-radius: 9999px;
     background: var(--hair);
   }
+  /* --accent-ink, not raw --laser: the 3px sweep is a thin stroke, invisible
+     at 1.06:1 on the light page (contrast law §6). Ink = Laser on dark, deep
+     green on light; the glow derives from the same ink so it follows. */
   .stream-progress-sweep {
     position: absolute;
     inset: 0;
     background: linear-gradient(
       90deg,
       transparent 0%,
-      var(--laser) 45%,
-      var(--laser) 55%,
+      var(--accent-ink) 45%,
+      var(--accent-ink) 55%,
       transparent 100%
     );
     background-size: 40% 100%;
     background-repeat: no-repeat;
     animation: stream-sweep 1.4s ease-in-out infinite;
-    box-shadow: 0 0 12px var(--laser-glow, rgba(183, 255, 60, 0.25));
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-ink) 25%, transparent);
   }
   @keyframes stream-sweep {
     from {
@@ -948,7 +996,15 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .stream-progress-sweep {
-      animation: stream-pulse 2.4s ease-in-out infinite;
+      /* !important on purpose (A11Y-010): the base-layer reduced-motion
+         collapse clamps every animation to 0.01ms with !important, which
+         made this documented "slow opacity pulse" dead code — it played one
+         imperceptible iteration and froze. Among !important declarations the
+         more specific selector wins, so the pulse actually runs. A slow
+         opacity fade is exactly the kind of motion reduced-motion permits;
+         users who need NONE still get the static segment via
+         (prefers-reduced-motion: reduce) and (update: slow) UAs. */
+      animation: stream-pulse 2.4s ease-in-out infinite !important;
       background-position-x: 30%;
     }
     @keyframes stream-pulse {

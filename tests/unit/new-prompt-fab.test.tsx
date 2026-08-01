@@ -11,13 +11,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => pathnameMock.value,
 }));
 
-interface MockDraftResult {
-  ok: boolean;
-  draftId?: string;
-  error?: string;
-  unavailable?: boolean;
-}
-
 const draftActions = vi.hoisted(() => ({
   // Typed to the action's full result shape, not inferred from the happy path —
   // otherwise the failure cases below don't typecheck.

@@ -48,7 +48,12 @@ export const ModeRig = memo(function ModeRig({
       <div
         role="radiogroup"
         aria-label="Enhancement mode"
-        className="glass relative grid grid-cols-6 gap-0 rounded-2xl p-1"
+        // Grid columns derive from MODES.length, not a hardcoded 6 (DSN-006):
+        // a seventh mode reflows the chassis instead of overflowing it. The
+        // keyboard nav already used MODES.length; this closes the last two
+        // literals (grid + indicator width).
+        style={{ gridTemplateColumns: `repeat(${MODES.length}, minmax(0, 1fr))` }}
+        className="glass relative grid gap-0 rounded-2xl p-1"
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             setPreviewMode(null);
@@ -82,9 +87,9 @@ export const ModeRig = memo(function ModeRig({
         {/* Sliding lens-lock indicator — one sixth wide, translates to the cell. */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-1 left-1 rounded-xl bg-laser transition-transform duration-300 ease-out"
+          className="selected-ink pointer-events-none absolute inset-y-1 left-1 rounded-xl bg-laser transition-transform [transition-duration:var(--motion-slide)] [transition-timing-function:var(--ease-out)]"
           style={{
-            width: "calc((100% - 0.5rem) / 6)",
+            width: `calc((100% - 0.5rem) / ${MODES.length})`,
             transform: `translateX(calc(${activeIndex} * 100%))`,
           }}
         />
@@ -107,7 +112,7 @@ export const ModeRig = memo(function ModeRig({
               onFocus={() => setPreviewMode(mode.id)}
               onBlur={() => setPreviewMode(null)}
               className={[
-                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-colors",
+                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 overflow-hidden rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-colors max-[359px]:text-[0.625rem] max-[359px]:tracking-tight",
                 active ? "text-on-laser" : "text-silver hover:text-chalk",
               ].join(" ")}
             >

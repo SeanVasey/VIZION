@@ -2,7 +2,13 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { TargetModelId } from "@/lib/constants";
-import { TARGETS, PROVIDER_KEY_ENV, type Provider } from "@/lib/providers/config";
+import {
+  TARGETS,
+  PROVIDER_KEY_ENV,
+  PROVIDER_MAX_RETRIES,
+  PROVIDER_TIMEOUT_MS,
+  type Provider,
+} from "@/lib/providers/config";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 import {
   MEDIA_EXTRACT_SYSTEM,
@@ -25,6 +31,9 @@ export interface VisionResult {
   text?: string;
   tokenIn: number;
   tokenOut: number;
+  /** The provider omitted usage, so the zero counts are a default, not a
+   *  measurement — surfaced so cost is never displayed as exact (INV-04). */
+  usageEstimated?: boolean;
 }
 
 export interface VisionOptions {
@@ -44,6 +53,8 @@ interface RawVision {
   raw: string;
   tokenIn: number;
   tokenOut: number;
+  /** True when the response carried no usage block (counts defaulted to 0). */
+  usageEstimated?: boolean;
 }
 
 type AnthropicImageMediaType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
@@ -57,7 +68,11 @@ async function describeAnthropic(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("anthropic");
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({
+    apiKey,
+    timeout: PROVIDER_TIMEOUT_MS,
+    maxRetries: PROVIDER_MAX_RETRIES,
+  });
   const response = await client.messages.create({
     model,
     max_tokens: 1024,
@@ -108,7 +123,12 @@ async function describeOpenAICompatible(
   // alone pins JSON and the tolerant parsers absorb a miss.
   jsonMode = true,
 ): Promise<RawVision> {
-  const client = new OpenAI({ apiKey, baseURL });
+  const client = new OpenAI({
+    apiKey,
+    baseURL,
+    timeout: PROVIDER_TIMEOUT_MS,
+    maxRetries: PROVIDER_MAX_RETRIES,
+  });
   const response = await client.chat.completions.create({
     model,
     ...tokenCap,
@@ -131,6 +151,7 @@ async function describeOpenAICompatible(
     raw: response.choices[0]?.message?.content ?? "",
     tokenIn: response.usage?.prompt_tokens ?? 0,
     tokenOut: response.usage?.completion_tokens ?? 0,
+    ...(response.usage ? {} : { usageEstimated: true }),
   };
 }
 
@@ -159,6 +180,8 @@ async function describeGoogle(
   )}:generateContent`;
   const res = await fetch(url, {
     method: "POST",
+    // Raw fetch — bounded like the SDK clients (PRV-002).
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: spec.system }] },
@@ -183,10 +206,20 @@ async function describeGoogle(
     /* non-JSON body — fall through to the status check */
   }
   if (!res.ok) {
+    // Some Gemini failures (e.g. a mid-generation policy stop) still report
+    // usageMetadata — carry it so the route can bill what actually ran.
+    const meta = data.usageMetadata;
     throw new ProviderError(
       "google",
       `Gemini vision request failed: ${data.error?.message ?? res.statusText}`,
       res.status,
+      meta
+        ? {
+            tokenIn: meta.promptTokenCount ?? 0,
+            tokenOut:
+              (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0),
+          }
+        : undefined,
     );
   }
   const text = (data.candidates?.[0]?.content?.parts ?? [])
@@ -199,6 +232,7 @@ async function describeGoogle(
     tokenOut:
       (data.usageMetadata?.candidatesTokenCount ?? 0) +
       (data.usageMetadata?.thoughtsTokenCount ?? 0),
+    ...(data.usageMetadata ? {} : { usageEstimated: true }),
   };
 }
 
@@ -285,10 +319,14 @@ export async function describeImage(
     if (!key) throw new ProviderNotConfiguredError(cfg.provider);
     return key;
   };
-  const finish = (r: RawVision): VisionResult =>
-    expect === "text"
-      ? { attrs: {}, text: parseMediaText(r.raw), tokenIn: r.tokenIn, tokenOut: r.tokenOut }
-      : { attrs: parseMediaAttributes(r.raw), tokenIn: r.tokenIn, tokenOut: r.tokenOut };
+  const finish = (r: RawVision): VisionResult => ({
+    ...(expect === "text"
+      ? { attrs: {}, text: parseMediaText(r.raw) }
+      : { attrs: parseMediaAttributes(r.raw) }),
+    tokenIn: r.tokenIn,
+    tokenOut: r.tokenOut,
+    ...(r.usageEstimated ? { usageEstimated: true } : {}),
+  });
 
   try {
     switch (cfg.provider) {

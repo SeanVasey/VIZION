@@ -1,5 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
+import { PROVIDER_MAX_RETRIES, PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -26,15 +27,21 @@ export async function* streamOpenAI(
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("openai");
 
-  const client = new OpenAI({ apiKey });
+  const client = new OpenAI({
+    apiKey,
+    timeout: PROVIDER_TIMEOUT_MS,
+    maxRetries: PROVIDER_MAX_RETRIES,
+  });
   const reasoningEffort = toReasoningEffort(opts.thinkingLevel);
 
   try {
     const stream = await client.chat.completions.create({
       model,
       // Output ceiling: a runaway generation must stay bounded — the cost
-      // cap is only checked pre-call.
-      max_completion_tokens: 16_000,
+      // cap is only checked pre-call. Reasoning bills against this ceiling
+      // (the Anthropic path learned this first), so high effort gets the
+      // headroom that keeps a heavy pass from truncating the envelope.
+      max_completion_tokens: reasoningEffort === "high" ? 32_000 : 16_000,
       messages: [
         { role: "system", content: system },
         { role: "user", content: input },

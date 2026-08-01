@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { PressableButton } from "@/components/ui/PressableButton";
 import Link from "next/link";
 import {
@@ -31,6 +31,7 @@ import {
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useUIStore } from "@/stores/ui";
 import { useCopy } from "@/components/ui/use-copy";
+import { CheckMark } from "@/components/ui/glyphs";
 import { InputSegments, OutputSegments, REMOVED_CLASS } from "@/components/diff/segments";
 import { CompareSheet } from "@/components/diff/CompareSheet";
 
@@ -51,7 +52,7 @@ const REFINE_CHIPS: { kind: RefineKind; label: string }[] = [
  * prompts, the full diff read lives in the Compare sheet, and Polish offers
  * per-change accept/reject. `onUse`/`onRefine` are wired by the composer.
  */
-export function TransformationDiff({
+function TransformationDiffImpl({
   input,
   mode,
   target,
@@ -115,8 +116,13 @@ export function TransformationDiff({
   // Clarify's answers, positional against result.questions.
   const [answers, setAnswers] = useState<string[]>([]);
   const answeredCount = answers.filter((a) => a.trim() !== "").length;
-  const hunks = useMemo(() => toHunks(result.diff), [result]);
-  const hunkOf = useMemo(() => assignHunks(result.diff), [result]);
+  // result.diff is null when the pair exceeded the server's diff budget
+  // (PRI-001) — every consumer below degrades to plain text.
+  const hunks = useMemo(() => (result.diff ? toHunks(result.diff) : []), [result]);
+  const hunkOf = useMemo(
+    () => (result.diff ? assignHunks(result.diff) : []),
+    [result],
+  );
   const reviewable = mode === "polish" && hunks.length > 0;
 
   /** What Copy/Use/Save/Share/export all consume — the output with the
@@ -124,7 +130,7 @@ export function TransformationDiff({
    *  nothing was rejected or the mode isn't Polish). */
   const effectiveOutput = useMemo(
     () =>
-      reviewable && rejected.size > 0
+      reviewable && rejected.size > 0 && result.diff
         ? applyDecisions(result.diff, rejected)
         : result.output,
     [reviewable, rejected, result],
@@ -158,7 +164,7 @@ export function TransformationDiff({
   // a refine run) — drives the collapse threshold and the word count honestly.
   const diffInput = useMemo(
     () =>
-      result.diff
+      (result.diff ?? [])
         .filter((s) => s.op !== "added")
         .map((s) => s.text)
         .join(""),
@@ -178,7 +184,7 @@ export function TransformationDiff({
     setShowOriginal(ORIGINAL_STARTS_OPEN);
   }, [result]);
 
-  const changes = countChangedSections(result.diff);
+  const changes = result.diff ? countChangedSections(result.diff) : null;
   const keptCount = hunks.length - rejected.size;
   const originalLabel = refined ? "previous result" : "original";
   const originalWords =
@@ -199,9 +205,17 @@ export function TransformationDiff({
     };
     startSave(async () => {
       // Offline → queue to the outbox; it flushes on reconnect/foreground.
+      // "Queued" is claimed only when the queue write actually landed AND had
+      // an owner to land under (SW-001/SW-002) — a rejecting IndexedDB put or
+      // a pre-hydration save must say so, not promise a sync that can't come.
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await enqueueOutbox(userId ?? "", "save-prompt", payload);
-        setQueued(true);
+        if (userId && (await enqueueOutbox(userId, "save-prompt", payload))) {
+          setQueued(true);
+        } else {
+          setSaveError(
+            "Couldn't queue this save on this device — copy the text before leaving.",
+          );
+        }
         return;
       }
       try {
@@ -210,8 +224,18 @@ export function TransformationDiff({
         else if (res.duplicate) setDuplicate(res.duplicate);
         else setSaveError(res.error ?? "Couldn't save.");
       } catch {
-        await enqueueOutbox(userId ?? "", "save-prompt", payload);
-        setQueued(true);
+        // Gated on being offline (the GenerateSheet shape): an ONLINE server
+        // failure is an error to report, not a queue to promise.
+        if (
+          typeof navigator !== "undefined" &&
+          navigator.onLine === false &&
+          userId &&
+          (await enqueueOutbox(userId, "save-prompt", payload))
+        ) {
+          setQueued(true);
+        } else {
+          setSaveError("Couldn't save — try again.");
+        }
       }
     });
   }
@@ -296,7 +320,9 @@ export function TransformationDiff({
             <p className="font-body text-xs text-accent">
               {reviewable && rejected.size > 0
                 ? `${keptCount}/${hunks.length} changes kept`
-                : `${changes} changed section${changes === 1 ? "" : "s"}`}
+                : changes === null
+                  ? "too long to diff — showing plain text"
+                  : `${changes} changed section${changes === 1 ? "" : "s"}`}
             </p>
             {/* Quick copy — a 44px tap target that doesn't inflate the header row. */}
             <PressableButton
@@ -345,7 +371,11 @@ export function TransformationDiff({
         </div>
         {/* OUTPUT REGION: result text + diff tokens render in mono (JetBrains). */}
         <p className="mono whitespace-pre-wrap break-words text-sm text-chalk">
-          <OutputSegments segments={result.diff} hunkOf={hunkOf} rejected={rejected} />
+          {result.diff ? (
+            <OutputSegments segments={result.diff} hunkOf={hunkOf} rejected={rejected} />
+          ) : (
+            effectiveOutput
+          )}
         </p>
       </div>
 
@@ -359,7 +389,14 @@ export function TransformationDiff({
           onClick={copyOutput}
           className="btn-laser flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm"
         >
-          {copied ? "Copied ✓" : "Copy"}
+          {copied ? (
+            <span className="inline-flex items-center gap-1">
+              Copied
+              <CheckMark />
+            </span>
+          ) : (
+            "Copy"
+          )}
         </button>
         {onUse && (
           <button
@@ -489,7 +526,11 @@ export function TransformationDiff({
               href={`/library/${savedId}`}
               className="flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl bg-pulse px-2 text-sm text-on-laser"
             >
-              Saved ✓ — open
+              <span className="inline-flex items-center gap-1">
+                Saved
+                <CheckMark />
+                — open
+              </span>
             </Link>
           ) : queued ? (
             <span className="font-body flex min-h-[44px] items-center justify-center rounded-xl bg-amber px-2 text-center text-xs leading-snug text-on-laser">
@@ -519,13 +560,15 @@ export function TransformationDiff({
               Share
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setCompareOpen(true)}
-            className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
-          >
-            Compare
-          </button>
+          {result.diff && (
+            <button
+              type="button"
+              onClick={() => setCompareOpen(true)}
+              className="glass flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm text-text hover-hair transition-colors"
+            >
+              Compare
+            </button>
+          )}
         </div>
 
         {/* Export strip — a micro-label cap plus equal format segments split by
@@ -610,8 +653,8 @@ export function TransformationDiff({
           {result.resolvedTarget && (
             <span>Auto → {TARGET_LABEL[result.resolvedTarget]} · </span>
           )}
-          {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok · $
-          {result.costUsd.toFixed(4)}
+          {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok ·{" "}
+          {result.usageEstimated ? "≈" : ""}${result.costUsd.toFixed(4)}
         </p>
       </div>
 
@@ -728,14 +771,14 @@ export function TransformationDiff({
           {originalWords} word{originalWords === 1 ? "" : "s"})
         </button>
         {showOriginal && (
-          <div className="mt-2 rounded-2xl border border-hair bg-[color-mix(in_srgb,var(--void)_60%,transparent)] p-4">
+          <div className="mt-2 rounded-2xl border border-hair bg-[var(--scrim-panel)] p-4">
             <p className="font-body mb-2 text-xs uppercase tracking-wider text-silver">
               {refined ? "Previous result" : "Input"}
             </p>
             {/* OUTPUT REGION: the input body renders in mono; removed tokens
                 are dimmed + struck — equal + removed reconstructs it losslessly. */}
             <p className="mono whitespace-pre-wrap break-words text-sm text-silver">
-              <InputSegments segments={result.diff} />
+              {result.diff ? <InputSegments segments={result.diff} /> : input}
             </p>
           </div>
         )}
@@ -751,7 +794,7 @@ export function TransformationDiff({
         <div
           className="sheet-in glass-chrome sticky z-30 -mx-1 flex items-center gap-2 rounded-2xl px-2 py-2"
           style={{
-            bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 8px)",
+            bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
           }}
         >
           <button
@@ -759,7 +802,14 @@ export function TransformationDiff({
             onClick={copyOutput}
             className="btn-laser flex min-h-[44px] flex-1 items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm"
           >
-            {copied ? "Copied ✓" : "Copy"}
+            {copied ? (
+              <span className="inline-flex items-center gap-1">
+                Copied
+                <CheckMark />
+              </span>
+            ) : (
+              "Copy"
+            )}
           </button>
           {onUse && (
             <button
@@ -773,14 +823,25 @@ export function TransformationDiff({
         </div>
       )}
 
-      <CompareSheet
-        open={compareOpen}
-        onClose={() => setCompareOpen(false)}
-        diff={result.diff}
-        refined={refined}
-        hunkOf={hunkOf}
-        rejected={rejected}
-      />
+      {result.diff && (
+        <CompareSheet
+          open={compareOpen}
+          onClose={() => setCompareOpen(false)}
+          diff={result.diff}
+          refined={refined}
+          hunkOf={hunkOf}
+          rejected={rejected}
+        />
+      )}
     </section>
   );
 }
+
+/**
+ * Memoized: the composer re-renders on every keystroke and every SSE flush, but
+ * this view reads the SUBMITTED snapshot (input+mode+target) and stable-identity
+ * callbacks, so it should reconcile only when the result itself changes
+ * (PERF-003). The composer hoists onUse/onRefine/onAnswer into useCallback so
+ * this memo actually holds.
+ */
+export const TransformationDiff = memo(TransformationDiffImpl);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { loadBrowserClient } from "@/lib/supabase/lazy-client";
 import { budgetStatus, formatBytes } from "@/lib/media/formatters";
 import { removeAsset } from "@/lib/media/pipeline";
 import {
@@ -49,7 +49,7 @@ export function MediaManager({ onChanged }: { onChanged?: () => void }) {
   const [preview, setPreview] = useState<Preview | null>(null);
 
   const load = useCallback(async () => {
-    const supabase = createClient();
+    const supabase = await loadBrowserClient();
     const { data } = await supabase
       .from("media_assets")
       .select(
@@ -80,7 +80,7 @@ export function MediaManager({ onChanged }: { onChanged?: () => void }) {
   /** Open a row: mint a FRESH signed URL (the batch above may have aged out). */
   async function openPreview(asset: StoredAsset) {
     setPreview({ asset });
-    const supabase = createClient();
+    const supabase = await loadBrowserClient();
     const { data, error } = await supabase.storage
       .from("media")
       .createSignedUrl(asset.storage_path, PREVIEW_URL_TTL_SECONDS);
@@ -98,13 +98,14 @@ export function MediaManager({ onChanged }: { onChanged?: () => void }) {
 
   async function remove(asset: StoredAsset) {
     setNotice(null);
-    const supabase = createClient();
+    const supabase = await loadBrowserClient();
     const outcome = await removeAsset(
       {
         reserve: async () => {
           throw new Error("unused");
         },
         uploadObject: async () => {},
+        commit: async () => {},
         setStatus: async () => {},
         deleteRow: async (id) => {
           const { error } = await supabase.from("media_assets").delete().eq("id", id);

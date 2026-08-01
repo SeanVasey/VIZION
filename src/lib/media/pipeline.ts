@@ -29,7 +29,12 @@ export interface MediaStoreDeps {
     role: string;
   }): Promise<{ id: string; storagePath: string }>;
   uploadObject(path: string, file: Blob, contentType: string): Promise<void>;
-  setStatus(id: string, status: "ready" | "failed"): Promise<void>;
+  /** Flip the row to 'ready' AND reconcile size_bytes against the uploaded
+   *  object's real storage metadata (the media_commit RPC) — the declared
+   *  size is client-supplied and the quota must charge what actually landed
+   *  (MED-001). Throws when the object is missing server-side. */
+  commit(id: string): Promise<void>;
+  setStatus(id: string, status: "failed"): Promise<void>;
   deleteRow(id: string): Promise<void>;
   /** Resolves `{ notFound: true }` when the object is already gone. */
   removeObject(path: string): Promise<{ notFound?: boolean }>;
@@ -97,6 +102,12 @@ export async function storeAttachment(
     // The reservation must not keep charging quota for bytes that never
     // arrived — delete the row; if even that fails, mark it failed so it
     // stays visible (and removable) in the media manager.
+    //
+    // Best-effort object removal FIRST (MED-005): an upload that committed
+    // server-side while the client saw an error would otherwise strand an
+    // invisible object no list or quota row ever mentions again. "Already
+    // gone" is the normal case and a cheap no-op.
+    await deps.removeObject(reserved.storagePath).catch(() => {});
     try {
       await deps.deleteRow(reserved.id);
     } catch {
@@ -110,7 +121,7 @@ export async function storeAttachment(
   }
 
   try {
-    await deps.setStatus(reserved.id, "ready");
+    await deps.commit(reserved.id);
   } catch {
     // Object + row both exist; the stale 'pending' only affects the manager's
     // status badge. Don't fail a successful upload over it.

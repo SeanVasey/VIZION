@@ -25,6 +25,9 @@ import { rateLimit } from "@/lib/security/rate-limit";
 import { reserveSpend, settleSpend, releaseSpend } from "@/lib/security/spend";
 import { getAppSettings, isOwnerUser } from "@/lib/owner/settings";
 
+// Backstop for non-Vercel hosts: on Vercel the platform's 4.5 MB request-body
+// cap rejects the JSON envelope first (effective decoded ceiling ~3.4 MB), so
+// this in-route 413 binds only where no platform cap exists (MED-009).
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 
@@ -106,7 +109,12 @@ export async function POST(request: NextRequest) {
     return err(400, "Unknown target model.");
   }
   const typedTarget = (target as TargetModelId | undefined) ?? "opus_5";
-  if (intent !== undefined && (typeof intent !== "string" || !(intent in INTENTS))) {
+  // Object.hasOwn, not `in`: the prototype chain would accept "toString"
+  // and silently run the default analysis while echoing the bogus intent.
+  if (
+    intent !== undefined &&
+    (typeof intent !== "string" || !Object.hasOwn(INTENTS, intent))
+  ) {
     return err(400, "Unknown analysis intent.");
   }
   const typedIntent = (intent as Intent | undefined) ?? "reference";
@@ -158,6 +166,21 @@ export async function POST(request: NextRequest) {
 
   const visionOpts = { system: intentSpec.system, expect: intentSpec.expect };
   let extracted;
+  // Usage a FAILED leg reported before erroring (MED-004): the provider
+  // billed it whether or not we got a result, so it must reach the ledger —
+  // "failed calls are free" is how a flaky provider spends invisibly.
+  // Cost is computed at the leg's own target rates; nothing is invented.
+  let failedLegCost = 0;
+  let failedLegUsage = { tokenIn: 0, tokenOut: 0 };
+  const recordFailedLeg = (e: unknown, target: TargetModelId) => {
+    if (e instanceof ProviderError && e.usage) {
+      failedLegUsage = {
+        tokenIn: failedLegUsage.tokenIn + e.usage.tokenIn,
+        tokenOut: failedLegUsage.tokenOut + e.usage.tokenOut,
+      };
+      failedLegCost += computeCost(target, e.usage.tokenIn, e.usage.tokenOut);
+    }
+  };
   try {
     try {
       extracted = await describeImage(
@@ -169,29 +192,55 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       const fallback = isVisionConfigError(e) ? visionFallbackTarget(usedTarget) : null;
       if (!fallback) throw e;
+      recordFailedLeg(e, usedTarget);
       console.error(
         `[media] vision on ${usedTarget} failed (${e instanceof Error ? e.message : e}); retrying on ${fallback}`,
       );
+      // Attribute the fallback leg to the FALLBACK's rates and model — set the
+      // active target BEFORE the await, so a fallback that reports usage and
+      // then throws is priced and ledgered by the outer catch at `fallback`,
+      // not left pointing at the original target (Codex review, PR #75).
+      usedTarget = fallback;
       extracted = await describeImage(
         parsed.base64,
         parsed.mediaType,
         fallback,
         visionOpts,
       );
-      usedTarget = fallback;
     }
   } catch (e) {
     // Every failure path out of the provider calls funnels here, so the hold
-    // cannot be stranded by an early return added later.
-    const { error: releaseError } = await releaseSpend(supabase, reservation.id);
-    if (releaseError) {
-      console.error(writeErrorLogLine("media", "spend hold release", releaseError));
+    // cannot be stranded by an early return added later. A failure that
+    // REPORTED usage settles it (the money is spent); a free failure — the
+    // common case: 401/403/404 answered before any model ran — releases.
+    recordFailedLeg(e, usedTarget);
+    if (failedLegUsage.tokenIn > 0 || failedLegUsage.tokenOut > 0) {
+      const { error: ledgerError } = await settleSpend(supabase, reservation.id, {
+        target: usedTarget,
+        mode: "extract",
+        modelUsed: TARGETS[usedTarget].model,
+        tokenIn: failedLegUsage.tokenIn,
+        tokenOut: failedLegUsage.tokenOut,
+        costUsd: failedLegCost,
+      });
+      if (ledgerError) {
+        console.error(writeErrorLogLine("media", "usage ledger write", ledgerError));
+      }
+    } else {
+      const { error: releaseError } = await releaseSpend(supabase, reservation.id);
+      if (releaseError) {
+        console.error(writeErrorLogLine("media", "spend hold release", releaseError));
+      }
     }
     return visionError(e);
   }
 
   const cfg = TARGETS[usedTarget];
-  const costUsd = computeCost(usedTarget, extracted.tokenIn, extracted.tokenOut);
+  // The settled figure covers BOTH legs when the first failed after billing:
+  // token counts sum (attributed to the answering target's row — the ledger
+  // is per-request), and each leg's cost is priced at its own target's rates.
+  const costUsd =
+    computeCost(usedTarget, extracted.tokenIn, extracted.tokenOut) + failedLegCost;
   // Settling records the real cost and drops this run's hold in one step,
   // inside a SECURITY DEFINER function that takes the owner from the verified
   // JWT — the client holds no INSERT grant on `usage_events`.
@@ -199,9 +248,10 @@ export async function POST(request: NextRequest) {
     target: usedTarget,
     mode: "extract",
     modelUsed: cfg.model,
-    tokenIn: extracted.tokenIn,
-    tokenOut: extracted.tokenOut,
+    tokenIn: extracted.tokenIn + failedLegUsage.tokenIn,
+    tokenOut: extracted.tokenOut + failedLegUsage.tokenOut,
     costUsd,
+    estimated: extracted.usageEstimated ?? false,
   });
   // The cap is only as good as this write (console.error survives prod).
   if (ledgerError) {
@@ -215,6 +265,9 @@ export async function POST(request: NextRequest) {
     costUsd,
     todayCost: reservation.todayCost + costUsd,
     capUsd: COST_CAP_USD_PER_DAY,
+    // "$0.0000" from an absent usage block is a default, not a measurement —
+    // the client renders the approximation marker off this flag (INV-04).
+    ...(extracted.usageEstimated ? { estimated: true } : {}),
   };
 
   // Transcription intent: the payload is the text, not attributes.

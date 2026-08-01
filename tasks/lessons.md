@@ -2283,3 +2283,59 @@ than as a puzzling failure in whichever spec ran first.
   and the interleaved variant (Gemini: `thought: true` parts).
 - Applies to: every fetch-based adapter in `src/lib/providers/`; the SDK-based
   adapters are exempt only because the SDK owns the framing.
+
+## Audit-remediation waves (2026-08-01, PR #75): what the six waves taught
+
+- **Keep supabase-js out of first load with a dynamic import behind a tiny
+  seam, not by scattering `import()` at call sites.** `src/lib/supabase/
+  lazy-client.ts` re-exports `loadBrowserClient()` (whose only reference to the
+  heavy client is `await import(...)`) plus `type BrowserClient =
+  Awaited<ReturnType<typeof loadBrowserClient>>`. Consumers import the tiny
+  module statically; the bundler splits `@supabase/*` into an async chunk.
+  Measured: /enhance 223→158 kB, /profile 208→143 kB (PERF-001/Q14). The type
+  alias sidesteps the `import type { createClient }` + `typeof` trap — a
+  type-only import cannot be used in a `typeof` query.
+- **`useMutation`'s return object is a fresh spread every render; `.mutate` is
+  stable.** So a `useCallback` that closes over the whole mutation re-creates
+  every render and defeats the memo it was meant to feed. Depend on the
+  destructured `mutate`/`isPending`, never the object. Same shape for volatile
+  store values in an event handler: read `useUIStore.getState().x` imperatively
+  instead of adding `x` to the dep array, or the handler churns per keystroke
+  (PERF-003/006).
+- **A comfort/perf knob that only CSS-hides is a half-kept promise.**
+  `data-reduced-effects` set `display:none` on the mesh canvas while the rAF
+  loop kept running the full node/link math into it at 30fps. A knob has to stop
+  the WORK, not just the pixels — gate the loop on the same signal
+  (PERF-002). Look for the same gap wherever an effect has both a CSS rule and a
+  JS driver.
+- **`immutable` is the wrong cache header for assets that regenerate in place.**
+  The icon/splash/brand matrix is rebuilt by `generate-icons.mjs` under the SAME
+  filenames, so a year of `immutable` would strand a re-brand. `max-age=86400,
+  stale-while-revalidate=604800` keeps the win and lets an update propagate in a
+  day (PERF-008). Reserve `immutable` for content-hashed names (fonts already
+  are).
+- **Bulk ledger-disposition edits need bounded, asserted matching.** Replacing
+  `- **disposition:** pending` per finding by locating its `### <ID>` header and
+  bounding the search to that finding's section (up to the next `### `) — with a
+  hard fail if the header or a pending line is missing — updated 66 dispositions
+  across three waves with zero cross-contamination. A blind global replace of a
+  repeated marker string corrupts neighbours.
+- **A blind path rename inside an audit ledger corrupts the findings that
+  describe the paths.** Folding `docs/audit/` → `docs/audits/` (DOC-014) could
+  not be a global `docs/audit/`→`docs/audits/` because DOC-014's own text
+  contrasts the two directory names, and the substring relationship (`audits`
+  contains `audit`) is a second trap. Fix: `git mv` the files, update only the
+  forward-looking pointers (CLAUDE.md, the ADRs, history, CHANGELOG), and keep
+  the ledger's point-in-time evidence paths as the record (with a header note).
+- **"Locked" canon that has gone stale needs a reclassification decision, not a
+  silent rewrite.** The v1 planning files said 3 models / 5 modes while the app
+  shipped 16 / 6, and CLAUDE.md called them locked-authoritative. ADR-0005 names
+  the LIVING canon (code + CHANGELOG + tokens.css + the ledger) and moves the v1
+  files to `docs/history/`; section citations in source comments survive because
+  they are by-section, not by-path (Q2).
+- **The WebKit e2e leg does not run in this sandbox and that is a disclosure,
+  not a pass.** `mobile-safari` (WebKitGTK) cannot launch here (missing
+  `libgles2`/`gstreamer`), so every wave verified on `mobile-chrome` (30/30) and
+  said so. The identical specs passing on Chromium is what licenses "the
+  hygiene/perf changes are unaffected" — never let the 25 WebKit launch failures
+  read as a code regression (CLAUDE.md §3).

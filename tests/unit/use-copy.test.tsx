@@ -63,7 +63,8 @@ describe("useCopy", () => {
     });
     // Never claims success it didn't achieve.
     expect(screen.getByRole("button").textContent).toBe("Copy");
-    expect(screen.getByRole("alert").textContent).toMatch(/couldn't copy/i);
+    // Surfaced via the error toast (aria-live, no role) — card + sr-only mirror.
+    expect(screen.getAllByText(/couldn't copy/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it("does not set state after the control unmounts mid-flash", async () => {

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { loadBrowserClient } from "@/lib/supabase/lazy-client";
 import { useUIStore } from "@/stores/ui";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { ProviderIcon } from "@/components/auth/ProviderIcon";
@@ -131,7 +131,7 @@ export function SettingsPanel({
     setPickedFile(null);
     write("avatar", async () => {
       try {
-        const supabase = createClient();
+        const supabase = await loadBrowserClient();
         const path = `${profile.user_id}/avatar.png`;
         const { error: upErr } = await supabase.storage
           .from("avatars")
@@ -325,7 +325,9 @@ export function SettingsPanel({
                 setNewEmail(pendingEmail);
                 write("email", () => updateEmailAction(pendingEmail));
               }}
-              className="text-accent transition-colors hover:text-chalk"
+              // Resting underline (A11Y-007): accent-vs-amber ink is a color-only
+              // distinction inside the sentence without it.
+              className="text-accent underline decoration-1 underline-offset-2 transition-colors hover:text-chalk"
             >
               Resend
             </button>
@@ -387,6 +389,7 @@ export function SettingsPanel({
           <button
             type="button"
             role="switch"
+            aria-label="Reduced effects"
             aria-checked={reducedEffects}
             onClick={() => setReducedEffects(!reducedEffects)}
             className={`inline-flex h-8 w-14 items-center rounded-full border border-hair p-1 transition-colors ${
@@ -397,7 +400,7 @@ export function SettingsPanel({
               aria-hidden="true"
               className={`h-6 w-6 rounded-full transition-transform ${
                 reducedEffects
-                  ? "translate-x-6 bg-[var(--on-laser)]"
+                  ? "translate-x-6 bg-on-laser"
                   : "translate-x-0 bg-silver"
               }`}
             />

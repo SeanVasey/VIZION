@@ -1,5 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
+import { PROVIDER_MAX_RETRIES, PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -25,7 +26,12 @@ export async function* streamMistral(
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("mistral");
 
-  const client = new OpenAI({ apiKey, baseURL: MISTRAL_BASE_URL });
+  const client = new OpenAI({
+    apiKey,
+    baseURL: MISTRAL_BASE_URL,
+    timeout: PROVIDER_TIMEOUT_MS,
+    maxRetries: PROVIDER_MAX_RETRIES,
+  });
 
   try {
     const stream = await client.chat.completions.create({

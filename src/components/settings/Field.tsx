@@ -1,4 +1,5 @@
 import type { SettingStatus } from "@/components/settings/use-setting-write";
+import { CheckMark } from "@/components/ui/glyphs";
 
 /** Section-row primitive: label left, control right (lifted out of the old
  *  ProfilePanel so every Settings section shares one shape). */
@@ -65,13 +66,18 @@ export function FieldStatus({ status }: { status: SettingStatus | undefined }) {
             }`
       }
     >
-      {state === "saving"
-        ? "Saving…"
-        : state === "saved"
-          ? "Saved ✓"
-          : state === "error"
-            ? status?.message
-            : ""}
+      {state === "saving" ? (
+        "Saving…"
+      ) : state === "saved" ? (
+        <span className="inline-flex items-center gap-1">
+          Saved
+          <CheckMark />
+        </span>
+      ) : state === "error" ? (
+        status?.message
+      ) : (
+        ""
+      )}
     </p>
   );
 }
@@ -86,9 +92,11 @@ export function SettingsSection({
 }) {
   return (
     <section aria-label={title} className="flex flex-col gap-2">
-      <h3 className="font-body px-1 text-xs uppercase tracking-wider text-silver">
+      {/* h2, not h3 (A11Y-009): the page h1 is the ScreenHeader title and
+          nothing sits between — the visual is entirely class-driven. */}
+      <h2 className="font-body px-1 text-xs uppercase tracking-wider text-silver">
         {title}
-      </h3>
+      </h2>
       <div className="glass flex flex-col gap-4 rounded-2xl p-5">{children}</div>
     </section>
   );

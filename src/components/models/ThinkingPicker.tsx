@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
+import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
 
 /**
@@ -26,7 +27,12 @@ import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
  * (three to five steps plus Auto) that the sheet is no worse a fit — it also
  * buys the room to say what Auto actually does, which an `<option>` cannot.
  */
-export function ThinkingPicker({
+// Memoized: like TargetPicker, nested in the composer. Its `onChange` is now a
+// useCallback in the composer, so all props are stable and the memo holds
+// across stream flushes (PERF-006).
+export const ThinkingPicker = memo(ThinkingPickerImpl);
+
+function ThinkingPickerImpl({
   value,
   options,
   onChange,
@@ -110,10 +116,20 @@ function ThinkingPickerSheet({
   // Open on the current pick, not the top of the ladder.
   const initialFocus = useMemo(() => selectedRef, []);
   const isAuto = value === undefined;
+  // Arrow-key focus per the radio contract (A11Y-002); Enter/Space picks.
+  const roving = useRovingRadios(
+    options.length + 1,
+    isAuto ? 0 : options.indexOf(value) + 1,
+  );
 
   return (
     <Sheet open={open} onClose={onClose} title={title} initialFocusRef={initialFocus}>
-      <div role="radiogroup" aria-label={title} className="flex flex-col gap-4">
+      <div
+        role="radiogroup"
+        aria-label={title}
+        className="flex flex-col gap-4"
+        onKeyDown={roving.onKeyDown}
+      >
         {/* Auto is not a depth — it is the decision not to set one, which sends
             no level at all and leaves the provider's own default in place. Its
             own section keeps it out of the ladder, where it would read as a
@@ -121,7 +137,7 @@ function ThinkingPickerSheet({
         <section className="flex flex-col gap-1">
           <div className="glass overflow-hidden rounded-xl">
             <button
-              ref={isAuto ? selectedRef : undefined}
+              {...roving.radioProps(0, isAuto ? selectedRef : undefined)}
               type="button"
               role="radio"
               aria-checked={isAuto}
@@ -149,7 +165,10 @@ function ThinkingPickerSheet({
               return (
                 <button
                   key={level}
-                  ref={active ? selectedRef : undefined}
+                  {...roving.radioProps(
+                    options.indexOf(level) + 1,
+                    active ? selectedRef : undefined,
+                  )}
                   type="button"
                   role="radio"
                   aria-checked={active}

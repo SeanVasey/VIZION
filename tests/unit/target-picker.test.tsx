@@ -95,6 +95,26 @@ describe("TargetPicker sheet", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("implements the radio arrow-key contract: roving tabindex + focus moves (A11Y-002)", () => {
+    open("sonnet_5");
+    const radios = screen.getAllByRole("radio");
+    // Exactly one tab stop — the checked radio.
+    const stops = radios.filter((r) => r.getAttribute("tabindex") === "0");
+    expect(stops).toHaveLength(1);
+    expect(stops[0]!.getAttribute("aria-checked")).toBe("true");
+    // ArrowDown moves focus (not selection — picking closes this sheet).
+    const group = screen.getByRole("radiogroup");
+    stops[0]!.focus();
+    fireEvent.keyDown(group, { key: "ArrowDown" });
+    const from = radios.indexOf(stops[0]!);
+    const next = radios[(from + 1) % radios.length]!;
+    expect(document.activeElement).toBe(next);
+    expect(next.getAttribute("tabindex")).toBe("0");
+    // Home jumps to the first radio.
+    fireEvent.keyDown(group, { key: "Home" });
+    expect(document.activeElement).toBe(radios[0]);
+  });
+
   it("closes on Escape without reporting a change", () => {
     const { onChange } = open();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });

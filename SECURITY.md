@@ -2,9 +2,11 @@
 
 ## Reporting a vulnerability
 
-Please report security issues privately to **sean@vasey.audio** with the subject
-`VIZION SECURITY`. Do not open a public issue for undisclosed vulnerabilities. We aim
-to acknowledge within 72 hours and to ship a fix or mitigation promptly.
+Please report security issues privately through
+[GitHub private vulnerability reporting](https://github.com/SeanVasey/VIZION/security/advisories/new)
+("Report a vulnerability" on the repository's **Security** tab). Do not open a
+public issue for undisclosed vulnerabilities. We aim to acknowledge within 72
+hours and to ship a fix or mitigation promptly.
 
 ## Security posture (non-negotiable guardrails)
 
@@ -13,9 +15,13 @@ to acknowledge within 72 hours and to ship a fix or mitigation promptly.
 - **Row-Level Security on every table from creation.** Policies restrict every
   `select/insert/update/delete` to `auth.uid() = user_id`; child tables join through
   parent ownership. No table ships without a policy.
-- **Model provider keys are server-side only.** `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
-  and `GOOGLE_API_KEY` are read only inside Next route handlers (the provider-adapter
-  proxy) and never reach the client bundle.
+- **Model provider keys are server-side only.** All twelve provider keys —
+  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `DEEPSEEK_API_KEY`,
+  `META_API_KEY`, `MINIMAX_API_KEY`, `MISTRAL_API_KEY`, `MOONSHOT_API_KEY`,
+  `PERPLEXITY_API_KEY`, `DASHSCOPE_API_KEY`, `XAI_API_KEY`, `ZAI_API_KEY` (the
+  full set in `src/lib/providers/config.ts` `PROVIDER_KEY_ENV`) — are read only
+  inside Next route handlers (the provider-adapter proxy) and never reach the
+  client bundle.
 - **The service-role key has exactly one consumer** — the account-deletion route
   handler (`/auth/delete-account` via `src/lib/supabase/admin.ts`, `server-only`).
   It is constructed per request after the session is verified, the only identifier

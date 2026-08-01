@@ -14,8 +14,12 @@ thinking-depth selector, six enhancement modes,
 media-aware prompting, accounts, and a versioned prompt library. **Ship-ready at
 every commit.**
 
-Authoritative companions (treat as locked): `VIZION FINAL PLAN v1.md`,
-`VIZION-product-spec.md`, `VIZION-style-guide.html`.
+The **living canon** — reconcile against these — is the code, `CHANGELOG.md`,
+`src/styles/tokens.css`, and the audit ledger under `docs/audits/` (see
+`docs/decisions/0005-living-canon.md`). The v1-era planning documents
+(`VIZION FINAL PLAN v1.md`, `VIZION-product-spec.md`, `VIZION-style-guide.html`)
+are **historical, not authoritative**: they moved to `docs/history/`; source
+comments still cite them by section (`product-spec §4.1`) for rationale only.
 
 ## 2. Principles
 
@@ -56,7 +60,9 @@ the rule. Two wrong claims have already shipped from getting this backwards.
 ## 4. CI
 
 `.github/workflows/ci.yml` runs on PR + push to `main`:
-`lint · typecheck · test · build · npm audit`. Preview deploy per PR on Vercel.
+`lint · typecheck · icon generation · unit tests · build · Playwright e2e ·
+production `npm audit` (blocking) · full-tree `audit:check` (blocking)`.
+Preview deploy per PR on Vercel.
 `.github/workflows/release.yml` tags `v<version>` + publishes a GitHub Release
 (notes from `CHANGELOG.md`) when a `package.json` version bump lands on `main` —
 procedure in `docs/runbooks/release.md`.
@@ -117,7 +123,8 @@ tasks/            lessons.md
 
 - Strip `console.*` in production (`next.config.ts` `compiler.removeConsole`, keep
   error/warn). Security headers + HSTS set in `next.config.ts`.
-- Rate limits on all endpoints; edge DDoS posture.
+- Rate limits on all endpoints; the abuse control is atomic per-user admission
+  in `spend_reserve` (§7), not an edge posture.
 - iOS storage-eviction recovery: `navigator.storage.persist()`, re-hydrate from
   Supabase on launch, IndexedDB outbox flushed on `visibilitychange`.
 - Full WCAG AA pass; Lighthouse PWA ✓.

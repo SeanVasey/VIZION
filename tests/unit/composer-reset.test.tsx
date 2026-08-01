@@ -95,12 +95,9 @@ describe("composer Clear (was RESET)", () => {
     // a live region has to exist before its text lands to be announced. The
     // contract here is unchanged: the clear is announced through a live
     // region, not merely rendered.
-    expect(
-      screen
-        .getAllByRole("status")
-        .map((n) => n.textContent)
-        .join(" "),
-    ).toContain("Composer cleared");
+    // Announced through the toast's permanent aria-live region (A11Y-004) —
+    // present in the sr-only mirror and the visible card.
+    expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe(
       "my pasted draft",

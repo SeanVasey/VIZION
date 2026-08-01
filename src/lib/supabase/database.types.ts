@@ -311,6 +311,7 @@ export type Database = {
           token_in: number;
           token_out: number;
           cost_usd: number;
+          estimated: boolean;
           created_at: string;
         };
         Insert: {
@@ -322,6 +323,7 @@ export type Database = {
           token_in?: number;
           token_out?: number;
           cost_usd?: number;
+          estimated?: boolean;
           created_at?: string;
         };
         Update: {
@@ -333,6 +335,7 @@ export type Database = {
           token_in?: number;
           token_out?: number;
           cost_usd?: number;
+          estimated?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -502,6 +505,10 @@ export type Database = {
           reserved_usd: number;
         }[];
       };
+      media_commit: {
+        Args: { p_id: string };
+        Returns: number;
+      };
       spend_settle: {
         Args: {
           p_reservation_id: string;
@@ -511,6 +518,7 @@ export type Database = {
           p_token_in: number;
           p_token_out: number;
           p_cost_usd: number;
+          p_estimated?: boolean;
         };
         Returns: undefined;
       };

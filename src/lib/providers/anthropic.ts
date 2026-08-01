@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { PROVIDER_MAX_RETRIES, PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -56,7 +57,11 @@ export async function* streamAnthropic(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("anthropic");
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({
+    apiKey,
+    timeout: PROVIDER_TIMEOUT_MS,
+    maxRetries: PROVIDER_MAX_RETRIES,
+  });
   let tokenIn = 0;
   const effort = opts.thinkingLevel;
 
@@ -81,15 +86,17 @@ export async function* streamAnthropic(
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
     if (error instanceof Anthropic.APIError) {
+      // "Anthropic", not "Opus": this one stream serves Opus 5, Sonnet 5,
+      // and Fable 5 — naming one model mislabels the other two's failures.
       throw new ProviderError(
         "anthropic",
-        `Opus request failed: ${error.message}`,
+        `Anthropic request failed: ${error.message}`,
         error.status,
       );
     }
     throw new ProviderError(
       "anthropic",
-      error instanceof Error ? error.message : "Unknown Opus error.",
+      error instanceof Error ? error.message : "Unknown Anthropic error.",
     );
   }
 }

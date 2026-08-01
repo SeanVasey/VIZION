@@ -91,6 +91,9 @@ export async function settleSpend(
     tokenIn: number;
     tokenOut: number;
     costUsd: number;
+    /** Counts came from the ~4 chars/token fallback, not the provider —
+     *  ledgered as an estimate, never presented as a measurement (INV-04). */
+    estimated?: boolean;
   },
 ) {
   return supabase.rpc("spend_settle", {
@@ -101,6 +104,7 @@ export async function settleSpend(
     p_token_in: usage.tokenIn,
     p_token_out: usage.tokenOut,
     p_cost_usd: usage.costUsd,
+    p_estimated: usage.estimated ?? false,
   });
 }
 

@@ -20,6 +20,9 @@ export interface PromptCard {
   updated_at: string;
   favorite: boolean;
   archived: boolean;
+  /** Soft-deleted (in Recently deleted) — the card renders Restore/Delete
+   *  forever instead of the normal actions (Q9). */
+  deleted: boolean;
   preview: string | null;
   mode: string | null;
   versions: number;
@@ -72,6 +75,7 @@ interface PageRow {
   updated_at: string;
   favorite: boolean;
   archived_at: string | null;
+  deleted_at: string | null;
   preview: string | null;
   current_mode: string | null;
   collection_id: string | null;
@@ -93,13 +97,17 @@ export async function queryLibraryPage(
   let q = supabase
     .from("prompts")
     .select(
-      "id, title, target_model, tags, created_at, updated_at, favorite, archived_at, preview, current_mode, collection_id, prompt_versions!prompt_id(count)",
-    )
-    .is("deleted_at", null);
+      "id, title, target_model, tags, created_at, updated_at, favorite, archived_at, deleted_at, preview, current_mode, collection_id, prompt_versions!prompt_id(count)",
+    );
+
+  // Trash (Q9) is the ONE view over soft-deleted rows; everywhere else they
+  // stay invisible exactly as before.
+  if (filter.view === "trash") q = q.not("deleted_at", "is", null);
+  else q = q.is("deleted_at", null);
 
   if (filter.view === "favorites") q = q.eq("favorite", true).is("archived_at", null);
   else if (filter.view === "archived") q = q.not("archived_at", "is", null);
-  else q = q.is("archived_at", null);
+  else if (filter.view !== "trash") q = q.is("archived_at", null);
   if (filter.model) q = q.eq("target_model", filter.model);
   if (filter.mode) q = q.eq("current_mode", filter.mode);
   if (filter.tag) q = q.contains("tags", [filter.tag]);
@@ -109,7 +117,10 @@ export async function queryLibraryPage(
   const cursor = cursorRaw ? decodeCursor(cursorRaw) : null;
   if (cursor) {
     const op = spec.ascending ? "gt" : "lt";
-    const v = spec.column === "title" ? quoteOrValue(cursor.value) : cursor.value;
+    // EVERY interpolated value is quoted (SEC-004) — not just titles:
+    // PostgREST accepts quoted timestamps, and an unquoted client value is
+    // filter grammar. decodeCursor has already pinned the id to a UUID.
+    const v = quoteOrValue(cursor.value);
     q = q.or(`${spec.column}.${op}.${v},and(${spec.column}.eq.${v},id.lt.${cursor.id})`);
   }
 
@@ -130,6 +141,7 @@ export async function queryLibraryPage(
     updated_at: row.updated_at,
     favorite: row.favorite,
     archived: row.archived_at !== null,
+    deleted: row.deleted_at !== null,
     preview: row.preview,
     mode: row.current_mode,
     versions: row.prompt_versions?.[0]?.count ?? 1,
@@ -154,6 +166,10 @@ export async function queryLibraryFacets(supabase: Supabase): Promise<LibraryFac
       .from("prompts")
       .select("target_model, tags, collection_id")
       .is("deleted_at", null)
+      // Deterministic slice (LIB-005): without an order, WHICH 1000 rows feed
+      // the counts is unspecified and shifts between requests — most-recent
+      // is at least stable and matches what the user sees first.
+      .order("updated_at", { ascending: false })
       .limit(1000),
     supabase.from("collections").select("id, name").order("name"),
   ]);

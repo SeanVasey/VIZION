@@ -35,7 +35,7 @@ const PORT = Number(process.env.SUPABASE_STUB_PORT ?? 54321);
 
 /* ---------------------------------------------------------------- fixtures */
 
-export const E2E_USER = {
+const E2E_USER = {
   id: "00000000-0000-4000-8000-000000000001",
   email: "e2e@vasey.test",
   password: "e2e-password-1234",

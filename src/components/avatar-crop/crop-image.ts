@@ -18,7 +18,7 @@ export interface CropTransform {
 }
 
 /** Edge length (px) of the square PNG we render. */
-export const OUTPUT_SIZE = 512;
+const OUTPUT_SIZE = 512;
 
 /**
  * Clamp a pan offset to the inclusive range [-max, +max] so the image can never

@@ -101,9 +101,9 @@ export async function queryDraftsPage(
 
   const cursor = cursorRaw ? decodeCursor(cursorRaw) : null;
   if (cursor) {
-    q = q.or(
-      `updated_at.lt.${cursor.value},and(updated_at.eq.${cursor.value},id.lt.${cursor.id})`,
-    );
+    // Quoted + UUID-pinned for the same reason as queryLibraryPage (SEC-004).
+    const v = quoteOrValue(cursor.value);
+    q = q.or(`updated_at.lt.${v},and(updated_at.eq.${v},id.lt.${cursor.id})`);
   }
 
   const { data, error } = await q
@@ -144,7 +144,13 @@ export async function queryDraftsPage(
 export async function queryDraftModelFacets(
   supabase: Supabase,
 ): Promise<{ id: string; count: number }[] | null> {
-  const { data, error } = await supabase.from("drafts").select("target_model").limit(1000);
+  // Ordered for the same reason as queryLibraryFacets (LIB-005): an
+  // unordered 1000-row slice makes the facet counts arbitrary past the cap.
+  const { data, error } = await supabase
+    .from("drafts")
+    .select("target_model")
+    .order("updated_at", { ascending: false })
+    .limit(1000);
   if (error) return null;
   const counts = new Map<string, number>();
   for (const row of data ?? []) {

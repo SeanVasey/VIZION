@@ -6,6 +6,390 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Post-review fixes (PR #75 code review)
+
+Three correctness follow-ups on the wave work, each with a test:
+
+- **Media quota (P1, extends `MED-001`).** `media_reserve` enforces the 50 MB
+  per-user quota against the client-*declared* byte count, and `media_commit`
+  corrected each row to its measured size without re-checking the aggregate — so
+  reserving many 1-byte declarations, uploading 50 MB into each, then committing
+  bypassed the ceiling. A new migration re-validates the *measured* aggregate at
+  commit under the same per-user advisory lock `media_reserve` takes, failing
+  closed over quota, so committed storage can never exceed it.
+- **Fallback cost attribution (P2).** In `/api/media`, a vision fallback that
+  reported usage and then threw was priced at the *original* target's rates and
+  ledgered under the wrong model (the active-target assignment sat after the
+  retry `await`). The target is now set before the retry, so the outer catch
+  bills the fallback leg correctly.
+- **Offline outbox parking (P2).** The `save-prompt` handler classified every
+  non-success as a permanent `failed`, so a batch of >30 queued saves — where
+  the 31st+ trip the per-user write limiter — parked the overflow permanently
+  after three flushes even though the window clears in under a minute.
+  `savePromptAction` now marks rate-limit and expired-session rejections
+  `retryable`, and the handler maps those to the existing `transient` outcome
+  (kept queued, never parked); validation and persistent write errors stay
+  bounded-then-parked.
+
+### Performance — audit Stage 2, Wave 6: bundle, render, and cache work (measured)
+
+Wave 6 clears the PERF track plus `PRI-007` and ruling **Q14**. No behaviour
+changes — the numbers below are from the build route table and the SW precache
+log.
+
+Bundle:
+
+- **PERF-001 / Q14 (`PRI-016`).** The browser Supabase client now loads through
+  a dynamic import (`src/lib/supabase/lazy-client.ts`) in the interaction-only
+  consumers (AttachmentTray, SettingsPanel, MediaManager), so `@supabase/*`
+  (~62 kB gz) leaves the first load: **/enhance 223 → 158 kB**, **/profile
+  208 → 143 kB**. `/sign-in` keeps it (auth needs it immediately). This is the
+  route-level split R8's since-removed media-studio dynamic import was meant to
+  provide.
+- **PERF-005 (also `DEAD-001`).** The service worker precache is narrowed to the
+  icons the offline experience uses (192/256/384/512 + maskable +
+  apple-touch): **320.8 KiB/21 entries → 155.1 KiB/9 entries**. icon-1024, the
+  favicons, and the intermediate iOS sizes are still served on demand and
+  runtime-cached — no download on install for assets no offline path needs.
+- **PERF-007.** The mono family is `preload: false` — its three weights (~65 kB)
+  load on demand when an output region first renders, not preloaded on the auth
+  pages that never show them.
+
+Render:
+
+- **PERF-002.** The neural-mesh rAF loop now stops when reduced-effects is on
+  (gated on `data-reduced-effects` through the existing observer), instead of
+  running the full simulation into a CSS-hidden canvas at 30fps.
+- **PERF-003.** `TransformationDiff` is memoized and the composer's
+  use/refine/answer handlers are `useCallback`s (draft read via `getState`,
+  mutation via the stable `mutate`), so typing with a result mounted no longer
+  reconciles the whole diff tree.
+- **PERF-006.** `TargetPicker` · `ThinkingPicker` · `AttachmentTray` ·
+  `KeyboardActionBar` are memoized with stable callbacks, so an SSE flush
+  reconciles only the streaming card, not the whole composer subtree.
+- **PERF-004.** `LibraryBrowser`'s swipe handlers (and their shared
+  `refreshAfterMutation`) are `useCallback`s, so the memoized `PromptRow` holds
+  and a search keystroke no longer re-renders every accumulated row.
+
+Cache + platform:
+
+- **PERF-008.** `/icons`, `/splash`, and `/brand` get
+  `Cache-Control: public, max-age=86400, stale-while-revalidate=604800` — a
+  revalidating long cache (not `immutable`: the brand masters regenerate in
+  place, so a re-brand must not be stranded for a year).
+- **PRI-007 (`APPLE-01`).** The ten iOS launch images are wired as
+  `apple-touch-startup-image` links, one per device class, with
+  device-width/height + `-webkit-device-pixel-ratio` + orientation media queries
+  (the pixel-ratio clause disambiguates the two 414×896 devices). The 528 KB
+  splash set is no longer dead weight.
+
+### Hygiene — audit Stage 2, Wave 5: dead code, dependencies, docs, and rulings Q2/Q11/Q12/Q15
+
+Wave 5 clears the DEAD / DEP / DOC tracks (plus `INV-008`, `MED-007`,
+`SW-003/004`) and lands the remaining hygiene rulings. No runtime behaviour
+changes — this wave is code hygiene, dependency accuracy, and documentation
+truth.
+
+Dead surface:
+
+- **DEAD-004.** The `export` keyword is dropped from 14 grep-verified
+  module-internal symbols (6 values + 8 types across 10 files) — compile-time
+  surface only, no runtime change.
+- **DEAD-002 (ruling Q12).** The broken `test:int` script (targeted a
+  non-existent `tests/integration/`) is removed from `package.json` and
+  `AGENTS.md`; no integration tier is planned.
+- **DEAD-005 / DEAD-001.** The 8 generated Supabase type aliases are recorded as
+  accepted scaffolding (hand-editing fights the generator); the 12 unreferenced
+  `public/icons/` files are left for Wave 6's precache trim (they are a
+  protected, dispositive path — `PERF-005`, not a deletion).
+
+Dependencies:
+
+- **DEP-001 / PRI-008.** The six `workbox-*` runtime packages
+  (`core/precaching/routing/strategies/expiration/cacheable-response`) are now
+  declared as direct devDependencies at `^7.4.1` instead of relying on
+  `workbox-build`'s transitive hoist.
+- **DEP-002.** The stale `GHSA-mh99-v99m-4gvg` exemption and its source-level
+  verifier are removed from `scripts/check-audit.mjs` (now zero-exemption); the
+  advisory is no longer reported and the per-major `brace-expansion` overrides
+  stay as defensive floors. `AGENTS.md` rewritten to match.
+- **DEP-003.** `engines.node` tightened to `^20.19.0 || >=22.12.0` (the vite 7
+  intersection), so the declared floor matches the toolchain. `DEP-004`
+  (deprecated transitives, no advisory) and `DEP-005` (openai v4→current, an
+  API-breaking migration) are recorded as tracked debt.
+
+Docs:
+
+- **Ruling Q2 (`DOC-005` / `MOD-002`), [ADR-0005](docs/decisions/0005-living-canon.md).**
+  The three v1-era canon files (`VIZION FINAL PLAN v1.md`,
+  `VIZION-product-spec.md`, `VIZION-style-guide.html`) moved to `docs/history/`
+  and are reclassified as historical. The **living canon** is code + CHANGELOG +
+  `tokens.css` + the audit ledger. `CLAUDE.md` §1, `docs/architecture.md`, and
+  ADR-0001 references updated; source `§`-citations remain valid.
+- **`DOC-008`.** The four undocumented decisions since ADR-0003 get records:
+  [0006](docs/decisions/0006-tolerant-envelope-salvage.md) (envelope salvage),
+  [0007](docs/decisions/0007-collections.md) (collections),
+  [0008](docs/decisions/0008-service-role-account-deletion.md) (service-role
+  deletion), [0009](docs/decisions/0009-atomic-spend-reservations.md) (atomic
+  spend reservations).
+- **`DOC-004`.** The vendored OFL fonts ship their license: `src/app/fonts/OFL.txt`
+  carries the full SIL OFL 1.1 text and per-family copyright notices, pointed at
+  from `LICENSE`, `README`, and `fonts/index.ts`.
+- **`DOC-001/002/003/006/009/010/011/012`, ruling Q15 (`DOC-007`).** README
+  route handlers corrected Edge→Node and the SW-strategy line to reality; README
+  phases relabeled as feature milestones (no phantom v0.4/v0.5 tags); the
+  copyright holder aligned to `LICENSE`; `CLAUDE.md` §4/§9 and `SECURITY.md`
+  (all 12 provider keys), `architecture.md` (4 missing entities), and
+  `local-dev.md` (icons are brand-derived, not placeholders) brought current.
+- **`INV-008`, `MED-007`, `SW-003/004`.** The stale migration timestamp
+  cross-references are mapped in `docs/runbooks/migrations.md` (applied
+  migrations are append-only); the audio generation spec and the service-worker
+  comments (`register-sw.ts`, `sw-src.js`, `build-sw.mjs`) now describe the
+  shipped NetworkOnly behaviour.
+
+Strictness (**ruling Q11**, `TYP-007`): `tsconfig` enables
+`noFallthroughCasesInSwitch`, `noUnusedLocals`, and `noUnusedParameters`
+alongside the already-on `noUncheckedIndexedAccess` and `noImplicitOverride` —
+the whole scheduled strictness set is green. `DOC-014` resolves the `DOC-XXX`
+placeholder; the `docs/audit`→`docs/audits` fold is deferred to finalize.
+
+### Design — audit Stage 2, Wave 4: token centralization, consumers, and design rulings
+
+Wave 4 clears the DSN track and records the design rulings Q1/Q6/Q7/Q8 in
+[ADR-0004](docs/decisions/0004-audit-design-rulings.md).
+
+Tokens first (in `globals.css`, not the LOCKED `tokens.css`):
+
+- Motion scale (`--motion-quick/--motion-slide/--ease-out`, DSN-011), a single
+  floating-clearance token (`--float-gap`, DSN-016 — the sticky bar, toast,
+  and FAB had drifted to 8 vs 12px), and shared scrims (`--scrim-panel`,
+  `--scrim-heavy`, DSN-010/020).
+- `tailwind.config` focus-glow reads `var(--laser-glow)` (DSN-005); the
+  contrast-guard citation points at the real test (DSN-013); dead entries
+  (`backdropBlur.glass`, `boxShadow.hair`, `backgroundColor.glass`,
+  `colors.void-2/lift`) removed (DEAD-003).
+
+Consumers:
+
+- KeyboardActionBar wears the bottom-anchored nav tier, not the top chrome
+  (DSN-001); a media-qualified light/dark `themeColor` pair (DSN-002); the
+  ModeRig grid + skeleton derive from `MODES.length` (DSN-006/008); the 320px
+  label overflow is fixed (DSN-007); `--scrim-heavy` tokenizes the avatar mask
+  (DSN-020); the squircle radius joins the ladder (DSN-017); light-theme
+  secondary-button feedback is perceptible (DSN-021); PressableButton on the
+  primary media-sheet footer CTAs (DSN-003).
+
+Rulings (ADR-0004): **Q1** — six ModeRig cells are canon; **Q6** — icon stroke
+weights are per-size optical (effective ~1.5px); **Q7** — a documented
+two-tier input recipe; **Q8** — the avatar mask is tokenized; **DSN-012** —
+the destructive swipe-panel `--flare` fill is a sanctioned exception. The
+z-index ladder is documented in `docs/architecture.md` (DSN-018). Deferred by
+owner call: the two coexisting appearance controls (DSN-019).
+
+### Security + Accessibility — audit Stage 2, Wave 3
+
+Wave 3 clears the SEC and A11Y tracks plus `PRI-009/010/014` and lands ruling
+Q9. No new runtime dependencies.
+
+Security:
+
+- **CSP is nonce-based (SEC-001 / PRI-010).** The middleware mints a
+  per-request nonce and emits the document CSP with
+  `script-src 'self' 'nonce-…'` — `'unsafe-inline'` is gone for scripts. The
+  theme bootstrap and Next's inline scripts carry the nonce; `offline.html`
+  and `sw.js` (which the middleware can't nonce) keep a static policy. The
+  `connect-src`/`img-src` Supabase wildcard is narrowed to the exact
+  configured project origin, closing the attacker-registered-project exfil
+  channel. The CSP builder moved to `src/lib/security/csp.ts`.
+- **Rate limits on all endpoints (SEC-002).** Every mutating server action
+  (auth, profile, library, drafts) is burst-guarded; the unauthenticated auth
+  callback/confirm GETs are IP-guarded; account deletion is rate-limited. The
+  durable cross-instance limits stay on the model routes' `spend_reserve`.
+- **SEC-003.** Refinement context (the tone original, the Q&A block) moved out
+  of the privileged system prompt into the fenced user message — client text
+  can no longer countermand the envelope contract from the system role.
+- **SEC-004..010.** Keyset cursors are UUID-pinned and fully quoted before
+  interpolation; raw PostgREST error text is laundered from the pagination
+  actions; `avatar_url` is server-side allowlisted; the
+  `<attached-references>` fence neutralizes embedded tags; the drafts page
+  action gained an explicit auth gate; the in-memory limiter sweeps expired
+  windows; sign-out and delete-account refuse cross-origin POSTs.
+
+Accessibility (the "WCAG AA pass" claim is now measured — `PRI-009`):
+
+- **Forced-colors focus (A11Y-001):** a transparent outline paints as
+  CanvasText where box-shadow is suppressed.
+- **Picker keyboard contract (A11Y-002):** TargetPicker/ThinkingPicker get
+  roving tabindex + arrow keys via a shared hook.
+- **Light-theme selected state (A11Y-003):** a shared inset accent-ink ring
+  gives every active Laser fill a non-color channel at ≥3:1.
+- **Announcements (A11Y-004/005):** permanently-mounted `aria-live` regions
+  carry toast text and the enhance-completion message, so neither is inserted
+  already-populated (unreliable) or unmounts into silence.
+- **Non-color cues (A11Y-006/007):** diff additions get an underline mirroring
+  the removed side's strike; footer/Settings inline links get a resting
+  underline.
+- **Headings (A11Y-008/009):** the sign-in gate gets its `h1`; Settings steps
+  `h1→h2`.
+- **A11Y-010/012:** the reduced-motion progress pulse actually runs; the
+  reduced-effects switch has an accessible name.
+- **Q9 (A11Y-011):** a persistent **Recently deleted** library view with
+  Restore and confirmed permanent delete — the 6-second toast Undo is now a
+  shortcut, not the only recovery path.
+- A new axe-core e2e spec asserts zero serious/critical WCAG violations on the
+  gate and composer, plus no horizontal scroll at 320px.
+
+`PRI-014`: the composer token readout renders `≈N tokens` — an estimate,
+visibly distinct from the result line's authoritative provider counts.
+
+### Fixed — audit Stage 2, Wave 2: correctness across the model, media, library, and offline paths
+
+Wave 2 clears the S1/S2 correctness findings (tracks MOD/PRV/MED/LIB/SW plus
+`PRI-001`) and lands rulings Q3–Q5 and Q10. One migration
+(`20260801200000_library_media_correctness.sql`, **applied to the hosted
+project**) carries the server-side halves.
+
+Model path:
+
+- **PRI-001.** `/api/enhance` diffs through `boundedDiffWords` — the unbounded
+  O(n·m) LCS on a 20k-char input × 64k-token output was ~10⁹ table cells,
+  enough to OOM the invocation mid-stream and skip the spend settle. Over
+  budget ⇒ `diff: null`; the result view shows plain text with a "too long to
+  diff" note and hides Compare.
+- **MOD-001.** "Make shorter"/"More detail" refine instructions now carry an
+  explicit supersedence clause, and the shape-preserving `OUTPUT SHAPE`
+  rule cedes its *length* clause to those passes — the default-mode refine no
+  longer composes a prompt whose last CRITICAL rule countermands the clicked
+  action.
+- **Q4 (MOD-003).** A run's format/length knobs are snapshotted with the
+  submission and re-sent on every refine and answered pass — an explicitly
+  chosen shape no longer silently regains "whichever fits" latitude.
+- **MOD-004.** `check:db-enum` probes the hosted `enhance_mode` enum for
+  `polish` — the committed-but-unapplied drift class the script exists for.
+- **MOD-006/MOD-007.** The abort-path token estimate includes the system
+  prompt + fenced context; the envelope scanner's seek tail survives
+  whitespace-padded keys split across chunks.
+- **PRV-001.** Auto no longer 400s a valid composer state: an out-of-ladder
+  thinking level on an auto-routed request is advisory and dropped.
+- **PRV-002.** One provider connection policy: 55s timeout / 0 retries on
+  every SDK client and both raw Gemini fetches — a hung provider can no
+  longer outlive `maxDuration` and strand the spend hold, and no invisible
+  retry can double-bill upstream.
+- **PRV-003.** Billed-but-invisible reasoning (stripped `<think>` spans,
+  `reasoning_content` deltas) now reaches the no-usage fallback estimate as
+  a floor — the daily cap stops undercounting exactly the runs that think
+  hardest.
+- **PRV-005/006/009.** Anthropic errors say "Anthropic" (not "Opus") for all
+  three targets; the never-emitted `thinking` SSE event is documented
+  reserved; OpenAI's completion ceiling doubles at high reasoning effort.
+- **PRV-007.** DeepSeek and Qwen pinned to exact published ids
+  (`deepseek-v4-pro` at the published $0.435/$0.87 rates, `qwen3.7-max`);
+  `mistral-large-latest` deliberately still floats — Mistral publishes no
+  exact id, and inventing one 404s every call. Pin levers + the provisional
+  price rows (`PRV-008`) documented in `docs/runbooks/providers.md`.
+  **Check the deployed `PRICE_DEEPSEEK_*` overrides** — a price change is a
+  cost-cap change.
+
+Media path:
+
+- **MED-001.** The storage INSERT policy now requires a matching *pending*
+  reservation, and the ready-flip is a new `media_commit` RPC that corrects
+  `size_bytes` from the uploaded object's real storage metadata — the
+  50 MB quota can no longer be bypassed by direct uploads or 1-byte
+  declarations.
+- **Q3 (MED-002).** The bucket limit is 50 MB, matching every promise the
+  product makes (it was 25 MB, so every 25–50 MB upload died post-reservation
+  with a raw storage error).
+- **MED-003.** The client admits exactly the bucket's 11 MIME types
+  (`MEDIA_ALLOWED_MIME`) — nothing reserves quota and then dies at the
+  bucket; the explicit `accept` list also makes iOS transcode HEIC at the
+  picker.
+- **MED-004.** Failed vision calls that *reported* usage are settled, not
+  released (per-leg rates; the failed first leg of a fallback run is summed
+  in) — "failed calls are free" was how a flaky provider spent invisibly.
+- **MED-005/006/009.** Upload-failure cleanup best-effort-removes the
+  storage object before deleting the row; intent validation uses
+  `Object.hasOwn`; `MAX_IMAGE_BYTES` documented as a non-Vercel backstop.
+  The route finally has handler tests (`media-route.test.ts`, MED-008).
+
+Library:
+
+- **LIB-002.** `parent_ver` is trigger-guarded: same prompt only, never self.
+- **LIB-003.** LibraryBrowser ports the DraftsList page-seam fix: mutations
+  reset accumulated pages + the keyset cursor before refreshing, and cards
+  dedupe by id — no more duplicated/permanently-skipped rows at page seams.
+- **LIB-004.** The duplicate-save race is closed from both sides: a cross-tab
+  Web Lock serializes outbox flushes, and `library_save_prompt` re-checks the
+  content hash under a per-(owner, hash) advisory lock, converging concurrent
+  identical saves on one card.
+- **Q5 (LIB-010).** The duplicate-detection hash includes the target — the
+  same content saved for a different destination model is a distinct prompt.
+  SQL backfill included; the live-DB fixture is re-pinned.
+- **LIB-005/006/009.** Facet queries use a stable most-recent slice; hard
+  delete requires `archived_at` server-side, trash prompts refuse new
+  versions/restores and 404 on the detail route; deleting a collection no
+  longer bumps every released prompt to the top of Recent.
+
+Offline outbox (SW-001/002/007, Q10):
+
+- "Queued — syncs when online" is now the truth: the queue write's success is
+  checked, a missing owner refuses to enqueue, and online server failures
+  report errors instead of promising a sync.
+- Replayed payloads are shape-validated; poison items park immediately,
+  server-rejected items park after 3 confirmed attempts — parked items are
+  kept (never deleted) and surfaced once via toast instead of retrying on
+  every foreground event forever.
+
+### Fixed — audit Stage 2, Wave 1: the five invariant violations (PR #72 gate, `GO` received)
+
+The 2026-08-01 audit capstone (`docs/audits/`) found no S0 and five invariant
+violations; the owner accepted every adjudication recommendation. Wave 1
+clears the violations and hardens the guards that keep them cleared:
+
+- **INV-001 (INV-07 laser law).** The streaming progress sweep and the result
+  shimmer drew raw `--laser` strokes — 1.06:1 against the light page, an
+  invisible progress indicator for light-theme users. Both gradients (and the
+  sweep's glow, now a `color-mix` of the same ink) use `--accent-ink`: dark
+  rendering is byte-identical (the ink resolves to Laser there), light renders
+  at 5.55:1.
+- **INV-002 (INV-06 zero emoji).** The 21 remaining rendered emoji-range
+  glyphs (✓ ★ ✕ ✎ ⚠ ✦ across nine components) — POLISH-01's unfinished
+  remainder — are replaced by a shared SVG glyph language
+  (`src/components/ui/glyphs.tsx`: 24px grid, `currentColor`, 1.5px strokes,
+  filled state-markers), including the two adjacent `▤`/`⌂` dingbats in the
+  library action menu that sat outside the audit's scan ranges but are the
+  same defect. Status text ("Copied", "Saved") stays text; only the marks
+  became SVG.
+- **INV-003 (INV-08 brand separation).** `SECURITY.md` no longer routes
+  vulnerability reports to a VASEY.AUDIO mailbox — it points at GitHub private
+  vulnerability reporting. **Owner action required:** enable *Private
+  vulnerability reporting* under repo Settings → Advanced Security, or the
+  report link 404s.
+- **INV-004 (INV-11 type roles).** The footer version line drops `font-mono`
+  for `font-body` (Reddit Sans keeps `tabular-nums` for steady digits) —
+  JetBrains Mono is output-region only again.
+- **INV-005 (INV-04 cost truth).** When a provider stream never reports usage,
+  the ~4 chars/token fallback now travels as `usageEstimated` end-to-end: the
+  result line and the attachment details sheet render `≈$…` instead of an
+  exact figure, `/api/media` marks the absent-vision-usage default the same
+  way, and `spend_settle` ledgers an `estimated` flag on the `usage_events`
+  row (migration `20260801190000_usage_estimated_flag.sql`, **applied to the
+  hosted project** — apply before deploying this code). The abort-path
+  estimate settles as estimated too.
+
+Guard hardening that keeps them fixed (audit `INV-006/007/009`):
+
+- The mono type-scoping test is inverted: every `.tsx` under `src/components`
+  and `src/app` is scanned (74 files, was a 24-file allowlist) and the pattern
+  now catches the `font-mono` utility the old regex could not see; only the
+  seven output-region files may carry mono.
+- `src/lib/providers/config.ts` imports `server-only`, closing the one gap in
+  the provider layer's build-time fence around `PROVIDER_KEY_ENV`.
+- A new `icon-alpha` unit test (sharp) pins the icon contract: transparent
+  corners on the 13-icon any-matrix, full opacity on
+  maskable/apple-touch/favicon and the App Router icons — a regeneration that
+  flattens the wrong set now fails the gate.
+
 ### Fixed — the database could not be rebuilt from the repository
 
 Seven migrations — the entire P2–P5 base schema — were applied straight to the

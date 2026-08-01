@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { postAuthRedirect } from "@/lib/auth/onboarding";
+import { rateLimit } from "@/lib/security/rate-limit";
 
 /**
  * OAuth + PKCE callback. Supabase redirects here with a `code` after a GitHub /
@@ -9,6 +10,12 @@ import { postAuthRedirect } from "@/lib/auth/onboarding";
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
+  // Unauthenticated code-exchange endpoint — burst-guarded by IP (SEC-002;
+  // advisory in-memory layer, same posture as the model routes' front guard).
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  if (!rateLimit("auth-callback:" + ip, 30, 60_000).allowed) {
+    return NextResponse.redirect(`${origin}/sign-in?error=rate_limited`);
+  }
   const code = searchParams.get("code");
   const error = searchParams.get("error_description") ?? searchParams.get("error");
 

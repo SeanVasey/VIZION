@@ -141,14 +141,26 @@ describe("the outbox is scoped to an account", () => {
 
   it("replays only this account's items", () => {
     expect(OUTBOX).toMatch(/export async function flushOutbox\(\s*userId: string,/);
-    expect(OUTBOX).toMatch(/\.filter\(\(item\) => item\.userId === userId\)/);
+    expect(OUTBOX).toMatch(/\.filter\(\(item\) => item\.userId === userId && !item\.parked\)/);
   });
 
   it("treats a duplicate as drained", () => {
     // `res.ok` alone left an item that the server already had in the store
     // forever: every online/visibilitychange retried it, and it could never
     // succeed because the duplicate check was what rejected it.
-    expect(FLUSHER).toMatch(/return res\.ok \|\| Boolean\(res\.duplicate\)/);
+    expect(FLUSHER).toMatch(/if \(res\.ok \|\| res\.duplicate\) return "done";/);
+  });
+
+  it("keeps a retryable rejection queued instead of parking it (Codex review, PR #75)", () => {
+    // A rate-limit burst or an expired session is TRANSIENT — routing it to
+    // "failed" counted it toward MAX_OUTBOX_ATTEMPTS, so a batch of >30 queued
+    // saves that trips the per-user write limiter parked the overflow
+    // permanently even though the limiter window clears in under a minute.
+    expect(FLUSHER).toMatch(/if \(res\.retryable\) return "transient";/);
+    // savePromptAction marks exactly those two rejections retryable; validation
+    // and persistent write errors stay bounded-then-parked.
+    expect(ACTIONS).toMatch(/error: RATE_LIMITED_MESSAGE, retryable: true/);
+    expect(ACTIONS).toMatch(/Your session expired[^\n]*retryable: true/);
   });
 
   it("is given the owner by the authenticated layout", () => {

@@ -72,14 +72,14 @@ MODEL_GPT=gpt-5.6-sol                                 # default — point at you
 MODEL_GPT_LUNA=gpt-5.6-luna                           # default — the 5.6 family's balanced mid tier
 MODEL_GPT_TERRA=gpt-5.6-terra                         # default — the 5.6 family's fast tier
 MODEL_FABLE=claude-fable-5                            # default
-MODEL_DEEPSEEK=deepseek-chat                          # default — tracks the current DeepSeek flagship (V4)
+MODEL_DEEPSEEK=deepseek-v4-pro                        # default — pinned exact flagship id (PRV-007)
 MODEL_GEMINI=gemini-3.6-flash                         # default — point at your deployed Gemini model (see note below)
 MODEL_MUSE=muse-spark-1.1                             # default — the Meta Model API serving string
 MODEL_MINIMAX=MiniMax-M3                              # default
-MODEL_MISTRAL=mistral-large-latest                    # default — tracks the current Large release
+MODEL_MISTRAL=mistral-large-latest                    # default — STILL FLOATING; see the pinning note below
 MODEL_KIMI=kimi-k3                                    # default
 MODEL_SONAR=sonar-pro                                 # default
-MODEL_QWEN=qwen-max                                   # default — tracks the current Max release (Qwen3.7 Max)
+MODEL_QWEN=qwen3.7-max                                # default — pinned exact release id (PRV-007)
 MODEL_GROK=grok-4.5                                   # default — point at your deployed xAI model
 MODEL_GLM=glm-5.2                                     # default — point at a long-context variant string if Z.ai serves one separately
 ```
@@ -87,6 +87,22 @@ MODEL_GLM=glm-5.2                                     # default — point at a l
 The labels in the picker are named product targets; set the env to the exact
 model string your account serves. Swapping a model is a config change, not a
 refactor.
+
+> **Floating aliases & provisional prices (audit PRV-007 / PRV-008).** Two of
+> the sixteen defaults were repinned to exact ids on 2026-08-01
+> (`deepseek-v4-pro`, `qwen3.7-max` — both taken verbatim from the vendors'
+> model-ID pages, with DeepSeek's published cache-miss rates). One alias
+> remains deliberate: **`mistral-large-latest`** — Mistral publishes no exact
+> wire string for the current Large 3 (v25.12), and inferring one from the
+> deprecated `mistral-large-2411` pattern risks 404ing every call. **The day
+> Mistral publishes the versioned id, set `MODEL_MISTRAL` (and re-verify
+> `PRICE_MISTRAL_*`).** Three price rows are PROVISIONAL, marked in
+> `config.ts`: `PRICE_KIMI_*` (K2-series carry-over), `PRICE_MINIMAX_*`
+> (M2-series carry-over), and `PRICE_GLM_*` (GLM-5 reference rates) — replace
+> the defaults (or set the env overrides) when Moonshot / MiniMax / Z.ai
+> publish list rates. **A price change is a cost-cap change**: after any
+> repin, check the deployed `PRICE_*` overrides in Vercel — a stale override
+> silently miscounts the daily cap.
 
 > **A vendor's app picker is not its API model list.** Gemini's "Thinking" and
 > "Fast", ChatGPT's "Ultra"/"Light", etc. are consumer labels for a

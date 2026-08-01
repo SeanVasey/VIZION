@@ -23,6 +23,19 @@ export interface RateResult {
 
 const defaultStore = new Map<string, Hit>();
 
+/** Sweep cadence: every Nth call scans for expired windows. Distinct users
+ *  who never return would otherwise pin their entries for the instance's
+ *  lifetime — bounded in practice, but monotonic growth is still a leak
+ *  (SEC-009). */
+const SWEEP_EVERY = 64;
+let callsSinceSweep = 0;
+
+function sweep(store: Map<string, Hit>, now: number): void {
+  for (const [key, hit] of store) {
+    if (now >= hit.resetAt) store.delete(key);
+  }
+}
+
 export function rateLimit(
   key: string,
   limit: number,
@@ -30,6 +43,10 @@ export function rateLimit(
   now: number = Date.now(),
   store: Map<string, Hit> = defaultStore,
 ): RateResult {
+  if (++callsSinceSweep >= SWEEP_EVERY) {
+    callsSinceSweep = 0;
+    sweep(store, now);
+  }
   const hit = store.get(key);
   if (!hit || now >= hit.resetAt) {
     const resetAt = now + windowMs;

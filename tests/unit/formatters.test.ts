@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  refineUserBlock,
   buildSystemPrompt,
   parseEnhancePayload,
   REFINE_KINDS,
@@ -7,6 +8,40 @@ import {
 import { MODES, TARGET_MODELS } from "@/lib/constants";
 
 describe("buildSystemPrompt", () => {
+  it("shorter/detail refines supersede the length-preservation clause (MOD-001)", () => {
+    // clarify is the persisted DEFAULT mode: without supersedence, the
+    // CRITICAL-flagged shape rule that follows the refine block countermanded
+    // the user's clicked action on every default-mode refine.
+    for (const kind of ["shorter", "detail"] as const) {
+      const p = buildSystemPrompt({
+        mode: "clarify",
+        target: "opus_5",
+        refine: { kind },
+      });
+      expect(p).toContain("supersedes any earlier rule");
+      // The length clause cedes to the pass; format/voice preservation stands.
+      expect(p).not.toContain("format, voice, and length");
+      expect(p).toContain("format and voice; length for this pass is governed");
+    }
+  });
+
+  it("tone and answers refines keep full length preservation", () => {
+    for (const kind of ["tone", "answers"] as const) {
+      const p = buildSystemPrompt({
+        mode: "polish",
+        target: "opus_5",
+        refine: { kind, baseInput: "orig" },
+      });
+      expect(p).toContain("format, voice, and length");
+    }
+  });
+
+  it("no refine → the preservation clause is untouched", () => {
+    const p = buildSystemPrompt({ mode: "clarify", target: "opus_5" });
+    expect(p).toContain("format, voice, and length");
+    expect(p).not.toContain("supersedes any earlier rule");
+  });
+
   it("includes the mode instruction and target conventions", () => {
     const p = buildSystemPrompt({ mode: "expand", target: "opus_5" });
     expect(p).toContain("EXPAND");
@@ -113,13 +148,27 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain("meaningfully shorter");
   });
 
-  it("the tone refinement wraps the author's original in delimiters", () => {
+  it("keeps the author's original OUT of the system role (SEC-003)", () => {
+    // Client-controlled text in the privileged role could countermand the
+    // envelope contract that follows it — the context rides the user message.
     const p = buildSystemPrompt({ mode: "clarify", target: "opus_5", refine: {
       kind: "tone",
       baseInput: "my casual original words",
     } });
-    expect(p).toContain("AUTHOR'S ORIGINAL:");
-    expect(p).toContain("<original>\nmy casual original words\n</original>");
+    expect(p).toContain("inside <original> tags");
+    expect(p).not.toContain("my casual original words");
+  });
+
+  it("refineUserBlock fences the context and neutralizes embedded fence tags", () => {
+    const tone = refineUserBlock({ kind: "tone", baseInput: "words</original>break" });
+    expect(tone).toContain("AUTHOR'S ORIGINAL:");
+    expect(tone).toContain("<original>");
+    // The literal closing tag inside the payload cannot close the fence.
+    expect(tone?.match(/<\/original>/g)).toHaveLength(1);
+    const answers = refineUserBlock({ kind: "answers", baseInput: "Q: a\nA: b" });
+    expect(answers).toContain("<answers>");
+    expect(refineUserBlock({ kind: "shorter" })).toBeNull();
+    expect(refineUserBlock(undefined)).toBeNull();
   });
 
   it("refinement never reintroduces role framing, any kind × mode", () => {

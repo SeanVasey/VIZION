@@ -115,7 +115,7 @@ describe("thinking levels", () => {
     // Turbo), not a reasoning depth. Reading the tier as a thinking level is
     // what once left this target with no selector at all — the two are
     // independent, and the model string must carry no depth of its own.
-    expect(TARGETS.qwen3_7_max.model).toBe("qwen-max");
+    expect(TARGETS.qwen3_7_max.model).toBe("qwen3.7-max");
     expect(TARGETS.qwen3_7_max.model).not.toContain("thinking");
     expect(TARGET_THINKING_LEVELS.qwen3_7_max).toBeDefined();
   });

@@ -63,8 +63,12 @@ export function createEnvelopeScanner(field = "output"): EnvelopeScanner {
         seekBuf += chunk;
         const m = keyRe.exec(seekBuf);
         if (!m) {
-          // Keep just enough tail for a key split across the next boundary.
-          seekBuf = seekBuf.slice(-(field.length + 16));
+          // Keep enough tail for a key split across the next boundary — with
+          // headroom for whitespace-padded emissions ('"output"   :   "'): the
+          // key regex allows \s* around the colon, so a 16-char tail could
+          // truncate a padded key mid-seek and silently disable streaming and
+          // salvage for the whole run (MOD-007).
+          seekBuf = seekBuf.slice(-(field.length + 64));
           return "";
         }
         chunk = seekBuf.slice(m.index + m[0].length);

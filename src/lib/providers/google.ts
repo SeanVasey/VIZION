@@ -1,4 +1,5 @@
 import "server-only";
+import { PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -95,6 +96,11 @@ export async function* streamGoogle(
   try {
     const res = await fetch(url, {
       method: "POST",
+      // The raw fetch has no SDK to bound it — without this a hung Gemini
+      // connection outlives maxDuration and strands the spend hold (PRV-002).
+      // The signal covers the whole request including the body read; a
+      // healthy stream past 55s was already doomed at the platform's 60.
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },

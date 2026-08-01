@@ -80,37 +80,82 @@ export interface EnhanceRefine {
   baseInput?: string;
 }
 
+// The trailing supersedence sentence on shorter/detail is load-bearing
+// (audit MOD-001): without it, "make shorter" on the default clarify mode is
+// countermanded by the CRITICAL length-preservation clause that follows it,
+// and detail/shorter argue with Polish's "do NOT add/remove" and Condense's
+// "strip to the minimum". The format knob set the precedent — a chosen knob
+// explicitly withdraws the latitude it replaces.
+const REFINE_SUPERSEDES =
+  "For this pass, this instruction supersedes any earlier rule that forbids or limits the change it names; every other constraint stands.";
+
 const REFINE_INSTRUCTIONS: Record<RefineKind, string> = {
-  shorter:
-    "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Make it meaningfully shorter while keeping every load-bearing instruction and constraint. Do not add new content.",
-  detail:
-    "REFINEMENT PASS: The input you receive is an already-enhanced prompt. Add depth — concrete constraints, examples, and acceptance criteria it still lacks. Do not remove or weaken existing instructions.",
-  tone: "REFINEMENT PASS: The input you receive is an already-enhanced prompt that drifted from the author's voice. Rewrite it so the voice, phrasing habits, and register match the AUTHOR'S ORIGINAL below, while keeping the improvements.",
+  shorter: `REFINEMENT PASS: The input you receive is an already-enhanced prompt. Make it meaningfully shorter while keeping every load-bearing instruction and constraint. Do not add new content. ${REFINE_SUPERSEDES}`,
+  detail: `REFINEMENT PASS: The input you receive is an already-enhanced prompt. Add depth — concrete constraints, examples, and acceptance criteria it still lacks. Do not remove or weaken existing instructions. ${REFINE_SUPERSEDES}`,
+  tone: "REFINEMENT PASS: The input you receive is an already-enhanced prompt that drifted from the author's voice. Rewrite it so the voice, phrasing habits, and register match the AUTHOR'S ORIGINAL, provided at the end of the user message inside <original> tags, while keeping the improvements.",
   // Deliberately does NOT open with "the input you receive is an
   // already-enhanced prompt" like its three siblings: for this pass the input
   // is the author's ORIGINAL request, and the answers are the new material.
   // Copying the sibling framing would tell the model something false about
   // what it is holding.
   answers:
-    "ANSWERED PASS: The input you receive is the author's ORIGINAL request, and below it are questions you asked about it together with their answers. Redo the enhancement from scratch using those answers as established fact — they are no longer assumptions. Do not ask further questions and do not return a `questions` field on this pass.",
+    "ANSWERED PASS: The input you receive is the author's ORIGINAL request, followed at the end of the user message by questions you asked about it together with their answers, inside <answers> tags. Redo the enhancement from scratch using those answers as established fact — they are no longer assumptions. Do not ask further questions and do not return a `questions` field on this pass.",
 };
 
 /** The refine block appended after the mode instruction (empty when no
- *  refinement). Tone and answers wrap their extra context in delimiters. */
+ *  refinement). ONLY the static instruction sentence — the author-supplied
+ *  context (tone's original, the Q&A block) rides the USER message via
+ *  `refineUserBlock` below. It used to be embedded here, which placed up to
+ *  20k client-controlled chars in the privileged system role ahead of the
+ *  envelope contract they could then countermand (audit SEC-003). */
 function refineBlock(refine?: EnhanceRefine): string[] {
   if (!refine) return [];
-  const lines = [REFINE_INSTRUCTIONS[refine.kind]];
-  if (refine.kind === "tone" && refine.baseInput) {
-    lines.push("AUTHOR'S ORIGINAL:", "<original>", refine.baseInput, "</original>");
-  }
-  if (refine.kind === "answers" && refine.baseInput) {
-    lines.push("QUESTIONS AND ANSWERS:", "<answers>", refine.baseInput, "</answers>");
-  }
-  return ["", lines.join("\n")];
+  return ["", REFINE_INSTRUCTIONS[refine.kind]];
 }
 
-const FORMAT_PRESERVATION =
-  'OUTPUT SHAPE — CRITICAL: This governs the transformed prompt only (the "output" field), not the JSON envelope you must return. Preserve the input\'s existing format, voice, and length. If the input is a single sentence or a plain paragraph, keep the output a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use into the transformed prompt, and do NOT expand a short prose prompt into a structured document. The output will be pasted into the target engine — keep it clean, plain text unless the original was already structured.';
+/** Neutralize a literal fence tag inside user-supplied text so a block can
+ *  never break out of the delimiter that scopes it (audit SEC-003/SEC-007). */
+export function neutralizeTag(text: string, tag: string): string {
+  return text.replaceAll(`<${tag}>`, `[${tag}]`).replaceAll(`</${tag}>`, `[/${tag}]`);
+}
+
+/**
+ * The refine context block for the USER message — the adapter appends it
+ * after the input. Fenced, with any embedded literal fence tags neutralized.
+ */
+export function refineUserBlock(refine?: EnhanceRefine): string | null {
+  if (!refine?.baseInput) return null;
+  if (refine.kind === "tone") {
+    return [
+      "AUTHOR'S ORIGINAL:",
+      "<original>",
+      neutralizeTag(refine.baseInput, "original"),
+      "</original>",
+    ].join("\n");
+  }
+  if (refine.kind === "answers") {
+    return [
+      "QUESTIONS AND ANSWERS:",
+      "<answers>",
+      neutralizeTag(refine.baseInput, "answers"),
+      "</answers>",
+    ].join("\n");
+  }
+  return null;
+}
+
+/** The length-governing refine kinds — for these, FORMAT_PRESERVATION must
+ *  cede the length clause or the CRITICAL-flagged rule that follows the
+ *  refine block countermands the user's clicked action (audit MOD-001). */
+const LENGTH_REFINES = new Set<RefineKind>(["shorter", "detail"]);
+
+function formatPreservation(refine?: EnhanceRefine): string {
+  const lengthRule =
+    refine && LENGTH_REFINES.has(refine.kind)
+      ? "Preserve the input's existing format and voice; length for this pass is governed by the REFINEMENT PASS instruction above."
+      : "Preserve the input's existing format, voice, and length.";
+  return `OUTPUT SHAPE — CRITICAL: This governs the transformed prompt only (the "output" field), not the JSON envelope you must return. ${lengthRule} If the input is a single sentence or a plain paragraph, keep the output a single sentence or plain paragraph. Do NOT introduce bullet points, numbered lists, headings, tables, XML tags, JSON, or any markdown the author did not already use into the transformed prompt, and do NOT expand a short prose prompt into a structured document. The output will be pasted into the target engine — keep it clean, plain text unless the original was already structured.`;
+}
 
 /**
  * The contract every mode's output must satisfy: the "output" field IS the
@@ -181,7 +226,9 @@ function knobBlock({ mode, format, length }: SystemPromptOptions): string[] {
 export function buildSystemPrompt(opts: SystemPromptOptions): string {
   const { mode, target, refine } = opts;
   const shapePreserving = SHAPE_PRESERVING.has(mode);
-  const conventions = shapePreserving ? FORMAT_PRESERVATION : TARGET_CONVENTIONS[target];
+  const conventions = shapePreserving
+    ? formatPreservation(refine)
+    : TARGET_CONVENTIONS[target];
   const outputContract = `${OUTPUT_CONTRACT_BASE} ${
     shapePreserving ? OUTPUT_STRUCTURE_FORBIDDEN : OUTPUT_STRUCTURE_ALLOWED
   }`;

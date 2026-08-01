@@ -7,7 +7,7 @@
  * the Void (input) side.
  */
 
-export type DiffOp = "equal" | "added" | "removed";
+type DiffOp = "equal" | "added" | "removed";
 
 export interface DiffSegment {
   op: DiffOp;
@@ -69,7 +69,7 @@ export function diffWords(before: string, after: string): DiffSegment[] {
 /** Per-side token budget for interactive diffs. The LCS table is O(n·m):
  *  2,000×2,000 ≈ 4M cells is a tolerable one-off; the unbounded version at
  *  20k-char inputs was allocating ~100M cells on every keystroke. */
-export const DIFF_TOKEN_BUDGET = 2_000;
+const DIFF_TOKEN_BUDGET = 2_000;
 
 /** diffWords with a hard size bound — returns null (caller shows the plain
  *  text + a "too long to diff" note) instead of freezing the main thread. */

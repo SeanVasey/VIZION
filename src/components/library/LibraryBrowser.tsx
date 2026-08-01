@@ -1,6 +1,13 @@
 "use client";
 
-import { memo, useState, useTransition, type CSSProperties } from "react";
+import {
+  memo,
+  useCallback,
+  useState,
+  useTransition,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -32,6 +39,7 @@ import { CollectionSheet } from "@/components/library/CollectionSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
+import { ArchiveMark, FolderMark, StarMark, UndoGlyph, XMark } from "@/components/ui/glyphs";
 import { useSwipeActions } from "@/components/library/use-swipe-actions";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 
@@ -77,12 +85,39 @@ export function LibraryBrowser({
   const [searchDraft, setSearchDraft] = useState(filter.q ?? "");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [extraCards, setExtraCards] = useState<PromptCard[]>([]);
-  const [cursor, setCursor] = useState<string | null>(nextCursor);
+  /** The keyset cursor, but ONLY once we have paged past the server's first
+   *  page. `undefined` = not paged yet — use the `nextCursor` prop, the
+   *  boundary of whatever page 1 the server most recently rendered. Holding
+   *  the prop in `useState` was the DraftsList bug replayed here (LIB-003):
+   *  state never re-initialises on `router.refresh()`, so a mutation that
+   *  displaced a row onto page 2 left a stale boundary that skipped it
+   *  forever. `null` is a real answer: paged, and there is no next page. */
+  const [pagedCursor, setPagedCursor] = useState<string | null | undefined>(undefined);
+  const cursor = pagedCursor === undefined ? nextCursor : pagedCursor;
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingMore, startLoadMore] = useTransition();
+  /** Owns router.refresh() so `cursor` cannot fall back to a stale prop while
+   *  the refreshed page 1 is still in flight — see DraftsList for the full
+   *  account of why the refresh needs its own synchronous transition. */
+  const [refreshing, startRefresh] = useTransition();
   const [menuFor, setMenuFor] = useState<PromptCard | null>(null);
 
-  const cards = [...initialCards, ...extraCards];
+  /** Every mutation funnels here: drop the accumulated pages and the paged
+   *  cursor BEFORE re-rendering page 1, so refreshed rows can't duplicate
+   *  stale copies and the next Load more pages from the current boundary. */
+  // useCallback so the swipe handlers below (and thus the memoized PromptRow)
+  // keep a stable identity — otherwise every keystroke in the search field
+  // re-renders all accumulated rows (PERF-004).
+  const refreshAfterMutation = useCallback(() => {
+    setExtraCards([]);
+    setPagedCursor(undefined);
+    startRefresh(() => router.refresh());
+  }, [router]);
+
+  // Belt to the reset's braces: never render the same card twice even if a
+  // refreshed page 1 overlaps a just-loaded extra page.
+  const seenIds = new Set(initialCards.map((c) => c.id));
+  const cards = [...initialCards, ...extraCards.filter((c) => !seenIds.has(c.id))];
   const activeFilters = countActiveFilters(filter);
   const isDefaultView = activeFilters === 0 && !filter.q;
   const collectionNames = new Map(facets.collections.map((c) => [c.id, c.name]));
@@ -93,32 +128,32 @@ export function LibraryBrowser({
   }
 
   /** Swipe-left delete: the same soft delete + Undo the ⋯ menu performs. */
-  function swipeDelete(p: PromptCard) {
+  const swipeDelete = useCallback((p: PromptCard) => {
     void softDeletePromptAction(p.id).then((res) => {
       if (!res.ok) {
         setLoadError(res.error ?? "Couldn't delete.");
         return;
       }
-      router.refresh();
+      refreshAfterMutation();
       toast({
-        text: "Prompt deleted",
+        text: "Moved to Recently deleted",
         action: {
           label: "Undo",
           onAction: () => {
-            void undoDeletePromptAction(p.id).then(() => router.refresh());
+            void undoDeletePromptAction(p.id).then(() => refreshAfterMutation());
           },
         },
       });
     });
-  }
+  }, [refreshAfterMutation, toast]);
 
   /** Swipe-right favorite toggle. */
-  function swipeFavorite(p: PromptCard) {
+  const swipeFavorite = useCallback((p: PromptCard) => {
     void setFavoriteAction(p.id, !p.favorite).then((res) => {
       if (!res.ok) setLoadError(res.error ?? "Couldn't update favorites.");
-      else router.refresh();
+      else refreshAfterMutation();
     });
-  }
+  }, [refreshAfterMutation]);
 
   function loadMore() {
     if (!cursor) return;
@@ -137,7 +172,7 @@ export function LibraryBrowser({
       const res = await fetchLibraryPageAction(raw, current);
       if (res.ok && res.cards) {
         setExtraCards((prev) => [...prev, ...res.cards!]);
-        setCursor(res.nextCursor ?? null);
+        setPagedCursor(res.nextCursor ?? null);
       } else {
         setLoadError(res.error ?? "Couldn't load more.");
       }
@@ -210,7 +245,12 @@ export function LibraryBrowser({
               }),
             )
           }
-          label="★ Favorites"
+          label={
+            <>
+              <StarMark className="h-3.5 w-3.5 shrink-0" />
+              Favorites
+            </>
+          }
         />
       </div>
 
@@ -253,7 +293,7 @@ export function LibraryBrowser({
         <button
           type="button"
           onClick={loadMore}
-          disabled={loadingMore}
+          disabled={loadingMore || refreshing}
           className="glass font-body min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
         >
           {loadingMore ? "Loading more…" : "Load more"}
@@ -276,6 +316,7 @@ export function LibraryBrowser({
           prompt={menuFor}
           collections={facets.collections}
           onClose={() => setMenuFor(null)}
+          onMutated={refreshAfterMutation}
         />
       )}
     </section>
@@ -288,12 +329,15 @@ function CardActionsSheet({
   prompt,
   collections,
   onClose,
+  onMutated,
 }: {
   prompt: PromptCard;
   collections: LibraryFacets["collections"];
   onClose: () => void;
+  /** Notify the browser a write landed — it resets pagination + refreshes
+   *  (LIB-003); the sheet must never call router.refresh() itself. */
+  onMutated: () => void;
 }) {
-  const router = useRouter();
   const { toast } = useToast();
   const [title, setTitle] = useState(prompt.title);
   const [error, setError] = useState<string | null>(null);
@@ -309,7 +353,7 @@ function CardActionsSheet({
         setError(res.error ?? "That didn't stick — try again.");
         return;
       }
-      router.refresh();
+      onMutated();
       if (close) onClose();
     });
   }
@@ -323,14 +367,14 @@ function CardActionsSheet({
         setError(res.error ?? "Couldn't delete.");
         return;
       }
-      router.refresh();
+      onMutated();
       onClose();
       toast({
-        text: "Prompt deleted",
+        text: "Moved to Recently deleted",
         action: {
           label: "Undo",
           onAction: () => {
-            void undoDeletePromptAction(id).then(() => router.refresh());
+            void undoDeletePromptAction(id).then(() => onMutated());
           },
         },
       });
@@ -339,6 +383,50 @@ function CardActionsSheet({
 
   const itemClass =
     "glass font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60";
+
+  // Recently-deleted prompts get the recovery sheet (Q9): restore is the
+  // headline, permanent deletion is the explicit, confirmed alternative —
+  // nothing else applies to a prompt that no list shows.
+  if (prompt.deleted) {
+    return (
+      <Sheet open onClose={onClose} title={prompt.title}>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => undoDeletePromptAction(prompt.id))}
+            className={itemClass}
+          >
+            Restore
+            <UndoGlyph className="h-4 w-4 shrink-0 text-accent" />
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setConfirmPurge(true)}
+            className="btn-destructive font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm disabled:opacity-60"
+          >
+            Delete permanently
+            <XMark className="h-4 w-4 shrink-0" />
+          </button>
+          {error && (
+            <p className="font-body text-sm text-flare" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+        <ConfirmSheet
+          open={confirmPurge}
+          onClose={() => setConfirmPurge(false)}
+          title="Delete permanently?"
+          body={`"${prompt.title}" and all ${prompt.versions} of its versions will be gone for good — this cannot be undone.`}
+          confirmLabel="Delete permanently"
+          destructive
+          onConfirm={() => run(() => deletePromptAction(prompt.id))}
+        />
+      </Sheet>
+    );
+  }
 
   return (
     <Sheet open onClose={onClose} title={prompt.title}>
@@ -375,9 +463,7 @@ function CardActionsSheet({
             className={itemClass}
           >
             {prompt.favorite ? "Remove from favorites" : "Add to favorites"}
-            <span aria-hidden="true" className="text-accent">
-              ★
-            </span>
+            <StarMark className="h-4 w-4 shrink-0 text-accent" />
           </button>
           <button
             type="button"
@@ -386,7 +472,7 @@ function CardActionsSheet({
             className={itemClass}
           >
             {prompt.archived ? "Unarchive" : "Archive"}
-            <span aria-hidden="true">▤</span>
+            <ArchiveMark className="h-4 w-4 shrink-0" />
           </button>
           <button
             type="button"
@@ -395,7 +481,7 @@ function CardActionsSheet({
             className={itemClass}
           >
             Move to collection…
-            <span aria-hidden="true">⌂</span>
+            <FolderMark className="h-4 w-4 shrink-0" />
           </button>
           <button
             type="button"
@@ -404,7 +490,7 @@ function CardActionsSheet({
             className="btn-destructive font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm disabled:opacity-60"
           >
             Delete
-            <span aria-hidden="true">✕</span>
+            <XMark className="h-4 w-4 shrink-0" />
           </button>
           {prompt.archived && (
             <button
@@ -467,6 +553,10 @@ const PromptRow = memo(function PromptRow({
 }) {
   const swipe = useSwipeActions();
   const developer = MODEL_DEVELOPER_MAP.get(p.target_model);
+  // Trash rows (Q9): the swipe verbs (favorite / soft-delete) don't apply to
+  // an already-deleted prompt — gestures off, panels unrendered; recovery
+  // lives in the actions sheet.
+  const inTrash = p.deleted;
   // PER SIDE, never one shared flag — otherwise dragging one way lights the
   // panel on the other edge too and puts the bleed straight back.
   // Displacement first, `open` second: `open` is set only at pointer-up while
@@ -513,6 +603,7 @@ const PromptRow = memo(function PromptRow({
           transmits 28% in dark, so a permanently-painted panel showed straight
           through it: every row carried an olive left edge and a muddy red
           right edge, constant and model-independent. */}
+      {!inTrash && (
       <div aria-hidden={swipe.open === null} className={`${panel(leftOn)} left-0`}>
         <button
           type="button"
@@ -523,12 +614,14 @@ const PromptRow = memo(function PromptRow({
           }}
           className="flex w-[84px] items-center justify-center rounded-l-2xl bg-laser text-lg text-on-laser"
         >
-          <span aria-hidden="true">★</span>
+          <StarMark className="h-5 w-5" />
           <span className="sr-only">
             {p.favorite ? `Remove ${p.title} from favorites` : `Favorite ${p.title}`}
           </span>
         </button>
       </div>
+      )}
+      {!inTrash && (
       <div aria-hidden={swipe.open === null} className={`${panel(rightOn)} right-0`}>
         <button
           type="button"
@@ -540,14 +633,19 @@ const PromptRow = memo(function PromptRow({
           // --on-flare, not --on-laser: on the LIGHT theme's --flare #c81d10
           // the Void ink measures 3.30:1, an AA fail for this glyph. Dark is
           // byte-identical at 5.94:1; light flips to white at 5.77:1.
+          // Sanctioned --flare FILL (DSN-012 / ADR-0004): flare is text/border
+          // only everywhere else, but a full-bleed destructive swipe panel is
+          // the one place the fill IS the signal; --on-flare ink pairs at
+          // >=5.7:1 in both themes.
           className="flex w-[84px] items-center justify-center rounded-r-2xl bg-flare text-lg text-[color:var(--on-flare)]"
         >
-          <span aria-hidden="true">✕</span>
+          <XMark className="h-5 w-5" />
           <span className="sr-only">Delete {p.title}</span>
         </button>
       </div>
+      )}
       <div
-        {...swipe.handlers}
+        {...(inTrash ? {} : swipe.handlers)}
         onClickCapture={swipe.onClickCapture}
         style={swipe.style}
         className="relative transition-transform duration-150 ease-out motion-reduce:transition-none"
@@ -567,7 +665,7 @@ const PromptRow = memo(function PromptRow({
               // only element competing with the developer mark for the same
               // glance. The label is unchanged.
               <span aria-label="Favorite" className="mr-1 text-silver">
-                ★
+                <StarMark className="inline-block h-[0.8em] w-[0.8em] align-[-0.02em]" />
               </span>
             )}
             {p.title}
@@ -595,7 +693,15 @@ const PromptRow = memo(function PromptRow({
           {relativeTime(p.updated_at)} · {p.versions} version
           {p.versions === 1 ? "" : "s"}
           {p.archived ? " · archived" : ""}
-          {collectionName ? ` · ⌂ ${collectionName}` : ""}
+          {collectionName ? (
+            <>
+              {" · "}
+              <FolderMark className="inline-block h-[1em] w-[1em] align-[-0.125em]" />{" "}
+              {collectionName}
+            </>
+          ) : (
+            ""
+          )}
           {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
         </p>
       </Link>
@@ -632,7 +738,7 @@ function QuickChip({
 }: {
   active: boolean;
   onClick: () => void;
-  label: string;
+  label: ReactNode;
 }) {
   return (
     <button
@@ -641,7 +747,7 @@ function QuickChip({
       aria-pressed={active}
       className={[
         "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
-        active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
+        active ? "selected-ink bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
       ].join(" ")}
     >
       {label}

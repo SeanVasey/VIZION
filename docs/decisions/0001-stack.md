@@ -1,6 +1,6 @@
 # ADR 0001 — Locked stack & foundational decisions
 
-Status: **Accepted (LOCKED)** · Mirrors the decision log in `VIZION FINAL PLAN v1.md §1`.
+Status: **Accepted (LOCKED)** · Mirrors the decision log in `docs/history/VIZION FINAL PLAN v1.md §1`.
 
 | #   | Decision        | Choice                                       | Rationale                                        |
 | --- | --------------- | -------------------------------------------- | ------------------------------------------------ |

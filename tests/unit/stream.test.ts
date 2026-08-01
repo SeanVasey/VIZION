@@ -67,6 +67,16 @@ describe("createEnvelopeScanner", () => {
     expect(scanner.done).toBe(false);
   });
 
+  it("survives a whitespace-padded key split at every chunk boundary (MOD-007)", () => {
+    // The seek buffer keeps a bounded tail while hunting for the key; the key
+    // regex allows \s* around the colon, so a padded emission longer than the
+    // tail silently disabled streaming (and salvage) for the whole run.
+    const padded = '{"output"' + " ".repeat(20) + ":" + " ".repeat(20) + '"hi"}';
+    for (const size of [1, 2, 3, 5]) {
+      expect(scanChunked(padded, size)).toBe("hi");
+    }
+  });
+
   it("passes unknown escapes through literally", () => {
     expect(scanChunked('{"output":"odd\\qescape"}', 1)).toBe("odd\\qescape");
   });

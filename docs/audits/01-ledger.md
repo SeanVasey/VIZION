@@ -5,6 +5,12 @@
 > owner-directed Gemini fix and owner-console work. Headline counts below
 > describe the original Stage 1 sweep and exclude the addendum.
 
+> **Location (2026-08-01, DOC-014):** at capstone close these three artifacts
+> (`00-baseline.md` · `01-ledger.md` · `02-adjudication.md`) were folded into
+> `docs/audits/` beside the prior-cycle artifacts, so there is one audit
+> directory. Internal `docs/audit/…` evidence references below are the
+> point-in-time paths observed during the audit and are kept as the record.
+
 Audit date: 2026-08-01 · Repo at `34a56db` (audit docs added on top) · Version 0.3.0
 
 Method: 19 read-only track auditors (multi-agent), each finding carrying
@@ -197,7 +203,7 @@ still-open or partial carry-forwards.
 - **verification:** python3 contrast check of #3f6b00 vs #eef0f4 (>=3:1 non-text, actual 5.55:1) plus visual pass: run the app in light theme, start an enhancement, confirm the sweep is visible on the track.
 - **adversarial verdict:** CONFIRMED — Verified in code and by computation: globals.css:910 and :932 use raw var(--laser) in both gradients with no light-theme override anywhere in the repo; tokens.css:101 leaves --laser at #b7ff3c in light theme; WCAG math gives 1.06:1 vs page #eef0f4, 1.21:1 vs white, and 1.22:1 vs the composited hair track #d3d5d9 — all far under the 3:1 non-text floor, so the sweep is effectively invisible in light theme. This directly violates the LOCKED contrast law at tokens.css:5-7 ("--laser is never used as text or a thin stroke on a light surface"), the exact problem the codebase already fixes elsewhere via --accent-ink (globals.css:123-139 focus ring, :743-771 timeline rail, Footer, NeuralMeshBackground), confirming these two rules were missed rather than exempted. Blast radius checks out (StreamingResult.tsx:26,32; AttachmentTray.tsx:536; TransformationDiff.tsx:290) and the reduced-motion variant at globals.css:950 inherits the same laser gradient. No conflict with PR-1..PR-7, which are all platform/API rulings. Proposed fix verified: #3f6b00 vs #eef0f4 = 5.55:1, and --accent-ink resolves to --laser on dark so dark rendering is unchanged. Sole mitigation: the adjacent step label is AA silver text, so state is not entirely lost — but a true invariant violation floors at S1, so severity stands.
 - **independently found by:** DSN ("Raw --laser used as the stream-progress sweep and result-shimmer stroke renders at ~1.1:1 on the light theme, ")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: both gradients (and the sweep glow) now use var(--accent-ink); dark rendering unchanged, light renders at 5.55:1
 
 ### INV-002 — Seventeen rendered UI sites still use emoji-range glyphs (U+26A0, U+2713, U+2715, U+270E, U+2605, U+2726) as icons — the unfinished remainder of prior ledger item POLISH-01
 
@@ -207,7 +213,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Replace each glyph with a 1.5px-stroke inline SVG on the 24px grid following DeveloperIcon.tsx / CheckGlyph.tsx (reuse CheckGlyph for the ✓ sites; add star, x, pencil, warning, and spark glyphs). Keep aria-label/aria-hidden semantics unchanged; keep the 'Copied'/'Saved' status text, swapping only the trailing mark.
 - **verification:** Re-run the emoji codepoint scan (ranges U+1F300-1FAFF, U+2600-27BF, U+2B00-2BFF, VS16) over src/**/*.{tsx,ts,css}: zero hits outside comments; then npm run lint && npm run typecheck && npx vitest run.
 - **adversarial verdict:** CONFIRMED — Reproduced the scan: all cited lines are real rendered-UI glyph sites (e.g. CollectionSheet.tsx:150 renders <span aria-hidden="true">U+270E</span>; EnhanceComposer.tsx:292 interpolates U+26A0 into the cap-warning string), and the excluded hits are genuinely comments. Ledger POLISH-01 (docs/audits/VIZION-enhancement-ledger.json:1561, evaluation.md:1413) confirms title "Replace emoji glyphs", acceptance "No emoji codepoints in UI source", with check and warning in its inventory; tasks/lessons.md:2039-2064 (2026-07-30) retired only the picture/film/headphone/reset/paperclip glyphs; DeveloperIcon.tsx and ui/CheckGlyph.tsx exist as claimed; PR-1..PR-7 concern platform APIs and taxonomy, so no settled ruling is contradicted. One arithmetic error in the claim's favor: the evidence enumerates 21 rendered sites across the 9 files, not 17 — the finding undercounts. S1 stands under the stated rule that a true invariant violation is minimum S1 (I cannot independently read INV-06's text, which lives in the audit prompt, but every checkable fact holds).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: all 21 rendered emoji sites (plus the two adjacent ▤/⌂ dingbats in the same menu) replaced with the shared SVG glyph language (src/components/ui/glyphs.tsx); codepoint scan over src/ is clean outside comments
 
 ### INV-003 — SECURITY.md still directs vulnerability reports to sean@vasey.audio, a VASEY.AUDIO address in public repo metadata of a VASEY/AI product (carry-forward of GOV-01, unresolved).
 
@@ -218,7 +224,7 @@ still-open or partial carry-forwards.
 - **verification:** grep -ci 'vasey.audio' SECURITY.md returns 0 after the edit, and the GitHub repo shows Private Vulnerability Reporting enabled.
 - **adversarial verdict:** CONFIRMED — SECURITY.md:5 verbatim contains 'sean@vasey.audio' at HEAD (a4072e6, 2026-08-01), directly violating CLAUDE.md:84 'Zero VASEY.AUDIO crossover in copy, assets, or metadata' (INV-08). Carry-forward verified: GOV-01 confirmed in docs/audits/VIZION-enhancement-evaluation.md:1357-1368 (acceptance at 1525) and ledger lines 1978-2007 ('P1 - implement next'), with git log of SECURITY.md showing no fix commit and no resolution entry in CHANGELOG.md or tasks/lessons.md. Public visibility is evidenced in the ledger ('githubRepoVisibility: public'). Repo-wide grep confirms this is the only live violation; the Footer's 'Vasey Multimedia' is a distinct sanctioned entity per CHANGELOG R7. No PR-1..PR-7 ruling touches brand separation. S1 is the contract minimum for a true invariant violation and the blast radius is correctly scoped, so severity is not inflated.
 - **independently found by:** PRI ("SECURITY.md still routes vulnerability reports to sean@vasey.audio, violating the section 6 zero-VASEY.AUDIO-c"); DOC ("SECURITY.md still directs vulnerability reports to sean@vasey.audio, a VASEY.AUDIO address on a public VASEY/A")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: SECURITY.md routes reports to GitHub private vulnerability reporting; owner action outstanding: enable PVR in repo Settings → Advanced Security (until then the link 404s — no VASEY.AUDIO address remains either way)
 
 ### INV-004 — R2 partial: the footer version line renders in JetBrains Mono (font-mono) outside the enhanced-prompt output region, and Footer.tsx is not covered by the type-scoping guard test.
 
@@ -228,7 +234,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Rule whether version strings are a sanctioned mono surface: if yes, amend the R2 gate wording and extend type-scoping.test.ts to also match font-mono so the widened contract is guarded; if no, change Footer.tsx:99 to font-body and add Footer.tsx to UI_ONLY_FILES.
 - **verification:** npx vitest run tests/unit/type-scoping.test.ts after the ruling's edit - the extended regex/file list must fail on reintroduction.
 - **adversarial verdict:** CONFIRMED — Lead-verified: src/components/Footer.tsx:99 applies font-mono to the version line, a UI metadata surface outside the enhanced-prompt output region. INV-11 is unambiguous (JetBrains Mono: output region only), so this is a violation, not a ruling question. Secondary genuinely-ambiguous site kept as a sub-question inside this entry: AttachmentDetailsSheet.tsx:101,119 puts the mono class on textareas that edit model-written prose (an editable output region) - whether editable output keeps mono needs a ruling, but the footer version line does not.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: Footer version line is font-body + tabular-nums; Footer.tsx is inside the rewritten full-surface type-scoping scan (INV-006)
 
 ### INV-005 — When a provider stream reports no usage, ~4 chars/token estimates are displayed and ledgered as exact cost with no estimate marker; the media route displays $0.0000 on absent vision usage
 
@@ -238,7 +244,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Carry a usageEstimated flag on EnhanceOutput/EnhanceResult set when the adapter's fallback (or vision's ?? 0 default) fires; render the cost with an approximation marker (e.g. '~$0.0123') and persist the flag alongside the ledger write. Minimum viable: mark the display; ledger conservatism can stay as-is (it exists for cap integrity).
 - **verification:** New unit test: drive enhanceStream with a mock ProviderStream yielding text but no usage chunk; assert result.usageEstimated === true and that the result view renders the marker. npx vitest run tests/unit/<new-test>.
 - **adversarial verdict:** CONFIRMED — Every cited line verified: adapter.ts:146-147 substitutes ceil(chars/4) estimates when no usage chunk arrived, adapter.ts:175 prices them via computeCost with no estimate flag on EnhanceOutput (only `salvaged` exists), TransformationDiff.tsx:613-614 renders the result as exact to four decimals, and route.ts:360-374 settles the same figures to the usage_events ledger unmarked. openai-compat.ts:20-23 confirms the path is documented-expected (no stream_options sent, so any strict-OpenAI-semantics compat endpoint omits stream usage every run; seven providers use the factory, not six — immaterial). vision.ts:132-133 (and the Google path at 197-201) default absent usage to 0, so /api/media settles $0 against the cap and AttachmentDetailsSheet.tsx:84-85 displays $0.0000 as actual. The client's mid-stream gating (use-enhance.ts:57-59,172-179; route.ts:279-286) is genuine as claimed — only the final result/ledger path is dishonest. No conflict with PR-1..PR-7 (all iOS/browser-compat/taxonomy). Prior POLISH-03 precedent covered only the transient composer estimate that authoritative data replaces, not the permanent result/ledger record, so it does not cap severity; under the audit rule that a true invariant violation floors at S1 (INV-04 tagged; invariant text lives in the audit prompt, not the repo), S1 holds.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: usageEstimated rides EnhanceOutput/EnhanceResult and VisionResult; both displays render ≈; spend_settle ledgers an estimated flag (migration 20260801190000, applied); abort-path settles estimated=true; pinned by tests/unit/usage-estimated.test.ts
 
 ### INV-006 — The type-scoping guard for INV-11 is not airtight: its regex cannot detect the Tailwind font-mono utility and its UI-only file list omits most UI chrome components, so a JetBrains Mono leak onto chrome would ship green.
 
@@ -247,7 +253,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/unit/type-scoping.test.ts only; guards every UI surface against INV-11 regressions.
 - **proposed_fix:** Tighten the test: (a) extend the pattern to also catch the standalone 'font-mono' utility; (b) invert the model — allowlist the known mono output files (diff/*, PromptDetail, GenerateSheet, AttachmentDetailsSheet) plus the spec-sanctioned Footer version line, and scan all other files under src/components and src/app for both 'mono' and 'font-mono'; (c) optionally assert font-display appears only on heading/wordmark elements.
 - **verification:** npx vitest run tests/unit/type-scoping.test.ts stays green on current sources, and goes red when 'font-mono' is injected into e.g. src/components/nav/BottomNav.tsx in a scratch copy.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: type-scoping test inverted — every tsx under src/components + src/app is scanned, only the seven output-region files may carry mono, and the pattern now catches font-mono
 
 ### INV-007 — src/lib/providers/config.ts lacks the server-only guard despite holding PROVIDER_KEY_ENV and env reads — no build-time fence against a future client import
 
@@ -257,7 +263,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Add import "server-only"; as line 1 of src/lib/providers/config.ts (verified: no client component imports it by value; errors.ts's type-only import is erased).
 - **verification:** npm run typecheck && npm run build both exit 0 (build fails loudly if any client path actually imports it).
 - **independently found by:** PRV ("config.ts is the only providers module without the server-only guard while exporting server-truth helpers (isP")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: providers/config.ts imports server-only; build green proves no client path imports it
 
 ### INV-008 — Applied spend/ledger migrations cross-reference companion migrations by timestamps that do not exist
 
@@ -267,7 +273,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Do not edit applied migrations (history is append-only per the repo's own note). Record the filename corrections in docs/runbooks (or the next migration's header) mapping the stale 230000/210000 references to 20260730203737 and 20260730202138.
 - **verification:** grep -rn '20260730230000\|20260730210000' supabase/migrations docs/ shows the stale references documented or annotated; no migration file content hash changes.
 - **independently found by:** DOC ("Dangling migration citation the citation-resolution test cannot see: 20260730203605_atomic_spend_reservations.")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: docs/runbooks/migrations.md maps the stale timestamp breadcrumbs (20260730230000→…203737 fix_spend_reserve_ambiguity, 20260730210000→…202138 usage_ledger_revoke); applied migrations are append-only so the correction lives in the runbook, not the files
 
 ### INV-009 — No automated assertion enforces the icon alpha contract (transparent any-matrix, opaque maskable/apple-touch/favicons); INV-09 is currently verified only by manual measurement and a regeneration regression would ship undetected.
 
@@ -276,7 +282,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** public/icons/** (protected path) plus src/app/icon.png/apple-icon.png; regression surface is any future run of scripts/generate-icons.mjs.
 - **proposed_fix:** Add a unit test (sharp is already a dependency) asserting: every icon-*.png has an alpha channel with fully transparent corners; maskable-*.png, apple-touch-icon.png, favicon-*.png, src/app/icon.png and apple-icon.png contain no pixel with alpha < 255. Test-only; touches no protected file.
 - **verification:** npx vitest run the new test file: green against the current 19 PNGs, red when pointed at a deliberately flattened icon-192 in scratch.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: tests/unit/icon-alpha.test.ts asserts transparent corners on the 13-icon any-matrix and full opacity on maskable/apple-touch/favicon/App-Router icons via sharp
 
 ### INV-010 — The brand lockup file vizion-brand-lockup.html referenced by the remediation spec does not exist in the repo; the Wordmark component plus spec text are the de facto canon (doc/spec gap, not a redesign question).
 
@@ -285,7 +291,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Documentation/brand-asset inventory only; no code or route affected.
 - **proposed_fix:** Brand owner either supplies the canonical lockup file into public/brand/ or formally amends the remediation/spec references to name src/components/Wordmark.tsx + product-spec text as canon; no code change is proposed.
 - **verification:** Manual: either public/brand/ gains the lockup asset, or the referencing docs no longer cite a nonexistent file.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 finalize (adjudication 'no' + ADR-0005): the phantom vizion-brand-lockup.html is NOT recreated — src/components/Wordmark.tsx is the canon and ADR-0005 names code as the living canon; the stale reference now lives only in the historical v1 docs under docs/history/
 
 ## Track PRI
 
@@ -324,7 +330,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Replace diffWords with boundedDiffWords at route.ts:307 and make the done event's diff field optional (client already renders plain output when the library diff returns null; TransformationDiff needs the same over-budget fallback). Manual approval because it changes the SSE result contract for oversized outputs.
 - **verification:** Unit test asserting the route module imports boundedDiffWords and never diffWords; plus a timing probe: node -e over diff.ts diffing 10k vs 100k whitespace-kept tokens currently exceeds seconds/hundreds of MB, and returns null under the bound. Run: npx vitest run tests/unit/diff.test.ts
 - **adversarial verdict:** CONFIRMED — route.ts:307 provably calls unbounded diffWords (bounded variant exists but is client-only per grep); git shows the Anthropic ceiling was raised to 32k/64k in commit 1423e0f at 14:10 on 2026-07-27, hours AFTER the audit ledger (03:08) and the client-only DIFF-01 fix (09:59), so the worst case did grow post-audit; an empirical probe on the actual compiled module measured 6.3 s synchronous + ~770 MB heap at 8k x 16k tokens (128M cells), extrapolating to ~7 GB / 60+ s at the post-raise ~1.2e9-cell worst case — OOM before the done event, skipping the finally-block settle (spend.ts:110 confirms the 5-minute sweep). PR-1..PR-7 rulings cover platform APIs and taxonomy only, none touch diffing, and the repo's own audit rated this exact server path P0 — S1 stands.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: the route diffs via boundedDiffWords (diff: null over budget); TransformationDiff degrades to plain text with a 'too long to diff' note and hides Compare; provider-policy.test.ts pins the import
 
 ### PRI-002 — GitHub Actions still executes nothing: ci.yml has zero run records ever, all existing runs are stuck queued, and every quality gate remains local-only (P0 carry-forward)
 
@@ -334,7 +340,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Owner console action per docs/runbooks/ci-enablement.md: allow Actions in repo Settings (symptom 1), then clear the billing/spending-limit block (symptom 2); confirm via the workflow_dispatch trigger; then make 'verify' a required status check and wire check:db-enum --strict and db:verify into ci.yml.
 - **verification:** GitHub Actions API: GET /repos/<owner>/VIZION/actions/workflows/ci.yml/runs returns at least one run with status=completed, conclusion=success; a test PR shows the 'lint · typecheck · test · build · audit' check.
 - **adversarial verdict:** CONFIRMED — Live GitHub Actions API re-measurement (2026-08-01) proves the core claim: ci.yml (workflow id 295232069, state active) has total_count=0 runs ever, and all 25 repo-wide run records (up from the cited 23) are status=queued/conclusion=null, every one settings-generated (CodeQL/Copilot/Dependabot) — so no PR or push to main has ever been machine-gated. Every cited support checks out: runbook text matches verbatim; ci.yml:8-11 carries the workflow_dispatch diagnostic comment (owner fix still unverified — no dispatch run exists); check:db-enum and db:verify appear in no workflow (only audit:check at ci.yml:66); test:int targets tests/integration which does not exist. No conflict with PR-1..PR-7 (all browser/platform rulings), and the prior audit doc independently corroborates (RELEASE-01/DISC-13). S1 is correct, not inflated: the CLAUDE.md section 3/4 non-skippable-gate invariant is void repo-wide (floor S1), but local gate plus Vercel preview builds partially compensate, so not S0.
-- **disposition:** pending
+- **disposition:** owner-action (still-open) — enabling GitHub Actions is an owner-only repository dashboard action (docs/runbooks/ci-enablement.md), not a commit. Until then the gate is enforced locally + on Vercel previews only. Flagged as the single highest-leverage fix
 
 ### PRI-003 — Raw upstream provider error text still reaches the browser with no stable error codes (PROD-06 error half untouched)
 
@@ -343,7 +349,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Both model routes and all 12 provider adapters; every provider failure shown to any authenticated client can carry upstream org/project identifiers, quota details, and internal model strings
 - **proposed_fix:** Add a describeProviderError(e) mapping ProviderError status/class onto a small stable code set (not_configured, auth, rate_limited, model_unavailable, upstream, truncated) with user-safe sentences; send the code+sentence to the client and log the raw upstream message server-side (the writeErrorLogLine precedent).
 - **verification:** Unit test driving the route error path with a ProviderError whose message contains a sentinel org string and asserting the SSE/JSON error body does not contain it while the log line does.
-- **disposition:** pending
+- **disposition:** deferred (adjudication) — stable provider error codes (PROD-06) is feature-scale error-taxonomy work, not a hygiene fix; kept on the backlog with its evidence
 
 ### PRI-004 — Provider metadata is still unversioned: four-field TargetConfig, floating model aliases, and guessed prices feed the cost cap (META-01 untouched)
 
@@ -352,7 +358,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/config.ts; cost-cap accuracy and ledger pricing for all 16 targets on both model routes
 - **proposed_fix:** Extend TargetConfig with lastVerifiedAt (ISO date) and pricesAssumed flags; add a unit test failing when any entry's lastVerifiedAt ages past a threshold or a floating alias lacks an explicit acknowledgement — a rot alarm, not a behavior change.
 - **verification:** npx vitest run over the new config-freshness test; grep confirming every TARGETS entry carries lastVerifiedAt.
-- **disposition:** pending
+- **disposition:** deferred (adjudication) — versioned provider metadata (META-01) is a schema/feature change spanning the cost cap; backlog. Partially mitigated: provider-policy.test.ts now pins each adapter's key env + pricing source (W2)
 
 ### PRI-005 — No capability/availability manifest: per-model facts now live in FIVE scattered sources and an unconfigured model is still discovered only after the user commits (PROD-05 untouched, drift grew)
 
@@ -361,7 +367,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/config.ts, vision.ts, openai-compat.ts, src/lib/constants.ts, both model routes, TargetPicker; every model-selection surface
 - **proposed_fix:** Consolidate the five sources into one per-target manifest record (capabilities + ceilings + configured-ness derivable server-side), consumed by the existing call sites — a mechanical consolidation first, UI surfacing as a follow-up.
 - **verification:** A unit test asserting the manifest is the sole definition site (grep-style: VISION_CAPABLE_PROVIDERS/TARGET_THINKING_LEVELS/maxTokens resolve from it); existing formatters/adapter suites stay green: npx vitest run tests/unit
-- **disposition:** pending
+- **disposition:** deferred (adjudication) — a capability/availability manifest (PROD-05) is feature-scale; backlog
 
 ### PRI-006 — The semantic quality gate still does not exist: no eval harness, rubric, or CI job guards the prompt contract (PROD-04 untouched)
 
@@ -370,7 +376,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** .github/workflows/ci.yml + tests/; regression protection for src/lib/providers/formatters.ts (OUTPUT_CONTRACT) across all six modes and sixteen targets
 - **proposed_fix:** Land the audit's Stage-1 harness as a checked-in script (bundled buildSystemPrompt against one real model, ~20 cases, envelope+assertion checks) run as a release-time or manual-dispatch CI job behind an API-key secret — workflow changes and paid API calls both need owner approval.
 - **verification:** Manual: workflow_dispatch of the new job completes with 0 envelope/assertion failures and a posted token/cost summary; the job fails when a known-bad contract edit (role-label removal) is injected.
-- **disposition:** pending
+- **disposition:** deferred (adjudication §4) — the semantic eval harness (PROD-04) is feature-scale; backlog as CORE/LATER, not this remediation
 
 ### PRI-007 — APPLE-01 still open at P1: ten generated iOS splash PNGs remain shipped and zero apple-touch-startup-image links exist anywhere
 
@@ -380,7 +386,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Add the ten media-qualified startupImage entries to the appleWebApp metadata matching the existing PNG matrix, plus the ledger's link-to-asset parity check so the set cannot drift back to zero
 - **verification:** Built HTML contains ten apple-touch-startup-image links whose (device-width/device-height/-webkit-device-pixel-ratio) media queries each resolve to a shipped public/splash file; then delete-and-reinstall the Home Screen app on a physical iOS device (iOS caches launch assets) per PR-5 — device step untestable in this environment
 - **independently found by:** DEAD ("Ten iOS splash PNGs in public/splash/ (518,512 bytes) are generated and shipped but referenced by nothing — no"); PERF ("528 KB of generated iOS splash screens deploy with every build but are referenced zero times — no apple-touch-")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (= APPLE-01): src/app/layout.tsx head emits ten apple-touch-startup-image links, one per device class, with device-width/height + -webkit-device-pixel-ratio + orientation media queries (the dpr clause disambiguates the two 414×896 devices); the 528 KB splash set is now wired
 
 ### PRI-008 — Service-worker runtime deps still resolve only as transitives of the workbox-build devDependency (was P1)
 
@@ -389,7 +395,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/build-sw.mjs -> public/sw.js; the entire offline/PWA layer on any dependency graph change.
 - **proposed_fix:** Add the six workbox-* packages as explicit pinned devDependencies matching the versions workbox-build currently resolves.
 - **verification:** node -e "['workbox-core','workbox-precaching','workbox-routing','workbox-strategies','workbox-expiration','workbox-cacheable-response'].forEach(p=>require.resolve(p))" succeeds and npm ls workbox-core shows a direct edge; npm run build:sw exits 0.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (= DEP-001): the six workbox-* runtime packages (core/precaching/routing/strategies/expiration/cacheable-response) are declared as direct devDependencies at ^7.4.1, no longer transitive-only
 
 ### PRI-009 — Rendered accessibility is still unmeasured: no axe integration, no 320px viewport project, no zoom pass, no a11y CI gate (P1 carry-forward, measurement half)
 
@@ -398,7 +404,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** All routes and components; WCAG AA is a stated v1.0 requirement (CLAUDE.md section 9) with no rendered measurement.
 - **proposed_fix:** Add @axe-core/playwright to the existing e2e run plus a 320px-viewport Playwright project, per the ledger's simpler alternative; triage the resulting backlog rather than gating immediately.
 - **verification:** npx playwright test lists a 320px project and at least one spec invokes AxeBuilder; the axe scan runs green (or with triaged known-issues list) in the e2e suite.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: tests/e2e/a11y.spec.ts injects axe-core (existing dep, no new package) and asserts zero serious/critical WCAG violations on the gate + composer, plus a 320px reflow check (no horizontal scroll)
 
 ### PRI-010 — CSP still carries script-src 'unsafe-inline' for the theme bootstrap; nonce adoption remains unimplemented
 
@@ -407,7 +413,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** App-wide XSS defence depth: every route served with the weakened policy.
 - **proposed_fix:** Adopt a per-request nonce via middleware for the pre-paint bootstrap and Next inline runtime, then drop 'unsafe-inline' from script-src (ledger's stated fix).
 - **verification:** curl -sI the deployed app: Content-Security-Policy contains script-src 'self' 'nonce-...' and no 'unsafe-inline'; theme pre-paint still works with no flash in both themes.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: = SEC-001 (per-request nonce CSP replaces 'unsafe-inline')
 
 ### PRI-011 — The overloaded 'target' remains one id selecting optimizer, destination idiom, and pricing — open P1 whose implementation PR-7 gates on explicit approval
 
@@ -416,7 +422,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/formatters.ts (protected path), config.ts, both DB columns; architecturally blocks destination variants (EXP-04) and a true capability manifest
 - **proposed_fix:** No code change without the owner's explicit approval that PR-7 requires. The decision to put to the owner: approve the optimizer/destination split (a migration-class change touching the protected formatters.ts and two DB columns) or formally re-scope PROD-01 as superseded by Auto routing + Adapt/Reformat clarifications.
 - **verification:** Owner ruling recorded in docs/decisions/ (or the next ledger) explicitly approving or closing PROD-01; until then the item stays open by design.
-- **disposition:** pending
+- **disposition:** deferred (ruling Q13=b) — decomposing the overloaded 'target' id respects the PR-7 approval gate; kept on the backlog with its evidence, no taxonomy change now
 
 ### PRI-012 — architecture.md still misstates the RLS policy shape: 'Every table carries user_id' is false for prompt_versions, whose recovered policies traverse parent ownership
 
@@ -425,7 +431,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/architecture.md only; misleads a reviewer auditing the authorization model.
 - **proposed_fix:** Amend architecture.md:114 to mirror SECURITY.md: direct auth.uid() = user_id on user-keyed tables, parent-ownership traversal for prompt_versions and media_assets.
 - **verification:** grep -n 'Every table carries' docs/architecture.md shows the corrected sentence naming the traversal shape.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (= DOC-006): docs/architecture.md now states PromptVersion has no user_id and its RLS traverses the parent prompt's ownership — the 'every table carries user_id' claim is corrected
 
 ### PRI-013 — aria-hidden on decorative glyphs is still inconsistent: StreamProgress and AttachmentTray announce symbol glyphs their composer siblings hide
 
@@ -434,7 +440,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Screen-reader output on the enhance streaming readout, the media cap warning, and collection selection.
 - **proposed_fix:** Wrap the decorative glyphs in aria-hidden spans matching the EnhanceComposer pattern, keeping the numeric/text content announced.
 - **verification:** grep confirms every non-alphanumeric glyph in StreamProgress/AttachmentTray/CollectionSheet sits inside aria-hidden markup; existing unit tests for those components stay green (npx vitest run tests/unit/attach-rail.test.tsx tests/unit/collection-sheet.test.tsx).
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — harmonizing aria-hidden on the StreamProgress/AttachmentTray decorative glyphs was not in the W3 A11Y list; carried forward as a small a11y follow-up
 
 ### PRI-014 — The composer token estimate is still presented as a measurement — chars/4 rendered with no tilde or approximation marker
 
@@ -443,7 +449,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Composer readout on /enhance; honesty of a per-keystroke number, worst for code and non-Latin input.
 - **proposed_fix:** Prefix the readout with a tilde ('~{approxTokens} tokens') and add an accessible title/aria explanation that it is an estimate replaced by the authoritative count after the run.
 - **verification:** Rendered composer shows '~N tokens'; tests/unit covering the composer readout updated and green (npx vitest run tests/unit/composer-intake.test.tsx).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: the composer chars/4 readout and the keyboard bar render '≈N tokens' — an estimate, distinct from the result line's authoritative counts
 
 ### PRI-015 — EXP-03 shipped in full (favorites, collections, starter templates) against a recorded 'not currently worth developing' verdict, with no decision reversal recorded
 
@@ -452,7 +458,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/audits ledger accuracy and future prioritization decisions that cite it; no runtime defect identified.
 - **proposed_fix:** Record the decision reversal in the audit trail (ledger addendum or a decisions/ note) citing the CHANGELOG 0.3.0 entries that shipped favorites/collections/templates, so the next reconciliation does not re-litigate it.
 - **verification:** The ledger or a decisions/ record marks EXP-03 as implemented-by-decision-change with a dated cross-reference; this reconciliation row cites it.
-- **disposition:** pending
+- **disposition:** accepted — Stage 2 finalize: the governance gap is recorded, and ADR-0007 (collections) now supplies the missing decision record for that part of EXP-03; the favorites/templates work is noted as owner-directed. A process note, no code change
 
 ### PRI-016 — R8 partial: the recorded 'media studio route-level dynamic import' mechanism no longer exists anywhere in the codebase - all media components ship statically in the enhance route's client bundle after the 2026-07 composer-tray refactor.
 
@@ -461,7 +467,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Enhance route initial JS bundle; settings route; CHANGELOG.md R8 record accuracy
 - **proposed_fix:** Rule whether the supersession is accepted: if yes, append a lessons.md/CHANGELOG note recording that R8.2's mechanism was dissolved into the composer tray (the tray is above-the-fold and needed at first paint); if the deferral intent still stands, the interaction-only sheets (GenerateSheet, AttachmentDetailsSheet, MediaPreviewSheet) are the natural next/dynamic candidates since they open only on user action.
 - **verification:** If deferral is restored: grep -rn 'next/dynamic' src/components/media returns the sheet imports, and next build route summary shows the enhance route's First Load JS reduced versus baseline (scratchpad/baseline/build.log).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (ruling Q14=a, = PERF-001): route-level splitting is restored via the lazy browser-client import — the supabase-js weight R8's media-studio dynamic import targeted is out of the /enhance and /profile first loads (build-verified). The R8 mechanism name is stale; the outcome it wanted is delivered
 
 ## Track MOD
 
@@ -485,7 +491,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Give refineBlock the same supersedence treatment the format knob already has: append a clause to each refine instruction stating it scopes/overrides the mode instruction's change limits and (for shorter/detail on shape-preserving modes) the FORMAT_PRESERVATION length clause for this pass only — e.g. 'This pass supersedes any earlier instruction that forbids the change it names; all other constraints stand.' Protected path, so wording needs owner approval.
 - **verification:** Unit test: for each RefineKind x ModeId, assert the built prompt does not simultaneously contain 'Make it meaningfully shorter' and 'Preserve the input's existing format, voice, and length' without a supersedence sentence between/after them; plus a semantic spot-check (PROD-04 harness pattern) that clarify+shorter actually shortens.
 - **adversarial verdict:** CONFIRMED — Executed the real buildSystemPrompt via tsx: clarify (persisted default, stores/ui.ts:138) + "Make shorter" yields "Make it meaningfully shorter" (offset 773) followed by "OUTPUT SHAPE — CRITICAL: ... Preserve the input's existing format, voice, and length" (offsets 888/1015) with no supersedence clause anywhere after the refine instruction (the only "replaces" hit is the unrelated questions clause); polish+detail simultaneously contains "Do NOT add, remove, reorder, or elaborate on ideas" and "Add depth". Reachability verified: handleRefine re-sends the same mode (EnhanceComposer.tsx:243) and chips render for all modes (onRefine always passed, line 639). The repo's own standard treats a weaker conflict as needing explicit supersedence (formatters.ts:165) and lessons.md names "a prompt that argues with itself" as the guarded defect class; no test asserts non-contradiction. No conflict with PR-1..PR-7 (platform rulings cover unrelated topics). S1 holds: default-mode paid refine path for all 16 targets composes a self-contradictory system prompt whose last CRITICAL-flagged clause countermands the user's clicked action.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: shorter/detail refine instructions carry an explicit supersedence clause and FORMAT_PRESERVATION cedes its length clause to those passes; pinned by formatters.test.ts non-contradiction cases
 
 ### MOD-002 — The locked product spec still defines FIVE modes and a five-value enum, while code comments cite it as the authority for SIX — a live mode-count assumption in an authoritative companion document
 
@@ -494,7 +500,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** VIZION-product-spec.md; any agent or human using the spec as source of truth will build five-mode assumptions; misciting comments in src/lib/enhance/modes.ts, src/lib/constants.ts, src/components/diff/TransformationDiff.tsx
 - **proposed_fix:** With owner approval (the spec is locked): add Polish to the §4.1 table and 'polish' to the enum sketch at spec line 269, and record per-change review under Polish; or, if the spec must not change, correct the three code comments to cite the migration/UX-audit rather than §4.1. PR-7 (taxonomy immutable) is not contravened — Polish already shipped; this reconciles the record, it does not change the taxonomy.
 - **verification:** grep -n 'polish' VIZION-product-spec.md returns the mode table row and the enum sketch; grep -c mode rows in §4.1 equals MODES.length.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q2=a): the locked-spec five-mode text is reclassified historical, not rewritten — the three v1 canon files moved to docs/history/ and ADR-0005 names code+CHANGELOG+tokens.css+ledger as the living canon (six modes). = DOC-005
 
 ### MOD-003 — Refinement passes silently drop the format and length knobs: a Reformat run with an explicitly chosen shape regains the 'whichever fits' latitude on refine, and Condense/Expand depth settings vanish
 
@@ -503,7 +509,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/editor/EnhanceComposer.tsx handleRefine; refinement quality for reformat/condense/expand runs (3 of 6 modes); no data or billing impact
 - **proposed_fix:** Ruling needed on which knobs carry into which refine kinds: format should plausibly persist on every refine of a reformat run (the shape was an explicit choice), but re-sending length into a 'shorter' refine would itself create a contradiction (e.g. Expand 'COMPREHENSIVE' + 'make shorter'). Minimum viable change once ruled: carry format in handleRefine for reformat; document length as deliberately dropped.
 - **verification:** After ruling: unit test in refine.test.tsx asserting mutate call [1] carries format='xml' when the first run was reformat+xml (and asserting the ruled length behavior).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (ruling Q4=a): the run's format/length snapshot rides view.submitted and re-sends on every refine and answered pass; refine.test.tsx pins the carry
 
 ### MOD-004 — scripts/check-model-enum.mjs never probes the hosted enhance_mode enum for 'polish' — the exact committed-but-unapplied drift class the script exists for, and the polish migration's own header declares deploy-blocking
 
@@ -512,7 +518,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/check-model-enum.mjs preflight coverage; on a drifted host, every Polish save/version write and Polish usage-ledger settle fails with Postgres 22P02 undetected by the preflight
 - **proposed_fix:** Add an enum-value probe using the same read-only PostgREST cast trick: GET /rest/v1/prompts?select=id&limit=0&current_mode=eq.polish — 200 = present, 400 matching /invalid input value for enum enhance_mode/ = missing; wire it into the existing drift reporting citing 20260701200716.
 - **verification:** node scripts/check-model-enum.mjs against a project without the polish migration exits 1 naming enhance_mode; against a current project prints a new check-pass line.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: check-model-enum.mjs probes hosted enhance_mode for 'polish' via the current_mode cast trick, wired into the drift report
 
 ### MOD-005 — ModeRig is a six-cell instrument while the R5 gate ledger records five modes, and the recorded five-cell arrangement claims (symmetry breakpoints, centered picker pill) no longer describe the shipped control - a ruling is needed on which is authoritative.
 
@@ -522,7 +528,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Ruling needed on two coupled questions: (a) is the six-cell single-row arrangement the blessed successor to the recorded five-cell R5 gate (amend the gate record), or must the sixth mode be presented differently; (b) how should the 320px label overflow be resolved (smaller/condensed label type, abbreviations, two-row layout, or accepting 360px as the floor). No change should be made before the ruling.
 - **verification:** After ruling: Playwright viewport sweep at 320/360/390/430 asserting each radio cell's boundingBox width equals (rig content width)/6 and that each label span's scrollWidth <= its cell width; plus a gate-ledger note amending CHANGELOG.md R5.
 - **adversarial verdict:** DOWNGRADED — All cited facts verify (six modes in constants.ts:9-20, grid-cols-6 at ModeRig.tsx:51, R5 five-mode text at CHANGELOG.md:2398-2400, picker in composer rail at EnhanceComposer.tsx:345-347; I reproduced the font arithmetic exactly: Condense 51.9px / Reformat 49.1px vs 46.7px cell at 320px). But the S1 'ruling needed on which is authoritative' is manufactured: CHANGELOG is an append-only historical ledger whose newer entries explicitly document the transition (CHANGELOG.md:2289 'now six equal cells', :2278-2281 '5 modes -> 6 modes'), ModeRig.tsx:8 self-documents the six-cell chassis as remediation R5.1, and the settled audit already blesses six as the locked baseline (evaluation :145 'six locked values... unit-tested', ledger UX-02 six-column grid as current state, PR-7 Honored at :215) — so ruling question (a) re-litigates a settled ruling. The surviving defect is a ~5px cosmetic label overflow at 320px only (tap targets unaffected, browser-unmeasured), which the settled audit already flagged verbatim at :1243 as the unmeasured risk, plus missing geometry test coverage. That is S3 documentation/cosmetic polish, not an S1 gate conflict; no invariant is cited or violated.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4 (ruling Q1=a, ADR-0004): six equal ModeRig cells are blessed canon; the R5 five-cell records are superseded, and the living canon is code + CHANGELOG + tokens.css + this ledger (ADR-0005)
 
 ### MOD-006 — Abort-path token estimate in the enhance route omits the system prompt (and media context), under-counting spend against the daily cap relative to the adapter's own estimator
 
@@ -531,7 +537,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/enhance/route.ts finally block; daily cost-cap accounting accuracy on aborted runs only; no user-visible behavior
 - **proposed_fix:** Estimate from providerInput.length instead of input.length, and add the system-prompt share (either import buildSystemPrompt length or have the adapter expose its estimate); at minimum use providerInput which is already in scope.
 - **verification:** Unit test on the route's abort path (mock adapter throwing after first delta with no usage event) asserting settleSpend receives tokenIn >= ceil(providerInput.length/4).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: the abort-path estimate is ceil((buildSystemPrompt(...)+providerInput)/4), matching the adapter's own estimator
 
 ### MOD-007 — Envelope scanner's seek-buffer truncation (field.length + 16) cannot survive pathologically whitespace-padded '"output" :' keys split across chunks — streaming and salvage eligibility degrade while the final parse still succeeds
 
@@ -540,7 +546,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/json-stream.ts; streaming UX and salvage recovery for any provider emitting heavily padded JSON; final result correctness unaffected
 - **proposed_fix:** Bound the whitespace in the key regex (e.g. \s{0,8}) to match the retained tail, or retain a larger fixed tail (e.g. field.length + 64); add a stream.test.ts case for a whitespace-padded key split at every chunk boundary.
 - **verification:** npx vitest run tests/unit/stream.test.ts with a new case feeding '"output"' + 20 spaces + ':' + spaces + '"hi"' one char per push and asserting full decode.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: seek tail widened to field.length+64; stream.test.ts feeds a 40-space-padded key at every chunk size
 
 ## Track PRV
 
@@ -566,7 +572,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** On an auto-routed request, treat an out-of-ladder thinkingLevel as advisory and drop it instead of 400ing (route: when auto===true and level not in allowedLevels, set thinkingLevel undefined); alternatively the composer omits thinkingLevel whenever auto is on unless the level is valid for both Auto tiers. Route-side drop is the minimum change and also covers stale clients.
 - **verification:** Unit test posting {input:'x', mode:'polish', target:'gemini_3_6_flash', auto:true, thinkingLevel:'minimal'} to the route handler must return a 200 SSE stream (currently 400); re-run npx vitest run tests/unit/auto-routing-wire.test.tsx tests/unit/stream.test.ts
 - **adversarial verdict:** CONFIRMED — Verified every citation: EnhanceComposer.tsx:72-77 validates thinkingLevel only against the PINNED target's ladder and line 170 sends it beside auto:true (line 165), with the Thinking rail gated solely on levelOptions (line 408) and setAutoTarget (stores/ui.ts:164) clearing nothing; route.ts:122-128 resolves Auto FIRST via resolveAutoTarget (auto-target.ts:34-36 -> sonnet_5/opus_5 only), then lines 133-141 validate against TARGET_THINKING_LEVELS[resolvedTarget] and 400. constants.ts:144-146 shows both Anthropic ladders lack "minimal" and line 150 shows gemini_3_6_flash is the only target with it, so pinned Gemini + Minimal + Auto deterministically 400s ("That thinking level isn't available for this model") on every submit — surfaced as a hard EnhanceError (use-enhance.ts:148-156). Test gap confirmed: auto-routing-wire.test.tsx has auto cases but zero thinkingLevel/minimal coverage. No conflict with PR-1..PR-7 (all WebKit/taxonomy matters). Severity S1 holds: the UI constructs and persists this valid state (thinkingLevels and autoTarget both persist to localStorage), then the product's core action is deterministically blocked with a misleading error naming "this model" when the user chose Auto; borderline S2 given the narrow trigger (one model, one level, Auto opt-in) but not clearly inflated.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: under auto the route drops an out-of-ladder thinkingLevel (advisory) instead of 400ing a valid composer state
 
 ### PRV-002 — Timeout and retry policy is absent and non-uniform: the Google adapter's raw fetch has no timeout and no retries, while every SDK adapter silently inherits SDK defaults (600s timeout, 2 retries) that exceed the route's 60s window
 
@@ -575,7 +581,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** All files in src/lib/providers/ that open connections; POST /api/enhance and POST /api/media for all 16 targets, spend-hold hygiene under provider hangs
 - **proposed_fix:** Set an explicit sub-maxDuration timeout (e.g. 55_000ms) and an explicit maxRetries on every SDK client construction, and wrap the google.ts fetch with AbortSignal.timeout(55_000); document the uniform policy in one place (config.ts constant).
 - **verification:** grep -rn 'timeout|maxRetries|AbortSignal' src/lib/providers/*.ts shows every adapter configured; unit test asserting buildAnthropicParams/compat client options carry the timeout constant
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: PROVIDER_TIMEOUT_MS=55s / PROVIDER_MAX_RETRIES=0 on every SDK client, AbortSignal.timeout on both raw Gemini fetches; policy documented in config.ts, pinned by provider-policy.test.ts
 
 ### PRV-003 — Cost-cap token estimate systematically excludes reasoning tokens for OpenAI-compat providers when stream usage is absent
 
@@ -584,7 +590,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/adapter.ts, src/lib/providers/openai-compat.ts, src/app/api/enhance/route.ts; ledger accuracy for deepseek_v4, muse_spark_1_1, minimax_m3, kimi_k3, sonar_pro, qwen3_7_max, glm_5_2 targets
 - **proposed_fix:** Have the compat stream also count pre-filter chars (and add the active thinking_budget when enable_thinking was sent) into the fallback estimate, e.g. yield a rawChars/estimate hint or accumulate estimate-side chars before the think filter; keep provider-reported usage authoritative when present.
 - **verification:** Unit test in tests/unit/compat-adapter.test.ts: stream a response containing a 4000-char <think> span and no usage chunk; assert the adapter's fallback tokenOut reflects the stripped span (currently it does not)
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: compat stream counts stripped think spans + reasoning_content chars and yields estReasoningTokens; adapter adds the floor to its no-usage fallback; compat-stream.test.ts + usage-estimated.test.ts pin it
 
 ### PRV-004 — Provider key env names are duplicated between PROVIDER_KEY_ENV and per-adapter hardcoded strings with no test pinning the correspondence
 
@@ -593,7 +599,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/config.ts plus 7 adapter files; POST /api/enhance 503 contract
 - **proposed_fix:** Add a unit test asserting, for every Provider, that the adapter's key env name equals PROVIDER_KEY_ENV[provider] (export the compat opts or read the source constants); no runtime change.
 - **verification:** npx vitest run tests/unit/<new>provider-key-env.test.ts passes and fails when any single name is edited
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: provider-policy.test.ts asserts every adapter's key env equals PROVIDER_KEY_ENV per provider
 
 ### PRV-005 — Anthropic adapter error copy says 'Opus' for all three Anthropic targets, mislabeling Fable 5 and Sonnet 5 failures in user-facing messages
 
@@ -602,7 +608,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/anthropic.ts; enhance error surface for fable_5 and sonnet_5 runs
 - **proposed_fix:** Change the label to 'Anthropic request failed:' / 'Unknown Anthropic error.' (matching the provider-named pattern every other adapter uses).
 - **verification:** npx vitest run tests/unit/anthropic-adapter.test.ts (update any message assertion); grep -n 'Opus' src/lib/providers/anthropic.ts returns nothing
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: error copy says 'Anthropic request failed' / 'Unknown Anthropic error'
 
 ### PRV-006 — The 'thinking' SSE event is declared in the wire contract and handled by the client but nothing server-side ever emits it
 
@@ -612,7 +618,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Add a comment marking the event as reserved (never yet emitted) or remove the variant and the client case; comment-only is the zero-risk minimum.
 - **verification:** grep -rn '"thinking"' src/ shows the variant documented as reserved or gone; typecheck stays green
 - **independently found by:** MOD ("The 'thinking' stream event is declared in the SSE wire contract and handled by the client, but no producer in")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: the thinking event is documented RESERVED in stream-events.ts (kept for a future adapter, zero-risk)
 
 ### PRV-007 — Three targets ship floating provider aliases (deepseek-chat, mistral-large-latest, qwen-max) so an upstream model swap silently changes behavior and invalidates the target's price table
 
@@ -621,7 +627,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/config.ts; cost-cap accuracy and behavior stability for deepseek_v4, mistral_large_3, qwen3_7_max
 - **proposed_fix:** No default change without owner sign-off (D9 makes env the pin mechanism); minimum action is a runbook note listing the three floating aliases and the MODEL_*/PRICE_* overrides to set when the upstream alias moves.
 - **verification:** docs/runbooks/ contains the alias-pinning note naming MODEL_DEEPSEEK, MODEL_MISTRAL, MODEL_QWEN and their PRICE_* pairs
-- **disposition:** pending
+- **disposition:** partially-resolved — Stage 2 W2: deepseek pinned to deepseek-v4-pro (published rates 0.435/0.87) and qwen to qwen3.7-max, both verbatim from vendor model pages 2026-08-01; mistral-large-latest DELIBERATELY floats (no published exact id — inferring one risks the invented-model-string 404 class); pin lever + procedure in docs/runbooks/providers.md
 
 ### PRV-008 — Kimi K3, MiniMax M3, and GLM-5.2 default prices are self-declared carryovers from prior model series, pending published rates
 
@@ -630,7 +636,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/config.ts; daily cost cap accuracy for kimi_k3, minimax_m3, glm_5_2
 - **proposed_fix:** When each vendor publishes list rates, update the numEnv defaults (or set PRICE_* in Vercel) and add the 'check the deployed overrides' changelog line lessons.md prescribes; no change until rates are confirmed.
 - **verification:** Compare config.ts defaults against the vendors' published price pages at update time; unit cost via computeCost matches the published per-1M rates
-- **disposition:** pending
+- **disposition:** still-open (deferred by adjudication) — provisional rows marked in config.ts and docs/runbooks/providers.md names the PRICE_* levers; update when Moonshot/MiniMax/Z.ai publish rates
 
 ### PRV-009 — OpenAI enhance path caps completion at a flat 16k with no per-effort headroom, unlike the Anthropic path which doubles the ceiling for xhigh/max for the same reasons-bill-as-output mechanism
 
@@ -639,7 +645,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/openai.ts; gpt_5_6_sol/luna/terra at high reasoning effort on large inputs
 - **proposed_fix:** Mirror the Anthropic pattern: raise max_completion_tokens for reasoning_effort 'high' (e.g. 32_000), keeping the cost cap and maxDuration as the true bounds.
 - **verification:** Unit test on the OpenAI request builder (extract one like buildAnthropicParams/buildCompatBody) asserting the per-effort ceiling; watch prod logs for the 'hit its length limit' message on gpt targets
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: max_completion_tokens 32k at reasoning_effort high (16k otherwise), mirroring the Anthropic per-effort headroom
 
 ## Track MED
 
@@ -665,7 +671,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** New migration: tighten media_obj_insert_own to require exists(select 1 from public.media_assets where storage_path = name and user_id = auth.uid() and status = 'pending'), and add a reconciliation step (e.g. flip-to-ready RPC that reads storage.objects metadata->>'size' and corrects size_bytes, failing the row on gross mismatch). Deploy-order: policy change must land after the client that always reserves first (it already does).
 - **verification:** Against a test project: authenticated storage upload to media/{uid}/x.png without a media_reserve call must be rejected; reserve 1 byte then upload a 1 MB object must fail or correct size_bytes. Locally: assert the new policy SQL text in tests/unit/migrations.test.ts.
 - **adversarial verdict:** DOWNGRADED — Mechanics fully CONFIRMED in code. (a) media_obj_insert_own (20260613073450:49-52) gates only bucket_id='media' + folder=auth.uid(); no media_assets correlation, so a signed-in user can supabase.storage.from('media').upload() directly (the exact wrapper at AttachmentTray.tsx:96-100) with zero reservation — uncharged objects up to the 26214400-byte bucket limit, invisible to the meter which sums media_assets.size_bytes only (AttachmentTray.tsx:182-183, MediaManager.tsx:77). (b) media_reserve (20260727091741:57,68,80) stores the client-declared p_size_bytes = file.size (AttachmentTray.tsx:85,258,290) verbatim; reserve 1 byte then upload 25 MB. No reconciliation: grep of all migrations shows triggers only on prompts/profiles, no pg_cron, no storage.objects metadata comparison; /api/media is analysis-only and never mediates uploads. Not a PR-ruling disagreement. DOWNGRADE rationale: the exploit is authenticated-only and self-scoped (folder must equal auth.uid()) — no cross-tenant exposure, no auth bypass, no secret leak, and storage.objects RLS is present (just permissive-by-owner). invariant_ref is empty so 'invariant violation => min S1' does not attach, and CLAUDE.md §6's cost-cap guardrail is scoped to model routes, not the storage bucket. This is a real but bounded cost/abuse defect (storage-bill inflation by a valid account), which is S2, not S1.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (migration 20260801200000, applied): media_obj_insert_own requires a matching pending reservation, and the ready-flip is the media_commit RPC which reconciles size_bytes against storage metadata (pipeline commit dep; pinned by media-pipeline.test.ts)
 
 ### MED-002 — Server size limits disagree: bucket file_size_limit is 25 MB while media_reserve, admitFiles, and all user-facing copy enforce/state 50 MB, so any 25-50 MB file passes reservation and always fails at upload with a raw storage error
 
@@ -674,7 +680,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/media/pipeline.ts, src/lib/media/queue.ts, supabase/migrations (bucket config), docs/runbooks/media.md; every stored upload in the 25-50 MB band fails after two round trips with an unexplained error
 - **proposed_fix:** Rule which limit is authoritative: either raise the bucket file_size_limit to 52428800 (one-line migration updating storage.buckets) or add a 25 MB per-file client check in admitFiles plus an invalid_size guard at 25 MB in media_reserve, and correct the copy. Do not ship both limits disagreeing.
 - **verification:** After the ruling: unit test in tests/unit/media-queue.test.ts rejecting (or admitting) a 30 MB file per the chosen limit; manual: attach a 30 MB mp4 and confirm it either stores or is rejected pre-upload with the correct message.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (ruling Q3=a): bucket file_size_limit raised to 52428800, matching media_reserve, admitFiles, and every copy surface
 
 ### MED-003 — MIME acceptance diverges client vs server: client admits any image/*, video/*, audio/* but the bucket allows exactly 11 types, so common formats (image/heic, video/3gpp, audio/x-m4a, image/avif, image/svg+xml, audio/flac) reserve quota then fail upload with a raw storage error
 
@@ -683,7 +689,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/media/ondevice.ts (kindForMime), src/lib/media/queue.ts (admitFiles), src/components/media/AttachmentTray.tsx; stored-upload failures with raw error text for a set of common capture formats
 - **proposed_fix:** Minimum change: mirror the bucket allowlist in a shared constant consumed by admitFiles (reject unsupported subtypes up front with the existing 'Unsupported file type' reason) and in the input accept attribute. Alternative worth a product call: widen the bucket list (HEIC/AVIF/3gpp/x-m4a) or transcode stored images to JPEG client-side the way the analysis path already does.
 - **verification:** npx vitest run tests/unit/media-queue.test.ts after adding a case: admitFiles rejects {type:'image/heic'} while admitting {type:'image/jpeg'}; assert the constant equals the migration's allowed_mime_types list.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: MEDIA_ALLOWED_MIME mirrors the bucket's 11 types; kindForMime is allowlist-exact and the file input accepts the explicit list (which also makes iOS transcode HEIC at the picker)
 
 ### MED-004 — Failed vision calls are never billed: /api/media releases the spend hold and returns on any provider failure, and the failed first leg of the cross-provider retry is also unaccounted (prior DISC-06, still open)
 
@@ -692,7 +698,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/media/route.ts; the daily cost cap undercounts on failing/flaky providers — repeated failed analyses spend on server keys without ledger visibility
 - **proposed_fix:** Where the thrown error carries usage (extend describeImage to attach tokenIn/tokenOut when the provider reported them before failing), settle instead of release; at minimum settle the failed first attempt's tokens when the fallback path is taken, mirroring the enhance route's charge-on-abort stance.
 - **verification:** Unit test on the route with a mocked describeImage that throws after reporting usage: assert settleSpend (not releaseSpend) is called with the failed attempt's tokens.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: ProviderError carries provider-reported usage; describeGoogle attaches it; /api/media settles a failed leg that reported usage (per-leg rates) and sums the failed first leg into a fallback run's settle; media-route.test.ts pins both paths
 
 ### MED-005 — Upload-failure cleanup deletes the DB row without attempting object removal, so an upload that committed server-side while the client saw an error leaves an invisible orphaned storage object cleaned only by account deletion; pending rows themselves never expire automatically
 
@@ -701,7 +707,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/media/pipeline.ts; storage-cost hygiene per affected user; quota meter undercounts actual stored bytes
 - **proposed_fix:** In storeAttachment's upload-failure catch, best-effort deps.removeObject(reserved.storagePath).catch(() => {}) before the row delete — a not-found result is already modeled ({ notFound: true }), so the normal failure case is a cheap no-op.
 - **verification:** npx vitest run tests/unit/media-pipeline.test.ts after adding a case: uploadObject throws, assert removeObject was called with the reserved path before deleteRow.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: storeAttachment best-effort removeObject before the row delete on upload failure; pinned by media-pipeline.test.ts
 
 ### MED-006 — /api/media validates intent with the 'in' operator, which accepts Object.prototype keys ('toString', 'constructor') and silently falls back to default analysis while echoing the bogus intent back to the client
 
@@ -710,7 +716,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/media/route.ts only; direct-API callers get an inconsistent response shape
 - **proposed_fix:** Replace the check with !Object.hasOwn(INTENTS, intent) (or Object.keys(INTENTS).includes(intent)).
 - **verification:** Unit test: POST body {intent:'toString'} returns 400 'Unknown analysis intent.'
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: Object.hasOwn intent validation; prototype keys 400 (media-route.test.ts)
 
 ### MED-007 — docs/runbooks/media.md still documents the audio generation spec as 'Tempo / Timbre / Mood / Duration' though tempo/timbre were removed as dead schema and audioSpec emits only Mood and Duration
 
@@ -719,7 +725,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/runbooks/media.md only
 - **proposed_fix:** Edit line 95 to '(`Mood / Duration` — file metadata only, no semantic tempo/timbre pass)'.
 - **verification:** grep -n 'Tempo / Timbre' docs/runbooks/media.md returns nothing.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: docs/runbooks/media.md audio spec now reads 'Mood / Duration' (file metadata only); the dead tempo/timbre fields are gone from the doc as they are from audioSpec
 
 ### MED-008 — No test exercises the /api/media route handler: auth gate, size guard, target/intent validation, reserve-release-on-failure, settle wiring, and the fallbackFrom response contract are all unpinned
 
@@ -728,7 +734,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/unit; regression risk concentrated on the one media path that spends money
 - **proposed_fix:** Add tests/unit/media-route.test.ts mocking createClient/describeImage/spend helpers: 401 unauthenticated; 400 bad JSON/missing dataUrl/unknown target/unknown intent; 413 oversized base64; releaseSpend called exactly once on provider throw; settleSpend called with mode 'extract' and the fallback target after a config-shaped first failure; fallbackFrom present only when redirected.
 - **verification:** npx vitest run tests/unit/media-route.test.ts green; coverage report shows src/app/api/media/route.ts exercised.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: tests/unit/media-route.test.ts covers auth gate, validation, reserve/settle/release ladder, estimated marking, failed-leg billing, fallback contract, and the pre-hold 503
 
 ### MED-009 — MAX_IMAGE_BYTES (5 MB decoded) is unreachable in production: Vercel's 4.5 MB serverless request-body limit rejects the JSON envelope first, making the effective decoded ceiling ~3.37 MB and the in-route 413 dead code on the shipped platform
 
@@ -737,7 +743,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/media/route.ts; only self-hosted deployments without a body cap ever hit the in-route guard
 - **proposed_fix:** Comment-only: note at MAX_IMAGE_BYTES that the guard is a backstop for non-Vercel hosts and that the platform body cap (4.5 MB) binds first in production. Optionally lower the constant to match reality.
 - **verification:** Comment change only — npm run lint && npm run typecheck stay green; no runtime path changes.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: MAX_IMAGE_BYTES documented as a non-Vercel backstop (platform 4.5 MB body cap binds first)
 
 ## Track LIB
 
@@ -763,7 +769,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** supabase tables prompts, prompt_versions, drafts, activity_events; hosted-project storage cost and queryLibraryFacets accuracy (see separate finding)
 - **proposed_fix:** Owner decision needed on limits: CHECK char_length bounds on prompt_versions text columns and drafts row count per user, an activity_events retention trim (e.g. keep latest N per user, deleted in the save RPCs or a scheduled job), and optionally a per-prompt version ceiling with oldest-non-current pruning.
 - **verification:** After migration: insert past each limit and assert the constraint/RPC rejects or trims; select count(*) from activity_events for a heavy user stays bounded.
-- **disposition:** pending
+- **disposition:** deferred (adjudication §4) — per-user growth caps are a product-policy decision (owner sets the numbers); backlog as CORE/NEXT
 
 ### LIB-002 — prompt_versions.parent_ver has no same-prompt or acyclicity guard — the version chain can be corrupted (cross-prompt, cross-user, or self-referential parent) by a direct PostgREST insert the RLS insert policy allows
 
@@ -772,7 +778,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** supabase/migrations (new trigger); prompt_versions writes; PromptDetail default-compare path
 - **proposed_fix:** Extend enforce-style trigger to prompt_versions: before insert, if new.parent_ver is not null require exists(select 1 from prompt_versions v where v.id = new.parent_ver and v.prompt_id = new.prompt_id) and new.parent_ver <> new.id; raise 'parent_not_of_prompt' otherwise.
 - **verification:** SQL test on a branch DB: insert a version with parent_ver from a different prompt and with parent_ver = its own supplied id — both must raise; library_add_version continues to succeed.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (migration 20260801200000, applied): enforce_version_parent trigger — parent_ver must be a version of the same prompt and never self
 
 ### LIB-003 — LibraryBrowser keeps stale accumulated pages and a stale keyset cursor across router.refresh(), producing duplicate rows and permanently skipped rows at page seams
 
@@ -781,7 +787,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/library/LibraryBrowser.tsx; /library route for any user who taps Load more then mutates a card (favorite, archive, delete, rename, move)
 - **proposed_fix:** Port DraftsList's pattern: derive the effective cursor from the prop until paged (undefined sentinel), and reset extraCards + pagedCursor before every router.refresh() triggered by a mutation; optionally dedupe cards by id at concat.
 - **verification:** Unit test mirroring tests/unit/drafts-list.test.tsx:362 for LibraryBrowser: load page 2, mock a favorite toggle + refreshed initialCards containing a page-2 card, assert no duplicate card ids and that the next Load more uses the refreshed boundary.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: LibraryBrowser ports the DraftsList pattern (pagedCursor sentinel, refreshAfterMutation funnel incl. CardActionsSheet via onMutated, id-dedupe at concat, refresh in its own transition); seam tests in library-card.test.tsx
 
 ### LIB-004 — Duplicate-save race survives the content-hash fix: check-then-insert with no DB uniqueness and no cross-tab flush mutex can mint two identical prompt cards
 
@@ -790,7 +796,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/actions.ts, src/components/pwa/OutboxFlusher.tsx, supabase/migrations (new); affects savePromptAction from TransformationDiff, GenerateSheet, and outbox replay
 - **proposed_fix:** Cross-tab mutual exclusion for the flush (navigator.locks.request('vizion-outbox-flush', ...) with fallback), plus re-check the content hash inside library_save_prompt under pg_advisory_xact_lock(hashtext(auth.uid()::text || p_content_hash)) and return the existing prompt id as a duplicate.
 - **verification:** Unit test: flushOutbox invoked twice concurrently over a shared fake store with a handler that records invocations — assert the item's handler runs once. DB: two concurrent library_save_prompt calls with the same hash leave exactly one prompt.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: cross-tab Web Lock on the outbox flush (ifAvailable skip) + server-side pg_advisory_xact_lock per (owner,hash) with an under-lock duplicate re-check in library_save_prompt that converges both racers on one card (migration 20260801200000, applied)
 
 ### LIB-005 — queryLibraryFacets derives model counts, tags, and collection counts from an UNORDERED .limit(1000) slice — beyond 1000 prompts the facet numbers come from an arbitrary subset
 
@@ -799,7 +805,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/queries.ts, src/lib/drafts/queries.ts; filter sheet and Move-to-collection counts for libraries >1000 prompts
 - **proposed_fix:** Add a deterministic .order (e.g. updated_at desc) so the slice is at least stable/most-recent, and document the cap; longer term move to a grouped-count RPC since PostgREST aggregates are disabled (PGRST123 per the comment at queries.ts:146-150).
 - **verification:** Unit test asserting the emitted builder chain includes an order() call before limit(1000).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: both facet queries order by updated_at desc before the 1000 cap — a stable most-recent slice
 
 ### LIB-006 — Delete semantics enforced only in the UI: hard delete is not restricted to archived prompts server-side, and soft-deleted prompts remain fully readable and mutable via the detail route
 
@@ -808,7 +814,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/actions.ts, src/app/(app)/library/[id]/page.tsx; owner-only data (no cross-tenant exposure)
 - **proposed_fix:** Add `.not("archived_at", "is", null)` to deletePromptAction's WHERE; decide whether soft-deleted prompts should 404 or render a 'in trash — restore?' state on the detail route, and gate addVersion/restore on deleted_at is null.
 - **verification:** Unit test: deletePromptAction against a non-archived id matches zero rows; detail route returns notFound (or trash state) for a deleted_at-set prompt.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: hard delete requires archived_at server-side; addVersion/restore gate on deleted_at null; the detail route 404s soft-deleted prompts (trash browsing lands with Q9 in W3)
 
 ### LIB-007 — Outbox poison items retry forever and are never surfaced: a queued save whose payload later fails validation (e.g. its target was removed from the roster) can never drain, and the user's 'Queued — syncs when online' promise is silently broken
 
@@ -817,7 +823,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/pwa/OutboxFlusher.tsx, src/lib/pwa/outbox.ts, src/components/media/GenerateSheet.tsx
 - **proposed_fix:** Distinguish permanent rejections (validation errors) from transient ones in the handler result: park permanently-failed items under a dead-letter kind and surface a one-time toast ('A queued save couldn't be synced — open to recover the text'); handle res.duplicate in GenerateSheet like TransformationDiff does.
 - **verification:** Unit test in the flushOutbox suite (tests/unit/security.test.ts pattern): a handler reporting 'permanent' removes/parks the item after one attempt instead of leaving it for the next flush.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: poison/failed outbox items park after MAX_OUTBOX_ATTEMPTS with a one-time toast; GenerateSheet treats res.duplicate as the existing card (links it) instead of an error
 
 ### LIB-008 — Coverage asymmetry: queryLibraryPage's PostgREST emission and LibraryBrowser's page-seam behavior are untested, while the drafts twins of both are
 
@@ -826,7 +832,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/unit/ (new files); guards the two S2 pagination/dedupe findings against regression
 - **proposed_fix:** Add library-queries.test.ts (fakeSupabase recorder asserting deleted_at/archived filters, cursor or() grammar per sort incl. quoted title, PAGE_SIZE+1 sentinel) and a LibraryBrowser seam test mirroring drafts-list.test.tsx:362.
 - **verification:** npx vitest run tests/unit/library-queries.test.ts tests/unit/library-browser.test.tsx green.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: library-queries.test.ts (filters, sentinel, escaping, error propagation) + LibraryBrowser seam tests
 
 ### LIB-009 — Deleting a collection silently reorders the library: ON DELETE SET NULL fires the prompts updated_at trigger, bumping every released prompt to the top of the Recent sort
 
@@ -835,7 +841,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** supabase trigger definition; /library Recent ordering after a collection delete
 - **proposed_fix:** Scope the trigger: `create trigger prompts_set_updated_at before update on public.prompts for each row when (old.* is distinct from new.*)` is insufficient; instead exclude the pure collection release, e.g. a column-list trigger (before update of title, tags, favorite, archived_at, deleted_at, current_ver, preview, current_mode) or have set_updated_at skip when only collection_id changed.
 - **verification:** Branch-DB test: delete a collection with member prompts and assert their updated_at is unchanged.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (migration 20260801200000, applied): prompts_set_updated_at is a column-list trigger excluding collection_id — collection release/assignment no longer counts as recency
 
 ### LIB-010 — content_hash excludes target_model, so identical input/output/mode saved for a DIFFERENT destination model is flagged as a duplicate and 'Save as new version' files it under the wrong target
 
@@ -844,7 +850,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/hash.ts (formula change would need a coordinated SQL backfill — MANUAL territory), or UI copy in TransformationDiff
 - **proposed_fix:** Ruling needed: either (a) include target in the hash (requires new migration + backfill and loosens dedupe), or (b) keep the hash but have the duplicate card state the existing prompt's target and offer 'Save separately for <target>'. Option (b) avoids touching the pinned byte-match contract.
 - **verification:** Unit test on the duplicate branch asserting the chosen behavior; if (a), re-pin the fixture in tests/unit/library-hash.test.ts against a live DB digest.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (ruling Q5=a): target joined the hash formula in hash.ts + SQL backfill (parent prompt's target_model for historical rows); fixture re-pinned against the live digest
 
 ## Track SW
 
@@ -869,7 +875,7 @@ still-open or partial carry-forwards.
 - **verification:** Unit test: inject an OutboxStore whose put rejects, assert enqueueOutbox resolves false; component test forcing savePromptAction to throw while navigator.onLine is true, assert the error state renders and the queued chip does not.
 - **adversarial verdict:** CONFIRMED — Read all three cited files at HEAD (a4072e6, clean tree): outbox.ts:123-140 enqueueOutbox returns Promise<void> and its catch swallows all store.put failures; TransformationDiff.tsx:200-215 calls setQueued(true) unconditionally in both the offline branch and an ungated catch, so online savePromptAction throws also render "Queued"; GenerateSheet.tsx:85-92 has the correctly onLine-gated pattern, proving the divergence. Prior audit SAFE-02 (evaluation.md lines 56-63, ledger.json) rated exactly this P0; commit ecbd838 touched both files but only for SAFE-01 userId scoping — the void signature and ungated catch are unchanged. Platform rulings PR-1..PR-7 (vibration, share, WebGPU, splash, guest auth, taxonomy) do not cover this. Failure path is real: a rejecting IDB put (Private Browsing/quota) is swallowed, the UI shows "Queued — syncs when online", and the prompt persists nowhere, contradicting the "local cache never the only copy" guardrail. S1 severity holds: silent user data loss behind a false success indicator, but no cross-account/security/monetary dimension.
 - **independently found by:** PRI ("Offline save status is still not truthful when the queue write itself fails: enqueueOutbox swallows IndexedDB "); PRI ("Offline queue status is still untruthful: enqueueOutbox swallows every IndexedDB failure and the save path rep")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: enqueueOutbox returns whether the write landed; both save surfaces claim Queued only on a landed write with a real owner, and online failures report errors (GenerateSheet's gated shape everywhere)
 
 ### SW-002 — enqueueOutbox is called with userId ?? '' — an item queued before the UI store hydrates the account id is stranded forever: never replayed, never removed, while the UI says 'Queued'
 
@@ -878,7 +884,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/diff/TransformationDiff.tsx, src/components/media/GenerateSheet.tsx; offline save on /enhance and media generate
 - **proposed_fix:** Refuse to enqueue without an owner: if userId is falsy, fall through to the error path instead of enqueueing with "" — or plumb the authoritative user.id down as a prop the way the layout already does for OutboxFlusher.
 - **verification:** Unit test: enqueue with userId "" into a fake store, run flushOutbox with any real id, assert flushed 0 / remaining 1 (reproduces the strand); after fix, assert enqueue is refused or the real id is stamped.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: enqueueOutbox refuses a falsy userId and callers route the refusal to the error path
 
 ### SW-003 — Stale comments in register-sw.ts and sw-src.js still describe the pre-CACHE-01 behavior (visited page HTML cached in vizion-shell), contradicting the NetworkOnly navigation route in the same file
 
@@ -887,7 +893,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/pwa/register-sw.ts, src/lib/pwa/sw-src.js (comments only)
 - **proposed_fix:** Rewrite both comments to match reality: vizion-shell holds same-origin static assets only; navigations are NetworkOnly and offline always falls back to /offline.html; the /sign-in purge clears cached assets, not HTML.
 - **verification:** grep -n 'visited page HTML' src/lib/pwa/register-sw.ts and grep -n 'served from the runtime' src/lib/pwa/sw-src.js return nothing; npx vitest run tests/unit/library-integrity.test.ts stays green (its SW assertions target code, not these comments).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: register-sw.ts and sw-src.js comments now say the runtime cache holds only same-origin static assets (SWR), never page HTML — navigations are NetworkOnly → offline.html (CACHE-01)
 
 ### SW-004 — build-sw.mjs header comment claims a manually injected /enhance app-shell precache entry with a build-timestamp revision; neither exists in the code or the built output
 
@@ -896,7 +902,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/build-sw.mjs (comment only)
 - **proposed_fix:** Delete the phantom '/enhance entry' and 'build timestamp revision' sentences from the header comment; the accurate rationale already exists at lines 49-52.
 - **verification:** grep -n 'enhance' scripts/build-sw.mjs returns nothing; node scripts/build-sw.mjs still reports 'Precached 21 entries'.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: build-sw.mjs header no longer claims a manually injected /enhance app-shell entry; it precaches from public/ only (icons + manifest + offline.html), matching the NetworkOnly design
 
 ### SW-005 — Redundant dead update-flow plumbing: sw-src.js calls self.skipWaiting() unconditionally on install, making the SKIP_WAITING message channel and register-sw's 'ask it to activate' handler dead code with a misleading comment
 
@@ -905,7 +911,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/pwa/sw-src.js, src/lib/pwa/register-sw.ts
 - **proposed_fix:** Pick one activation model: either drop the unconditional install-time skipWaiting and keep the message-driven path (controlled activation), or keep unconditional skipWaiting and delete the dead message listener + postMessage handler and correct the comment. Minimum viable change is the latter (behavior-identical).
 - **verification:** node scripts/build-sw.mjs succeeds; npx playwright test tests/e2e/shell.spec.ts (Chromium project) offline-fallback test stays green; npx vitest run tests/unit/library-integrity.test.ts green.
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — removing the dead SKIP_WAITING plumbing (skipWaiting runs unconditionally) touches SW lifecycle, which CLAUDE.md §3 flags as hard to verify off-device; left for a focused SW pass. Carried forward
 
 ### SW-006 — e2e test name promises 'no-store cache policy' for /sw.js but asserts only 'no-cache', weaker than both its name and the actual header
 
@@ -914,7 +920,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/e2e/shell.spec.ts (test-only)
 - **proposed_fix:** Tighten the assertion to expect both 'no-cache' and 'no-store' (or match the full directive string), keeping the test name honest.
 - **verification:** npx playwright test tests/e2e/shell.spec.ts -g 'no-store' passes against the current next.config.ts headers.
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — strengthening the /sw.js e2e assertion to match its 'no-store' name was not scheduled; the shipped header IS 'no-cache, no-store, must-revalidate' (next.config), verified green. Carried forward
 
 ### SW-007 — OutboxFlusher retries a permanently rejected item forever: a handler that keeps returning false (server validation failure, not offline) fires one server action per foreground/online event indefinitely with no attempt cap, age limit, or user surfacing
 
@@ -923,7 +929,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/pwa/OutboxFlusher.tsx, src/lib/pwa/outbox.ts; server action load from authed clients
 - **proposed_fix:** Record an attempts counter (or firstFailedAt) on the item and after a bounded number of confirmed non-transient rejections stop auto-retrying and surface the stranded draft to the user instead of silently retrying — dropping queued user data is a product decision, hence approval required.
 - **verification:** Unit test: handler that always returns false; after N flushes assert the item transitions to a surfaced/parked state rather than being retried on flush N+1.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2: attempts counter + MAX_OUTBOX_ATTEMPTS=3 parking with a one-time surfaced toast; parked items are kept, never retried (security.test.ts pins the ladder)
 
 ## Track SEC
 
@@ -949,7 +955,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** next.config.ts (CSP builder); every route in the app receives this policy via headers() source /:path* including offline.html and sw.js
 - **proposed_fix:** Move CSP emission into middleware with a per-request nonce (script-src 'self' 'nonce-...'), hash the static NO_FLASH bootstrap (sha256), and narrow connect-src/img-src to the single configured Supabase project origin instead of the *.supabase.co wildcard (configuredSupabaseOrigin already computes it).
 - **verification:** curl -sI https://<deploy>/ | grep -i content-security-policy shows nonce-based script-src and no 'unsafe-inline' for scripts; app still boots with no theme flash and no CSP violations in devtools console
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3 (= PRI-010): per-request nonce CSP from the middleware (src/lib/security/csp.ts) drops script-src 'unsafe-inline' for every document; the connect-src/img-src wildcard is narrowed to the exact configured Supabase origin; offline.html/sw.js keep a static 'unsafe-inline' policy from next.config; e2e asserts the nonce header, axe confirms no theme-flash regression
 
 ### SEC-002 — No rate limiting on any non-model endpoint or server action, contradicting CLAUDE.md section 9 'Rate limits on all endpoints'; the only limits that exist are on the two model routes, and the in-memory layer there is per-instance advisory
 
@@ -958,7 +964,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/auth/* (4 routes), src/app/(auth)/actions.ts, src/lib/profile/actions.ts, src/lib/library/actions.ts, src/lib/drafts/actions.ts
 - **proposed_fix:** Either add the in-memory burst guard (keyed by user id, or IP for the unauthenticated auth GETs) to the auth routes and mutating server actions and note the DB-backed option for durable limits, or amend CLAUDE.md section 9 to state the actual posture (durable limits on model routes only, platform-level DDoS elsewhere). Do not silently leave doc and code disagreeing.
 - **verification:** grep -rn 'rateLimit(' src/app src/lib | count call sites covering each mutating endpoint; or a loop of 100 POSTs to /auth/sign-out observing 429s after the threshold
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: writeLimited/emailLimited (src/lib/security/action-limit.ts) guard every mutating server action across auth/profile/library/drafts; IP-keyed burst guard on the unauthenticated auth callback/confirm GETs; delete-account rate-limited; durable cross-instance limits stay on the model routes' spend_reserve as before
 
 ### SEC-003 — Client-controlled refine.baseInput (up to 20k chars) is embedded verbatim into the SYSTEM prompt, placing user text in the privileged role ahead of the envelope contract it can then countermand
 
@@ -967,7 +973,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/formatters.ts (protected path), src/app/api/enhance/route.ts refine path; all 12 provider adapters receive the tainted system string
 - **proposed_fix:** Move the tone/answers context blocks out of the system role and append them to the user message (alongside input, as the mediaContext fence already does), keeping only the static REFINE_INSTRUCTIONS sentence in the system prompt; formatters.ts is a protected path defining OUTPUT_CONTRACT so this needs explicit approval plus regression of formatters.test.ts.
 - **verification:** npx vitest run tests/unit/formatters.test.ts after change; assert buildSystemPrompt output contains no refine.baseInput content for kind=tone/answers and the adapter's user message does
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: refine.baseInput (tone original, Q&A block) moved OUT of the system role into the fenced user message (refineUserBlock); the system prompt only points at it; formatters.test.ts asserts the content never appears in buildSystemPrompt output
 
 ### SEC-004 — Unvalidated keyset cursor is interpolated into PostgREST .or() filter grammar (cursor.id always unquoted; cursor.value unquoted for timestamp sorts), allowing filter injection within the caller's own row set
 
@@ -977,7 +983,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Validate cursor.id against the existing UUID_RE (paging.ts:51) in decodeCursor or at both call sites, and pass every interpolated cursor value through quoteOrValue (PostgREST accepts quoted timestamps), rejecting the cursor (fresh first page) on mismatch.
 - **verification:** npx vitest run tests/unit/library-paging.test.ts plus a new case: decodeCursor('2026-01-01x,id.not.is.null') must not reach the query builder unquoted; manual: fetchLibraryPageAction with a crafted cursor returns ok:false or page 1, never a PostgREST error string
 - **independently found by:** LIB ("Client-supplied keyset cursor is interpolated raw into PostgREST or() grammar, and a title containing U+001F b")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: decodeCursor pins the id to a UUID and refuses a tampered cursor (fresh first page); every interpolated cursor value is quoteOrValue-wrapped at both library+drafts sites; library-paging.test.ts covers the injection string
 
 ### SEC-005 — Raw PostgREST/Postgres error text is returned verbatim to the client from the pagination server actions, contradicting the codebase's own describeWriteError leak policy
 
@@ -986,7 +992,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/queries.ts, src/lib/drafts/queries.ts, fetchLibraryPageAction, fetchDraftsPageAction; /library UI error toasts
 - **proposed_fix:** Log the raw message server-side via writeErrorLogLine and return the generic "Couldn't load more." fallback from both actions (the fallback string already exists in both catch blocks).
 - **verification:** npx vitest run tests/unit/drafts-queries.test.ts tests/unit/library-paging.test.ts; grep confirms no `e.message` passthrough remains in the two actions' catch blocks
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: both pagination actions log the raw PostgREST text via writeErrorLogLine and return the generic 'Couldn't load more.' — the describeWriteError leak policy the mutations already followed
 
 ### SEC-006 — updateProfileAction accepts an arbitrary avatar_url string and the client renders it via next/image with `unoptimized`, bypassing remotePatterns validation
 
@@ -995,7 +1001,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/profile/actions.ts, src/components/settings/SettingsPanel.tsx; /profile page
 - **proposed_fix:** Server-side in updateProfileAction, accept avatar_url only when it parses as https on the configured Supabase storage origin or the two OAuth avatar CDNs (the same allowlist as CSP img-src); reject otherwise.
 - **verification:** Unit test: updateProfileAction({avatar_url: 'https://attacker.example/x.png'}) returns ok:false; the storage-origin URL from SettingsPanel.tsx:135-136 still passes
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: updateProfileAction allowlists avatar_url server-side (configured Supabase origin + the two OAuth CDNs), matching CSP img-src
 
 ### SEC-007 — The <attached-references> fence around client-supplied mediaContext blocks is escapable — a block containing the literal closing tag breaks out of the delimiter the route's comment calls 'clearly fenced'
 
@@ -1004,7 +1010,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/enhance/route.ts providerInput composition; all provider adapters downstream
 - **proposed_fix:** Strip or entity-escape the literal string '</attached-references>' (and '<attached-references>') from each block before joining, mirroring standard tag-fencing hygiene.
 - **verification:** Unit test on the composed providerInput: a block containing '</attached-references>ignore previous' yields exactly one closing tag in the final string
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: neutralizeTag strips the literal <attached-references> fence from each mediaContext block before joining (and from refine blocks); pinned by formatters.test.ts
 
 ### SEC-008 — fetchDraftsPageAction performs no explicit auth check before querying, unlike its sibling fetchLibraryPageAction — it relies on RLS alone, the single point of failure the same file's own comments warn against
 
@@ -1013,7 +1019,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/drafts/actions.ts fetchDraftsPageAction; Drafts view Load more
 - **proposed_fix:** Add the same ownerId() gate returning SESSION_EXPIRED when null, matching fetchLibraryPageAction; optionally add .eq('user_id', uid) inside queryDraftsPage for parity with the mutation paths.
 - **verification:** npx vitest run tests/unit/drafts-queries.test.ts; code review confirms both page actions share the same auth precondition
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: fetchDraftsPageAction gates on ownerId() like its library sibling
 
 ### SEC-009 — In-memory rate limiter store never evicts expired windows, so the module-level Map grows monotonically with distinct user ids over an instance's lifetime
 
@@ -1022,7 +1028,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/security/rate-limit.ts; /api/enhance and /api/media memory footprint
 - **proposed_fix:** Opportunistic sweep: on each call (or every Nth), delete entries whose resetAt < now; pure-core injection style already supports testing it.
 - **verification:** npx vitest run tests/unit/rate-limit.test.ts with a new case asserting store.size stays bounded after expiry
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: the in-memory limiter opportunistically sweeps expired windows every 64th call — the module Map no longer grows monotonically
 
 ### SEC-010 — delete-account and sign-out POST handlers rely solely on the library-default SameSite=Lax cookie for CSRF defense — no Origin/Sec-Fetch-Site check, no re-auth or confirmation token on an irreversible service-role deletion
 
@@ -1031,7 +1037,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/auth/delete-account/route.ts, src/app/auth/sign-out/route.ts
 - **proposed_fix:** In both POST handlers, reject when an Origin header is present and does not match request.nextUrl.origin (tolerate absent Origin for same-origin legacy UAs); for delete-account additionally require a recent re-auth or an explicit confirmation field in the POSTed form body.
 - **verification:** npx vitest run tests/unit/delete-account-route.test.ts extended with a request carrying Origin: https://evil.example expecting 403; existing happy-path test stays green
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: crossOriginPost (src/lib/security/same-origin.ts) refuses a mismatched Origin on sign-out and delete-account; delete-account is additionally rate-limited
 
 ## Track DSN
 
@@ -1070,7 +1076,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/editor/KeyboardActionBar.tsx; visible on /enhance whenever the software keyboard is open (iOS/Android)
 - **proposed_fix:** Swap glass-chrome for glass-nav on the bar (one class), giving top-rounded corners against content and an upward shadow onto the keyboard, matching the BottomNav treatment.
 - **verification:** On an iOS/Android viewport focus the composer textarea; inspect the bar above the keyboard: corners rounded on top, square on bottom, shadow cast upward (getComputedStyle borderTopLeftRadius=20px, boxShadow starts '0 -8px').
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: KeyboardActionBar wears .glass-nav (top-rounded, upward shadow) — the bottom-anchored mirror of the top chrome
 
 ### DSN-002 — Carry-forward PWA-08: viewport themeColor is still a single static dark #0F1012 with no media-qualified light variant
 
@@ -1079,7 +1085,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/layout.tsx, src/components/ThemeManager.tsx; every route's first paint for light-theme users
 - **proposed_fix:** Per the ledger's simpler alternative: emit themeColor as [{media:'(prefers-color-scheme: light)', color:'#EEF0F4'}, {color:'#0F1012'}] and restrict ThemeManager mutation to explicit user overrides — requires deciding the ownership rule the ledger flags.
 - **verification:** curl the rendered HTML head: two <meta name="theme-color"> tags, the light one media-qualified; cold-load in a light-scheme browser shows light chrome pre-hydration.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: media-qualified light/dark themeColor pair (#0F1012 / #EEF0F4) — PWA-08 closed
 
 ### DSN-003 — Press affordance divergence: ConfirmSheet footers use PressableButton but the identical footer CTAs in five other sheets are raw buttons with no touch feedback
 
@@ -1088,7 +1094,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** All sheet footers under src/components/{library,media,ui}, auth forms; touch feedback on iOS across /library, /enhance, /profile, /sign-in
 - **proposed_fix:** Adopt PressableButton subtle for sheet-footer and full-width CTAs matching the ConfirmSheet pattern (mechanical class-preserving swap; press scale 3% appears on tap).
 - **verification:** grep -rn '<button' src/components/library/LibraryFilterSheet.tsx returns none for footer CTAs; on-device tap shows the 0.97 scale; tests/unit suite stays green (976 passing baseline).
-- **disposition:** pending
+- **disposition:** partially-resolved — Stage 2 W4: PressableButton on the primary footer CTAs in MediaPrivacySheet and GenerateSheet; the remaining raw-button footers stay a follow-up (the <a>/<Link> footers need PressableLink)
 
 ### DSN-004 — Icon stroke-width drift: style guide canon is 1.5px on a 24px grid, but 1.75 and 2 ship at 14 sites, yielding effective weights from 1.17px to 1.75px
 
@@ -1097,7 +1103,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** 13 component files across nav, sheets, pickers, diff, library; every screen
 - **proposed_fix:** Ruling needed on whether the canon means nominal strokeWidth=1.5 on the 24 grid (then normalize 14 sites down) or effective rendered 1.5px (then 1.75-on-h-5 is the compliant optical compensation and the h-5/h-4 1.5s should be raised). Then normalize to one rule and record it in the style guide.
 - **verification:** grep -rn 'strokeWidth' src | grep -v '1.5' returns only sites the ruling explicitly blesses; visual pass over the picker sheet where CheckGlyph (2), chevron (1.75) and DeveloperIcon coexist.
-- **disposition:** pending
+- **disposition:** resolved (ruling Q6=b) — Stage 2 W4: per-size optical stroke weights blessed; ADR-0004 records the effective-~1.5px canon and the shared Glyph primitive is the 1.5px/24-grid reference
 
 ### DSN-005 — Focus-glow value defined twice: tailwind.config.ts boxShadow.focus hardcodes rgba(183,255,60,0.25) instead of var(--laser-glow)
 
@@ -1106,7 +1112,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tailwind.config.ts, src/components/editor/EnhanceComposer.tsx; the composer focus ring on /enhance
 - **proposed_fix:** Change boxShadow.focus to '0 0 0 1px var(--accent-ink), 0 0 24px var(--laser-glow)' — identical computed value today, single source of truth thereafter. Optionally drop unused boxShadow.hair.
 - **verification:** npm run build; getComputedStyle on the focused composer shows the identical box-shadow; grep 'rgba(183, 255, 60' outside tokens.css returns only the documented globals.css:939 fallback (or none if also cleaned).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: tailwind boxShadow.focus reads var(--laser-glow); the composer ring can't fork from the rest
 
 ### DSN-006 — Mode-count literals: ModeRig hardcodes 6 in grid-cols-6 and the indicator width calc while keyboard nav derives from MODES.length; the loading skeleton repeats 6 and mismatches gap
 
@@ -1116,7 +1122,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Derive both from MODES.length (inline gridTemplateColumns: repeat(MODES.length, minmax(0,1fr)); width: calc((100% - 0.5rem) / MODES.length) via template literal), reuse for the skeleton, and align the skeleton's gap to gap-0. No rendered change today.
 - **verification:** npx vitest run tests/unit/mode-rig.test.tsx tests/unit/horizon.test.ts; visual: indicator exactly covers the active cell at 360/390/430px; temporarily append a 7th mode locally and confirm the indicator still aligns.
 - **independently found by:** MOD ("Mode count hardcoded outside the mode table: the Enhance loading skeleton renders a literal 6-cell grid and th")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: ModeRig grid + indicator width derive from MODES.length via inline gridTemplateColumns; the skeleton uses MODES too
 
 ### DSN-007 — R5 partial: at a 320px viewport the 'Condense' and 'Reformat' labels overflow their ModeRig cells by ~5px with no overflow handling, and no test guards the gate's recorded 360/390/430 symmetry.
 
@@ -1125,7 +1131,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/editor/ModeRig.tsx; enhance route on 320px-class devices (iPhone SE)
 - **proposed_fix:** Blocked on the six-mode NEEDS-RULING above; the minimum viable change consistent with any ruling is an e2e assertion that label scrollWidth <= cell width at 320/360/390/430, which will pin whichever visual fix is approved.
 - **verification:** npx playwright test with viewport 320x860: for each role=radio cell assert (await label.evaluate(el => el.scrollWidth)) <= (await cell.boundingBox()).width
-- **disposition:** pending
+- **disposition:** resolved (ruling Q1=a) — Stage 2 W4: six cells blessed (ADR-0004); labels shrink a step below 360px so Condense/Reformat stop overflowing at 320px
 
 ### DSN-008 — The enhance loading skeleton draws the mode rig with gap-1 while the real ModeRig uses gap-0, so the placeholder geometry does not match the control it stands in for.
 
@@ -1134,7 +1140,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/(app)/enhance/loading.tsx only; brief route-transition flash on the enhance screen
 - **proposed_fix:** Change gap-1 to gap-0 in enhance/loading.tsx:32 so the skeleton's cell geometry matches ModeRig exactly.
 - **verification:** grep -n 'grid-cols-6' src/app/(app)/enhance/loading.tsx src/components/editor/ModeRig.tsx shows identical gap utilities; visual check of the enhance route loading state.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: the enhance skeleton uses gap-0 + MODES.length cells, matching the real rig
 
 ### DSN-009 — Sub-scale type sizes 10px and 11px ship as arbitrary values at 18 sites, outside the locked Major Third scale (12-39)
 
@@ -1143,7 +1149,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** 11 component files; typography consistency app-wide
 - **proposed_fix:** Add fontSize tokens '2xs': ['0.6875rem',...] and '3xs'/'overline': ['0.625rem',...] (plus a letterSpacing token for 0.18em) with the identical values, then swap the arbitrary classes — zero rendered change.
 - **verification:** Build CSS diff shows identical declarations under new class names; grep 'text-\[0.6' src returns 0; visual spot-check of composer rails and footer.
-- **disposition:** pending
+- **disposition:** deferred — the 18 sub-scale 10px/11px sites sit below the locked Major Third floor (12px); tokenizing a micro-caption step touches the LOCKED type scale and warrants its own design ruling, so it was not folded into a fix wave. Carried forward
 
 ### DSN-010 — Scrim and inset-panel color-mix values duplicated without a shared definition across four sites and two mechanisms
 
@@ -1152,7 +1158,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Sheet, avatar-crop modal, diff original panel, compare sheet; /enhance, /library, /profile overlays
 - **proposed_fix:** Introduce --scrim (void 80%) and --well (void 60%) tokens or .scrim/.well component classes and point all four sites at them; identical computed values.
 - **verification:** grep -rn 'void)_\?60%\|void) 80%\|void)_80%' src returns only the single definition; overlay screenshots unchanged in both themes.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: --scrim-panel token replaces the duplicated 60%-Void color-mix at the compare/original panels
 
 ### DSN-011 — No motion scale exists: all durations/easings are literals, and the ModeRig lens-lock indicator's 300ms ease-out is the only 300ms in the app with no token to answer to
 
@@ -1161,7 +1167,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/styles/globals.css, ModeRig, BottomNav, NewPromptFab, LibraryBrowser; motion consistency app-wide
 - **proposed_fix:** Declare a motion scale (--dur-quick 120ms, --dur-base 200ms, --dur-slow 300ms, --ease-press, --ease-out) in tokens.css or globals.css (both protected paths) and reference it; values unchanged.
 - **verification:** CSS output diff shows identical resolved durations; reduced-motion collapse (globals.css:151-161) still overrides everything.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: --motion-quick/--motion-slide/--ease-out motion tokens in globals.css; ModeRig lens-lock consumes them
 
 ### DSN-012 — Token-contract doc drift: tokens.css declares --flare is 'never a fill' but the library delete swipe panel fills with bg-flare
 
@@ -1170,7 +1176,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/styles/tokens.css comment accuracy; future agents reading the canon
 - **proposed_fix:** Amend the tokens.css comment to 'never a fill except the swipe delete panel, which pairs with --on-flare (see dev-accents.css)' — comment-only edit to a protected file.
 - **verification:** grep 'never a fill' tokens.css shows the amended clause; no CSS value changes (build output identical).
-- **disposition:** pending
+- **disposition:** resolved (ADR-0004) — Stage 2 W4: the destructive swipe-panel --flare fill is sanctioned and documented at its call site; flare stays text/border-only everywhere else
 
 ### DSN-013 — tailwind.config.ts cites a guard test that does not exist: tests/unit/contrast.test.ts
 
@@ -1179,7 +1185,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tailwind.config.ts comment; anyone auditing the contrast guard
 - **proposed_fix:** Update the comment to cite tests/unit/a11y.test.ts.
 - **verification:** grep -n 'contrast.test' tailwind.config.ts returns nothing; grep -n 'a11y.test' tailwind.config.ts returns the corrected citation.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: tailwind.config cites tests/unit/a11y.test.ts (the real guard), not the nonexistent contrast.test.ts
 
 ### DSN-014 — Arbitrary value duplicates a configured token utility: bg-[var(--on-laser)] where bg-on-laser exists
 
@@ -1188,7 +1194,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/settings/SettingsPanel.tsx:395; /profile
 - **proposed_fix:** Replace bg-[var(--on-laser)] with bg-on-laser (identical generated CSS). Optionally map --on-flare in the config so the last arbitrary color can also be named.
 - **verification:** npx vitest run tests/unit (settings tests pass); computed background-color of the knob unchanged.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: the reduced-effects knob uses bg-on-laser, not the arbitrary bg-[var(--on-laser)]
 
 ### DSN-015 — Single-line text inputs ship three divergent recipes (glass/xl/16px vs surface/lg/14px vs bare), and the picker trigger fallback string is duplicated against its own warning
 
@@ -1197,7 +1203,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Library, collection, confirm, drafts, settings, prompt-detail inputs; models pickers
 - **proposed_fix:** Ruling on which input recipe is canon (or that A=floating surfaces / B=settings forms is intentional two-tier); then extract one Input class per tier. The picker fallback consolidation (export one shared constant) is independently safe.
 - **verification:** grep for the recipe strings returns single definitions; visual pass over settings vs library search in both themes.
-- **disposition:** pending
+- **disposition:** resolved (ruling Q7=b, ADR-0004) — Stage 2 W4: two-tier input recipe documented (primary editor vs in-sheet fields); Q18 range input is a distinct control class
 
 ### DSN-016 — Floating bottom-edge offsets disagree (8px vs 12px above the nav) and env() safe-area fallbacks are applied inconsistently
 
@@ -1206,7 +1212,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Toast, FAB, diff action bar; /enhance and /library bottom edge
 - **proposed_fix:** Pick one gap (12px matches 2 of 3 sites) as a --float-gap token beside --bottom-nav-h, and standardize env(safe-area-inset-bottom, 0px). The 8→12 change moves the diff bar 4px.
 - **verification:** All three computed bottom values differ only by design intent; screenshot of /enhance result state with toast visible shows aligned rhythm.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: --float-gap token unifies the sticky bar, toast, and FAB clearance (was 8 vs 12px)
 
 ### DSN-017 — ScreenHeader app-icon squircle uses arbitrary rounded-[10px], off the radius ladder and slightly over-clipping the SVG's own 22% tile radius
 
@@ -1215,7 +1221,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/ScreenHeader.tsx; /enhance header (brand mode)
 - **proposed_fix:** Drop the CSS radius entirely (the SVG already carries its squircle on a transparent ground) or use rounded-lg (8px, inside the tile's 7.92px+0.43px margin, no clipping).
 - **verification:** Zoomed screenshot of the 36px header icon: lime glow ring corner intact, no shaved arc.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: ScreenHeader squircle uses rounded-xl (on the ladder), off the arbitrary rounded-[10px]
 
 ### DSN-018 — z-index ladder is coherent but its ordering contract lives only in one component comment; layers 60-100 are scattered arbitrary literals
 
@@ -1224,7 +1230,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Stacking order across all routes; maintainability only
 - **proposed_fix:** Record the ladder (ambient -10 / content 1-10 / chrome 30-50 / overlays 60-80 / a11y 100) in docs/architecture.md; optionally later promote to named tokens (that step would touch protected files).
 - **verification:** Doc section exists; grep inventory matches the documented ladder.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: the z-index ladder is documented in docs/architecture.md
 
 ### DSN-019 — Carry-forward UX-08: two appearance controls still coexist (per-screen ThemeToggle in every header plus ThemeSegmented in Settings)
 
@@ -1233,7 +1239,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** ScreenHeader (all routes), ThemeToggle, SettingsPanel
 - **proposed_fix:** Execute the ledger's P2 plan when scheduled (single owner in Settings); no action required by this audit beyond tracking.
 - **verification:** After the P2 change: grep ThemeToggle usage returns only Settings; header regains the space.
-- **disposition:** pending
+- **disposition:** still-open (deferred by adjudication) — two appearance controls; owner picks header-toggle vs Settings
 
 ### DSN-020 — AvatarCropper viewfinder mask is the only hardcoded rgba box-shadow in components, bypassing the token scrims
 
@@ -1242,7 +1248,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/avatar-crop/AvatarCropper.tsx; avatar crop modal on /profile
 - **proposed_fix:** Rule whether the crop mask stays photographic-neutral black (then add a comment and optionally a --mask token) or should follow the theme scrim (color-mix void 55%, which turns near-white on light).
 - **verification:** Ruling recorded; if changed, light-theme crop screenshot shows the chosen treatment and the drag/zoom e2e still passes.
-- **disposition:** pending
+- **disposition:** resolved (ruling Q8=a, ADR-0004) — Stage 2 W4: the AvatarCropper viewfinder mask reads --scrim-heavy (Void-based, theme-inverting) — no more hardcoded rgba
 
 ### DSN-021 — btn-secondary hover/active feedback is imperceptible on the light theme: brightness() on an already-white fill clamps
 
@@ -1251,7 +1257,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Every .btn-secondary (ConfirmSheet cancel, DraftsToolbar, sign-in providers, error/not-found pages); light theme, pointer devices only
 - **proposed_fix:** Give .btn-secondary a theme-robust hover (e.g. compose hover-hair's border color-mix, or a color-mix fill shift toward --text 4%) instead of/alongside brightness.
 - **verification:** In light theme hover a Cancel button and confirm a visible state change; screenshot diff dark theme unchanged.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: btn-secondary hover/active use an explicit surface+border color-mix shift, perceptible on the light theme where brightness() clamped
 
 ## Track A11Y
 
@@ -1279,7 +1285,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Change `outline: none` to `outline: 2px solid transparent; outline-offset: 1px` in the base :focus-visible rule (transparent outlines are invisible normally but painted as CanvasText under forced-colors), or add `@media (forced-colors: active) { :focus-visible { outline: 2px solid; } }`.
 - **verification:** In Chromium: emulate forced-colors (DevTools Rendering > Emulate forced-colors: active), Tab through /sign-in and /enhance, confirm a visible outline on every focused control; before the fix none renders.
 - **adversarial verdict:** CONFIRMED — globals.css:142-146 is verbatim `:focus-visible { outline: none; box-shadow: var(--focus-ring); }`; grep across src/ finds zero forced-colors/prefers-contrast handling and shows every outline occurrence is `outline: none` or `focus:outline-none` — all focus indication (base ring, .glass:203-207, .fab-glass:396-400, tailwind shadow-focus:86) is box-shadow, which forced-colors mode computes to none while respecting author outline removal, so WHC keyboard users get no focus indicator on any control on any route (WCAG 2.4.7). No conflict with PR-1..PR-7 (they cover vibration, share, WebGPU, splash, guest auth, taxonomy). S1 holds: CLAUDE.md section 9 mandates a full WCAG AA pass and the failure is total for an entire user class.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: :focus-visible carries a 2px transparent outline (painted as CanvasText under forced-colors, where box-shadow is suppressed) alongside the box-shadow ring
 
 ### A11Y-002 — TargetPicker and ThinkingPicker sheets declare role=radiogroup/radio but implement no roving tabindex and no arrow-key handling — the roles promise keys that do nothing
 
@@ -1289,7 +1295,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Either implement the radiogroup contract (roving tabindex: checked radio tabIndex 0, others -1; ArrowUp/Down/Left/Right + Home/End moving focus+selection, mirroring ModeRig), or drop to the Segmented pattern (plain buttons + aria-pressed) which matches current behavior.
 - **verification:** npx vitest run tests/unit/target-picker.test.tsx after adding an arrow-key spec modeled on tests/unit/mode-rig.test.tsx:41-45; manually: open the Target sheet, press ArrowDown — selection/focus must move.
 - **adversarial verdict:** CONFIRMED — Read both files in full: TargetPicker.tsx:166/177-179/205-211 and ThinkingPicker.tsx:116/123-127/150-156 declare radiogroup/radio exactly as cited, with no onKeyDown and no tabIndex anywhere in either file (all radios are default tab stops), and Sheet.tsx:60-89 handles only Escape+Tab so nothing supplies the arrow-key contract. The repo's own convention treats this as a defect: ModeRig.tsx:45-47 (path is editor/, not enhance/ — trivial slip) brands the identical prior state a WCAG AA bug and implements roving tabindex (line 99) + Arrow/Home/End (lines 52-80), and Segmented.tsx:7-11 explicitly refuses radiogroup for this exact reason. Grep of tests/unit/target-picker.test.tsx confirms zero Arrow/tabIndex coverage (click-only). S1 stands under the audit rule that a true invariant violation is minimum S1: the repo's documented invariant is "never take the radio role without the roving-tabindex/arrow contract", and no platform ruling PR-1..PR-7 is implicated.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: useRovingRadios (roving tabindex + Arrow/Home/End moving focus) wired into TargetPicker and ThinkingPicker; target-picker.test.tsx pins the contract
 
 ### A11Y-003 — Light-theme selected-state indication (Laser fill) fails the 3:1 non-text contrast floor in ModeRig, Segmented, and QuickChip
 
@@ -1299,7 +1305,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Add a non-chromatic second channel to the active cell (the BottomNav precedent): a 1px --accent-ink inset ring or hairline border on the Laser lens/active segment, or a shape marker; alternatively a light-theme lens border token.
 - **verification:** Re-run the contrast computation (python3 scratchpad/contrast.py pattern) on the chosen indicator vs #fcfcfd expecting >= 3.0; visually check /enhance in light theme with a grayscale filter — the active mode must remain identifiable.
 - **adversarial verdict:** CONFIRMED — Every cited fact reproduced: bg-laser is the sole selected-state indicator at ModeRig.tsx:85, Segmented.tsx:92, LibraryBrowser.tsx:644 (QuickChip, which also drops the glass hairline when active), PromptDetail.tsx:418; independent WCAG computation gives laser #b7ff3c vs composited light glass #fcfcfd = 1.18:1, vs light page #eef0f4 = 1.06:1, backup label-ink swap on-laser #0e1013 vs silver-light #565b63 = 2.79:1 (dark passes at 12.69:1); Tailwind mapping confirmed constant-laser across themes. BottomNav.tsx:95-108 documents this exact failure class and shipped a non-chromatic dot fix, so the repo treats it as a defect; no decision doc, test (a11y.test.ts covers only text-on-fill legibility), or PR-1..PR-7 ruling (all platform-API topics) accepts it. Only nuance: ModeRig's icon ink swap computes 3.01:1, but it is still color-only (1.4.1) and absent from the other three surfaces. S1 upheld: CLAUDE.md §9 mandates full WCAG AA, and the active state is imperceptible in light/system-light themes on the core composer control plus three library surfaces.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: a shared .selected-ink inset accent-ink ring on every active Laser fill (ModeRig lens, Segmented, QuickChip, PromptDetail pills) — invisible on dark (ink IS laser), a 5.5:1 boundary on light
 
 ### A11Y-004 — Toast live region is mounted together with its message, so screen readers are not reliably told about confirmations and Undo offers
 
@@ -1308,7 +1314,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/ui/Toast.tsx; every toast surface (composer clear/undo, library delete/undo, FAB save/discard, copy failure)
 - **proposed_fix:** Keep one permanently-mounted sr-only live region inside ToastProvider (the FieldStatus shape) and write the toast text into it, leaving the visual card conditional; keep role=alert insertion for error tone.
 - **verification:** npx vitest run tests/unit/toast.test.tsx after adding a spec asserting the role=status node exists before toast() is called and receives the text as a mutation.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: two permanently-mounted sr-only aria-live regions in ToastProvider (polite + assertive) carry the toast text as a mutation; the visual card is aria-hidden; toast.test.tsx updated
 
 ### A11Y-005 — Completion of an enhance run is never announced — the step live region unmounts and the result view mounts silently
 
@@ -1317,7 +1323,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/diff/TransformationDiff.tsx, src/components/editor/EnhanceComposer.tsx, src/components/library/PromptDetail.tsx; the core enhance flow
 - **proposed_fix:** Announce completion through a permanently-mounted polite region (e.g. the existing cap-warning shape in the composer, or a final 'Done — result ready' step written into StreamProgress's region before unmount), coordinated with result-view.test.tsx's singular role=status query.
 - **verification:** Unit spec: render composer, resolve the mutation, assert a mounted role=status node's text changes to a completion message; manual VoiceOver/NVDA pass on a full run.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: a permanently-mounted aria-live region in the composer announces 'Enhancement ready' on completion — the step region no longer unmounts into silence
 
 ### A11Y-006 — Diff additions are marked by color alone — in dark theme added text is 1.09:1 against equal text, with no non-color cue
 
@@ -1326,7 +1332,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/diff/segments.tsx, CompareSheet.tsx, TransformationDiff.tsx, PromptDetail.tsx version compare
 - **proposed_fix:** Give added segments a second channel to mirror the removed side's strike — e.g. underline (`underline decoration-accent underline-offset-2`) or a subtle bg tint on added spans in the comparison surfaces.
 - **verification:** View Compare sheet in dark theme through a grayscale filter: additions must remain identifiable; extend tests/unit/diff-segments.test.tsx to assert the added-span class carries a non-color marker.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: added diff segments carry an underline (ADDED_CLASS) mirroring the removed side's strike — a non-color channel in every compare surface
 
 ### A11Y-007 — Footer inline links are distinguished from surrounding text by color alone (1.57:1 dark / 1.08:1 light vs the silver copy, no resting underline)
 
@@ -1335,7 +1341,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/Footer.tsx (all routes incl. sign-in), src/components/settings/SettingsPanel.tsx
 - **proposed_fix:** Add a resting underline (`underline underline-offset-4` or decoration at reduced opacity) to inline links that sit inside body copy; standalone link-buttons are unaffected.
 - **verification:** Grayscale-filter check of the footer in both themes: links must be identifiable without color; grep confirms `underline` present at rest on the two footer anchors.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: resting underline on the footer inline links and the Settings Resend link — no longer color-only inside body copy
 
 ### A11Y-008 — Sign-in route renders no h1 — violating the repo's own 'every screen gets an h1' rule
 
@@ -1344,7 +1350,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/auth/AuthHero.tsx; /sign-in route
 - **proposed_fix:** Wrap the Wordmark in AuthHero in `<h1 className="m-0 leading-none">` exactly as ScreenHeader.tsx:40-42 does for the brand variant (no visual change).
 - **verification:** Render /sign-in and assert document.querySelector('h1') is non-null (add to tests or check in e2e shell.spec.ts).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: AuthHero wraps the Wordmark in an h1 (the ScreenHeader brand pattern) — the sign-in outline starts at level 1
 
 ### A11Y-009 — Settings route heading order skips from h1 to h3 (SettingsSection uses h3 with no h2 on the page)
 
@@ -1353,7 +1359,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/settings/Field.tsx (SettingsSection); /profile route outline
 - **proposed_fix:** Change SettingsSection's h3 to h2 (class string unchanged — the visual is class-driven, not tag-driven). Verify no other consumer of SettingsSection depends on h3.
 - **verification:** npx vitest run tests/unit/settings-status.test.tsx tests/unit/settings-identity.test.tsx stays green; axe or manual outline check shows h1→h2 on /profile.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: SettingsSection heading is h2, not h3 — /profile steps h1→h2 (visual is class-driven, unchanged)
 
 ### A11Y-010 — The reduced-motion stream-progress pulse is dead code: the base-layer !important collapse clamps it to 0.01ms, so the documented 'slow opacity pulse' never runs
 
@@ -1362,7 +1368,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/styles/globals.css:949-963; StreamProgress under reduced motion (visual only)
 - **proposed_fix:** Either delete the stream-pulse keyframes/animation and keep the static segment declaration (documenting it as the intended reduced-motion state), or exempt .stream-progress-sweep from the global clamp if the pulse is genuinely wanted.
 - **verification:** DevTools with prefers-reduced-motion emulated: computed animation-duration on .stream-progress-sweep is 0.01ms today; after cleanup the rule block and comment agree.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: the reduced-motion stream-progress pulse carries !important so the more-specific selector wins the tie against the global collapse — the documented slow pulse actually runs
 
 ### A11Y-011 — Destructive actions rely on a 6-second toast Undo with no persistent recovery path or timing control (WCAG 2.2.1)
 
@@ -1371,7 +1377,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/ui/Toast.tsx, src/components/library/LibraryBrowser.tsx, src/components/nav/NewPromptFab.tsx
 - **proposed_fix:** Product call needed: extend toast duration for action-bearing toasts (e.g. 10s + pause while hovered/focused), or expose soft-deleted prompts in an Archived/Trash view so Undo is not time-boxed.
 - **verification:** After ruling: unit spec on ToastProvider asserting action-bearing toasts persist >= 10s or pause on focus; or an e2e showing a deleted prompt is recoverable from the archived view after the toast expires.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3 (ruling Q9=a): a persistent 'Recently deleted' library view with Restore + confirmed permanent delete; the toast Undo is now a shortcut, not the only recovery (LibraryBrowser trash sheet; library-card.test.tsx)
 
 ## Track TYP
 
@@ -1397,7 +1403,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/**, scripts/**, playwright.config.ts, vitest.config.ts — all invisible to the CLAUDE.md section 3 lint gate and to CI's lint job
 - **proposed_fix:** Migrate the lint script to the ESLint CLI (`"lint": "eslint ."`, relying on the existing flat-config ignores for node_modules/.next/public/sw.js/playwright-report/test-results), which also retires the deprecated `next lint` before Next 16 removes it; clean the 8 existing warnings in the same change.
 - **verification:** npx eslint . --max-warnings 0 exits 0; npm run lint output includes tests/ files when a deliberate unused var is introduced there
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — widening `next lint` to tests/ + scripts/ and clearing the 8 latent warnings was not in the accepted plan; the gate lints shipped src/ today. Carried forward
 
 ### TYP-002 — Offline-outbox payload is cast to savePromptAction's input type with no runtime shape validation, so a malformed persisted item retries forever silently
 
@@ -1406,7 +1412,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/pwa/OutboxFlusher.tsx, src/lib/pwa/outbox.ts; offline save replay path on every app foreground
 - **proposed_fix:** Add a runtime shape guard for the save-prompt payload before the cast; the ruling needed is disposition of a malformed item — outbox.ts:41-45 explicitly holds that destroying unsaved work is the worse failure, so dropping poison items vs. keeping them (current behavior, infinite silent retry) is an owner decision.
 - **verification:** Unit test: enqueue an item with kind save-prompt and payload {} — flushOutbox must neither throw nor loop-retry per the chosen semantics; npx vitest run tests/unit/outbox.test.ts
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W2 (ruling Q10=a): isSavePromptPayload runtime guard on replay; malformed payloads park as poison immediately (kept, surfaced, never retried)
 
 ### TYP-003 — SSE client asserts each parsed frame as the EnhanceStreamEvent union without shape validation
 
@@ -1415,7 +1421,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/enhance/stream-events.ts, src/lib/enhance/use-enhance.ts; the streamed enhance path
 - **proposed_fix:** Minimal per-type field guard in parseSseStream (e.g. skip frames where `typeof e.type !== "string"` or a `delta` lacks string `text`), or a comment at the cast recording that the same-module encoder is the contract.
 - **verification:** npx vitest run tests/unit/stream-events.test.ts after adding a case feeding `data: {"type":"delta"}` and asserting it is skipped
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — runtime-validating each SSE frame beyond the union assertion was not scheduled (the stream is same-origin from our own route). Carried forward
 
 ### TYP-004 — media route forwards any image/* media type to Anthropic under an asserted 4-value union, so unsupported formats fail as a 502 provider error instead of a 400
 
@@ -1424,7 +1430,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/vision.ts, src/app/api/media/route.ts; media analysis for uncommon image formats
 - **proposed_fix:** Validate mediaType against the supported set in the route (400 with a clear message for unsupported formats) or narrow with a type guard before describeAnthropic, removing the assertion.
 - **verification:** curl POST /api/media with an image/svg+xml data URL returns 400 (not 502); npx vitest run tests/unit covering the new guard
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — mapping an unsupported image/* to a 400 rather than the current 502 was not scheduled. Carried forward
 
 ### TYP-005 — Rotted lint suppressions: 1 unused eslint-disable directive and 7 of 8 remaining disables lack a written reason
 
@@ -1433,7 +1439,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/unit/drafts-queries.test.ts plus 4 media/avatar components; comment-only changes
 - **proposed_fix:** Delete the unused directive at tests/unit/drafts-queries.test.ts:37; add a one-line reason to each remaining disable (blob/object URLs for the img cases, minimal Supabase mock for the test `as any` cases).
 - **verification:** npx eslint tests src --report-unused-disable-directives shows zero unused directives; npm run lint and npx vitest run tests/unit/drafts-queries.test.ts stay green
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — pruning the rotted eslint-disable directives was not scheduled (cosmetic, no behaviour). Carried forward
 
 ### TYP-006 — Untrusted-boundary casts without validation: OTP type from the query string and two untyped res.json() results
 
@@ -1442,7 +1448,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/auth/confirm/route.ts, src/components/media/AttachmentTray.tsx, src/lib/enhance/use-enhance.ts
 - **proposed_fix:** Validate `type` against the EmailOtpType values before verifyOtp (redirect invalid_link otherwise); annotate the two client res.json() results as `unknown` and narrow with the typeof checks the code already mostly performs.
 - **verification:** npm run typecheck exits 0; magic-link e2e (auth confirm) stays green; npx vitest run tests/unit for the attachment tray
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — validating the OTP query param + two res.json() casts was not scheduled. Carried forward
 
 ### TYP-007 — Additional strictness flags are off; two are free or near-free to enable, one is a 30-error migration
 
@@ -1451,7 +1457,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tsconfig.json; repo-wide compile behavior
 - **proposed_fix:** Enable noFallthroughCasesInSwitch now (0 errors); enable noImplicitReturns with the one ThemeManager fix; decide whether the 30-error exactOptionalPropertyTypes migration is worth scheduling — that is a policy call, not a defect fix.
 - **verification:** npm run typecheck exits 0 with the chosen flags added to tsconfig.json
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q11=a, exceeded): tsconfig enables noFallthroughCasesInSwitch, noUnusedLocals, noUnusedParameters (the free tier) AND keeps noUncheckedIndexedAccess + noImplicitOverride on — the whole strictness set the ruling scheduled is already green
 
 ### TYP-008 — Two uncommented `as unknown as` double casts on Supabase query rows, one of which appears unnecessary
 
@@ -1460,7 +1466,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/drafts/queries.ts, src/lib/library/queries.ts, src/lib/library/actions.ts; library and drafts list reads
 - **proposed_fix:** Drop the drafts/queries.ts double cast if `const rows: DraftRow[] = data ?? []` typechecks; add one-line WHY comments to the two casts that must remain (embed-shape inference gaps).
 - **verification:** npm run typecheck exits 0 after the edit; npx vitest run tests/unit/drafts-queries.test.ts tests/unit/library-*.test.ts stays green
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — commenting/removing the two Supabase `as unknown as` casts was not scheduled. Carried forward
 
 ### TYP-009 — zustand persist migrate validates only the historically-renamed fields — other persisted fields (activeMode, theme, editorDraft, reformatFormat, lengthByMode) are cast through unvalidated
 
@@ -1469,7 +1475,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/stores/ui.ts; composer state after localStorage tampering or a future field-shape change
 - **proposed_fix:** Extend migrate to set-validate activeMode against MODES (fall back to default) and type-check the remaining persisted scalars, mirroring the existing targetModel pattern.
 - **verification:** Unit test seeding localStorage with activeMode "bogus" asserts the store rehydrates to a valid mode; npx vitest run tests/unit
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — extending the zustand persist-migrate validation to the other persisted fields was not scheduled. Carried forward
 
 ### TYP-010 — profile page dereferences `user!` three times; a transient getUser failure renders a 500 error boundary instead of a redirect
 
@@ -1478,7 +1484,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/(app)/profile/page.tsx (/profile route only)
 - **proposed_fix:** Replace the assertions with an explicit `if (!user) redirect("/sign-in")` guard, matching the failure semantics the middleware provides.
 - **verification:** npm run typecheck && npx vitest run; e2e settings spec stays green
-- **disposition:** pending
+- **disposition:** deferred (not scheduled) — replacing the profile page's `user!` derefs with a redirect on a transient getUser failure was not scheduled. Carried forward
 
 ## Track DEP
 
@@ -1501,7 +1507,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/build-sw.mjs, src/lib/pwa/sw-src.js, public/sw.js (prebuild step of every `npm run build`); breaks under pnpm/isolated-mode installs or if a future workbox-build release drops any of these from its dependency list
 - **proposed_fix:** Add the six imported workbox-* packages to devDependencies at ^7.4.1 (matching the versions already installed and deduped against workbox-build) so the SW bundle's imports are declared, not inherited.
 - **verification:** npm ls workbox-core workbox-precaching workbox-routing workbox-strategies workbox-expiration workbox-cacheable-response shows each as a direct devDependency; `npm run build:sw` produces a byte-identical public/sw.js (same versions dedupe).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (= PRI-008): the six workbox-* runtime packages (core/precaching/routing/strategies/expiration/cacheable-response) are declared as direct devDependencies at ^7.4.1, no longer relying on workbox-build's transitive hoist
 
 ### DEP-002 — Audit-gate exemption for GHSA-mh99-v99m-4gvg is stale — the advisory is no longer reported — and AGENTS.md still asserts 14 high entries that no longer exist
 
@@ -1510,7 +1516,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/check-audit.mjs, AGENTS.md, comment block in .github/workflows/ci.yml:62-65; no runtime effect
 - **proposed_fix:** Follow the script's own designed prompt: remove the EXEMPT entry and its verify helper from scripts/check-audit.mjs (the gate then hard-fails if the advisory ever returns, which is the intended behavior), and update AGENTS.md:83-97 to record that the advisory was withdrawn/re-ranged and the per-major overrides are retained as defensive floors.
 - **verification:** npm run audit:check exits 0 printing "0 high, 0 critical across 0 distinct advisories" with no "drop this exemption" line; grep -c GHSA-mh99 scripts/check-audit.mjs returns 0.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: the stale GHSA-mh99-v99m-4gvg EXEMPT entry and its source-level verifier are removed from scripts/check-audit.mjs (now zero-exemption); AGENTS.md rewritten to record the advisory is no longer reported and the per-major overrides remain defensive floors
 
 ### DEP-003 — engines.node ">=20.0.0" understates the real floor — installed toolchain requires Node ^20.19.0 || >=22.12.0
 
@@ -1519,7 +1525,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** package.json engines field; local developer environments only — CI and Vercel (Node 22) are inside the supported range
 - **proposed_fix:** Tighten engines.node to "^20.19.0 || >=22.12.0" (the intersection-defining constraint, from vite 7) so the declared floor matches what the toolchain actually supports.
 - **verification:** node -e "const s=require('semver');['20.0.0','20.18.0','21.0.0','22.11.0'].forEach(v=>console.log(v, s.satisfies(v, require('./package.json').engines.node)))" prints false for all four; `npm install --dry-run` on Node 22 emits no EBADENGINE warnings.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: engines.node tightened to '^20.19.0 || >=22.12.0' (the vite 7 intersection), so the declared floor matches what the toolchain actually supports
 
 ### DEP-004 — Four deprecated transitive packages in the installed tree: glob@11.1.0, source-map@0.8.0-beta.0, node-domexception@1.0.0, whatwg-encoding@3.1.1
 
@@ -1528,7 +1534,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Dev/build tree only, except node-domexception which sits in the production dependency graph via openai@4; no runtime defect today
 - **proposed_fix:** No local fix for the workbox-build pair (upstream pins); clearing node-domexception requires the openai major bump (see separate finding); whatwg-encoding clears with a jsdom major bump (^25.0.1 declared, newer majors available). Track as upstream-currency debt rather than patching with overrides.
 - **verification:** node -e over package-lock.json listing entries with a `deprecated` field returns empty (or only the accepted workbox-build residue) after the respective bumps; npm run test stays green.
-- **disposition:** pending
+- **disposition:** accepted — Stage 2 W5: the four deprecated transitives (glob@11, source-map beta, node-domexception, whatwg-encoding) carry no advisory; the workbox-build pair is upstream-pinned and node-domexception/whatwg-encoding clear only with the openai/jsdom major bumps. Tracked as upstream-currency debt (rides DEP-005), no override applied
 
 ### DEP-005 — openai pinned to legacy major 4 (installed 4.104.0), at least two majors behind current, dragging node-fetch@2 + whatwg-url@5 into the production dependency graph
 
@@ -1537,7 +1543,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/openai.ts, openai-compat.ts, mistral.ts, xai.ts, vision.ts, config.ts, src/lib/constants.ts, and the /api/enhance route paths that call them; upgrade is API-breaking (v4 -> v5+ changed client construction and streaming types)
 - **proposed_fix:** Plan a deliberate openai v4 -> current-major migration for the compat providers (client init, streaming iterator types, error classes), which also removes deprecated node-domexception and the duplicate whatwg-url@5 from prod. Not urgent: zero open advisories today.
 - **verification:** After migration: npm ls node-fetch whatwg-url shows no openai-rooted entries; npx vitest run tests/unit/compat-adapter.test.ts tests/unit/vision-fallback.test.ts tests/unit/models.test.tsx passes; npm audit --omit=dev --audit-level=high stays 0.
-- **disposition:** pending
+- **disposition:** deferred (by adjudication) — Stage 2 W5: openai v4→current is an API-breaking migration across 9 provider/test files (client init, streaming iterator types, error classes), not a hygiene commit; zero open advisories today. Left on the backlog with its evidence
 
 ## Track DEAD
 
@@ -1558,7 +1564,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** public/icons/** (12 of 21 files); scripts/build-sw.mjs precache glob; public/sw.js payload on every route for every installed client
 - **proposed_fix:** Never delete the icons (protected path, dispositive). Ruling options: (a) narrow the build-sw.mjs precache glob to the manifest-referenced sizes, cutting 70,325 B from every install; or (b) wire the orphan sizes via layout metadata if they are meant to serve legacy devices. Either touches PWA offline surface — owner decision.
 - **verification:** node -e scan of public/sw.js "url" entries after `npm run build:sw` lists only manifest/metadata-referenced assets; grep for the 12 filenames across src+public (excluding sw.js) still returns 0
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (via PERF-005): the 12 unreferenced public/icons files (favicons, intermediate iOS sizes, icon-1024) are no longer precached by the SW. They stay in the repo (protected, dispositive path — browser chrome + App Store) and are served on demand, so no first-visit download cost
 
 ### DEAD-002 — package.json `test:int` script targets tests/integration/ which does not exist — the script fails with 'No test files found, exiting with code 1' whenever invoked
 
@@ -1568,7 +1574,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Prior ledger poses the exact fork: delete the script or implement tests/integration/. Deleting removes a documented entry point (CLAUDE.md gate wording says 'integration/e2e' but its command runs test:e2e only); implementing is net-new test scope. Ask, do not guess.
 - **verification:** npx vitest run --dir tests/integration currently prints 'No test files found, exiting with code 1'; after ruling, either the script is gone from package.json or the directory exists with at least one passing spec
 - **independently found by:** PRI ("npm run test:int still targets tests/integration, a directory that does not exist"); DOC ("AGENTS.md documents 'npm run test:int (integration only)' but the script exits 1 because tests/integration doe")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q12=a): the test:int script is removed from package.json and its AGENTS.md doc line dropped — no integration tier is planned
 
 ### DEAD-003 — tailwind.config.ts carries dead entries: extend.backdropBlur.glass, extend.boxShadow.hair, extend.backgroundColor.glass generate utilities (backdrop-blur-glass, shadow-hair, bg-glass) used nowhere; colors.void-2 and colors.lift likewise emit no used utility
 
@@ -1577,7 +1583,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tailwind.config.ts only; no emitted CSS changes anywhere
 - **proposed_fix:** Remove extend.backdropBlur.glass, extend.boxShadow.hair, and extend.backgroundColor.glass. Keep colors.void-2 and colors.lift despite zero utility usage — they document the locked seven-role set (FINAL_PLAN section 2) and cost nothing under JIT.
 - **verification:** npm run build after removal produces byte-identical CSS output; grep -rn 'bg-glass|backdrop-blur-glass|shadow-hair' src tests remains 0
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4: dead tailwind entries removed (backdropBlur.glass, boxShadow.hair, backgroundColor.glass, colors.void-2, colors.lift) — the --void-2/--lift CSS vars stay for the mesh gradient
 
 ### DEAD-004 — 14 exported symbols are consumed only inside their own module — the export keyword is unreachable surface (knip-flagged, each hand-verified by grep)
 
@@ -1586,7 +1592,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** 10 source/test files; compile-time export surface only, zero runtime change
 - **proposed_fix:** Drop the export keyword on the 14 symbols (several read as deliberate tuning knobs — DIFF_TOKEN_BUDGET, MAX_CONTEXT_CHARS — so an alternative is a knip ignore list; either resolves the dead surface).
 - **verification:** npm run lint && npm run typecheck && npm run test stay green; npx --yes knip no longer lists the symbols
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: the export keyword dropped on all 14 grep-verified module-internal symbols (6 values + 8 types across 10 files); gate green, no cross-module importer existed
 
 ### DEAD-005 — src/lib/supabase/database.types.ts exports 8 helper aliases with zero importers (TablesInsert, TablesUpdate, OAuthIdentity, Prompt, PromptVersion, ActivityEvent, MediaAsset, Collection) — accepted generated-file scaffolding, not a deletion candidate
 
@@ -1595,7 +1601,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/supabase/database.types.ts only; type-level only
 - **proposed_fix:** No code change — hand-editing fights the generator. Record as accepted scaffolding (or add a knip ignore for the file) so future dead-code passes do not re-flag it.
 - **verification:** grep -rEn 'TablesInsert|TablesUpdate|OAuthIdentity|PromptVersion|ActivityEvent|MediaAsset|Collection' src tests --include='*.ts*' | grep -v database.types.ts returns 0 lines
-- **disposition:** pending
+- **disposition:** accepted — Stage 2 W5: generated Supabase scaffolding (database.types.ts header says 'Do not edit by hand'); hand-removing the 8 aliases fights the generator. Recorded as accepted, no code change (no knip config exists to add an ignore to)
 
 ## Track PERF
 
@@ -1619,7 +1625,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/media/AttachmentTray.tsx, src/components/settings/SettingsPanel.tsx, src/components/media/MediaManager.tsx, src/lib/supabase/client.ts; routes /enhance, /profile (and /sign-in to a lesser, arguably legitimate degree)
 - **proposed_fix:** Replace the static createClient imports in AttachmentTray/SettingsPanel/MediaManager with a lazy accessor (const { createClient } = await import("@/lib/supabase/client")) invoked inside the handlers that already construct the client per call; keep type-only positions as `import type`. Cuts ~62 kB gz from /enhance and /profile first load, bringing /enhance to roughly the 150 kB line.
 - **verification:** npm run build (allowed in fix phase) and confirm build.log route table shows /enhance and /profile first-load JS dropped by ~50-60 kB and chunks 613-*/44530001-* no longer appear in those pages' entries in .next/app-build-manifest.json; then exercise attach-file and settings save flows in e2e.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (= Q14/PRI-016): the browser Supabase client loads via a dynamic import (src/lib/supabase/lazy-client.ts) in AttachmentTray/SettingsPanel/MediaManager; the build route table confirms /enhance 223→158 kB and /profile 208→143 kB first load (supabase-js out of both). /sign-in keeps it — auth needs it immediately
 
 ### PERF-002 — The reduced-effects performance knob hides the mesh canvas with CSS but never stops the rAF loop, so the full simulation and draw work keeps burning CPU into a display:none canvas at 30fps
 
@@ -1628,7 +1634,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/NeuralMeshBackground.tsx; every route (component mounts in the root layout, src/app/layout.tsx:70)
 - **proposed_fix:** In NeuralMeshBackground's effect, also gate start/stop on the reduced-effects state — either subscribe to useUIStore(s => s.reducedEffects) or extend the existing MutationObserver (line 230) to watch data-reduced-effects on documentElement — calling stop() + clearRect when it is set and start() when cleared (mirroring the prefers-reduced-motion path). No visual change: the canvas is already hidden in that state.
 - **verification:** npx vitest run tests/unit (mesh/reduced-effects specs) plus manual: toggle Reduced effects in Settings, confirm via DevTools Performance panel that no rAF ticks originate from NeuralMeshBackground while the attribute is set, and that the loop resumes on toggle-off.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: NeuralMeshBackground gates its rAF loop on data-reduced-effects (the existing MutationObserver + a shared canRun() predicate), so the simulation STOPS — not just CSS-hides the canvas — under reduced-effects, hidden, or reduced-motion
 
 ### PERF-003 — Typing in the composer re-renders the entire mounted result tree every keystroke — TransformationDiff is not memoized while EnhanceComposer subscribes to editorDraft, contradicting the R8 comment's claim
 
@@ -1637,7 +1643,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/diff/TransformationDiff.tsx, src/components/editor/EnhanceComposer.tsx; /enhance route (also /library/[id] re-enhance consumer benefits)
 - **proposed_fix:** Wrap TransformationDiff in React.memo (its props are already-stable snapshots plus stable-identity callbacks; hoist handleUse/handleRefine/handleAnswer into useCallback in EnhanceComposer so memo holds), and correct the R8 comment to say the result reads the submitted snapshot AND is memoized against composer re-renders.
 - **verification:** npx vitest run tests/unit (result-view specs stay green); React DevTools Profiler: type in the prompt textarea with a result mounted and confirm TransformationDiff shows zero commits.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: TransformationDiff is React.memo'd and the composer hoists handleUse/handleRefine/handleAnswer into useCallback (draft read via useUIStore.getState, mutation via the stable mutate), so the memo holds across keystrokes with a result mounted
 
 ### PERF-004 — PromptRow's memo is defeated by per-render callback identities in LibraryBrowser, so every keystroke in the library search re-renders all accumulated rows; the list is also fully rendered, never virtualized
 
@@ -1646,7 +1652,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/library/LibraryBrowser.tsx; /library route at scale
 - **proposed_fix:** Wrap swipeFavorite, swipeDelete (and loadMore/submitSearch while there) in useCallback with stable deps so the existing memo actually holds; the toast/router identities are stable. Virtualization proper (or a cap/flush of extraCards on filter change) is a larger follow-up if 500+ libraries become common — the stable-callback fix is the minimum viable change.
 - **verification:** React DevTools Profiler on /library with 100+ rows: typing in the search field should commit only the search input subtree, zero PromptRow commits. npx vitest run tests/unit for library specs.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: LibraryBrowser wraps refreshAfterMutation + swipeFavorite/swipeDelete in useCallback (stable deps), so the memoized PromptRow reconciles only when its own card changes, not on every search keystroke
 
 ### PERF-005 — Service worker precaches the entire 320.8 KiB icon matrix — including the 115 KB icon-1024.png — on first visit for every browser user, installed or not
 
@@ -1655,7 +1661,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/build-sw.mjs, public/sw.js (built artifact); first-visit network cost on every route
 - **proposed_fix:** Narrow globPatterns to the assets the offline experience actually uses: offline.html, manifest.webmanifest, icons/icon-192.png, icons/icon-256.png, icons/icon-384.png, icons/icon-512.png, icons/maskable-192.png, icons/maskable-512.png, icons/apple-touch-icon.png (~150 KiB). Remaining icons are still served on demand and runtime-cached by the StaleWhileRevalidate image route (sw-src.js:87-96).
 - **verification:** node scripts/build-sw.mjs and confirm the log reports the reduced entry count/size; grep public/sw.js for icon-1024 (must be absent); e2e offline test (shell.spec.ts) stays green.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (also DEAD-001): build-sw.mjs precache glob narrowed to the offline-needed icons (192/256/384/512 + maskable + apple-touch); the build log confirms 320.8 KiB/21 entries → 155.1 KiB/9 entries. icon-1024, favicons, and intermediate iOS sizes stay served on demand + runtime-cached
 
 ### PERF-006 — Every SSE flush re-renders the whole EnhanceComposer subtree (pickers, rails, tray, keyboard bar), not just the streaming card
 
@@ -1664,7 +1670,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/enhance/use-enhance.ts, src/components/editor/EnhanceComposer.tsx; /enhance during active streams
 - **proposed_fix:** Memoize the unmemoized composer children with stable callbacks (TargetPicker, ThinkingPicker, AttachmentTray, KeyboardActionBar), or move stream state out of the composer's render path (e.g., expose it via a subscription/ref consumed only by StreamingResult/StreamProgress) so per-frame commits touch only the streaming card.
 - **verification:** React DevTools Profiler during a streamed enhance: per-flush commits should list only StreamingResult/StreamProgress. Existing streaming unit tests via npx vitest run stay green.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: TargetPicker/ThinkingPicker/AttachmentTray/KeyboardActionBar are React.memo'd with stable callbacks (runEnhance + onThinkingChange useCallback'd), so an SSE flush reconciles only the streaming card, not the whole composer subtree
 
 ### PERF-007 — All 8 font files (~150 KB) are preloaded on every page, including three JetBrains Mono weights used only in enhance/library output regions
 
@@ -1673,7 +1679,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/fonts/index.ts; first-paint network contention on all routes, worst on auth/profile
 - **proposed_fix:** Set preload: false on the jetBrainsMono localFont call (and consider dropping the 500 weight if unused — verify with a class-usage grep before removing). The family still loads on demand with swap when an output region first renders.
 - **verification:** npm run build; view-source of a rendered auth page and count rel=preload font links (should drop from 8 to 5); confirm no FOUT regression on the enhance result card in e2e screenshots.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: jetBrainsMono localFont carries preload:false — the mono weights (~65 KB) load on demand when an output region first renders, no longer preloaded on the auth pages that never show them
 
 ### PERF-008 — No long-lived Cache-Control headers for public static assets — icons, splash, and brand SVGs revalidate on every load (max-age=0), with only sw.js given explicit headers
 
@@ -1682,7 +1688,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** next.config.ts (or vercel.json); repeat-visit latency for /icons, /splash, /brand
 - **proposed_fix:** Add a headers() rule for /icons/:path*, /splash/:path*, /brand/:path* with Cache-Control: public, max-age=31536000, immutable (assets are content-stable and regenerated only by scripts/generate-icons.mjs; if churn is a concern use max-age=86400, stale-while-revalidate=604800).
 - **verification:** npm run build then curl -I the deployed /icons/icon-192.png and confirm the Cache-Control header; confirm sw.js still returns no-cache.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: next.config headers() adds Cache-Control 'public, max-age=86400, stale-while-revalidate=604800' for /icons, /splash, /brand — a revalidating long cache (not immutable: the brand masters regenerate in place, so a re-brand must not be stranded a year)
 
 ## Track DOC
 
@@ -1713,7 +1719,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** README.md only (public-facing repo front page)
 - **proposed_fix:** Change README.md:44 to 'Next Route Handlers (Node)' to match CLAUDE.md section 7 and docs/architecture.md:15.
 - **verification:** grep -n 'Edge' README.md returns no route-handler Edge claim
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: README architecture diagram now reads 'Next Route Handlers (Node)', matching CLAUDE.md §7 and docs/architecture.md
 
 ### DOC-002 — README.md service-worker line advertises 'network-first(enhance, auth) . cache-fallback(library)' caching strategies that were deliberately removed (one had been caching Supabase auth session PII)
 
@@ -1722,7 +1728,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** README.md only, but it misdescribes the privacy posture of the shipped SW
 - **proposed_fix:** Change README.md:41 to match reality: 'Service worker: SWR(shell) . network-only navigations . offline fallback', per docs/architecture.md:24-49.
 - **verification:** README SW line names only strategies present in src/lib/pwa/sw-src.js (grep -n 'NetworkOnly\|StaleWhileRevalidate' src/lib/pwa/sw-src.js)
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: README SW line now reads 'SWR(same-origin static assets) · NetworkOnly navigations → offline.html' — only strategies that exist in sw-src.js; the removed enhance/auth/library caching claims are gone
 
 ### DOC-003 — CLAUDE.md contradicts itself: section 9 still says 'edge DDoS posture' while section 7 explicitly retracts the Edge claim and names spend_reserve atomic admission as the real abuse control
 
@@ -1731,7 +1737,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** CLAUDE.md (the operating contract every agent reads first); any agent may act on the stale posture claim
 - **proposed_fix:** Amend CLAUDE.md:120 to '- Rate limits on all endpoints; abuse control via atomic per-user admission in spend_reserve (section 7).' CLAUDE.md is the governance contract, so a human should approve the wording.
 - **verification:** grep -in 'edge' CLAUDE.md shows only the section 7 correction, no surviving 'edge DDoS posture' claim
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: CLAUDE.md §9 'edge DDoS posture' replaced with 'the abuse control is atomic per-user admission in spend_reserve (§7)', aligning §9 with the §7 correction
 
 ### DOC-004 — Eight vendored SIL OFL font files (Bebas Neue, Reddit Sans, JetBrains Mono woff2) are redistributed with no OFL license text or copyright notice anywhere in the repo; LICENSE is MIT-only
 
@@ -1740,7 +1746,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/fonts/ (8 files), LICENSE/README attribution posture of the public repo
 - **proposed_fix:** Add src/app/fonts/OFL.txt (or one per family) carrying each family's original copyright line plus the OFL 1.1 text, and a one-line pointer in LICENSE or README that vendored fonts are OFL-licensed separately from the MIT code license.
 - **verification:** test -f src/app/fonts/OFL.txt && grep -q 'SIL OPEN FONT LICENSE' src/app/fonts/OFL.txt
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: src/app/fonts/OFL.txt carries the full SIL OFL 1.1 text with per-family copyright notices (Bebas Neue, Reddit Sans, JetBrains Mono); LICENSE, README, and fonts/index.ts point at it
 
 ### DOC-005 — The three 'locked canon' files (VIZION FINAL PLAN v1.md, VIZION-product-spec.md, VIZION-style-guide.html) describe the v1-era 3-model/5-mode product while CLAUDE.md simultaneously calls them 'authoritative companions (treat as locked)' and states 16 models/6 modes
 
@@ -1749,7 +1755,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** All three root canon files plus CLAUDE.md section 1; any agent told to treat the plan as canonical inherits a 3-model/5-mode spec
 - **proposed_fix:** Ruling needed: either (a) annotate each canon file with a dated supersession header ('locked historical plan; current roster/modes per CLAUDE.md section 1 and src/lib/constants.ts') without touching their locked content, or (b) revise them — which contradicts the lock. Recommend (a).
 - **verification:** head -20 of each canon file shows a supersession note, or CLAUDE.md section 1 clarifies which claims in the companions remain binding
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q2=a): the three v1-era canon files moved to docs/history/ (with a README), ADR-0005 names the living canon (code + CHANGELOG + tokens.css + audit ledger), and CLAUDE.md §1 / architecture.md / ADR-0001 references were updated. = MOD-002
 
 ### DOC-006 — docs/architecture.md data-model entity list omits four shipped tables/entities: collections, drafts, usage_events, usage_reservations
 
@@ -1758,7 +1764,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/architecture.md data-model section; downstream pointer to VIZION-product-spec.md section 5.1 which is also pre-collections
 - **proposed_fix:** Extend the entity list in docs/architecture.md:113-114 with Collection, Draft, UsageEvent, UsageReservation and note that the spec section 5.1 pointer predates them.
 - **verification:** Every table named by 'grep create table supabase/migrations/*.sql' appears in docs/architecture.md's data-model section
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: architecture.md data-model list gains Collection · Draft · UsageEvent · UsageReservation, plus a note that PromptVersion has no user_id and its RLS traverses the parent prompt's ownership
 
 ### DOC-007 — README status table marks phases 'v0.4 — Library' and 'v0.5 — Media prompts' done, but no 0.4.x/0.5.x release exists — both phases shipped inside release 0.3.0, conflicting with release.md's 'minor for a phase gate' policy
 
@@ -1767,7 +1773,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** README.md status table; versioning expectations set by docs/runbooks/release.md
 - **proposed_fix:** Ruling needed: relabel README phases as P4/P5 (decoupling phase names from versions, with a note that both gates shipped in 0.3.0), or keep v-labels and accept the drift explicitly; also give the in-progress row a distinct marker. Do not backfill fake 0.4.0/0.5.0 tags.
 - **verification:** README phase labels no longer imply git tags that do not exist (git tag -l 'v0.4*' 'v0.5*' empty and README makes that unambiguous)
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q15=a): README phase table relabeled as feature milestones (Shell/Auth/Enhance/Library/Media/Hardening) decoupled from version numbers, so it no longer implies v0.4/v0.5 git tags that do not exist
 
 ### DOC-008 — ADR coverage gap: four significant decisions since ADR-0003 have no decision record — tolerant envelope parsing/salvage, Collections, service-role account deletion, and atomic spend reservations
 
@@ -1776,7 +1782,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/decisions/ (4 new files); no code affected
 - **proposed_fix:** Write ADRs 0004-0007 for the four decisions, sourcing content from the existing CHANGELOG sections and SECURITY.md text (the rationale is already written, just not filed as decisions).
 - **verification:** ls docs/decisions returns records covering salvage parsing, collections, service-role deletion, spend atomicity
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: ADRs 0006 (tolerant envelope salvage), 0007 (collections), 0008 (service-role account deletion), 0009 (atomic spend reservations) written from the shipped code/migrations/SECURITY.md — the four decisions since ADR-0003 now have records
 
 ### DOC-009 — CLAUDE.md section 4 (and the CI job name) understate what CI runs: e2e, icon generation and the gated full-tree audit are executed by ci.yml but absent from the documented list
 
@@ -1785,7 +1791,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** CLAUDE.md section 4; ci.yml job display name (workflow file is a protected path)
 - **proposed_fix:** Update CLAUDE.md section 4 to 'lint . typecheck . test . e2e . build . audit (prod-gated + audit:check)'. Renaming the ci.yml job to match is optional and touches a protected path, hence manual approval.
 - **verification:** CLAUDE.md section 4 step list matches the step names in .github/workflows/ci.yml
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: CLAUDE.md §4 CI list expanded to 'lint · typecheck · icon generation · unit · build · Playwright e2e · production npm audit (blocking) · full-tree audit:check (blocking)', matching ci.yml
 
 ### DOC-010 — docs/runbooks/local-dev.md still calls the generated icons 'placeholder assets — swap for final brand art', but the final brand masters shipped and drive generation
 
@@ -1794,7 +1800,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/runbooks/local-dev.md only
 - **proposed_fix:** Replace the placeholder sentence with the README's current statement: the matrix is derived from the two brand-master SVGs; edit those, never the PNGs.
 - **verification:** grep -n 'placeholder' docs/runbooks/local-dev.md returns nothing about icons
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: local-dev.md no longer calls the icons 'placeholder'; it states the brand-master SVGs (vizion-icon-token/vizion-mark-token) drive generation
 
 ### DOC-011 — SECURITY.md names only 3 of the 12 server-side provider key env vars, understating the guardrail's actual surface
 
@@ -1803,7 +1809,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** SECURITY.md only
 - **proposed_fix:** Reword SECURITY.md:16 to 'All twelve provider keys (see .env.example) are read only inside Next route handlers...' instead of enumerating three.
 - **verification:** SECURITY.md either enumerates all keys in PROVIDER_KEY_ENV or defers to .env.example
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: SECURITY.md now enumerates all twelve provider key env vars (deferring to PROVIDER_KEY_ENV / .env.example), not three
 
 ### DOC-012 — Copyright holder mismatch: LICENSE says '(c) 2026 Sean Vasey' while README's license footer says 'MIT (c) VASEY/AI'
 
@@ -1812,7 +1818,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** LICENSE or README.md (legal attribution wording)
 - **proposed_fix:** Owner picks one holder string (person or brand) and aligns the other file; likely README changes to 'MIT (c) 2026 Sean Vasey' since LICENSE is the legal instrument.
 - **verification:** The holder string in README's license line matches LICENSE:3
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: README license line aligned to LICENSE's holder — '© 2026 Sean Vasey (VASEY/AI)'
 
 ### DOC-013 — CHANGELOG Unreleased section has grown to ~1,324 lines on top of 0.3.0 (2026-07-27), including release-worthy work (P2-P5 schema recovery, light-theme contrast fixes) that release.md policy says should have been cut
 
@@ -1821,7 +1827,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** CHANGELOG.md, package.json version, release.yml trigger
 - **proposed_fix:** Cut a release per docs/runbooks/release.md (bump version, date the section, add the compare link) once the current audit lands; a version bump is a release action requiring the owner.
 - **verification:** CHANGELOG's Unreleased section shrinks to fresh work and a new dated section exists with a matching v-tag after merge
-- **disposition:** pending
+- **disposition:** deferred (adjudication §4) — cutting the ~1,324-line Unreleased changelog into a release is an owner-timed version bump; recommended once this remediation lands, owner's call
 
 ### DOC-014 — Audit-artifact directory split: the capstone writes to new docs/audit/ (singular) beside existing docs/audits/ (plural), with a 'DOC-XXX' placeholder id and a reference to 01-ledger.md that does not exist yet, recorded across two near-duplicate Stage 0 commits
 
@@ -1830,7 +1836,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/audit/ and docs/audits/ organization; future audit tooling that globs one or the other
 - **proposed_fix:** At capstone close, move the capstone artifacts under docs/audits/ (one directory), resolve the DOC-XXX placeholder to a real ledger id, and ensure 01-ledger.md exists before anything cites it. Do not move mid-run.
 - **verification:** find docs -maxdepth 1 -type d -name 'audit*' returns one directory; grep -rn 'DOC-XXX' docs returns nothing
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 finalize: the DOC-XXX placeholder was resolved (00-baseline.md cites DOC-015) in W5, and at capstone close the three capstone artifacts were folded into docs/audits/ (one audit directory) with the forward pointers in CLAUDE.md/ADR-0004/ADR-0005/history/CHANGELOG updated; internal evidence paths are kept as the point-in-time record
 
 ### DOC-015 — Capstone prompt and session mandate disagree on the audit branch name
 
@@ -1839,7 +1845,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Audit process only; no product files
 - **proposed_fix:** Accept the mandated branch for this audit; optionally rename or fork to audit/2026-08-01 after the Gate if the convention matters for history.
 - **verification:** git branch --show-current
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 finalize (ruling Q16=a): the session-mandated branch is accepted for this audit; the capstone's audit/<date> convention is not retrofitted (logged in 00-baseline.md)
 
 
 ## Addendum — post-Gate findings (2026-08-01, PR #73 work)
@@ -1871,7 +1877,7 @@ the same manual-approval review as the Stage 1 list.
 - **blast_radius:** /profile Appearance section; one control
 - **proposed_fix:** `aria-label="Reduced effects"` on the switch button (one attribute)
 - **verification:** `getByRole("switch", { name: /reduced effects/i })` resolves in a unit test
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: aria-label on the reduced-effects switch (the Field caption is a sibling, not an association)
 
 ### SEC-011 — Closed-access boundary: server actions remain reachable for existing sessions
 
@@ -1880,7 +1886,7 @@ the same manual-approval review as the Stage 1 list.
 - **blast_radius:** `src/lib/library/actions.ts`, `src/lib/drafts/actions.ts`, `src/lib/profile/actions.ts` while closed
 - **proposed_fix:** Ruling: (a) accept the boundary as designed — closed access is a spend/registration control, not a data lockout (recommended; document in the ADR for the owner console), or (b) extend the `open_access` check into every server action (adds one settings read per action call)
 - **verification:** If (b): a unit test per action asserting the closed-path refusal
-- **disposition:** pending
+- **disposition:** accepted (WONTFIX) — Stage 2 finalize (ruling Q17=a): closed access is a spend + registration control; an existing session reaching its own RLS-scoped data via server actions is by design, and the closed screen tells the user their data is safe
 
 ### DSN-022 — First native range input (owner console accent slider)
 
@@ -1889,4 +1895,4 @@ the same manual-approval review as the Stage 1 list.
 - **blast_radius:** Owner section of /profile (owner-only surface)
 - **proposed_fix:** Fold into the Q7 input-recipe ruling: bless the native accent-tinted range as the low-chrome recipe for owner-only surfaces, or specify a custom track/thumb treatment
 - **verification:** Visual pass in both themes on the owner account
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W4 (ruling Q18 folded into Q7, ADR-0004): the owner-console native range input is documented as a distinct control class (a slider, not a text field), exempt from the text-input recipe and tinted with --accent-ink

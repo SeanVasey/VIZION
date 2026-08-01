@@ -21,10 +21,13 @@ export default async function PromptPage({
   const { id } = await params;
   const supabase = await createClient();
 
+  // Soft-deleted prompts 404 here (LIB-006): they are excluded from every
+  // list yet stayed fully readable AND writable via a remembered URL.
   const { data: prompt } = await supabase
     .from("prompts")
     .select("id, title, target_model, tags, current_ver, updated_at")
     .eq("id", id)
+    .is("deleted_at", null)
     .maybeSingle();
   if (!prompt) notFound();
 

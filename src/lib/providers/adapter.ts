@@ -8,6 +8,7 @@ import type {
 import {
   buildSystemPrompt,
   parseEnhancePayload,
+  refineUserBlock,
   type EnhanceRefine,
 } from "@/lib/providers/formatters";
 import type { FormatId } from "@/lib/enhance/formats";
@@ -61,6 +62,10 @@ export interface EnhanceOutput {
    *  completed — the result was recovered from the stream (rationale is
    *  empty). Rides to the client so the result view can say so. */
   salvaged?: boolean;
+  /** Token counts (and so the cost) came from the ~4 chars/token fallback
+   *  because the provider never reported usage — an estimate, not a
+   *  measurement (INV-04 cost truth). Rides to the client and the ledger. */
+  usageEstimated?: boolean;
 }
 
 /** Events surfaced by the streaming adapter. `delta` text is the DECODED
@@ -100,6 +105,10 @@ export async function* enhanceStream({
 }: EnhanceArgs): AsyncGenerator<AdapterStreamEvent> {
   const cfg = TARGETS[target];
   const system = buildSystemPrompt({ mode, target, refine, format, length });
+  // Refine context (tone's original, the Q&A block) rides the USER message —
+  // never the system role (SEC-003). The system prompt only points at it.
+  const refineContext = refineUserBlock(refine);
+  const userInput = refineContext ? `${input}\n\n${refineContext}` : input;
 
   const streams: Record<Provider, ProviderStream> = {
     anthropic: streamAnthropic,
@@ -122,8 +131,11 @@ export async function* enhanceStream({
   let stopReason: string | undefined;
   let tokenIn = 0;
   let tokenOut = 0;
+  // Billed-but-invisible reasoning tokens (PRV-003) — only ever consulted by
+  // the no-usage fallback below; provider-reported usage is authoritative.
+  let reasoningFloor = 0;
 
-  for await (const chunk of streams[cfg.provider](system, input, cfg.model, {
+  for await (const chunk of streams[cfg.provider](system, userInput, cfg.model, {
     thinkingLevel,
   })) {
     if (chunk.text) {
@@ -139,12 +151,21 @@ export async function* enhanceStream({
       yield { type: "usage", tokenIn, tokenOut };
     }
     if (chunk.stopReason) stopReason = chunk.stopReason;
+    if (chunk.estReasoningTokens) reasoningFloor += chunk.estReasoningTokens;
   }
 
   // A provider that never reported usage (defensive) still must count against
-  // the cost cap — fall back to the ~4 chars/token estimate.
-  if (tokenIn === 0) tokenIn = Math.ceil((system.length + input.length) / 4);
-  if (tokenOut === 0 && raw.length > 0) tokenOut = Math.ceil(raw.length / 4);
+  // the cost cap — fall back to the ~4 chars/token estimate, marked as such
+  // so neither the result view nor the ledger presents it as a measurement.
+  let usageEstimated = false;
+  if (tokenIn === 0) {
+    tokenIn = Math.ceil((system.length + userInput.length) / 4);
+    usageEstimated = true;
+  }
+  if (tokenOut === 0 && raw.length > 0) {
+    tokenOut = Math.ceil(raw.length / 4) + reasoningFloor;
+    usageEstimated = true;
+  }
 
   let payload;
   let salvaged = false;
@@ -174,6 +195,7 @@ export async function* enhanceStream({
       modelUsed: cfg.model,
       costUsd: computeCost(target, tokenIn, tokenOut),
       ...(salvaged ? { salvaged: true } : {}),
+      ...(usageEstimated ? { usageEstimated: true } : {}),
     },
   };
 }

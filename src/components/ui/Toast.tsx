@@ -89,19 +89,34 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
+      {/* Permanently-mounted live regions (A11Y-004): a role="status" node
+          inserted already carrying its text is not reliably announced — the
+          repo's own FieldStatus rule, now applied to the toasts that carry
+          the ONLY feedback for delete/Undo and copy failures. Text lands
+          here as a mutation; the visual card below is aria-hidden so the
+          message is never announced twice. Two regions because tone=error
+          must be assertive while confirmations stay polite. */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {current && current.tone !== "error"
+          ? `${current.text}${current.action ? ` — ${current.action.label} available` : ""}`
+          : ""}
+      </div>
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        {current && current.tone === "error" ? current.text : ""}
+      </div>
       {mounted &&
         current &&
         createPortal(
           <div
             className="pointer-events-none fixed inset-x-4 z-[80] flex justify-center"
             style={{
-              bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 12px)",
+              bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
             }}
           >
-            <div
-              role={current.tone === "error" ? "alert" : "status"}
-              className="glass sheet-in pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl py-2 pl-4 pr-2"
-            >
+            {/* No live-region ROLE here (the sr-only regions above announce)
+                and no aria-hidden either — the action button must stay in
+                the accessibility tree or Undo would be sighted-only. */}
+            <div className="glass sheet-in pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl py-2 pl-4 pr-2">
               <p
                 className={`font-body min-w-0 grow text-sm ${
                   current.tone === "error" ? "text-flare" : "text-text"

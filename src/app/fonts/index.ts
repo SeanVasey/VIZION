@@ -3,8 +3,10 @@
  *
  * Vendored OFL woff2 (latin subset) under this folder so production builds never
  * depend on a Google Fonts network fetch — see tasks/lessons.md (P1: next/font
- * needs egress at build time). Each family exposes a CSS variable that
- * tokens.css layers in front of the system fallback stack.
+ * needs egress at build time). The SIL Open Font License 1.1 text and per-family
+ * copyright notices that must accompany these files live in ./OFL.txt. Each
+ * family exposes a CSS variable that tokens.css layers in front of the system
+ * fallback stack.
  *
  *   Bebas Neue   → --font-bebas        (display headings only)
  *   Reddit Sans  → --font-reddit-sans  (all UI, body, labels, input editor)
@@ -37,4 +39,10 @@ export const jetBrainsMono = localFont({
   ],
   variable: "--font-jetbrains",
   display: "swap",
+  // The mono family renders ONLY in the enhance/library OUTPUT regions — never
+  // on /sign-in, /set-password, or /profile. Default preloading would emit a
+  // <link rel=preload> per weight (~65 KB) on every route, auth pages included,
+  // for glyphs they never show. preload:false loads it on demand with swap when
+  // an output region first mounts (PERF-007).
+  preload: false,
 });

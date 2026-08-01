@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
+import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import {
   DEVELOPER_LABEL,
@@ -47,11 +48,17 @@ const LABEL_BY_ID = new Map(TARGET_MODELS.map((m) => [m.id, m.label]));
 
 /** Display label for a target id — falls back to the raw id so a legacy or
  *  unknown persisted value still renders as *something* rather than blank. */
-export function targetLabel(id: TargetModelId): string {
+function targetLabel(id: TargetModelId): string {
   return LABEL_BY_ID.get(id) ?? id;
 }
 
-export function TargetPicker({
+// Memoized: nested in the composer, which re-renders per keystroke and per SSE
+// flush. Its props are all stable identity (store values + store setters), so
+// the memo holds and the picker reconciles only when the target actually
+// changes (PERF-006).
+export const TargetPicker = memo(TargetPickerImpl);
+
+function TargetPickerImpl({
   value,
   onChange,
   label,
@@ -160,10 +167,28 @@ function TargetPickerSheet({
   const selectedRef = useRef<HTMLButtonElement>(null);
   // Open on the current pick rather than the top of a sixteen-row list.
   const initialFocus = useMemo(() => selectedRef, []);
+  // The radio roles promise arrow keys (A11Y-002). Picking closes the sheet,
+  // so arrows move FOCUS only; Enter/Space activates.
+  const flatIds = useMemo(
+    () => [
+      ...(onPickAuto ? ["__auto__"] : []),
+      ...GROUPS.flatMap((g) => g.models.map((m) => m.id)),
+    ],
+    [onPickAuto],
+  );
+  const roving = useRovingRadios(
+    flatIds.length,
+    auto ? 0 : flatIds.indexOf(value),
+  );
 
   return (
     <Sheet open={open} onClose={onClose} title={title} initialFocusRef={initialFocus}>
-      <div role="radiogroup" aria-label={title} className="flex flex-col gap-4">
+      <div
+        role="radiogroup"
+        aria-label={title}
+        className="flex flex-col gap-4"
+        onKeyDown={roving.onKeyDown}
+      >
         {onPickAuto && (
           // Above the developer groups and outside them: Auto is not a model,
           // it is the decision not to pick one. Giving it its own section
@@ -172,7 +197,7 @@ function TargetPickerSheet({
           <section className="flex flex-col gap-1">
             <div className="glass overflow-hidden rounded-xl">
               <button
-                ref={auto ? selectedRef : undefined}
+                {...roving.radioProps(0, auto ? selectedRef : undefined)}
                 type="button"
                 role="radio"
                 aria-checked={auto ?? false}
@@ -204,7 +229,10 @@ function TargetPickerSheet({
                 return (
                   <button
                     key={m.id}
-                    ref={active ? selectedRef : undefined}
+                    {...roving.radioProps(
+                      flatIds.indexOf(m.id),
+                      active ? selectedRef : undefined,
+                    )}
                     type="button"
                     role="radio"
                     aria-checked={active}

@@ -47,9 +47,10 @@ const SHELL_CACHE = "vizion-shell";
 
 // The offline navigation fallback. With auth gating, every app route redirects
 // depending on session state (so none is safe to precache as "the shell").
-// `/offline.html` is a static, auth-agnostic document that is always available;
-// authenticated routes the user has visited are served from the runtime
-// stale-while-revalidate cache instead.
+// `/offline.html` is a static, auth-agnostic document that is always available.
+// Navigations are NetworkOnly (route 2 below), so OFFLINE every navigation —
+// visited or not — serves this fallback; the runtime cache holds only
+// same-origin static assets, never page HTML (CACHE-01).
 const APP_SHELL_URL = "/offline.html";
 
 // --- Lifecycle ------------------------------------------------------------

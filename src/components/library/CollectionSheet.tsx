@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { CheckMark, PencilMark, XMark } from "@/components/ui/glyphs";
 import type { CollectionFacet, PromptCard } from "@/lib/library/queries";
 import {
   createCollectionAction,
@@ -133,7 +134,7 @@ export function CollectionSheet({
                   </span>
                   {current && (
                     <span aria-label="Current collection" className="text-accent">
-                      ✓
+                      <CheckMark className="h-4 w-4" />
                     </span>
                   )}
                 </button>
@@ -147,7 +148,7 @@ export function CollectionSheet({
                   }}
                   className={iconClass}
                 >
-                  <span aria-hidden="true">✎</span>
+                  <PencilMark className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
@@ -156,7 +157,7 @@ export function CollectionSheet({
                   onClick={() => setConfirmDelete(c)}
                   className={iconClass}
                 >
-                  <span aria-hidden="true">✕</span>
+                  <XMark className="h-4 w-4" />
                 </button>
               </div>
             );

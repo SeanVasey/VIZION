@@ -142,7 +142,7 @@ export function NewPromptFab() {
           keyboardVisible ? "pointer-events-none opacity-0" : "opacity-100",
         ].join(" ")}
         style={{
-          bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 12px)",
+          bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + var(--float-gap))",
         }}
       >
         {/* Plus on a 24px grid, 1.5px stroke, rounded caps (style-guide §1.4). */}

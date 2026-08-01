@@ -26,8 +26,6 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
 
 /**
  * Advisories that are known false positives here, each with the evidence that
@@ -37,90 +35,12 @@ import { join } from "node:path";
  * Adding an entry is a deliberate act: it needs a reason a reviewer can check
  * and a `verify` that would fail if the reason stopped being true.
  */
-const EXEMPT = [
-  {
-    id: "GHSA-mh99-v99m-4gvg",
-    package: "brace-expansion",
-    why:
-      "Fix (CVE-2026-14257 expansion limits) was backported to 1.1.17 and 2.1.3, " +
-      "but the advisory range `<=5.0.7` was never narrowed. eslint@9 requires " +
-      "minimatch@3, which calls brace-expansion as a FUNCTION, so a 1.x is the " +
-      "only patched shape available to it — see AGENTS.md.",
-    verify: verifyBraceExpansionPatched,
-  },
-];
-
-/**
- * Every installed copy of `name`, at any nesting depth.
- *
- * The shape matters: from a node_modules directory the children are packages
- * (or `@scope` directories whose children are packages), and ANY package may
- * carry its own nested `node_modules`. An earlier version of this walked only
- * into directories literally named `node_modules`, `@…`, or the target itself —
- * so it never descended through `minimatch/` and silently verified only the
- * root copy. The negative test caught it; that is what negative tests are for.
- */
-function findPackageCopies(name, nmDir = "node_modules", found = []) {
-  let entries;
-  try {
-    entries = readdirSync(nmDir, { withFileTypes: true });
-  } catch {
-    return found;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const dir = join(nmDir, entry.name);
-    if (entry.name.startsWith("@")) {
-      // A scope directory behaves like a node_modules directory: its children
-      // are packages.
-      findPackageCopies(name, dir, found);
-      continue;
-    }
-    if (entry.name === name) found.push(dir);
-    findPackageCopies(name, join(dir, "node_modules"), found);
-  }
-  return found;
-}
-
-/**
- * The exemption holds only while EVERY installed copy carries the expansion
- * limits. Checked in the source rather than by version string, because the whole
- * problem here is that version ranges are lying.
- */
-function verifyBraceExpansionPatched() {
-  const copies = findPackageCopies("brace-expansion");
-  if (copies.length === 0) return "no brace-expansion found — cannot verify";
-
-  const unpatched = [];
-  for (const dir of copies) {
-    const version = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).version;
-    const sources = [
-      "index.js",
-      "dist/commonjs/index.js",
-      "dist/esm/index.js",
-    ].flatMap((rel) => {
-      try {
-        return [readFileSync(join(dir, rel), "utf8")];
-      } catch {
-        return [];
-      }
-    });
-    if (sources.length === 0) {
-      unpatched.push(`${version} at ${dir} (no readable entry point)`);
-      continue;
-    }
-    // Both limits must be present: EXPANSION_MAX alone predates the
-    // length-based OOM fix this advisory is actually about.
-    const patched = sources.some(
-      (src) => src.includes("EXPANSION_MAX") && src.includes("EXPANSION_MAX_LENGTH"),
-    );
-    if (!patched) unpatched.push(`${version} at ${dir}`);
-  }
-
-  return unpatched.length === 0
-    ? null
-    : `these copies do NOT contain the expansion limits: ${unpatched.join(", ")}`;
-}
+// Empty since 2026-08-01 (audit DEP-002): the brace-expansion advisory
+// GHSA-mh99-v99m-4gvg is no longer reported (its range was re-scoped and the
+// per-major overrides floor the installed copies). The gate is now
+// zero-exemption — any advisory that appears hard-fails, which is the
+// intended posture. Re-add an entry only with a checkable `verify`.
+const EXEMPT = [];
 
 /**
  * `npm audit --json`, with the payload actually validated.

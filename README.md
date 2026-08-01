@@ -38,10 +38,10 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 Client (PWA, Next.js 15 · React 19)
   ├─ App shell (Workbox precache) · Zustand (UI) · TanStack Query (server state)
   ├─ Routes: /enhance  /library  /profile  /(auth)
-  └─ Service worker: SWR(shell) · network-first(enhance, auth) · cache-fallback(library)
+  └─ Service worker: SWR(same-origin static assets) · NetworkOnly navigations → offline.html
         │  HTTPS — no model keys client-side
         ▼
-Next Route Handlers (Edge) ── Provider Adapter ──┬─ Anthropic  (fable_5 · opus_5 · sonnet_5)
+Next Route Handlers (Node) ── Provider Adapter ──┬─ Anthropic  (fable_5 · opus_5 · sonnet_5)
   ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI     (gpt_5_6_sol · gpt_5_6_luna · gpt_5_6_terra)
   ├─ /api/media     (extract → attributes)        ├─ Google     (gemini_3_6_flash)
   └─ per-user rate limit + cost cap + audit log   ├─ Mistral    (mistral_large_3)
@@ -63,12 +63,12 @@ See [`docs/architecture.md`](./docs/architecture.md) and the locked decision log
 
 | Phase                     | Scope                                                     | State          |
 | ------------------------- | --------------------------------------------------------- | -------------- |
-| **v0.1 — Shell**          | Tokens · manifest · Workbox SW · safe-area · nav · themes | 🟢 done        |
-| **v0.2 — Auth & profile** | Supabase Auth · RLS · avatar crop · onboarding            | 🟢 done        |
-| **v0.3 — Enhance core**   | Provider adapter · 6 modes · transformation diff · caps   | 🟢 done        |
-| **v0.4 — Library**        | Save · immutable versions · diff/restore · activity feed  | 🟢 done        |
-| **v0.5 — Media prompts**  | Attach media · extraction · generation-syntax formatters  | 🟢 done        |
-| **v1.0 — Hardening**      | CSP · rate limits · eviction outbox · a11y · checklist    | 🟢 in progress |
+| **Shell**                 | Tokens · manifest · Workbox SW · safe-area · nav · themes | 🟢 done        |
+| **Auth & profile**        | Supabase Auth · RLS · avatar crop · onboarding            | 🟢 done        |
+| **Enhance core**          | Provider adapter · 6 modes · transformation diff · caps   | 🟢 done        |
+| **Library**               | Save · immutable versions · diff/restore · activity feed  | 🟢 done        |
+| **Media prompts**         | Attach media · extraction · generation-syntax formatters  | 🟢 done        |
+| **Hardening**             | CSP · rate limits · eviction outbox · a11y · checklist    | 🟢 done        |
 
 ## Getting started
 
@@ -120,4 +120,6 @@ entire 32-file icon + splash matrix from them via `sharp`. Don't hand-edit the P
 
 ## License
 
-[MIT](./LICENSE) © VASEY/AI
+[MIT](./LICENSE) © 2026 Sean Vasey (VASEY/AI). Vendored fonts under
+`src/app/fonts/` are licensed separately under the [SIL Open Font License
+1.1](./src/app/fonts/OFL.txt).

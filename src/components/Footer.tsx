@@ -96,7 +96,10 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           version line to 3.13:1 and the copyright to 2.58:1 light / 4.26:1
           dark. The 11px size against the 12px line above still carries the
           hierarchy the alpha was there for. */}
-      <p className="font-mono mb-4 text-[11px] tabular-nums text-silver">
+      {/* font-body, not font-mono: JetBrains is scoped to the enhanced-prompt
+          output region only (INV-11 / R2); tabular-nums keeps the version
+          digits steady in Reddit Sans. */}
+      <p className="font-body mb-4 text-[11px] tabular-nums text-silver">
         VIZ(IO)N v{APP_VERSION} · Multi-Model Prompt Studio
       </p>
       <p className="font-body text-[11px] leading-relaxed text-silver">
@@ -105,7 +108,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           href="https://vaseymultimedia.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-accent transition-colors hover:underline"
+          className="text-accent underline decoration-1 underline-offset-2 transition-colors hover:decoration-2"
         >
           VASEY Multimedia
         </a>
@@ -116,7 +119,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           href="https://vasey.ai"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-accent transition-colors hover:underline"
+          className="text-accent underline decoration-1 underline-offset-2 transition-colors hover:decoration-2"
         >
           VASEY/AI
         </a>

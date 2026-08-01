@@ -2,7 +2,7 @@ import { expect, type Page } from "@playwright/test";
 import { readUnhandledStubRoutes } from "./stub-control";
 
 /** Must match the fixture in `supabase-stub.mjs`. */
-export const E2E_USER = {
+const E2E_USER = {
   email: "e2e@vasey.test",
   password: "e2e-password-1234",
 };

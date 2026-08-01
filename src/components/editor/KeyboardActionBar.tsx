@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useKeyboardInset } from "@/components/nav/use-keyboard-inset";
 
@@ -22,7 +22,12 @@ import { useKeyboardInset } from "@/components/nav/use-keyboard-inset";
  * Renders nothing when no keyboard is detected (desktop, jsdom, server), so
  * the bottom nav — which hides under the same signal — never collides with it.
  */
-export function KeyboardActionBar({
+// Memoized: nested in the composer with a now-stable `onEnhance` (useCallback).
+// During a stream its display props (pending/tokens) hold steady, so the memo
+// spares it the per-flush reconciliation (PERF-006).
+export const KeyboardActionBar = memo(KeyboardActionBarImpl);
+
+function KeyboardActionBarImpl({
   active,
   tokens,
   pending,
@@ -45,12 +50,15 @@ export function KeyboardActionBar({
 
   return createPortal(
     <div
-      className="glass-chrome fixed inset-x-0 z-40 flex items-center justify-between gap-3 px-4 py-2"
+      // glass-nav, not glass-chrome (DSN-001): this bar sits at the BOTTOM above
+      // the keyboard, so it mirrors the nav (top-rounded, upward shadow) rather
+      // than inheriting the top bar's bottom-rounded, downward-shadowed tier.
+      className="glass-nav fixed inset-x-0 z-40 flex items-center justify-between gap-3 px-4 py-2"
       style={{ bottom: `${inset}px` }}
     >
       <span className="font-body shrink-0 text-xs tabular-nums text-silver">
         <span aria-hidden="true">⌁ </span>
-        {tokens} tokens
+        ≈{tokens} tokens
       </span>
       <button
         type="button"

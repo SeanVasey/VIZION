@@ -15,6 +15,9 @@ import { useEffect, useRef } from "react";
  *  - fully decoupled from React render (refs + rAF, zero per-frame state),
  *  - capped at ~30fps and particle count scaled to the viewport,
  *  - FULLY paused while document.hidden (logs "bg:paused" / "bg:resumed"),
+ *  - FULLY paused under the reduced-effects knob (`data-reduced-effects`) — the
+ *    simulation itself stops, not just the CSS-hidden canvas, so no rAF work
+ *    burns into a display:none surface,
  *  - under prefers-reduced-motion it renders nothing and a static CSS gradient
  *    fallback is shown instead (no canvas, no rAF) — honoured live, not just
  *    at mount.
@@ -204,49 +207,72 @@ export function NeuralMeshBackground() {
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    function onReduceChange() {
-      if (reduce.matches) {
+    // The reduced-effects knob (Settings → Appearance) stamps
+    // `data-reduced-effects` on <html> via ReducedEffectsManager and CSS-hides
+    // the canvas. The simulation has to stop too, or the rAF loop keeps running
+    // the full node/link math into a display:none canvas at 30fps.
+    function effectsReduced() {
+      return document.documentElement.hasAttribute("data-reduced-effects");
+    }
+
+    // The single gate on the loop: animate only when motion is allowed, the tab
+    // is visible, and reduced-effects is off.
+    function canRun() {
+      return !reduce.matches && !document.hidden && !effectsReduced();
+    }
+
+    // Reconcile the loop with the gate. Idempotent, so any signal (reduce,
+    // visibility, or the data-reduced-effects mutation) can call it.
+    function sync() {
+      if (canRun()) {
+        if (!running) {
+          resize();
+          resolvePalette();
+          start();
+        }
+      } else if (running) {
         stop();
         g.clearRect(0, 0, w, h);
-      } else {
-        resize();
-        resolvePalette();
-        start();
       }
     }
 
     function onVisibility() {
+      // Keep the documented pause/resume breadcrumb; the shared gate decides
+      // whether work actually resumes (it won't if effects are reduced).
       if (document.hidden) {
-        stop();
         console.warn("bg:paused");
-      } else if (!reduce.matches) {
-        start();
+      } else if (canRun()) {
         console.warn("bg:resumed");
       }
+      sync();
     }
 
-    // Re-resolve node colors whenever the theme flips ([data-theme] is stamped
-    // by ThemeManager; the OS scheme matters while on `system`).
-    const observer = new MutationObserver(resolvePalette);
+    // Re-resolve node colors when the theme flips ([data-theme] is stamped by
+    // ThemeManager; the OS scheme matters while on `system`) and reconcile the
+    // loop when [data-reduced-effects] toggles — both ride one observer.
+    const observer = new MutationObserver(() => {
+      resolvePalette();
+      sync();
+    });
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-theme"],
+      attributeFilter: ["data-theme", "data-reduced-effects"],
     });
     const scheme = window.matchMedia("(prefers-color-scheme: dark)");
     scheme.addEventListener("change", resolvePalette);
-    reduce.addEventListener("change", onReduceChange);
+    reduce.addEventListener("change", sync);
     window.addEventListener("resize", resize, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
     resolvePalette();
     resize();
-    if (!reduce.matches) start(); // static gradient fallback handles reduce.
+    sync(); // starts only if canRun(); the static gradient covers the paused state.
 
     return () => {
       stop();
       observer.disconnect();
       scheme.removeEventListener("change", resolvePalette);
-      reduce.removeEventListener("change", onReduceChange);
+      reduce.removeEventListener("change", sync);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVisibility);
     };

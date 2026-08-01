@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { Sheet } from "@/components/ui/Sheet";
+import { PressableButton } from "@/components/ui/PressableButton";
 import { useUIStore } from "@/stores/ui";
 import { buildGenerationPrompt } from "@/lib/media/formatters";
 import { GEN_TARGETS, type GenTargetId } from "@/lib/media/types";
@@ -10,6 +11,7 @@ import { sanitizeName } from "@/lib/media/context";
 import { savePromptAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useCopy } from "@/components/ui/use-copy";
+import { CheckMark } from "@/components/ui/glyphs";
 import { highlightGenerationPrompt, stripEngineSyntax } from "@/lib/media/highlight";
 import type { MediaItem } from "@/lib/media/queue";
 
@@ -73,18 +75,33 @@ export function GenerateSheet({
       tokenOut: 0,
     };
     startSave(async () => {
+      // Queue claims are gated on the write landing under a real owner
+      // (SW-001/SW-002) — see TransformationDiff for the incident shape.
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await enqueueOutbox(userId ?? "", "save-prompt", payload);
-        setSaveQueued(true);
+        if (userId && (await enqueueOutbox(userId, "save-prompt", payload))) {
+          setSaveQueued(true);
+        } else {
+          setSaveError(
+            "Couldn't queue this save on this device — copy the prompt before leaving.",
+          );
+        }
         return;
       }
       try {
         const res = await savePromptAction(payload);
         if (res.ok && res.promptId) setSavedId(res.promptId);
-        else setSaveError(res.error ?? "Couldn't save to the library.");
+        else if (res.duplicate) {
+          // This exact content is already in the library (LIB-007): link the
+          // existing card instead of reporting a failure over a success state.
+          setSavedId(res.duplicate.promptId);
+        } else setSaveError(res.error ?? "Couldn't save to the library.");
       } catch {
-        if (typeof navigator !== "undefined" && navigator.onLine === false) {
-          await enqueueOutbox(userId ?? "", "save-prompt", payload);
+        if (
+          typeof navigator !== "undefined" &&
+          navigator.onLine === false &&
+          userId &&
+          (await enqueueOutbox(userId, "save-prompt", payload))
+        ) {
           setSaveQueued(true);
         } else {
           setSaveError("Couldn't save to the library — try again.");
@@ -100,19 +117,30 @@ export function GenerateSheet({
       title={`Generate — ${sanitizeName(item.name, 24)}`}
       footer={
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
+          <PressableButton
+            subtle
             onClick={() => void copyPrompt()}
             className="btn-laser flex min-h-[44px] grow items-center justify-center rounded-xl px-4 text-sm"
           >
-            {copied ? "Copied ✓" : "Copy"}
-          </button>
+            {copied ? (
+              <span className="inline-flex items-center gap-1">
+                Copied
+                <CheckMark />
+              </span>
+            ) : (
+              "Copy"
+            )}
+          </PressableButton>
           {savedId ? (
             <Link
               href={`/library/${savedId}`}
               className="flex min-h-[44px] grow items-center justify-center rounded-xl bg-pulse px-4 text-sm text-on-laser"
             >
-              Saved ✓ — open
+              <span className="inline-flex items-center gap-1">
+                Saved
+                <CheckMark />
+                — open
+              </span>
             </Link>
           ) : saveQueued ? (
             <span className="font-body flex min-h-[44px] grow items-center justify-center rounded-xl bg-amber px-4 text-xs text-on-laser">
