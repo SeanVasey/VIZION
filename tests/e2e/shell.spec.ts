@@ -61,6 +61,11 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");
+    // The document CSP is nonce-based with NO 'unsafe-inline' for scripts
+    // (audit SEC-001): the middleware mints a per-request nonce that the
+    // theme bootstrap and Next's inline scripts carry.
+    expect(csp).toMatch(/script-src 'self' 'nonce-[^']+'/);
+    expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
     // This server is plain http, so `upgrade-insecure-requests` must NOT be
     // here: it would rewrite every same-origin subresource to https, where
     // nothing is listening, and WebKit (unlike Chromium, which exempts

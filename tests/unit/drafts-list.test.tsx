@@ -171,9 +171,10 @@ describe("Drafts list", () => {
     actions.deleteDraftAction.mockResolvedValue({ ok: false, error: "nope" });
     renderList();
     fireEvent.click(screen.getByRole("button", { name: /^the full saved body/ }));
+    // Toast text appears in the visible card AND its sr-only aria-live mirror.
     expect(
-      await screen.findByText(/still saved in your library/i),
-    ).toBeTruthy();
+      (await screen.findAllByText(/still saved in your library/i)).length,
+    ).toBeGreaterThanOrEqual(1);
     expect(routerMock.push).toHaveBeenCalledWith("/enhance");
   });
 
@@ -295,14 +296,14 @@ describe("Editing a draft in place", () => {
       target: { value: "edit into the void" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("no longer there");
+    expect((await screen.findAllByText(/no longer there/)).length).toBeGreaterThanOrEqual(1);
   });
 
   it("surfaces a failed open without pretending the draft is empty", async () => {
     actions.getDraftBodyAction.mockResolvedValue({ ok: false, error: "gone" });
     renderList();
     openEditor();
-    expect(await screen.findByText("gone")).toBeTruthy();
+    expect((await screen.findAllByText("gone")).length).toBeGreaterThanOrEqual(1);
     // An empty textarea would invite the user to overwrite the draft with it.
     expect(screen.queryByLabelText("Draft text")).toBeNull();
   });
@@ -339,7 +340,7 @@ describe("Edit sheet, mid-save (Codex review, PR #58)", () => {
 
     // And when the save then fails, the edit is still there to retry.
     await act(async () => release({ ok: false, error: "nope" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("nope");
+    expect((await screen.findAllByText("nope")).length).toBeGreaterThanOrEqual(1);
     expect((screen.getByLabelText("Draft text") as HTMLTextAreaElement).value).toBe(
       "precious edit",
     );
@@ -490,7 +491,7 @@ describe("Transport failures and conflicts (Codex review, PR #58)", () => {
     actions.getDraftBodyAction.mockRejectedValue(new Error("network down"));
     renderList();
     openEditor();
-    expect(await screen.findByText(/couldn't reach the server/i)).toBeTruthy();
+    expect((await screen.findAllByText(/couldn't reach the server/i)).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByLabelText("Draft text")).toBeNull();
   });
 
@@ -499,7 +500,7 @@ describe("Transport failures and conflicts (Codex review, PR #58)", () => {
     renderList();
     fireEvent.click(screen.getByRole("button", { name: /^Delete draft:/ }));
     fireEvent.click(screen.getByRole("button", { name: "Delete draft" }));
-    expect(await screen.findByText(/couldn't reach the server/i)).toBeTruthy();
+    expect((await screen.findAllByText(/couldn't reach the server/i)).length).toBeGreaterThanOrEqual(1);
   });
 
   it("a concurrent save elsewhere is reported as a conflict, not as deletion", async () => {

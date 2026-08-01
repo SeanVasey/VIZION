@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
+import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
 
 /**
@@ -110,10 +111,20 @@ function ThinkingPickerSheet({
   // Open on the current pick, not the top of the ladder.
   const initialFocus = useMemo(() => selectedRef, []);
   const isAuto = value === undefined;
+  // Arrow-key focus per the radio contract (A11Y-002); Enter/Space picks.
+  const roving = useRovingRadios(
+    options.length + 1,
+    isAuto ? 0 : options.indexOf(value) + 1,
+  );
 
   return (
     <Sheet open={open} onClose={onClose} title={title} initialFocusRef={initialFocus}>
-      <div role="radiogroup" aria-label={title} className="flex flex-col gap-4">
+      <div
+        role="radiogroup"
+        aria-label={title}
+        className="flex flex-col gap-4"
+        onKeyDown={roving.onKeyDown}
+      >
         {/* Auto is not a depth — it is the decision not to set one, which sends
             no level at all and leaves the provider's own default in place. Its
             own section keeps it out of the ladder, where it would read as a
@@ -121,7 +132,7 @@ function ThinkingPickerSheet({
         <section className="flex flex-col gap-1">
           <div className="glass overflow-hidden rounded-xl">
             <button
-              ref={isAuto ? selectedRef : undefined}
+              {...roving.radioProps(0, isAuto ? selectedRef : undefined)}
               type="button"
               role="radio"
               aria-checked={isAuto}
@@ -149,7 +160,10 @@ function ThinkingPickerSheet({
               return (
                 <button
                   key={level}
-                  ref={active ? selectedRef : undefined}
+                  {...roving.radioProps(
+                    options.indexOf(level) + 1,
+                    active ? selectedRef : undefined,
+                  )}
                   type="button"
                   role="radio"
                   aria-checked={active}

@@ -108,7 +108,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           href="https://vaseymultimedia.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-accent transition-colors hover:underline"
+          className="text-accent underline decoration-1 underline-offset-2 transition-colors hover:decoration-2"
         >
           VASEY Multimedia
         </a>
@@ -119,7 +119,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           href="https://vasey.ai"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-accent transition-colors hover:underline"
+          className="text-accent underline decoration-1 underline-offset-2 transition-colors hover:decoration-2"
         >
           VASEY/AI
         </a>

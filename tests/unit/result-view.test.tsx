@@ -115,7 +115,10 @@ describe("result view (mobile-first order)", () => {
     clipboardWrite.mockRejectedValueOnce(new Error("denied"));
     renderView();
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't copy/i);
+    // Error toast (aria-live, no role now) — present in card + sr-only mirror.
+    expect((await screen.findAllByText(/couldn't copy/i)).length).toBeGreaterThanOrEqual(
+      1,
+    );
   });
 
   it("Use as draft hands the output to onUse", () => {

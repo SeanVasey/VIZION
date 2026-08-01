@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { RATE_LIMITED_MESSAGE, writeLimited } from "@/lib/security/action-limit";
 import {
   MODES,
   TARGET_MODELS,
@@ -90,6 +91,9 @@ export async function saveDraftAction(v: DraftInput): Promise<DraftResult> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
+  if (writeLimited(user.id, "drafts-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
 
   const { data, error } = await supabase
     .from("drafts")
@@ -182,6 +186,9 @@ export async function updateDraftAction(
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "drafts-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { data, error } = await supabase
     .from("drafts")
     .update({
@@ -228,6 +235,9 @@ export async function deleteDraftAction(draftId: string): Promise<DraftResult> {
   const supabase = await createClient();
   const uid = await ownerId(supabase);
   if (!uid) return { ok: false, error: SESSION_EXPIRED };
+  if (writeLimited(uid, "drafts-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase
     .from("drafts")
     .delete()
@@ -289,6 +299,11 @@ export async function fetchDraftsPageAction(
   error?: string;
 }> {
   const supabase = await createClient();
+  // Explicit gate (SEC-008): the sibling fetchLibraryPageAction checks the
+  // session; relying on RLS alone here made this the one drafts path with
+  // neither belt nor braces.
+  const uid = await ownerId(supabase);
+  if (!uid) return { ok: false, error: SESSION_EXPIRED };
   try {
     const { cards, nextCursor } = await queryDraftsPage(
       supabase,
@@ -297,6 +312,13 @@ export async function fetchDraftsPageAction(
     );
     return { ok: true, cards, nextCursor };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Couldn't load more." };
+    // Raw PostgREST text names columns/policies/enums — log it, say less
+    // (SEC-005; the mutation paths' describeWriteError policy).
+    console.error(
+      writeErrorLogLine("drafts", "page", {
+        message: e instanceof Error ? e.message : String(e),
+      }),
+    );
+    return { ok: false, error: "Couldn't load more." };
   }
 }

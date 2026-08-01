@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "@/styles/globals.css";
 import { bebasNeue, redditSans, jetBrainsMono } from "@/app/fonts";
 import { UI_STORE_KEY } from "@/lib/constants";
@@ -40,7 +41,13 @@ export const viewport: Viewport = {
 /** Set <html data-theme> before first paint to avoid a theme flash. */
 const NO_FLASH = `(function(){try{var r=localStorage.getItem("${UI_STORE_KEY}");var t=r?JSON.parse(r).state.theme:"system";document.documentElement.dataset.theme=t||"system";}catch(e){document.documentElement.dataset.theme="system";}})();`;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The middleware's per-request CSP nonce (audit SEC-001): without it on this
+  // script, the nonce policy would block the theme bootstrap and every load
+  // would flash. Reading headers() makes the layout dynamic — every document
+  // is middleware-rendered already, so nothing static is lost but the "/"
+  // redirect shell.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -54,7 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
       </head>
       <body>
         <a

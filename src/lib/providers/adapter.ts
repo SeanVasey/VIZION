@@ -8,6 +8,7 @@ import type {
 import {
   buildSystemPrompt,
   parseEnhancePayload,
+  refineUserBlock,
   type EnhanceRefine,
 } from "@/lib/providers/formatters";
 import type { FormatId } from "@/lib/enhance/formats";
@@ -104,6 +105,10 @@ export async function* enhanceStream({
 }: EnhanceArgs): AsyncGenerator<AdapterStreamEvent> {
   const cfg = TARGETS[target];
   const system = buildSystemPrompt({ mode, target, refine, format, length });
+  // Refine context (tone's original, the Q&A block) rides the USER message —
+  // never the system role (SEC-003). The system prompt only points at it.
+  const refineContext = refineUserBlock(refine);
+  const userInput = refineContext ? `${input}\n\n${refineContext}` : input;
 
   const streams: Record<Provider, ProviderStream> = {
     anthropic: streamAnthropic,
@@ -130,7 +135,7 @@ export async function* enhanceStream({
   // the no-usage fallback below; provider-reported usage is authoritative.
   let reasoningFloor = 0;
 
-  for await (const chunk of streams[cfg.provider](system, input, cfg.model, {
+  for await (const chunk of streams[cfg.provider](system, userInput, cfg.model, {
     thinkingLevel,
   })) {
     if (chunk.text) {
@@ -154,7 +159,7 @@ export async function* enhanceStream({
   // so neither the result view nor the ledger presents it as a measurement.
   let usageEstimated = false;
   if (tokenIn === 0) {
-    tokenIn = Math.ceil((system.length + input.length) / 4);
+    tokenIn = Math.ceil((system.length + userInput.length) / 4);
     usageEstimated = true;
   }
   if (tokenOut === 0 && raw.length > 0) {

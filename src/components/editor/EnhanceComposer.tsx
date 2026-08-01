@@ -553,7 +553,10 @@ export function EnhanceComposer() {
                 screen readers — it's a passive visual readout. */}
             <span className="font-body shrink-0 text-xs tabular-nums text-silver">
               <span aria-hidden="true">⌁ </span>
-              {approxTokens} tokens
+              {/* "≈": chars/4 is an estimate, and the result line renders the
+                  authoritative provider counts — the two must not read as the
+                  same kind of number (PRI-014, INV-04 cost truth). */}
+              ≈{approxTokens} tokens
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -626,6 +629,15 @@ export function EnhanceComposer() {
           are about to be cut off mid-session. Idle is `sr-only` (absolutely
           positioned) so it is not a flex item and adds no gap to this column —
           the same shape as FieldStatus. */}
+      {/* Completion announcement (A11Y-005): the step live region unmounts
+          with the stream and the result view mounts silently — a screen
+          reader heard "Generating…" and then nothing. Permanently mounted;
+          the text mutation is the announcement. */}
+      <p aria-live="polite" aria-atomic="true" className="sr-only">
+        {view && !enhanceMutation.isPending
+          ? `Enhancement ready — ${view.refined ? "refined result" : "result"} below.`
+          : ""}
+      </p>
       <p
         role="status"
         className={

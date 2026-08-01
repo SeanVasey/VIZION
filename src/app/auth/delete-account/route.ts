@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { crossOriginPost } from "@/lib/security/same-origin";
+import { rateLimit } from "@/lib/security/rate-limit";
 
 /**
  * Account deletion (POST) — the one consumer of the service-role client.
@@ -23,11 +25,24 @@ export async function POST(request: NextRequest) {
   const redirect = (path: string) =>
     NextResponse.redirect(new URL(path, request.nextUrl.origin), { status: 303 });
 
+  // Defense-in-depth on an irreversible service-role deletion (SEC-010):
+  // the SameSite=Lax default is the only other CSRF barrier, and it lives in
+  // a library default nobody here configures.
+  if (crossOriginPost(request)) {
+    return NextResponse.json({ error: "Cross-origin request refused." }, { status: 403 });
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return redirect("/sign-in");
+
+  // A burst of deletions is never a human — one confirm sheet per click
+  // (SEC-002; advisory in-memory layer, same as the model routes').
+  if (!rateLimit(`delete-account:${user.id}`, 3, 3_600_000).allowed) {
+    return redirect("/profile?delete_error=rate");
+  }
 
   const admin = createAdminClient();
   if (!admin) {

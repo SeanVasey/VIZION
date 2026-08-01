@@ -28,6 +28,7 @@ const CARD: PromptCard = {
   updated_at: "2026-07-27T00:00:00Z",
   favorite: false,
   archived: false,
+  deleted: false,
   preview: "Write a friendly launch email…",
   mode: "target",
   versions: 1,

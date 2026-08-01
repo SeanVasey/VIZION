@@ -105,7 +105,10 @@ describe("queryLibraryPage filters", () => {
   });
 
   it("pages from the supplied cursor via the keyset or() filter", async () => {
-    const cursor = encodeCursor("2026-07-01T00:00:00Z", "p9");
+    const cursor = encodeCursor(
+      "2026-07-01T00:00:00Z",
+      "5b4c1a52-8a3e-4a5e-9f37-2f6a2f0a1c9d",
+    );
     const { done, calls } = run(base, [], cursor);
     await done;
     const or = argsOf(calls, "or");

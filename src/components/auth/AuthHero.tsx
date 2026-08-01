@@ -22,7 +22,11 @@ export function AuthHero() {
         priority
         className="h-auto w-[176px]"
       />
-      <Wordmark className="text-3xl" />
+      {/* The gate's h1 (A11Y-008): every screen gets one so the document
+          outline never starts below level 1 — the ScreenHeader brand pattern. */}
+      <h1 className="m-0 leading-none">
+        <Wordmark className="text-3xl" />
+      </h1>
       <p className="font-body max-w-[280px] text-pretty text-sm text-muted">
         Transform any prompt for the engine that&apos;s about to receive it.
       </p>

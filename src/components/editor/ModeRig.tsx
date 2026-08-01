@@ -82,7 +82,7 @@ export const ModeRig = memo(function ModeRig({
         {/* Sliding lens-lock indicator — one sixth wide, translates to the cell. */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-1 left-1 rounded-xl bg-laser transition-transform duration-300 ease-out"
+          className="selected-ink pointer-events-none absolute inset-y-1 left-1 rounded-xl bg-laser transition-transform duration-300 ease-out"
           style={{
             width: "calc((100% - 0.5rem) / 6)",
             transform: `translateX(calc(${activeIndex} * 100%))`,

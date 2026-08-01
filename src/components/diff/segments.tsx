@@ -18,6 +18,11 @@ import type { DiffSegment } from "@/lib/enhance/diff";
  * "removed", the fade only said it more quietly.
  */
 export const REMOVED_CLASS = "text-flare line-through";
+/** Added tokens carry an underline as the non-color channel (A11Y-006):
+ *  dark-theme accent vs chalk is a 1.09:1 luminance pair — hue is the ONLY
+ *  difference, invisible through a grayscale filter — while the removed side
+ *  always had its strike. Decoration mirrors the strike's weight. */
+export const ADDED_CLASS = "text-accent underline decoration-1 underline-offset-2";
 
 /** Input-side render: equal + removed (struck) reconstructs the input
  *  losslessly — nothing the author typed is hidden. */
@@ -52,7 +57,7 @@ export function ComparisonSegments({ segments }: { segments: DiffSegment[] }) {
             {seg.text}
           </span>
         ) : (
-          <span key={i} className={seg.op === "added" ? "text-accent" : undefined}>
+          <span key={i} className={seg.op === "added" ? ADDED_CLASS : undefined}>
             {seg.text}
           </span>
         ),
@@ -86,7 +91,7 @@ export function OutputSegments({
           id !== null && id !== undefined && (rejected?.has(id) ?? false);
         if (seg.op === "added") {
           return isRejected ? null : (
-            <span key={i} className="text-accent">
+            <span key={i} className={ADDED_CLASS}>
               {seg.text}
             </span>
           );

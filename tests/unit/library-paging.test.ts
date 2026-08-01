@@ -98,22 +98,31 @@ describe("countActiveFilters", () => {
 });
 
 describe("cursor", () => {
+  const ID = "5b4c1a52-8a3e-4a5e-9f37-2f6a2f0a1c9d";
+
   it("round-trips a timestamp + id", () => {
-    const c = encodeCursor("2026-07-27T10:00:00+00:00", "abc-123");
+    const c = encodeCursor("2026-07-27T10:00:00+00:00", ID);
     expect(decodeCursor(c)).toEqual({
       value: "2026-07-27T10:00:00+00:00",
-      id: "abc-123",
+      id: ID,
     });
   });
 
   it("round-trips title values containing punctuation", () => {
-    const c = encodeCursor('Weird, "title" (v2)', "id-9");
-    expect(decodeCursor(c)).toEqual({ value: 'Weird, "title" (v2)', id: "id-9" });
+    const c = encodeCursor('Weird, "title" (v2)', ID);
+    expect(decodeCursor(c)).toEqual({ value: 'Weird, "title" (v2)', id: ID });
   });
 
   it("rejects garbage", () => {
     expect(decodeCursor("")).toBeNull();
     expect(decodeCursor("no-separator")).toBeNull();
     expect(decodeCursor("value-missing")).toBeNull();
+  });
+
+  it("rejects a tampered id — the injection surface (SEC-004)", () => {
+    // Both halves are interpolated into PostgREST .or() grammar; the id the
+    // server minted is always a UUID, so anything else is a crafted cursor.
+    expect(decodeCursor(encodeCursor("2026-01-01", "x,id.not.is.null"))).toBeNull();
+    expect(decodeCursor(encodeCursor("2026-01-01", "abc-123"))).toBeNull();
   });
 });

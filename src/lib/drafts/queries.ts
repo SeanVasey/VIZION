@@ -101,9 +101,9 @@ export async function queryDraftsPage(
 
   const cursor = cursorRaw ? decodeCursor(cursorRaw) : null;
   if (cursor) {
-    q = q.or(
-      `updated_at.lt.${cursor.value},and(updated_at.eq.${cursor.value},id.lt.${cursor.id})`,
-    );
+    // Quoted + UUID-pinned for the same reason as queryLibraryPage (SEC-004).
+    const v = quoteOrValue(cursor.value);
+    q = q.or(`updated_at.lt.${v},and(updated_at.eq.${v},id.lt.${cursor.id})`);
   }
 
   const { data, error } = await q

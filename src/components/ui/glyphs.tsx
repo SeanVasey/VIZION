@@ -105,6 +105,16 @@ export function ArchiveMark({ className }: { className?: string }) {
   );
 }
 
+/** Restore arrow (the trash sheet's headline action). */
+export function UndoGlyph({ className }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <path d="M4 7h9a6 6 0 0 1 0 12h-3" />
+      <path d="M8 3.5 4 7l4 3.5" />
+    </Glyph>
+  );
+}
+
 /** Collection folder (replaces the ⌂ dingbat in the same menu). */
 export function FolderMark({ className }: { className?: string }) {
   return (

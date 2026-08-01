@@ -6,6 +6,62 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Security + Accessibility — audit Stage 2, Wave 3
+
+Wave 3 clears the SEC and A11Y tracks plus `PRI-009/010/014` and lands ruling
+Q9. No new runtime dependencies.
+
+Security:
+
+- **CSP is nonce-based (SEC-001 / PRI-010).** The middleware mints a
+  per-request nonce and emits the document CSP with
+  `script-src 'self' 'nonce-…'` — `'unsafe-inline'` is gone for scripts. The
+  theme bootstrap and Next's inline scripts carry the nonce; `offline.html`
+  and `sw.js` (which the middleware can't nonce) keep a static policy. The
+  `connect-src`/`img-src` Supabase wildcard is narrowed to the exact
+  configured project origin, closing the attacker-registered-project exfil
+  channel. The CSP builder moved to `src/lib/security/csp.ts`.
+- **Rate limits on all endpoints (SEC-002).** Every mutating server action
+  (auth, profile, library, drafts) is burst-guarded; the unauthenticated auth
+  callback/confirm GETs are IP-guarded; account deletion is rate-limited. The
+  durable cross-instance limits stay on the model routes' `spend_reserve`.
+- **SEC-003.** Refinement context (the tone original, the Q&A block) moved out
+  of the privileged system prompt into the fenced user message — client text
+  can no longer countermand the envelope contract from the system role.
+- **SEC-004..010.** Keyset cursors are UUID-pinned and fully quoted before
+  interpolation; raw PostgREST error text is laundered from the pagination
+  actions; `avatar_url` is server-side allowlisted; the
+  `<attached-references>` fence neutralizes embedded tags; the drafts page
+  action gained an explicit auth gate; the in-memory limiter sweeps expired
+  windows; sign-out and delete-account refuse cross-origin POSTs.
+
+Accessibility (the "WCAG AA pass" claim is now measured — `PRI-009`):
+
+- **Forced-colors focus (A11Y-001):** a transparent outline paints as
+  CanvasText where box-shadow is suppressed.
+- **Picker keyboard contract (A11Y-002):** TargetPicker/ThinkingPicker get
+  roving tabindex + arrow keys via a shared hook.
+- **Light-theme selected state (A11Y-003):** a shared inset accent-ink ring
+  gives every active Laser fill a non-color channel at ≥3:1.
+- **Announcements (A11Y-004/005):** permanently-mounted `aria-live` regions
+  carry toast text and the enhance-completion message, so neither is inserted
+  already-populated (unreliable) or unmounts into silence.
+- **Non-color cues (A11Y-006/007):** diff additions get an underline mirroring
+  the removed side's strike; footer/Settings inline links get a resting
+  underline.
+- **Headings (A11Y-008/009):** the sign-in gate gets its `h1`; Settings steps
+  `h1→h2`.
+- **A11Y-010/012:** the reduced-motion progress pulse actually runs; the
+  reduced-effects switch has an accessible name.
+- **Q9 (A11Y-011):** a persistent **Recently deleted** library view with
+  Restore and confirmed permanent delete — the 6-second toast Undo is now a
+  shortcut, not the only recovery path.
+- A new axe-core e2e spec asserts zero serious/critical WCAG violations on the
+  gate and composer, plus no horizontal scroll at 320px.
+
+`PRI-014`: the composer token readout renders `≈N tokens` — an estimate,
+visibly distinct from the result line's authoritative provider counts.
+
 ### Fixed — audit Stage 2, Wave 2: correctness across the model, media, library, and offline paths
 
 Wave 2 clears the S1/S2 correctness findings (tracks MOD/PRV/MED/LIB/SW plus

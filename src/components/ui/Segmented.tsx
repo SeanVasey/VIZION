@@ -89,7 +89,9 @@ export function Segmented<T extends string>({
               fill
                 ? "cap-trim px-1.5 text-[0.6875rem] font-medium tracking-wide"
                 : "px-3 text-sm",
-              active ? "bg-laser text-on-laser" : "text-silver hover:text-chalk",
+              // selected-ink: the non-color cue that survives the light theme
+              // (A11Y-003) — invisible on dark, a 5.5:1 boundary on light.
+              active ? "selected-ink bg-laser text-on-laser" : "text-silver hover:text-chalk",
             ].join(" ")}
           >
             {o.label}

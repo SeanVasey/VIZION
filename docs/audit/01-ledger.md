@@ -398,7 +398,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** All routes and components; WCAG AA is a stated v1.0 requirement (CLAUDE.md section 9) with no rendered measurement.
 - **proposed_fix:** Add @axe-core/playwright to the existing e2e run plus a 320px-viewport Playwright project, per the ledger's simpler alternative; triage the resulting backlog rather than gating immediately.
 - **verification:** npx playwright test lists a 320px project and at least one spec invokes AxeBuilder; the axe scan runs green (or with triaged known-issues list) in the e2e suite.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: tests/e2e/a11y.spec.ts injects axe-core (existing dep, no new package) and asserts zero serious/critical WCAG violations on the gate + composer, plus a 320px reflow check (no horizontal scroll)
 
 ### PRI-010 — CSP still carries script-src 'unsafe-inline' for the theme bootstrap; nonce adoption remains unimplemented
 
@@ -407,7 +407,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** App-wide XSS defence depth: every route served with the weakened policy.
 - **proposed_fix:** Adopt a per-request nonce via middleware for the pre-paint bootstrap and Next inline runtime, then drop 'unsafe-inline' from script-src (ledger's stated fix).
 - **verification:** curl -sI the deployed app: Content-Security-Policy contains script-src 'self' 'nonce-...' and no 'unsafe-inline'; theme pre-paint still works with no flash in both themes.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: = SEC-001 (per-request nonce CSP replaces 'unsafe-inline')
 
 ### PRI-011 — The overloaded 'target' remains one id selecting optimizer, destination idiom, and pricing — open P1 whose implementation PR-7 gates on explicit approval
 
@@ -443,7 +443,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Composer readout on /enhance; honesty of a per-keystroke number, worst for code and non-Latin input.
 - **proposed_fix:** Prefix the readout with a tilde ('~{approxTokens} tokens') and add an accessible title/aria explanation that it is an estimate replaced by the authoritative count after the run.
 - **verification:** Rendered composer shows '~N tokens'; tests/unit covering the composer readout updated and green (npx vitest run tests/unit/composer-intake.test.tsx).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: the composer chars/4 readout and the keyboard bar render '≈N tokens' — an estimate, distinct from the result line's authoritative counts
 
 ### PRI-015 — EXP-03 shipped in full (favorites, collections, starter templates) against a recorded 'not currently worth developing' verdict, with no decision reversal recorded
 
@@ -949,7 +949,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** next.config.ts (CSP builder); every route in the app receives this policy via headers() source /:path* including offline.html and sw.js
 - **proposed_fix:** Move CSP emission into middleware with a per-request nonce (script-src 'self' 'nonce-...'), hash the static NO_FLASH bootstrap (sha256), and narrow connect-src/img-src to the single configured Supabase project origin instead of the *.supabase.co wildcard (configuredSupabaseOrigin already computes it).
 - **verification:** curl -sI https://<deploy>/ | grep -i content-security-policy shows nonce-based script-src and no 'unsafe-inline' for scripts; app still boots with no theme flash and no CSP violations in devtools console
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3 (= PRI-010): per-request nonce CSP from the middleware (src/lib/security/csp.ts) drops script-src 'unsafe-inline' for every document; the connect-src/img-src wildcard is narrowed to the exact configured Supabase origin; offline.html/sw.js keep a static 'unsafe-inline' policy from next.config; e2e asserts the nonce header, axe confirms no theme-flash regression
 
 ### SEC-002 — No rate limiting on any non-model endpoint or server action, contradicting CLAUDE.md section 9 'Rate limits on all endpoints'; the only limits that exist are on the two model routes, and the in-memory layer there is per-instance advisory
 
@@ -958,7 +958,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/auth/* (4 routes), src/app/(auth)/actions.ts, src/lib/profile/actions.ts, src/lib/library/actions.ts, src/lib/drafts/actions.ts
 - **proposed_fix:** Either add the in-memory burst guard (keyed by user id, or IP for the unauthenticated auth GETs) to the auth routes and mutating server actions and note the DB-backed option for durable limits, or amend CLAUDE.md section 9 to state the actual posture (durable limits on model routes only, platform-level DDoS elsewhere). Do not silently leave doc and code disagreeing.
 - **verification:** grep -rn 'rateLimit(' src/app src/lib | count call sites covering each mutating endpoint; or a loop of 100 POSTs to /auth/sign-out observing 429s after the threshold
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: writeLimited/emailLimited (src/lib/security/action-limit.ts) guard every mutating server action across auth/profile/library/drafts; IP-keyed burst guard on the unauthenticated auth callback/confirm GETs; delete-account rate-limited; durable cross-instance limits stay on the model routes' spend_reserve as before
 
 ### SEC-003 — Client-controlled refine.baseInput (up to 20k chars) is embedded verbatim into the SYSTEM prompt, placing user text in the privileged role ahead of the envelope contract it can then countermand
 
@@ -967,7 +967,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/formatters.ts (protected path), src/app/api/enhance/route.ts refine path; all 12 provider adapters receive the tainted system string
 - **proposed_fix:** Move the tone/answers context blocks out of the system role and append them to the user message (alongside input, as the mediaContext fence already does), keeping only the static REFINE_INSTRUCTIONS sentence in the system prompt; formatters.ts is a protected path defining OUTPUT_CONTRACT so this needs explicit approval plus regression of formatters.test.ts.
 - **verification:** npx vitest run tests/unit/formatters.test.ts after change; assert buildSystemPrompt output contains no refine.baseInput content for kind=tone/answers and the adapter's user message does
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: refine.baseInput (tone original, Q&A block) moved OUT of the system role into the fenced user message (refineUserBlock); the system prompt only points at it; formatters.test.ts asserts the content never appears in buildSystemPrompt output
 
 ### SEC-004 — Unvalidated keyset cursor is interpolated into PostgREST .or() filter grammar (cursor.id always unquoted; cursor.value unquoted for timestamp sorts), allowing filter injection within the caller's own row set
 
@@ -977,7 +977,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Validate cursor.id against the existing UUID_RE (paging.ts:51) in decodeCursor or at both call sites, and pass every interpolated cursor value through quoteOrValue (PostgREST accepts quoted timestamps), rejecting the cursor (fresh first page) on mismatch.
 - **verification:** npx vitest run tests/unit/library-paging.test.ts plus a new case: decodeCursor('2026-01-01x,id.not.is.null') must not reach the query builder unquoted; manual: fetchLibraryPageAction with a crafted cursor returns ok:false or page 1, never a PostgREST error string
 - **independently found by:** LIB ("Client-supplied keyset cursor is interpolated raw into PostgREST or() grammar, and a title containing U+001F b")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: decodeCursor pins the id to a UUID and refuses a tampered cursor (fresh first page); every interpolated cursor value is quoteOrValue-wrapped at both library+drafts sites; library-paging.test.ts covers the injection string
 
 ### SEC-005 — Raw PostgREST/Postgres error text is returned verbatim to the client from the pagination server actions, contradicting the codebase's own describeWriteError leak policy
 
@@ -986,7 +986,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/library/queries.ts, src/lib/drafts/queries.ts, fetchLibraryPageAction, fetchDraftsPageAction; /library UI error toasts
 - **proposed_fix:** Log the raw message server-side via writeErrorLogLine and return the generic "Couldn't load more." fallback from both actions (the fallback string already exists in both catch blocks).
 - **verification:** npx vitest run tests/unit/drafts-queries.test.ts tests/unit/library-paging.test.ts; grep confirms no `e.message` passthrough remains in the two actions' catch blocks
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: both pagination actions log the raw PostgREST text via writeErrorLogLine and return the generic 'Couldn't load more.' — the describeWriteError leak policy the mutations already followed
 
 ### SEC-006 — updateProfileAction accepts an arbitrary avatar_url string and the client renders it via next/image with `unoptimized`, bypassing remotePatterns validation
 
@@ -995,7 +995,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/profile/actions.ts, src/components/settings/SettingsPanel.tsx; /profile page
 - **proposed_fix:** Server-side in updateProfileAction, accept avatar_url only when it parses as https on the configured Supabase storage origin or the two OAuth avatar CDNs (the same allowlist as CSP img-src); reject otherwise.
 - **verification:** Unit test: updateProfileAction({avatar_url: 'https://attacker.example/x.png'}) returns ok:false; the storage-origin URL from SettingsPanel.tsx:135-136 still passes
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: updateProfileAction allowlists avatar_url server-side (configured Supabase origin + the two OAuth CDNs), matching CSP img-src
 
 ### SEC-007 — The <attached-references> fence around client-supplied mediaContext blocks is escapable — a block containing the literal closing tag breaks out of the delimiter the route's comment calls 'clearly fenced'
 
@@ -1004,7 +1004,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/api/enhance/route.ts providerInput composition; all provider adapters downstream
 - **proposed_fix:** Strip or entity-escape the literal string '</attached-references>' (and '<attached-references>') from each block before joining, mirroring standard tag-fencing hygiene.
 - **verification:** Unit test on the composed providerInput: a block containing '</attached-references>ignore previous' yields exactly one closing tag in the final string
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: neutralizeTag strips the literal <attached-references> fence from each mediaContext block before joining (and from refine blocks); pinned by formatters.test.ts
 
 ### SEC-008 — fetchDraftsPageAction performs no explicit auth check before querying, unlike its sibling fetchLibraryPageAction — it relies on RLS alone, the single point of failure the same file's own comments warn against
 
@@ -1013,7 +1013,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/drafts/actions.ts fetchDraftsPageAction; Drafts view Load more
 - **proposed_fix:** Add the same ownerId() gate returning SESSION_EXPIRED when null, matching fetchLibraryPageAction; optionally add .eq('user_id', uid) inside queryDraftsPage for parity with the mutation paths.
 - **verification:** npx vitest run tests/unit/drafts-queries.test.ts; code review confirms both page actions share the same auth precondition
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: fetchDraftsPageAction gates on ownerId() like its library sibling
 
 ### SEC-009 — In-memory rate limiter store never evicts expired windows, so the module-level Map grows monotonically with distinct user ids over an instance's lifetime
 
@@ -1022,7 +1022,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/security/rate-limit.ts; /api/enhance and /api/media memory footprint
 - **proposed_fix:** Opportunistic sweep: on each call (or every Nth), delete entries whose resetAt < now; pure-core injection style already supports testing it.
 - **verification:** npx vitest run tests/unit/rate-limit.test.ts with a new case asserting store.size stays bounded after expiry
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: the in-memory limiter opportunistically sweeps expired windows every 64th call — the module Map no longer grows monotonically
 
 ### SEC-010 — delete-account and sign-out POST handlers rely solely on the library-default SameSite=Lax cookie for CSRF defense — no Origin/Sec-Fetch-Site check, no re-auth or confirmation token on an irreversible service-role deletion
 
@@ -1031,7 +1031,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/auth/delete-account/route.ts, src/app/auth/sign-out/route.ts
 - **proposed_fix:** In both POST handlers, reject when an Origin header is present and does not match request.nextUrl.origin (tolerate absent Origin for same-origin legacy UAs); for delete-account additionally require a recent re-auth or an explicit confirmation field in the POSTed form body.
 - **verification:** npx vitest run tests/unit/delete-account-route.test.ts extended with a request carrying Origin: https://evil.example expecting 403; existing happy-path test stays green
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: crossOriginPost (src/lib/security/same-origin.ts) refuses a mismatched Origin on sign-out and delete-account; delete-account is additionally rate-limited
 
 ## Track DSN
 
@@ -1279,7 +1279,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Change `outline: none` to `outline: 2px solid transparent; outline-offset: 1px` in the base :focus-visible rule (transparent outlines are invisible normally but painted as CanvasText under forced-colors), or add `@media (forced-colors: active) { :focus-visible { outline: 2px solid; } }`.
 - **verification:** In Chromium: emulate forced-colors (DevTools Rendering > Emulate forced-colors: active), Tab through /sign-in and /enhance, confirm a visible outline on every focused control; before the fix none renders.
 - **adversarial verdict:** CONFIRMED — globals.css:142-146 is verbatim `:focus-visible { outline: none; box-shadow: var(--focus-ring); }`; grep across src/ finds zero forced-colors/prefers-contrast handling and shows every outline occurrence is `outline: none` or `focus:outline-none` — all focus indication (base ring, .glass:203-207, .fab-glass:396-400, tailwind shadow-focus:86) is box-shadow, which forced-colors mode computes to none while respecting author outline removal, so WHC keyboard users get no focus indicator on any control on any route (WCAG 2.4.7). No conflict with PR-1..PR-7 (they cover vibration, share, WebGPU, splash, guest auth, taxonomy). S1 holds: CLAUDE.md section 9 mandates a full WCAG AA pass and the failure is total for an entire user class.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: :focus-visible carries a 2px transparent outline (painted as CanvasText under forced-colors, where box-shadow is suppressed) alongside the box-shadow ring
 
 ### A11Y-002 — TargetPicker and ThinkingPicker sheets declare role=radiogroup/radio but implement no roving tabindex and no arrow-key handling — the roles promise keys that do nothing
 
@@ -1289,7 +1289,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Either implement the radiogroup contract (roving tabindex: checked radio tabIndex 0, others -1; ArrowUp/Down/Left/Right + Home/End moving focus+selection, mirroring ModeRig), or drop to the Segmented pattern (plain buttons + aria-pressed) which matches current behavior.
 - **verification:** npx vitest run tests/unit/target-picker.test.tsx after adding an arrow-key spec modeled on tests/unit/mode-rig.test.tsx:41-45; manually: open the Target sheet, press ArrowDown — selection/focus must move.
 - **adversarial verdict:** CONFIRMED — Read both files in full: TargetPicker.tsx:166/177-179/205-211 and ThinkingPicker.tsx:116/123-127/150-156 declare radiogroup/radio exactly as cited, with no onKeyDown and no tabIndex anywhere in either file (all radios are default tab stops), and Sheet.tsx:60-89 handles only Escape+Tab so nothing supplies the arrow-key contract. The repo's own convention treats this as a defect: ModeRig.tsx:45-47 (path is editor/, not enhance/ — trivial slip) brands the identical prior state a WCAG AA bug and implements roving tabindex (line 99) + Arrow/Home/End (lines 52-80), and Segmented.tsx:7-11 explicitly refuses radiogroup for this exact reason. Grep of tests/unit/target-picker.test.tsx confirms zero Arrow/tabIndex coverage (click-only). S1 stands under the audit rule that a true invariant violation is minimum S1: the repo's documented invariant is "never take the radio role without the roving-tabindex/arrow contract", and no platform ruling PR-1..PR-7 is implicated.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: useRovingRadios (roving tabindex + Arrow/Home/End moving focus) wired into TargetPicker and ThinkingPicker; target-picker.test.tsx pins the contract
 
 ### A11Y-003 — Light-theme selected-state indication (Laser fill) fails the 3:1 non-text contrast floor in ModeRig, Segmented, and QuickChip
 
@@ -1299,7 +1299,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Add a non-chromatic second channel to the active cell (the BottomNav precedent): a 1px --accent-ink inset ring or hairline border on the Laser lens/active segment, or a shape marker; alternatively a light-theme lens border token.
 - **verification:** Re-run the contrast computation (python3 scratchpad/contrast.py pattern) on the chosen indicator vs #fcfcfd expecting >= 3.0; visually check /enhance in light theme with a grayscale filter — the active mode must remain identifiable.
 - **adversarial verdict:** CONFIRMED — Every cited fact reproduced: bg-laser is the sole selected-state indicator at ModeRig.tsx:85, Segmented.tsx:92, LibraryBrowser.tsx:644 (QuickChip, which also drops the glass hairline when active), PromptDetail.tsx:418; independent WCAG computation gives laser #b7ff3c vs composited light glass #fcfcfd = 1.18:1, vs light page #eef0f4 = 1.06:1, backup label-ink swap on-laser #0e1013 vs silver-light #565b63 = 2.79:1 (dark passes at 12.69:1); Tailwind mapping confirmed constant-laser across themes. BottomNav.tsx:95-108 documents this exact failure class and shipped a non-chromatic dot fix, so the repo treats it as a defect; no decision doc, test (a11y.test.ts covers only text-on-fill legibility), or PR-1..PR-7 ruling (all platform-API topics) accepts it. Only nuance: ModeRig's icon ink swap computes 3.01:1, but it is still color-only (1.4.1) and absent from the other three surfaces. S1 upheld: CLAUDE.md §9 mandates full WCAG AA, and the active state is imperceptible in light/system-light themes on the core composer control plus three library surfaces.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: a shared .selected-ink inset accent-ink ring on every active Laser fill (ModeRig lens, Segmented, QuickChip, PromptDetail pills) — invisible on dark (ink IS laser), a 5.5:1 boundary on light
 
 ### A11Y-004 — Toast live region is mounted together with its message, so screen readers are not reliably told about confirmations and Undo offers
 
@@ -1308,7 +1308,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/ui/Toast.tsx; every toast surface (composer clear/undo, library delete/undo, FAB save/discard, copy failure)
 - **proposed_fix:** Keep one permanently-mounted sr-only live region inside ToastProvider (the FieldStatus shape) and write the toast text into it, leaving the visual card conditional; keep role=alert insertion for error tone.
 - **verification:** npx vitest run tests/unit/toast.test.tsx after adding a spec asserting the role=status node exists before toast() is called and receives the text as a mutation.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: two permanently-mounted sr-only aria-live regions in ToastProvider (polite + assertive) carry the toast text as a mutation; the visual card is aria-hidden; toast.test.tsx updated
 
 ### A11Y-005 — Completion of an enhance run is never announced — the step live region unmounts and the result view mounts silently
 
@@ -1317,7 +1317,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/diff/TransformationDiff.tsx, src/components/editor/EnhanceComposer.tsx, src/components/library/PromptDetail.tsx; the core enhance flow
 - **proposed_fix:** Announce completion through a permanently-mounted polite region (e.g. the existing cap-warning shape in the composer, or a final 'Done — result ready' step written into StreamProgress's region before unmount), coordinated with result-view.test.tsx's singular role=status query.
 - **verification:** Unit spec: render composer, resolve the mutation, assert a mounted role=status node's text changes to a completion message; manual VoiceOver/NVDA pass on a full run.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: a permanently-mounted aria-live region in the composer announces 'Enhancement ready' on completion — the step region no longer unmounts into silence
 
 ### A11Y-006 — Diff additions are marked by color alone — in dark theme added text is 1.09:1 against equal text, with no non-color cue
 
@@ -1326,7 +1326,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/diff/segments.tsx, CompareSheet.tsx, TransformationDiff.tsx, PromptDetail.tsx version compare
 - **proposed_fix:** Give added segments a second channel to mirror the removed side's strike — e.g. underline (`underline decoration-accent underline-offset-2`) or a subtle bg tint on added spans in the comparison surfaces.
 - **verification:** View Compare sheet in dark theme through a grayscale filter: additions must remain identifiable; extend tests/unit/diff-segments.test.tsx to assert the added-span class carries a non-color marker.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: added diff segments carry an underline (ADDED_CLASS) mirroring the removed side's strike — a non-color channel in every compare surface
 
 ### A11Y-007 — Footer inline links are distinguished from surrounding text by color alone (1.57:1 dark / 1.08:1 light vs the silver copy, no resting underline)
 
@@ -1335,7 +1335,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/Footer.tsx (all routes incl. sign-in), src/components/settings/SettingsPanel.tsx
 - **proposed_fix:** Add a resting underline (`underline underline-offset-4` or decoration at reduced opacity) to inline links that sit inside body copy; standalone link-buttons are unaffected.
 - **verification:** Grayscale-filter check of the footer in both themes: links must be identifiable without color; grep confirms `underline` present at rest on the two footer anchors.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: resting underline on the footer inline links and the Settings Resend link — no longer color-only inside body copy
 
 ### A11Y-008 — Sign-in route renders no h1 — violating the repo's own 'every screen gets an h1' rule
 
@@ -1344,7 +1344,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/auth/AuthHero.tsx; /sign-in route
 - **proposed_fix:** Wrap the Wordmark in AuthHero in `<h1 className="m-0 leading-none">` exactly as ScreenHeader.tsx:40-42 does for the brand variant (no visual change).
 - **verification:** Render /sign-in and assert document.querySelector('h1') is non-null (add to tests or check in e2e shell.spec.ts).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: AuthHero wraps the Wordmark in an h1 (the ScreenHeader brand pattern) — the sign-in outline starts at level 1
 
 ### A11Y-009 — Settings route heading order skips from h1 to h3 (SettingsSection uses h3 with no h2 on the page)
 
@@ -1353,7 +1353,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/settings/Field.tsx (SettingsSection); /profile route outline
 - **proposed_fix:** Change SettingsSection's h3 to h2 (class string unchanged — the visual is class-driven, not tag-driven). Verify no other consumer of SettingsSection depends on h3.
 - **verification:** npx vitest run tests/unit/settings-status.test.tsx tests/unit/settings-identity.test.tsx stays green; axe or manual outline check shows h1→h2 on /profile.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: SettingsSection heading is h2, not h3 — /profile steps h1→h2 (visual is class-driven, unchanged)
 
 ### A11Y-010 — The reduced-motion stream-progress pulse is dead code: the base-layer !important collapse clamps it to 0.01ms, so the documented 'slow opacity pulse' never runs
 
@@ -1362,7 +1362,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/styles/globals.css:949-963; StreamProgress under reduced motion (visual only)
 - **proposed_fix:** Either delete the stream-pulse keyframes/animation and keep the static segment declaration (documenting it as the intended reduced-motion state), or exempt .stream-progress-sweep from the global clamp if the pulse is genuinely wanted.
 - **verification:** DevTools with prefers-reduced-motion emulated: computed animation-duration on .stream-progress-sweep is 0.01ms today; after cleanup the rule block and comment agree.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: the reduced-motion stream-progress pulse carries !important so the more-specific selector wins the tie against the global collapse — the documented slow pulse actually runs
 
 ### A11Y-011 — Destructive actions rely on a 6-second toast Undo with no persistent recovery path or timing control (WCAG 2.2.1)
 
@@ -1371,7 +1371,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/ui/Toast.tsx, src/components/library/LibraryBrowser.tsx, src/components/nav/NewPromptFab.tsx
 - **proposed_fix:** Product call needed: extend toast duration for action-bearing toasts (e.g. 10s + pause while hovered/focused), or expose soft-deleted prompts in an Archived/Trash view so Undo is not time-boxed.
 - **verification:** After ruling: unit spec on ToastProvider asserting action-bearing toasts persist >= 10s or pause on focus; or an e2e showing a deleted prompt is recoverable from the archived view after the toast expires.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3 (ruling Q9=a): a persistent 'Recently deleted' library view with Restore + confirmed permanent delete; the toast Undo is now a shortcut, not the only recovery (LibraryBrowser trash sheet; library-card.test.tsx)
 
 ## Track TYP
 
@@ -1871,7 +1871,7 @@ the same manual-approval review as the Stage 1 list.
 - **blast_radius:** /profile Appearance section; one control
 - **proposed_fix:** `aria-label="Reduced effects"` on the switch button (one attribute)
 - **verification:** `getByRole("switch", { name: /reduced effects/i })` resolves in a unit test
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W3: aria-label on the reduced-effects switch (the Field caption is a sibling, not an association)
 
 ### SEC-011 — Closed-access boundary: server actions remain reachable for existing sessions
 

@@ -92,9 +92,11 @@ export function SettingsSection({
 }) {
   return (
     <section aria-label={title} className="flex flex-col gap-2">
-      <h3 className="font-body px-1 text-xs uppercase tracking-wider text-silver">
+      {/* h2, not h3 (A11Y-009): the page h1 is the ScreenHeader title and
+          nothing sits between — the visual is entirely class-driven. */}
+      <h2 className="font-body px-1 text-xs uppercase tracking-wider text-silver">
         {title}
-      </h3>
+      </h2>
       <div className="glass flex flex-col gap-4 rounded-2xl p-5">{children}</div>
     </section>
   );

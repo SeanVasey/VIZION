@@ -1,114 +1,22 @@
 import type { NextConfig } from "next";
 import pkg from "./package.json" with { type: "json" };
+import { cspDirectives, isHttpsOrigin } from "./src/lib/security/csp";
 
 /**
- * Content-Security-Policy (P6 hardening). Locks the app to its own origin plus
- * Supabase (auth/db/storage/realtime). Model-provider calls are server-side only,
- * so they never appear in the browser's `connect-src`. Fonts are self-hosted via
- * next/font, so no external font origin is needed.
+ * Content-Security-Policy (P6 hardening, audit SEC-001).
  *
- * Residual: `script-src 'unsafe-inline'` remains for the pre-paint no-flash theme
- * bootstrap (and Next's inline runtime). A nonce-based policy is the next step;
- * `object-src 'none'` + `base-uri 'self'` + `frame-ancestors 'none'` blunt the
- * common injection vectors in the meantime.
+ * The per-request NONCE policy for every document now lives in the middleware
+ * (`src/middleware.ts` + `src/lib/security/csp.ts`) — `script-src` there is
+ * `'self' 'nonce-…'` with no `'unsafe-inline'`, and the no-flash theme
+ * bootstrap plus Next's own inline scripts carry the nonce.
+ *
+ * What remains HERE is the static fallback for exactly the paths the
+ * middleware matcher excludes and that can execute script: `offline.html`
+ * (its inline reload script cannot receive a per-request nonce — it is a
+ * static file) and `sw.js`. Those keep the previous `'unsafe-inline'` policy.
+ * The probe history for the websocket/connect-src rules lives with the
+ * builder in src/lib/security/csp.ts.
  */
-/**
- * The Supabase origin this build is actually configured against, when the
- * hosted `*.supabase.co` wildcard below does not already cover it.
- *
- * The wildcard alone silently assumes every deployment uses a hosted project on
- * Supabase's own domain. A self-hosted instance, a custom domain, or the e2e
- * stub is blocked by `connect-src` with no server-side symptom at all — the
- * browser refuses the request, `signInWithPassword` fails, and the app just
- * never signs anyone in. Reading the origin the app is already pointed at keeps
- * the policy and the configuration from disagreeing.
- *
- * Returns null for a hosted project (the wildcard covers it) and for anything
- * unparseable, so the default deployment's policy is byte-identical to before.
- */
-export function configuredSupabaseOrigin(raw: string | undefined): string | null {
-  if (!raw) return null;
-  try {
-    const { origin, hostname, protocol } = new URL(raw);
-    if (protocol !== "https:" && protocol !== "http:") return null;
-    // Only the ORIGIN — a stray path or query in the env value must never
-    // reach the policy, where it would be meaningless at best.
-    return hostname.endsWith(".supabase.co") ? null : origin;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The WebSocket origin supabase-js will derive from that same URL.
- *
- * It builds its Realtime endpoint by rewriting the configured URL's protocol —
- * `realtimeUrl.protocol = realtimeUrl.protocol.replace("http", "ws")` in
- * `SupabaseClient` — so `https://db.example.com` yields `wss://db.example.com`
- * and the e2e stub's `http://127.0.0.1:54321` yields `ws://127.0.0.1:54321`.
- *
- * CSP does not follow it there. Measured in both engines this repo runs specs
- * against, with a `connect-src 'self'`-only control to prove the probe:
- *
- *   | connect-src source          | target             | Chromium | WebKit  |
- *   | --------------------------- | ------------------ | -------- | ------- |
- *   | `https://host`              | `wss://host`       | BLOCKED  | BLOCKED |
- *   | `https://host wss://host`   | `wss://host`       | allowed  | allowed |
- *   | `http://host`               | `ws://host`        | BLOCKED  | BLOCKED |
- *   | `http://host ws://host`     | `ws://host`        | allowed  | allowed |
- *
- * So an origin added to `connect-src` for its REST traffic does NOT bring its
- * own Realtime socket with it: REST works and every channel is refused. The
- * hosted wildcard has always listed both schemes (`https://*.supabase.co
- * wss://*.supabase.co`); this keeps the configured origin symmetric with it.
- *
- * (Worth knowing if you re-measure: only WebKit throws `SecurityError` from the
- * constructor. Chromium returns a WebSocket object and blocks asynchronously,
- * so "it constructed" is not evidence of an allowed connection — read the
- * `securitypolicyviolation` event instead. Judged on the constructor alone,
- * Chromium looks like it permits all four.)
- *
- * Nothing in `src/` opens a channel today, which is exactly why this is worth
- * fixing now: the failure would arrive with the first feature that does, in a
- * custom-domain or self-hosted deployment only, as a browser-side refusal with
- * no server-side symptom.
- */
-export function derivedWebsocketOrigin(origin: string): string {
-  return origin.replace(/^http/i, "ws");
-}
-
-/**
- * Takes the Supabase URL as an ARGUMENT rather than reading `process.env`
- * inside, for the same reason `buildSecurityHeaders(httpsOrigin)` does: a
- * policy that varies by environment is only testable if the environment is an
- * input. `CSP_DIRECTIVES` below binds it to the real env for Next to consume.
- */
-export function cspDirectives(supabaseUrl: string | undefined): string[] {
-  const origin = configuredSupabaseOrigin(supabaseUrl);
-  const withSupabase = (base: string) => (origin ? `${base} ${origin}` : base);
-  /** `connect-src` only: the socket origin is meaningless in `img-src` et al. */
-  const withSupabaseSocket = (base: string) =>
-    origin ? `${withSupabase(base)} ${derivedWebsocketOrigin(origin)}` : base;
-
-  return [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
-    withSupabase(
-      "img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
-    ),
-    "font-src 'self' data:",
-    withSupabaseSocket("connect-src 'self' https://*.supabase.co wss://*.supabase.co"),
-    withSupabase("media-src 'self' blob: https://*.supabase.co"),
-    "worker-src 'self'",
-    "manifest-src 'self'",
-    withSupabase("form-action 'self' https://*.supabase.co"),
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "object-src 'none'",
-  ];
-}
-
 export const CSP_DIRECTIVES = cspDirectives(process.env.NEXT_PUBLIC_SUPABASE_URL);
 
 /** Headers that are correct on every transport. */
@@ -156,13 +64,6 @@ const COMMON_HEADERS = [
  */
 export function buildSecurityHeaders(httpsOrigin: boolean) {
   return [
-    {
-      key: "Content-Security-Policy",
-      value: [
-        ...CSP_DIRECTIVES,
-        ...(httpsOrigin ? ["upgrade-insecure-requests"] : []),
-      ].join("; "),
-    },
     ...COMMON_HEADERS,
     ...(httpsOrigin
       ? [
@@ -175,14 +76,25 @@ export function buildSecurityHeaders(httpsOrigin: boolean) {
   ];
 }
 
+/** The static-asset CSP (see the header comment): `'unsafe-inline'` script-src
+ *  for the two middleware-excluded paths that can execute script. */
+export function staticCspHeader(httpsOrigin: boolean) {
+  return {
+    key: "Content-Security-Policy",
+    value: [
+      ...CSP_DIRECTIVES,
+      ...(httpsOrigin ? ["upgrade-insecure-requests"] : []),
+    ].join("; "),
+  };
+}
+
 /**
  * Production (Vercel) is https, so it gets the full set. `next dev` is http by
  * definition. A production BUILD served over http is only ever the e2e harness,
  * which opts out explicitly via `VIZION_HTTP_ORIGIN=1` (set in
  * `playwright.config.ts`) — nothing else should ever set it.
  */
-export const HTTPS_ORIGIN =
-  process.env.NODE_ENV === "production" && process.env.VIZION_HTTP_ORIGIN !== "1";
+export const HTTPS_ORIGIN = isHttpsOrigin();
 
 const securityHeaders = buildSecurityHeaders(HTTPS_ORIGIN);
 
@@ -212,8 +124,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Non-CSP security headers everywhere; documents get their CSP (with
+        // a per-request nonce) from the middleware instead.
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        // The middleware matcher excludes offline.html — it still needs a
+        // policy for its inline reload script (static, so 'unsafe-inline').
+        source: "/offline.html",
+        headers: [staticCspHeader(HTTPS_ORIGIN)],
       },
       {
         // The service worker must never be cached so updates roll out immediately.
@@ -221,6 +141,7 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
           { key: "Service-Worker-Allowed", value: "/" },
+          staticCspHeader(HTTPS_ORIGIN),
         ],
       },
     ];

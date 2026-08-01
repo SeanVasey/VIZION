@@ -37,6 +37,7 @@ const CARD: PromptCard = {
   updated_at: "2026-07-27T00:00:00Z",
   favorite: true,
   archived: false,
+  deleted: false,
   preview: "Write a friendly launch email announcing the new tier…",
   mode: "target",
   versions: 3,
@@ -92,7 +93,10 @@ describe("library card", () => {
     renderBrowser();
     fireEvent.click(screen.getByRole("button", { name: "Actions for Launch email" }));
     fireEvent.click(screen.getByRole("button", { name: /^Delete/ }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Prompt deleted");
+    // Visible card + the permanent aria-live mirror both carry the text.
+    expect(
+      (await screen.findAllByText("Moved to Recently deleted")).length,
+    ).toBeGreaterThanOrEqual(1);
     expect(actions.softDeletePromptAction).toHaveBeenCalledWith("p1");
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(actions.undoDeletePromptAction).toHaveBeenCalledWith("p1");
@@ -111,6 +115,40 @@ describe("library card", () => {
   });
 });
 
+
+describe("recently deleted (Q9 — persistent recovery)", () => {
+  const TRASHED: PromptCard = { ...CARD, deleted: true, favorite: false };
+
+  it("offers Restore and confirmed permanent delete — nothing else", async () => {
+    renderBrowser([TRASHED]);
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Launch email" }));
+    // The normal verbs don't apply to a prompt no list shows.
+    expect(screen.queryByRole("button", { name: /Add to favorites|Archive/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Restore" }));
+    await vi.waitFor(() =>
+      expect(actions.undoDeletePromptAction).toHaveBeenCalledWith("p1"),
+    );
+  });
+
+  it("permanent delete requires the confirm sheet", async () => {
+    renderBrowser([TRASHED]);
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Launch email" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }));
+    expect(actions.deletePromptAction).not.toHaveBeenCalled();
+    // The confirm sheet opens its own "Delete permanently" — the last one is
+    // the confirmation.
+    await vi.waitFor(() =>
+      expect(
+        screen.getAllByRole("button", { name: "Delete permanently" }).length,
+      ).toBe(2),
+    );
+    const confirmBtns = screen.getAllByRole("button", { name: "Delete permanently" });
+    fireEvent.click(confirmBtns[confirmBtns.length - 1]!);
+    await vi.waitFor(() =>
+      expect(actions.deletePromptAction).toHaveBeenCalledWith("p1"),
+    );
+  });
+});
 
 const PAGE2: PromptCard = {
   ...CARD,

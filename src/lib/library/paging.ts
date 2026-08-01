@@ -19,7 +19,10 @@ export const LIBRARY_PAGE_SIZE = 30;
  * it would silently return prompts. `library/page.tsx` branches first;
  * `isDraftsView` is the single predicate both sides read.
  */
-export const LIBRARY_VIEWS = ["all", "favorites", "archived", "drafts"] as const;
+// "trash" is ruling Q9's persistent recovery surface: soft-deleted prompts
+// were recoverable only through a 6-second toast Undo (WCAG 2.2.1) — now the
+// Undo is a shortcut and Recently deleted is the durable path.
+export const LIBRARY_VIEWS = ["all", "favorites", "archived", "trash", "drafts"] as const;
 export type LibraryView = (typeof LIBRARY_VIEWS)[number];
 
 /** Does this filter target the drafts relation rather than prompts? */
@@ -114,5 +117,11 @@ export function decodeCursor(raw: string): { value: string; id: string } | null 
   const value = raw.slice(0, i);
   const id = raw.slice(i + 1);
   if (!id) return null;
+  // The cursor is CLIENT-SUPPLIED and both halves are interpolated into
+  // PostgREST .or() grammar (SEC-004): a crafted id like
+  // "x,id.not.is.null" injects extra OR branches (RLS-confined, but a
+  // filter-grammar hole is a hole). The id must be the UUID the server
+  // minted; a mismatch means a tampered cursor → fresh first page.
+  if (!UUID_RE.test(id)) return null;
   return { value, id };
 }

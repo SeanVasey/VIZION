@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { validatePassword } from "@/lib/auth/password";
+import { RATE_LIMITED_MESSAGE, writeLimited } from "@/lib/security/action-limit";
 
 export interface ActionResult {
   ok: boolean;
@@ -33,6 +34,9 @@ export async function setPasswordAction(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  if (writeLimited(user.id, "auth-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { ok: false, error: error.message };

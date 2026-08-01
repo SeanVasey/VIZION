@@ -21,6 +21,7 @@ import { ProviderNotConfiguredError } from "@/lib/providers/errors";
 import {
   REFINE_KINDS,
   buildSystemPrompt,
+  neutralizeTag,
   type EnhanceRefine,
   type RefineKind,
 } from "@/lib/providers/formatters";
@@ -212,7 +213,11 @@ export async function POST(request: NextRequest) {
     ) {
       return err(400, "Invalid media context.");
     }
-    const blocks = (mediaContext as string[]).map((b) => b.trim()).filter(Boolean);
+    // A block containing the literal closing tag would break out of the
+    // fence below (SEC-007) — neutralize both tag forms before joining.
+    const blocks = (mediaContext as string[])
+      .map((b) => neutralizeTag(b.trim(), "attached-references"))
+      .filter(Boolean);
     if (blocks.length > 0) typedContext = blocks;
   }
   // Missing keys fail closed as a plain pre-stream 503 (the documented

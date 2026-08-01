@@ -1,78 +1,83 @@
 import { describe, expect, it } from "vitest";
-import { buildSecurityHeaders, cspDirectives, CSP_DIRECTIVES } from "../../next.config";
+import {
+  buildSecurityHeaders,
+  staticCspHeader,
+  CSP_DIRECTIVES,
+} from "../../next.config";
+import { buildCsp, cspDirectives } from "@/lib/security/csp";
 
 /**
- * Transport-dependent hardening.
- *
- * `upgrade-insecure-requests` on a plain-http origin rewrites same-origin
- * subresources to https, where the e2e server (and `next dev`) have no TLS
- * listener — WebKit then renders the app with no CSS at all. Production, on
- * Vercel, is https and must keep the full set. What these tests guard is that
- * the two variants differ by EXACTLY those two headers and never drift further:
- * the https variant is the one production ships, and no e2e run can reach it.
+ * CSP + transport-dependent hardening (audit SEC-001 reshaped this):
+ * documents get a per-request NONCE policy from the middleware; the two
+ * middleware-excluded script-bearing assets (offline.html, sw.js) keep a
+ * static 'unsafe-inline' policy from next.config. These tests pin both
+ * variants and the transport split.
  */
 
-const secure = buildSecurityHeaders(true);
-const plain = buildSecurityHeaders(false);
+const find = (ds: string[], name: string) => ds.find((d) => d.startsWith(`${name} `))!;
 
-function headerMap(headers: readonly { key: string; value: string }[]) {
-  return new Map(headers.map((h) => [h.key, h.value]));
-}
+describe("nonce policy (documents, via middleware)", () => {
+  it("script-src is nonce-based with no unsafe-inline", () => {
+    const ds = cspDirectives("https://abcdefgh.supabase.co", "abc123==");
+    expect(find(ds, "script-src")).toBe("script-src 'self' 'nonce-abc123=='");
+    expect(find(ds, "script-src")).not.toContain("unsafe-inline");
+  });
 
-function directives(headers: readonly { key: string; value: string }[]) {
-  return (headerMap(headers).get("Content-Security-Policy") ?? "").split("; ");
-}
+  it("without a nonce (the static asset fallback) script-src keeps unsafe-inline", () => {
+    const ds = cspDirectives("https://abcdefgh.supabase.co");
+    expect(find(ds, "script-src")).toBe("script-src 'self' 'unsafe-inline'");
+  });
+
+  it("buildCsp appends upgrade-insecure-requests only on https origins", () => {
+    const url = "https://abcdefgh.supabase.co";
+    expect(buildCsp(url, { nonce: "n", httpsOrigin: true })).toContain(
+      "upgrade-insecure-requests",
+    );
+    expect(buildCsp(url, { nonce: "n", httpsOrigin: false })).not.toContain(
+      "upgrade-insecure-requests",
+    );
+  });
+});
 
 describe("CSP tracks the configured Supabase origin", () => {
   /**
-   * The policy used to hardcode `https://*.supabase.co`, which silently
-   * assumes every deployment is a hosted project on Supabase's own domain. A
-   * self-hosted instance or a custom domain is then blocked by `connect-src`
-   * with no server-side symptom at all: the browser refuses the request,
-   * `signInWithPassword` never resolves, and the app simply never signs anyone
-   * in. The e2e stub hit exactly that.
-   *
-   * `cspDirectives` takes the URL as an argument precisely so this is a plain
-   * function call — reading `process.env` inside would make the interesting
-   * variants untestable, which is the same trap `buildSecurityHeaders` avoids.
+   * The policy used to hardcode `https://*.supabase.co` for every deployment.
+   * With 'unsafe-inline' gone the wildcard's remaining risk was as an exfil
+   * channel — ANY attacker-registered Supabase project was a valid
+   * `connect-src` target — so a configured deployment now gets its EXACT
+   * project origin; the wildcard survives only as the no-config fallback.
    */
   const directivesWith = (url: string | undefined) => cspDirectives(url);
 
-  const find = (ds: string[], name: string) => ds.find((d) => d.startsWith(`${name} `))!;
+  it("narrows a hosted project to its exact origin (no wildcard)", () => {
+    const ds = directivesWith("https://abcdefgh.supabase.co");
+    expect(find(ds, "connect-src")).toBe(
+      "connect-src 'self' https://abcdefgh.supabase.co wss://abcdefgh.supabase.co",
+    );
+    expect(find(ds, "connect-src")).not.toContain("*.supabase.co");
+  });
 
-  it("adds a self-hosted origin to every directive the wildcard appears in", () => {
+  it("adds a self-hosted origin to every directive the project appears in", () => {
     const ds = directivesWith("https://db.example.com");
     for (const name of ["connect-src", "img-src", "media-src", "form-action"]) {
       expect(find(ds, name), name).toContain("https://db.example.com");
     }
   });
 
-  it("leaves a hosted project's policy byte-identical", async () => {
-    // The wildcard already covers it; adding the exact origin too would be
-    // noise, and any diff here is a silent policy change for every existing
-    // deployment.
-    const hosted = await directivesWith("https://abcdefgh.supabase.co");
-    const unset = await directivesWith(undefined);
-    expect(hosted).toEqual(unset);
-    expect(find(hosted, "connect-src")).toBe(
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-    );
-  });
-
-  it("ignores a malformed URL rather than injecting it into the policy", () => {
-    const ds = directivesWith("not a url");
-    expect(find(ds, "connect-src")).toBe(
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-    );
+  it("falls back to the wildcard only when no URL is configured", () => {
+    for (const raw of [undefined, "not a url"]) {
+      const ds = directivesWith(raw);
+      expect(find(ds, "connect-src")).toBe(
+        "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      );
+    }
   });
 
   /**
    * supabase-js derives its Realtime endpoint by rewriting the configured
    * URL's protocol (`https:` → `wss:`), and CSP's scheme matching never
    * upgrades `https` to `wss`. So an origin added for REST leaves its own
-   * socket blocked — REST works, every channel is refused, and only on a
-   * custom-domain or self-hosted deployment. The hosted wildcard has listed
-   * both schemes since day one; the configured origin has to match it.
+   * socket blocked unless the ws origin is listed too.
    */
   it("also allows the WebSocket origin supabase-js derives from the same URL", () => {
     const connect = find(directivesWith("https://db.example.com"), "connect-src");
@@ -99,9 +104,9 @@ describe("CSP tracks the configured Supabase origin", () => {
     }
   });
 
-  it("adds only the ORIGIN, never a path or query from the env value", async () => {
+  it("adds only the ORIGIN, never a path or query from the env value", () => {
     // A stray path in the env var must not end up in the policy.
-    const ds = await directivesWith("https://db.example.com/rest/v1?k=v");
+    const ds = directivesWith("https://db.example.com/rest/v1?k=v");
     expect(find(ds, "connect-src")).toContain("https://db.example.com");
     expect(find(ds, "connect-src")).not.toContain("/rest/v1");
     expect(find(ds, "connect-src")).not.toContain("k=v");
@@ -109,28 +114,34 @@ describe("CSP tracks the configured Supabase origin", () => {
 });
 
 describe("security headers by transport", () => {
-  it("ships upgrade-insecure-requests and HSTS only on an https origin", () => {
-    expect(directives(secure)).toContain("upgrade-insecure-requests");
-    expect(headerMap(secure).get("Strict-Transport-Security")).toMatch(/max-age=\d+/);
+  const secure = buildSecurityHeaders(true);
+  const plain = buildSecurityHeaders(false);
 
-    expect(directives(plain)).not.toContain("upgrade-insecure-requests");
+  function headerMap(headers: readonly { key: string; value: string }[]) {
+    return new Map(headers.map((h) => [h.key, h.value]));
+  }
+
+  it("ships HSTS only on an https origin", () => {
+    expect(headerMap(secure).get("Strict-Transport-Security")).toMatch(/max-age=\d+/);
     expect(headerMap(plain).has("Strict-Transport-Security")).toBe(false);
   });
 
-  it("keeps every other CSP directive identical, so the two can't drift", () => {
-    expect(directives(plain)).toEqual(CSP_DIRECTIVES);
-    expect(directives(secure).filter((d) => d !== "upgrade-insecure-requests")).toEqual(
-      CSP_DIRECTIVES,
-    );
+  it("the static asset CSP carries upgrade-insecure-requests only on https", () => {
+    expect(staticCspHeader(true).value).toContain("upgrade-insecure-requests");
+    expect(staticCspHeader(false).value).not.toContain("upgrade-insecure-requests");
+    // And both variants share every other directive byte-for-byte.
+    expect(
+      staticCspHeader(true)
+        .value.split("; ")
+        .filter((d) => d !== "upgrade-insecure-requests"),
+    ).toEqual(CSP_DIRECTIVES);
+    expect(staticCspHeader(false).value.split("; ")).toEqual(CSP_DIRECTIVES);
   });
 
   it("keeps every non-transport header identical across both", () => {
     const strip = (headers: readonly { key: string; value: string }[]) =>
       headers
-        .filter(
-          (h) =>
-            h.key !== "Content-Security-Policy" && h.key !== "Strict-Transport-Security",
-        )
+        .filter((h) => h.key !== "Strict-Transport-Security")
         .map((h) => `${h.key}: ${h.value}`);
     expect(strip(secure)).toEqual(strip(plain));
   });
@@ -138,22 +149,28 @@ describe("security headers by transport", () => {
   it("still locks down the basics on BOTH transports", () => {
     for (const set of [secure, plain]) {
       const map = headerMap(set);
-      const csp = map.get("Content-Security-Policy") ?? "";
-      expect(csp).toContain("default-src 'self'");
-      expect(csp).toContain("frame-ancestors 'none'");
-      expect(csp).toContain("object-src 'none'");
-      expect(csp).toContain("base-uri 'self'");
       expect(map.get("X-Frame-Options")).toBe("DENY");
       expect(map.get("X-Content-Type-Options")).toBe("nosniff");
       expect(map.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     }
+    for (const csp of [
+      buildCsp(undefined, { nonce: "n", httpsOrigin: true }),
+      staticCspHeader(false).value,
+    ]) {
+      expect(csp).toContain("default-src 'self'");
+      expect(csp).toContain("frame-ancestors 'none'");
+      expect(csp).toContain("object-src 'none'");
+      expect(csp).toContain("base-uri 'self'");
+    }
   });
 
-  it("keeps Supabase reachable for storage previews on both", () => {
-    for (const set of [secure, plain]) {
-      const csp = headerMap(set).get("Content-Security-Policy") ?? "";
-      expect(csp).toMatch(/img-src[^;]*https:\/\/\*\.supabase\.co/);
-      expect(csp).toMatch(/media-src[^;]*https:\/\/\*\.supabase\.co/);
+  it("keeps Supabase storage reachable for previews in both variants", () => {
+    for (const csp of [
+      buildCsp("https://abcdefgh.supabase.co", { nonce: "n", httpsOrigin: true }),
+      buildCsp(undefined, { httpsOrigin: false }),
+    ]) {
+      expect(csp).toMatch(/img-src[^;]*supabase\.co/);
+      expect(csp).toMatch(/media-src[^;]*supabase\.co/);
     }
   });
 });

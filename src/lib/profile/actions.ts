@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  RATE_LIMITED_MESSAGE,
+  emailLimited,
+  writeLimited,
+} from "@/lib/security/action-limit";
 import { createClient } from "@/lib/supabase/server";
 import { describeWriteError, writeErrorLogLine } from "@/lib/supabase/errors";
 import type { Database } from "@/lib/supabase/database.types";
@@ -22,12 +27,47 @@ type ProfilePatch = {
  * Update the signed-in user's profile. RLS confines the write to the owner row;
  * `display_name` uniqueness is enforced by a DB constraint and surfaced here.
  */
+/**
+ * The only hosts an avatar may load from (audit SEC-006) — the same set the
+ * CSP img-src and next/image remotePatterns allow. The client renders
+ * avatar_url with `unoptimized` (Supabase transforms it already), which skips
+ * remotePatterns, so the server is where the allowlist must live.
+ */
+function isAllowedAvatarUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:") return false;
+    const configured = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const configuredHost = configured ? new URL(configured).hostname : null;
+    return (
+      u.hostname === configuredHost ||
+      u.hostname.endsWith(".supabase.co") ||
+      u.hostname === "lh3.googleusercontent.com" ||
+      u.hostname === "avatars.githubusercontent.com"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function updateProfileAction(patch: ProfilePatch): Promise<ActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  if (writeLimited(user.id, "profile-write")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
+  // An arbitrary string here would render on /profile from any origin the
+  // attacker of one's own account chooses — allowlist it server-side.
+  if (
+    patch.avatar_url !== undefined &&
+    patch.avatar_url !== null &&
+    !isAllowedAvatarUrl(patch.avatar_url)
+  ) {
+    return { ok: false, error: "That avatar location isn't allowed." };
+  }
 
   // Normalise empties to null and trim text fields.
   const update: ProfilePatch = {};
@@ -79,6 +119,14 @@ export async function updateEmailAction(email: string): Promise<ActionResult> {
   if (!trimmed) return { ok: false, error: "Enter an email address." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Your session expired — sign in again." };
+  // Each call sends real mail to an arbitrary address — the tightest budget.
+  if (emailLimited(user.id, "profile-email")) {
+    return { ok: false, error: RATE_LIMITED_MESSAGE };
+  }
   const { error } = await supabase.auth.updateUser({ email: trimmed });
   if (error) {
     console.error(writeErrorLogLine("profile", "write", error));

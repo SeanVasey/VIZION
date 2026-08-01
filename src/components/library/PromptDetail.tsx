@@ -415,7 +415,7 @@ export function PromptDetail({
                 // compact pill visual.
                 "tap-44 font-body rounded-full px-3 py-1.5 text-xs uppercase tracking-wider transition-colors",
                 mode === m.id
-                  ? "bg-laser text-on-laser"
+                  ? "selected-ink bg-laser text-on-laser"
                   : "glass text-silver hover:text-chalk",
               ].join(" ")}
             >

@@ -325,7 +325,9 @@ export function SettingsPanel({
                 setNewEmail(pendingEmail);
                 write("email", () => updateEmailAction(pendingEmail));
               }}
-              className="text-accent transition-colors hover:text-chalk"
+              // Resting underline (A11Y-007): accent-vs-amber ink is a color-only
+              // distinction inside the sentence without it.
+              className="text-accent underline decoration-1 underline-offset-2 transition-colors hover:text-chalk"
             >
               Resend
             </button>
@@ -387,6 +389,7 @@ export function SettingsPanel({
           <button
             type="button"
             role="switch"
+            aria-label="Reduced effects"
             aria-checked={reducedEffects}
             onClick={() => setReducedEffects(!reducedEffects)}
             className={`inline-flex h-8 w-14 items-center rounded-full border border-hair p-1 transition-colors ${

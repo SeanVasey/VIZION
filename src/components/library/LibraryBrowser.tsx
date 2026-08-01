@@ -32,7 +32,7 @@ import { CollectionSheet } from "@/components/library/CollectionSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
-import { ArchiveMark, FolderMark, StarMark, XMark } from "@/components/ui/glyphs";
+import { ArchiveMark, FolderMark, StarMark, UndoGlyph, XMark } from "@/components/ui/glyphs";
 import { useSwipeActions } from "@/components/library/use-swipe-actions";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 
@@ -126,7 +126,7 @@ export function LibraryBrowser({
       }
       refreshAfterMutation();
       toast({
-        text: "Prompt deleted",
+        text: "Moved to Recently deleted",
         action: {
           label: "Undo",
           onAction: () => {
@@ -360,7 +360,7 @@ function CardActionsSheet({
       onMutated();
       onClose();
       toast({
-        text: "Prompt deleted",
+        text: "Moved to Recently deleted",
         action: {
           label: "Undo",
           onAction: () => {
@@ -373,6 +373,50 @@ function CardActionsSheet({
 
   const itemClass =
     "glass font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60";
+
+  // Recently-deleted prompts get the recovery sheet (Q9): restore is the
+  // headline, permanent deletion is the explicit, confirmed alternative —
+  // nothing else applies to a prompt that no list shows.
+  if (prompt.deleted) {
+    return (
+      <Sheet open onClose={onClose} title={prompt.title}>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => undoDeletePromptAction(prompt.id))}
+            className={itemClass}
+          >
+            Restore
+            <UndoGlyph className="h-4 w-4 shrink-0 text-accent" />
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setConfirmPurge(true)}
+            className="btn-destructive font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm disabled:opacity-60"
+          >
+            Delete permanently
+            <XMark className="h-4 w-4 shrink-0" />
+          </button>
+          {error && (
+            <p className="font-body text-sm text-flare" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+        <ConfirmSheet
+          open={confirmPurge}
+          onClose={() => setConfirmPurge(false)}
+          title="Delete permanently?"
+          body={`"${prompt.title}" and all ${prompt.versions} of its versions will be gone for good — this cannot be undone.`}
+          confirmLabel="Delete permanently"
+          destructive
+          onConfirm={() => run(() => deletePromptAction(prompt.id))}
+        />
+      </Sheet>
+    );
+  }
 
   return (
     <Sheet open onClose={onClose} title={prompt.title}>
@@ -499,6 +543,10 @@ const PromptRow = memo(function PromptRow({
 }) {
   const swipe = useSwipeActions();
   const developer = MODEL_DEVELOPER_MAP.get(p.target_model);
+  // Trash rows (Q9): the swipe verbs (favorite / soft-delete) don't apply to
+  // an already-deleted prompt — gestures off, panels unrendered; recovery
+  // lives in the actions sheet.
+  const inTrash = p.deleted;
   // PER SIDE, never one shared flag — otherwise dragging one way lights the
   // panel on the other edge too and puts the bleed straight back.
   // Displacement first, `open` second: `open` is set only at pointer-up while
@@ -545,6 +593,7 @@ const PromptRow = memo(function PromptRow({
           transmits 28% in dark, so a permanently-painted panel showed straight
           through it: every row carried an olive left edge and a muddy red
           right edge, constant and model-independent. */}
+      {!inTrash && (
       <div aria-hidden={swipe.open === null} className={`${panel(leftOn)} left-0`}>
         <button
           type="button"
@@ -561,6 +610,8 @@ const PromptRow = memo(function PromptRow({
           </span>
         </button>
       </div>
+      )}
+      {!inTrash && (
       <div aria-hidden={swipe.open === null} className={`${panel(rightOn)} right-0`}>
         <button
           type="button"
@@ -578,8 +629,9 @@ const PromptRow = memo(function PromptRow({
           <span className="sr-only">Delete {p.title}</span>
         </button>
       </div>
+      )}
       <div
-        {...swipe.handlers}
+        {...(inTrash ? {} : swipe.handlers)}
         onClickCapture={swipe.onClickCapture}
         style={swipe.style}
         className="relative transition-transform duration-150 ease-out motion-reduce:transition-none"
@@ -681,7 +733,7 @@ function QuickChip({
       aria-pressed={active}
       className={[
         "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
-        active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
+        active ? "selected-ink bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
       ].join(" ")}
     >
       {label}
