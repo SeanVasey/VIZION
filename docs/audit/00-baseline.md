@@ -16,7 +16,7 @@ The capstone prompt requests branch `audit/<yyyy-mm-dd>`; the session's operatin
 mandate fixes all work to `claude/vizion-audit-capstone-dcxs77` and forbids
 pushing elsewhere. Per the capstone ROLE clause (repo/session contract wins,
 conflict is logged), the audit develops on the mandated branch. Logged as
-ledger item `DOC-XXX` track-conflict entry (see `01-ledger.md`).
+ledger item `DOC-015` (see `01-ledger.md`).
 
 ## Context-block verification
 
@@ -123,8 +123,18 @@ Per-item dispositions (`resolved` / `partially-resolved` / `regressed` /
 
 Source of truth: R1–R8 as recorded in `CHANGELOG.md` § "Fixed — UI remediation
 (R1–R8)" and `tasks/lessons.md` (the standalone prompt file is absent — see
-Context-block verification). Status table is appended below after the Stage 1
-sweep; expanded evidence lives in `01-ledger.md`.
+Context-block verification). Expanded evidence lives in `01-ledger.md`.
+
+| Gate | Status | Headline evidence |
+| --- | --- | --- |
+| R1 brand wiring | met | Icon token left of wordmark in `ScreenHeader`, mark as login hero in `AuthHero`, `BrandPills` reads live version |
+| R2 type system | **partial** | Three fonts self-hosted and scoped, but `Footer.tsx:99` renders the version line in `font-mono` outside the output region (ledger `INV-004`, INV-11 partial) |
+| R3 light/dark contrast tokens | met | `--on-laser`, `--accent-ink`, light `--flare`, theme-swapped `--chalk`/`--silver` all present and consumed |
+| R4 glass + neural mesh | met | 30fps-capped canvas, `prefers-reduced-motion` static fallback, `document.hidden` pause, glass on floating elements |
+| R5 mode instrument | **partial** | One glass chassis with sliding lens-lock indicator, but six cells vs the recorded five (ledger `MOD-005`, NEEDS-RULING) and 320px label overflow (ledger `DSN-007`) |
+| R6 auth & profile | met | Branded OAuth marks via `ProviderIcon`, provider shown in profile, capped destructive sign-out |
+| R7 footer | met | Canonical `Footer` on login + profile; monograms still behind `BRAND_MONOGRAMS_READY` (dormant by design, real files never landed) |
+| R8 iOS & performance | **partial** | Rows memoized and result reads submitted input, but the recorded "media studio route-level dynamic import" no longer exists anywhere (ledger `PRI-016`) |
 
 ## Inventory
 
