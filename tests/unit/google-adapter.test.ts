@@ -99,3 +99,74 @@ describe("streamGoogle request body", () => {
     expect(usage).toEqual({ tokenIn: 10, tokenOut: 8 });
   });
 });
+
+/** Body from raw pre-encoded SSE text, so tests control the frame separators
+ *  byte-for-byte. */
+function rawBody(text: string): ReadableStream<Uint8Array> {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(text));
+      controller.close();
+    },
+  });
+}
+
+async function drainText(body: ReadableStream<Uint8Array>): Promise<string> {
+  vi.stubEnv("GOOGLE_API_KEY", "g-test");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, status: 200, body }),
+  );
+  let text = "";
+  for await (const chunk of streamGoogle("sys", "in", "gemini-3.6-flash")) {
+    if (chunk.text) text += chunk.text;
+  }
+  return text;
+}
+
+describe("streamGoogle frame decoding", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  const frame = (payload: unknown) => `data: ${JSON.stringify(payload)}`;
+  const textFrame = (text: string) =>
+    frame({ candidates: [{ content: { parts: [{ text }] } }] });
+
+  it("decodes CRLF-delimited frames — the separator production Gemini sends", async () => {
+    // 2026-08 production incident: every Gemini run failed with "The model
+    // returned a non-JSON response." because `alt=sse` delimits events with
+    // \r\n\r\n, which a bare indexOf("\n\n") never matches — zero frames
+    // parsed, empty assembly, guaranteed parse failure.
+    const body = rawBody(
+      `${textFrame('{"output":"hi",')}\r\n\r\n${textFrame('"rationale":"ok"}')}\r\n\r\n`,
+    );
+    expect(await drainText(body)).toBe('{"output":"hi","rationale":"ok"}');
+  });
+
+  it("flushes a final frame that closes without its trailing blank line", async () => {
+    const body = rawBody(
+      `${textFrame('{"output":"hi",')}\r\n\r\n${textFrame('"rationale":"ok"}')}`,
+    );
+    expect(await drainText(body)).toBe('{"output":"hi","rationale":"ok"}');
+  });
+
+  it("drops thought parts so reasoning never corrupts the JSON envelope", async () => {
+    const body = rawBody(
+      `${frame({
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: "Let me reason about this…", thought: true },
+                { text: '{"output":"hi","rationale":"ok"}' },
+              ],
+            },
+          },
+        ],
+      })}\n\n`,
+    );
+    expect(await drainText(body)).toBe('{"output":"hi","rationale":"ok"}');
+  });
+});

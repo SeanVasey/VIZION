@@ -22,7 +22,15 @@ const ERROR_COPY: Record<string, string> = {
   invalid_link: "That sign-in link is invalid or has expired — request a fresh one.",
 };
 
-export function SignInForm({ initialError }: { initialError?: string }) {
+export function SignInForm({
+  initialError,
+  registrationClosed = false,
+}: {
+  initialError?: string;
+  /** Owner switch (app_settings.open_access = false): existing accounts may
+   *  still sign in, but the magic-link path must not create new ones. */
+  registrationClosed?: boolean;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // Magic link is the default entry; the password path exercises the durable
@@ -72,9 +80,23 @@ export function SignInForm({ initialError }: { initialError?: string }) {
 
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: `${origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${origin}/auth/callback`,
+        // Closed access: link only accounts that already exist. Supabase then
+        // rejects unknown addresses ("Signups not allowed…") — reworded below.
+        ...(registrationClosed ? { shouldCreateUser: false } : {}),
+      },
     });
-    setStatus(error ? { kind: "error", message: error.message } : { kind: "sent" });
+    setStatus(
+      error
+        ? {
+            kind: "error",
+            message: /signup|sign-?ups?/i.test(error.message)
+              ? "New registrations are currently closed."
+              : error.message,
+          }
+        : { kind: "sent" },
+    );
   }
 
   async function signInWithProvider(provider: "github" | "google") {
@@ -199,6 +221,13 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           {withPassword ? "Use a magic link instead" : "Have a password? Sign in with it"}
         </button>
       </form>
+
+      {registrationClosed && (
+        <p className="font-body text-center text-xs text-silver">
+          New registrations are currently closed. Existing accounts can still
+          sign in.
+        </p>
+      )}
 
       {status.kind === "error" && (
         <p className="font-body text-center text-sm text-flare" role="alert">

@@ -116,6 +116,18 @@ function seed() {
     // specs that need a draft create one through the UI (the FAB's Save
     // path), which is the behaviour worth covering anyway.
     drafts: [],
+    // Owner-console flags (2026-08). The authed layout and the sign-in page
+    // SELECT this on every request; defaults mirror the migration so the
+    // authed specs see an open app with the shipped accent strength.
+    app_settings: [
+      {
+        id: 1,
+        owner_user_id: null,
+        open_access: true,
+        dev_accent_strength: 26,
+        updated_at: NOW,
+      },
+    ],
   };
 }
 

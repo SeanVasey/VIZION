@@ -23,6 +23,7 @@ import {
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { reserveSpend, settleSpend, releaseSpend } from "@/lib/security/spend";
+import { getAppSettings, isOwnerUser } from "@/lib/owner/settings";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
@@ -78,6 +79,13 @@ export async function POST(request: NextRequest) {
 
   if (!rateLimit(`media:${user.id}`, RATE_LIMIT_PER_MIN, 60_000).allowed) {
     return err(429, "You're going fast — wait a moment and try again.");
+  }
+
+  // Owner switch (app_settings.open_access): when closed, only the owner may
+  // spend against the provider keys. Same rule as the enhance route.
+  const appSettings = await getAppSettings(supabase);
+  if (!appSettings.openAccess && !isOwnerUser(user, appSettings)) {
+    return err(403, "The owner has closed access for other accounts.");
   }
 
   let body: unknown;
