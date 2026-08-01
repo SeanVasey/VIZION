@@ -895,7 +895,10 @@
     }
   }
 
-  /* Top-edge Laser shimmer for the active result surface (R4). */
+  /* Top-edge accent shimmer for the active result surface (R4).
+     --accent-ink, not raw --laser: a 1px Laser stroke measures 1.06:1 on the
+     light canvas (contrast law §6 — never a thin stroke on a light surface);
+     the ink resolves to Laser on dark, deep green (5.55:1) on light. */
   .result-shimmer {
     position: relative;
   }
@@ -907,7 +910,7 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      var(--laser) 50%,
+      var(--accent-ink) 50%,
       transparent 100%
     );
     opacity: 0.6;
@@ -923,20 +926,23 @@
     border-radius: 9999px;
     background: var(--hair);
   }
+  /* --accent-ink, not raw --laser: the 3px sweep is a thin stroke, invisible
+     at 1.06:1 on the light page (contrast law §6). Ink = Laser on dark, deep
+     green on light; the glow derives from the same ink so it follows. */
   .stream-progress-sweep {
     position: absolute;
     inset: 0;
     background: linear-gradient(
       90deg,
       transparent 0%,
-      var(--laser) 45%,
-      var(--laser) 55%,
+      var(--accent-ink) 45%,
+      var(--accent-ink) 55%,
       transparent 100%
     );
     background-size: 40% 100%;
     background-repeat: no-repeat;
     animation: stream-sweep 1.4s ease-in-out infinite;
-    box-shadow: 0 0 12px var(--laser-glow, rgba(183, 255, 60, 0.25));
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-ink) 25%, transparent);
   }
   @keyframes stream-sweep {
     from {

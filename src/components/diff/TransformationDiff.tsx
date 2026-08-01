@@ -31,6 +31,7 @@ import {
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useUIStore } from "@/stores/ui";
 import { useCopy } from "@/components/ui/use-copy";
+import { CheckMark } from "@/components/ui/glyphs";
 import { InputSegments, OutputSegments, REMOVED_CLASS } from "@/components/diff/segments";
 import { CompareSheet } from "@/components/diff/CompareSheet";
 
@@ -359,7 +360,14 @@ export function TransformationDiff({
           onClick={copyOutput}
           className="btn-laser flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm"
         >
-          {copied ? "Copied ✓" : "Copy"}
+          {copied ? (
+            <span className="inline-flex items-center gap-1">
+              Copied
+              <CheckMark />
+            </span>
+          ) : (
+            "Copy"
+          )}
         </button>
         {onUse && (
           <button
@@ -489,7 +497,11 @@ export function TransformationDiff({
               href={`/library/${savedId}`}
               className="flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-xl bg-pulse px-2 text-sm text-on-laser"
             >
-              Saved ✓ — open
+              <span className="inline-flex items-center gap-1">
+                Saved
+                <CheckMark />
+                — open
+              </span>
             </Link>
           ) : queued ? (
             <span className="font-body flex min-h-[44px] items-center justify-center rounded-xl bg-amber px-2 text-center text-xs leading-snug text-on-laser">
@@ -610,8 +622,8 @@ export function TransformationDiff({
           {result.resolvedTarget && (
             <span>Auto → {TARGET_LABEL[result.resolvedTarget]} · </span>
           )}
-          {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok · $
-          {result.costUsd.toFixed(4)}
+          {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok ·{" "}
+          {result.usageEstimated ? "≈" : ""}${result.costUsd.toFixed(4)}
         </p>
       </div>
 
@@ -759,7 +771,14 @@ export function TransformationDiff({
             onClick={copyOutput}
             className="btn-laser flex min-h-[44px] flex-1 items-center justify-center whitespace-nowrap rounded-xl px-2 text-sm"
           >
-            {copied ? "Copied ✓" : "Copy"}
+            {copied ? (
+              <span className="inline-flex items-center gap-1">
+                Copied
+                <CheckMark />
+              </span>
+            ) : (
+              "Copy"
+            )}
           </button>
           {onUse && (
             <button

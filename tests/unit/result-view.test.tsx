@@ -228,8 +228,9 @@ describe("duplicate detection at save", () => {
       "p9",
       expect.objectContaining({ output: "write a concise summary" }),
     );
-    // Resolves into the normal saved state.
-    expect(await screen.findByText(/Saved ✓/)).toBeTruthy();
+    // Resolves into the normal saved state ("Saved" + check glyph — the mark
+    // is an aria-hidden SVG now, so the match is on the text alone).
+    expect(await screen.findByText(/Saved/)).toBeTruthy();
   });
 });
 

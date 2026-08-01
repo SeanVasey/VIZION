@@ -61,6 +61,10 @@ export interface EnhanceOutput {
    *  completed — the result was recovered from the stream (rationale is
    *  empty). Rides to the client so the result view can say so. */
   salvaged?: boolean;
+  /** Token counts (and so the cost) came from the ~4 chars/token fallback
+   *  because the provider never reported usage — an estimate, not a
+   *  measurement (INV-04 cost truth). Rides to the client and the ledger. */
+  usageEstimated?: boolean;
 }
 
 /** Events surfaced by the streaming adapter. `delta` text is the DECODED
@@ -142,9 +146,17 @@ export async function* enhanceStream({
   }
 
   // A provider that never reported usage (defensive) still must count against
-  // the cost cap — fall back to the ~4 chars/token estimate.
-  if (tokenIn === 0) tokenIn = Math.ceil((system.length + input.length) / 4);
-  if (tokenOut === 0 && raw.length > 0) tokenOut = Math.ceil(raw.length / 4);
+  // the cost cap — fall back to the ~4 chars/token estimate, marked as such
+  // so neither the result view nor the ledger presents it as a measurement.
+  let usageEstimated = false;
+  if (tokenIn === 0) {
+    tokenIn = Math.ceil((system.length + input.length) / 4);
+    usageEstimated = true;
+  }
+  if (tokenOut === 0 && raw.length > 0) {
+    tokenOut = Math.ceil(raw.length / 4);
+    usageEstimated = true;
+  }
 
   let payload;
   let salvaged = false;
@@ -174,6 +186,7 @@ export async function* enhanceStream({
       modelUsed: cfg.model,
       costUsd: computeCost(target, tokenIn, tokenOut),
       ...(salvaged ? { salvaged: true } : {}),
+      ...(usageEstimated ? { usageEstimated: true } : {}),
     },
   };
 }

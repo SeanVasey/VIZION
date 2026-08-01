@@ -202,6 +202,7 @@ export async function POST(request: NextRequest) {
     tokenIn: extracted.tokenIn,
     tokenOut: extracted.tokenOut,
     costUsd,
+    estimated: extracted.usageEstimated ?? false,
   });
   // The cap is only as good as this write (console.error survives prod).
   if (ledgerError) {
@@ -215,6 +216,9 @@ export async function POST(request: NextRequest) {
     costUsd,
     todayCost: reservation.todayCost + costUsd,
     capUsd: COST_CAP_USD_PER_DAY,
+    // "$0.0000" from an absent usage block is a default, not a measurement —
+    // the client renders the approximation marker off this flag (INV-04).
+    ...(extracted.usageEstimated ? { estimated: true } : {}),
   };
 
   // Transcription intent: the payload is the text, not attributes.

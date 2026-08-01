@@ -6,6 +6,56 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — audit Stage 2, Wave 1: the five invariant violations (PR #72 gate, `GO` received)
+
+The 2026-08-01 audit capstone (`docs/audit/`) found no S0 and five invariant
+violations; the owner accepted every adjudication recommendation. Wave 1
+clears the violations and hardens the guards that keep them cleared:
+
+- **INV-001 (INV-07 laser law).** The streaming progress sweep and the result
+  shimmer drew raw `--laser` strokes — 1.06:1 against the light page, an
+  invisible progress indicator for light-theme users. Both gradients (and the
+  sweep's glow, now a `color-mix` of the same ink) use `--accent-ink`: dark
+  rendering is byte-identical (the ink resolves to Laser there), light renders
+  at 5.55:1.
+- **INV-002 (INV-06 zero emoji).** The 21 remaining rendered emoji-range
+  glyphs (✓ ★ ✕ ✎ ⚠ ✦ across nine components) — POLISH-01's unfinished
+  remainder — are replaced by a shared SVG glyph language
+  (`src/components/ui/glyphs.tsx`: 24px grid, `currentColor`, 1.5px strokes,
+  filled state-markers), including the two adjacent `▤`/`⌂` dingbats in the
+  library action menu that sat outside the audit's scan ranges but are the
+  same defect. Status text ("Copied", "Saved") stays text; only the marks
+  became SVG.
+- **INV-003 (INV-08 brand separation).** `SECURITY.md` no longer routes
+  vulnerability reports to a VASEY.AUDIO mailbox — it points at GitHub private
+  vulnerability reporting. **Owner action required:** enable *Private
+  vulnerability reporting* under repo Settings → Advanced Security, or the
+  report link 404s.
+- **INV-004 (INV-11 type roles).** The footer version line drops `font-mono`
+  for `font-body` (Reddit Sans keeps `tabular-nums` for steady digits) —
+  JetBrains Mono is output-region only again.
+- **INV-005 (INV-04 cost truth).** When a provider stream never reports usage,
+  the ~4 chars/token fallback now travels as `usageEstimated` end-to-end: the
+  result line and the attachment details sheet render `≈$…` instead of an
+  exact figure, `/api/media` marks the absent-vision-usage default the same
+  way, and `spend_settle` ledgers an `estimated` flag on the `usage_events`
+  row (migration `20260801190000_usage_estimated_flag.sql`, **applied to the
+  hosted project** — apply before deploying this code). The abort-path
+  estimate settles as estimated too.
+
+Guard hardening that keeps them fixed (audit `INV-006/007/009`):
+
+- The mono type-scoping test is inverted: every `.tsx` under `src/components`
+  and `src/app` is scanned (74 files, was a 24-file allowlist) and the pattern
+  now catches the `font-mono` utility the old regex could not see; only the
+  seven output-region files may carry mono.
+- `src/lib/providers/config.ts` imports `server-only`, closing the one gap in
+  the provider layer's build-time fence around `PROVIDER_KEY_ENV`.
+- A new `icon-alpha` unit test (sharp) pins the icon contract: transparent
+  corners on the 13-icon any-matrix, full opacity on
+  maskable/apple-touch/favicon and the App Router icons — a regeneration that
+  flattens the wrong set now fails the gate.
+
 ### Fixed — the database could not be rebuilt from the repository
 
 Seven migrations — the entire P2–P5 base schema — were applied straight to the

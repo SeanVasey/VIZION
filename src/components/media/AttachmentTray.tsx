@@ -24,6 +24,7 @@ import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
 import { StreamProgress } from "@/components/feedback/StreamProgress";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
+import { CheckMark, WarningMark } from "@/components/ui/glyphs";
 import { MediaPrivacySheet } from "@/components/media/MediaPrivacySheet";
 import { AttachmentDetailsSheet } from "@/components/media/AttachmentDetailsSheet";
 import { GenerateSheet } from "@/components/media/GenerateSheet";
@@ -348,6 +349,7 @@ export function AttachmentTray({
                 tokenOut: data.usage.tokenOut ?? 0,
                 costUsd: data.usage.costUsd ?? 0,
                 target: analyzedWith,
+                ...(data.usage.estimated === true ? { estimated: true } : {}),
               };
               if (typeof data.usage.todayCost === "number") {
                 setCapUsage({
@@ -573,7 +575,10 @@ export function AttachmentTray({
                     </button>
                   )}
                   {item.inserted && (
-                    <span className="font-body text-xs text-accent">✓ In prompt</span>
+                    <span className="font-body inline-flex items-center gap-1 text-xs text-accent">
+                      <CheckMark />
+                      In prompt
+                    </span>
                   )}
                 </div>
               )}
@@ -592,7 +597,8 @@ export function AttachmentTray({
           className="font-body px-3 pt-2 text-center text-xs tabular-nums text-amber-ink"
           role="status"
         >
-          ⚠ ${capUsage.todayCost.toFixed(2)} of ${capUsage.capUsd.toFixed(2)} daily cap
+          <WarningMark className="mr-1 inline-block h-[1em] w-[1em] align-[-0.125em]" />$
+          {capUsage.todayCost.toFixed(2)} of ${capUsage.capUsd.toFixed(2)} daily cap
           used
         </p>
       )}

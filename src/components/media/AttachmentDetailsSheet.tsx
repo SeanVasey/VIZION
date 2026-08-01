@@ -7,6 +7,7 @@ import { TARGET_LABEL } from "@/lib/providers/formatters";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { buildStyleSnippet, sanitizeName } from "@/lib/media/context";
 import { useCopy } from "@/components/ui/use-copy";
+import { CheckMark } from "@/components/ui/glyphs";
 import type { MediaItem } from "@/lib/media/queue";
 
 /**
@@ -82,7 +83,8 @@ export function AttachmentDetailsSheet({
               className="h-3.5 w-3.5 shrink-0 text-accent"
             />
             {TARGET_LABEL[item.usage.target]} · {item.usage.tokenIn}→
-            {item.usage.tokenOut} tok · ${item.usage.costUsd.toFixed(4)}
+            {item.usage.tokenOut} tok · {item.usage.estimated ? "≈" : ""}$
+            {item.usage.costUsd.toFixed(4)}
           </p>
         )}
 
@@ -138,7 +140,14 @@ export function AttachmentDetailsSheet({
               }
               className="glass font-body min-h-[44px] self-start rounded-xl px-4 text-sm text-text hover-hair transition-colors"
             >
-              {copied ? "Copied ✓" : "Copy"}
+              {copied ? (
+                <span className="inline-flex items-center gap-1">
+                  Copied
+                  <CheckMark />
+                </span>
+              ) : (
+                "Copy"
+              )}
             </button>
           </>
         ) : null}

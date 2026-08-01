@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useTransition, type CSSProperties } from "react";
+import { memo, useState, useTransition, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -32,6 +32,7 @@ import { CollectionSheet } from "@/components/library/CollectionSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
+import { ArchiveMark, FolderMark, StarMark, XMark } from "@/components/ui/glyphs";
 import { useSwipeActions } from "@/components/library/use-swipe-actions";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 
@@ -210,7 +211,12 @@ export function LibraryBrowser({
               }),
             )
           }
-          label="★ Favorites"
+          label={
+            <>
+              <StarMark className="h-3.5 w-3.5 shrink-0" />
+              Favorites
+            </>
+          }
         />
       </div>
 
@@ -375,9 +381,7 @@ function CardActionsSheet({
             className={itemClass}
           >
             {prompt.favorite ? "Remove from favorites" : "Add to favorites"}
-            <span aria-hidden="true" className="text-accent">
-              ★
-            </span>
+            <StarMark className="h-4 w-4 shrink-0 text-accent" />
           </button>
           <button
             type="button"
@@ -386,7 +390,7 @@ function CardActionsSheet({
             className={itemClass}
           >
             {prompt.archived ? "Unarchive" : "Archive"}
-            <span aria-hidden="true">▤</span>
+            <ArchiveMark className="h-4 w-4 shrink-0" />
           </button>
           <button
             type="button"
@@ -395,7 +399,7 @@ function CardActionsSheet({
             className={itemClass}
           >
             Move to collection…
-            <span aria-hidden="true">⌂</span>
+            <FolderMark className="h-4 w-4 shrink-0" />
           </button>
           <button
             type="button"
@@ -404,7 +408,7 @@ function CardActionsSheet({
             className="btn-destructive font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm disabled:opacity-60"
           >
             Delete
-            <span aria-hidden="true">✕</span>
+            <XMark className="h-4 w-4 shrink-0" />
           </button>
           {prompt.archived && (
             <button
@@ -523,7 +527,7 @@ const PromptRow = memo(function PromptRow({
           }}
           className="flex w-[84px] items-center justify-center rounded-l-2xl bg-laser text-lg text-on-laser"
         >
-          <span aria-hidden="true">★</span>
+          <StarMark className="h-5 w-5" />
           <span className="sr-only">
             {p.favorite ? `Remove ${p.title} from favorites` : `Favorite ${p.title}`}
           </span>
@@ -542,7 +546,7 @@ const PromptRow = memo(function PromptRow({
           // byte-identical at 5.94:1; light flips to white at 5.77:1.
           className="flex w-[84px] items-center justify-center rounded-r-2xl bg-flare text-lg text-[color:var(--on-flare)]"
         >
-          <span aria-hidden="true">✕</span>
+          <XMark className="h-5 w-5" />
           <span className="sr-only">Delete {p.title}</span>
         </button>
       </div>
@@ -567,7 +571,7 @@ const PromptRow = memo(function PromptRow({
               // only element competing with the developer mark for the same
               // glance. The label is unchanged.
               <span aria-label="Favorite" className="mr-1 text-silver">
-                ★
+                <StarMark className="inline-block h-[0.8em] w-[0.8em] align-[-0.02em]" />
               </span>
             )}
             {p.title}
@@ -595,7 +599,15 @@ const PromptRow = memo(function PromptRow({
           {relativeTime(p.updated_at)} · {p.versions} version
           {p.versions === 1 ? "" : "s"}
           {p.archived ? " · archived" : ""}
-          {collectionName ? ` · ⌂ ${collectionName}` : ""}
+          {collectionName ? (
+            <>
+              {" · "}
+              <FolderMark className="inline-block h-[1em] w-[1em] align-[-0.125em]" />{" "}
+              {collectionName}
+            </>
+          ) : (
+            ""
+          )}
           {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
         </p>
       </Link>
@@ -632,7 +644,7 @@ function QuickChip({
 }: {
   active: boolean;
   onClick: () => void;
-  label: string;
+  label: ReactNode;
 }) {
   return (
     <button

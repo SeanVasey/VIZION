@@ -197,7 +197,7 @@ still-open or partial carry-forwards.
 - **verification:** python3 contrast check of #3f6b00 vs #eef0f4 (>=3:1 non-text, actual 5.55:1) plus visual pass: run the app in light theme, start an enhancement, confirm the sweep is visible on the track.
 - **adversarial verdict:** CONFIRMED — Verified in code and by computation: globals.css:910 and :932 use raw var(--laser) in both gradients with no light-theme override anywhere in the repo; tokens.css:101 leaves --laser at #b7ff3c in light theme; WCAG math gives 1.06:1 vs page #eef0f4, 1.21:1 vs white, and 1.22:1 vs the composited hair track #d3d5d9 — all far under the 3:1 non-text floor, so the sweep is effectively invisible in light theme. This directly violates the LOCKED contrast law at tokens.css:5-7 ("--laser is never used as text or a thin stroke on a light surface"), the exact problem the codebase already fixes elsewhere via --accent-ink (globals.css:123-139 focus ring, :743-771 timeline rail, Footer, NeuralMeshBackground), confirming these two rules were missed rather than exempted. Blast radius checks out (StreamingResult.tsx:26,32; AttachmentTray.tsx:536; TransformationDiff.tsx:290) and the reduced-motion variant at globals.css:950 inherits the same laser gradient. No conflict with PR-1..PR-7, which are all platform/API rulings. Proposed fix verified: #3f6b00 vs #eef0f4 = 5.55:1, and --accent-ink resolves to --laser on dark so dark rendering is unchanged. Sole mitigation: the adjacent step label is AA silver text, so state is not entirely lost — but a true invariant violation floors at S1, so severity stands.
 - **independently found by:** DSN ("Raw --laser used as the stream-progress sweep and result-shimmer stroke renders at ~1.1:1 on the light theme, ")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: both gradients (and the sweep glow) now use var(--accent-ink); dark rendering unchanged, light renders at 5.55:1
 
 ### INV-002 — Seventeen rendered UI sites still use emoji-range glyphs (U+26A0, U+2713, U+2715, U+270E, U+2605, U+2726) as icons — the unfinished remainder of prior ledger item POLISH-01
 
@@ -207,7 +207,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Replace each glyph with a 1.5px-stroke inline SVG on the 24px grid following DeveloperIcon.tsx / CheckGlyph.tsx (reuse CheckGlyph for the ✓ sites; add star, x, pencil, warning, and spark glyphs). Keep aria-label/aria-hidden semantics unchanged; keep the 'Copied'/'Saved' status text, swapping only the trailing mark.
 - **verification:** Re-run the emoji codepoint scan (ranges U+1F300-1FAFF, U+2600-27BF, U+2B00-2BFF, VS16) over src/**/*.{tsx,ts,css}: zero hits outside comments; then npm run lint && npm run typecheck && npx vitest run.
 - **adversarial verdict:** CONFIRMED — Reproduced the scan: all cited lines are real rendered-UI glyph sites (e.g. CollectionSheet.tsx:150 renders <span aria-hidden="true">U+270E</span>; EnhanceComposer.tsx:292 interpolates U+26A0 into the cap-warning string), and the excluded hits are genuinely comments. Ledger POLISH-01 (docs/audits/VIZION-enhancement-ledger.json:1561, evaluation.md:1413) confirms title "Replace emoji glyphs", acceptance "No emoji codepoints in UI source", with check and warning in its inventory; tasks/lessons.md:2039-2064 (2026-07-30) retired only the picture/film/headphone/reset/paperclip glyphs; DeveloperIcon.tsx and ui/CheckGlyph.tsx exist as claimed; PR-1..PR-7 concern platform APIs and taxonomy, so no settled ruling is contradicted. One arithmetic error in the claim's favor: the evidence enumerates 21 rendered sites across the 9 files, not 17 — the finding undercounts. S1 stands under the stated rule that a true invariant violation is minimum S1 (I cannot independently read INV-06's text, which lives in the audit prompt, but every checkable fact holds).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: all 21 rendered emoji sites (plus the two adjacent ▤/⌂ dingbats in the same menu) replaced with the shared SVG glyph language (src/components/ui/glyphs.tsx); codepoint scan over src/ is clean outside comments
 
 ### INV-003 — SECURITY.md still directs vulnerability reports to sean@vasey.audio, a VASEY.AUDIO address in public repo metadata of a VASEY/AI product (carry-forward of GOV-01, unresolved).
 
@@ -218,7 +218,7 @@ still-open or partial carry-forwards.
 - **verification:** grep -ci 'vasey.audio' SECURITY.md returns 0 after the edit, and the GitHub repo shows Private Vulnerability Reporting enabled.
 - **adversarial verdict:** CONFIRMED — SECURITY.md:5 verbatim contains 'sean@vasey.audio' at HEAD (a4072e6, 2026-08-01), directly violating CLAUDE.md:84 'Zero VASEY.AUDIO crossover in copy, assets, or metadata' (INV-08). Carry-forward verified: GOV-01 confirmed in docs/audits/VIZION-enhancement-evaluation.md:1357-1368 (acceptance at 1525) and ledger lines 1978-2007 ('P1 - implement next'), with git log of SECURITY.md showing no fix commit and no resolution entry in CHANGELOG.md or tasks/lessons.md. Public visibility is evidenced in the ledger ('githubRepoVisibility: public'). Repo-wide grep confirms this is the only live violation; the Footer's 'Vasey Multimedia' is a distinct sanctioned entity per CHANGELOG R7. No PR-1..PR-7 ruling touches brand separation. S1 is the contract minimum for a true invariant violation and the blast radius is correctly scoped, so severity is not inflated.
 - **independently found by:** PRI ("SECURITY.md still routes vulnerability reports to sean@vasey.audio, violating the section 6 zero-VASEY.AUDIO-c"); DOC ("SECURITY.md still directs vulnerability reports to sean@vasey.audio, a VASEY.AUDIO address on a public VASEY/A")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: SECURITY.md routes reports to GitHub private vulnerability reporting; owner action outstanding: enable PVR in repo Settings → Advanced Security (until then the link 404s — no VASEY.AUDIO address remains either way)
 
 ### INV-004 — R2 partial: the footer version line renders in JetBrains Mono (font-mono) outside the enhanced-prompt output region, and Footer.tsx is not covered by the type-scoping guard test.
 
@@ -228,7 +228,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Rule whether version strings are a sanctioned mono surface: if yes, amend the R2 gate wording and extend type-scoping.test.ts to also match font-mono so the widened contract is guarded; if no, change Footer.tsx:99 to font-body and add Footer.tsx to UI_ONLY_FILES.
 - **verification:** npx vitest run tests/unit/type-scoping.test.ts after the ruling's edit - the extended regex/file list must fail on reintroduction.
 - **adversarial verdict:** CONFIRMED — Lead-verified: src/components/Footer.tsx:99 applies font-mono to the version line, a UI metadata surface outside the enhanced-prompt output region. INV-11 is unambiguous (JetBrains Mono: output region only), so this is a violation, not a ruling question. Secondary genuinely-ambiguous site kept as a sub-question inside this entry: AttachmentDetailsSheet.tsx:101,119 puts the mono class on textareas that edit model-written prose (an editable output region) - whether editable output keeps mono needs a ruling, but the footer version line does not.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: Footer version line is font-body + tabular-nums; Footer.tsx is inside the rewritten full-surface type-scoping scan (INV-006)
 
 ### INV-005 — When a provider stream reports no usage, ~4 chars/token estimates are displayed and ledgered as exact cost with no estimate marker; the media route displays $0.0000 on absent vision usage
 
@@ -238,7 +238,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Carry a usageEstimated flag on EnhanceOutput/EnhanceResult set when the adapter's fallback (or vision's ?? 0 default) fires; render the cost with an approximation marker (e.g. '~$0.0123') and persist the flag alongside the ledger write. Minimum viable: mark the display; ledger conservatism can stay as-is (it exists for cap integrity).
 - **verification:** New unit test: drive enhanceStream with a mock ProviderStream yielding text but no usage chunk; assert result.usageEstimated === true and that the result view renders the marker. npx vitest run tests/unit/<new-test>.
 - **adversarial verdict:** CONFIRMED — Every cited line verified: adapter.ts:146-147 substitutes ceil(chars/4) estimates when no usage chunk arrived, adapter.ts:175 prices them via computeCost with no estimate flag on EnhanceOutput (only `salvaged` exists), TransformationDiff.tsx:613-614 renders the result as exact to four decimals, and route.ts:360-374 settles the same figures to the usage_events ledger unmarked. openai-compat.ts:20-23 confirms the path is documented-expected (no stream_options sent, so any strict-OpenAI-semantics compat endpoint omits stream usage every run; seven providers use the factory, not six — immaterial). vision.ts:132-133 (and the Google path at 197-201) default absent usage to 0, so /api/media settles $0 against the cap and AttachmentDetailsSheet.tsx:84-85 displays $0.0000 as actual. The client's mid-stream gating (use-enhance.ts:57-59,172-179; route.ts:279-286) is genuine as claimed — only the final result/ledger path is dishonest. No conflict with PR-1..PR-7 (all iOS/browser-compat/taxonomy). Prior POLISH-03 precedent covered only the transient composer estimate that authoritative data replaces, not the permanent result/ledger record, so it does not cap severity; under the audit rule that a true invariant violation floors at S1 (INV-04 tagged; invariant text lives in the audit prompt, not the repo), S1 holds.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: usageEstimated rides EnhanceOutput/EnhanceResult and VisionResult; both displays render ≈; spend_settle ledgers an estimated flag (migration 20260801190000, applied); abort-path settles estimated=true; pinned by tests/unit/usage-estimated.test.ts
 
 ### INV-006 — The type-scoping guard for INV-11 is not airtight: its regex cannot detect the Tailwind font-mono utility and its UI-only file list omits most UI chrome components, so a JetBrains Mono leak onto chrome would ship green.
 
@@ -247,7 +247,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tests/unit/type-scoping.test.ts only; guards every UI surface against INV-11 regressions.
 - **proposed_fix:** Tighten the test: (a) extend the pattern to also catch the standalone 'font-mono' utility; (b) invert the model — allowlist the known mono output files (diff/*, PromptDetail, GenerateSheet, AttachmentDetailsSheet) plus the spec-sanctioned Footer version line, and scan all other files under src/components and src/app for both 'mono' and 'font-mono'; (c) optionally assert font-display appears only on heading/wordmark elements.
 - **verification:** npx vitest run tests/unit/type-scoping.test.ts stays green on current sources, and goes red when 'font-mono' is injected into e.g. src/components/nav/BottomNav.tsx in a scratch copy.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: type-scoping test inverted — every tsx under src/components + src/app is scanned, only the seven output-region files may carry mono, and the pattern now catches font-mono
 
 ### INV-007 — src/lib/providers/config.ts lacks the server-only guard despite holding PROVIDER_KEY_ENV and env reads — no build-time fence against a future client import
 
@@ -257,7 +257,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Add import "server-only"; as line 1 of src/lib/providers/config.ts (verified: no client component imports it by value; errors.ts's type-only import is erased).
 - **verification:** npm run typecheck && npm run build both exit 0 (build fails loudly if any client path actually imports it).
 - **independently found by:** PRV ("config.ts is the only providers module without the server-only guard while exporting server-truth helpers (isP")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: providers/config.ts imports server-only; build green proves no client path imports it
 
 ### INV-008 — Applied spend/ledger migrations cross-reference companion migrations by timestamps that do not exist
 
@@ -276,7 +276,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** public/icons/** (protected path) plus src/app/icon.png/apple-icon.png; regression surface is any future run of scripts/generate-icons.mjs.
 - **proposed_fix:** Add a unit test (sharp is already a dependency) asserting: every icon-*.png has an alpha channel with fully transparent corners; maskable-*.png, apple-touch-icon.png, favicon-*.png, src/app/icon.png and apple-icon.png contain no pixel with alpha < 255. Test-only; touches no protected file.
 - **verification:** npx vitest run the new test file: green against the current 19 PNGs, red when pointed at a deliberately flattened icon-192 in scratch.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W1: tests/unit/icon-alpha.test.ts asserts transparent corners on the 13-icon any-matrix and full opacity on maskable/apple-touch/favicon/App-Router icons via sharp
 
 ### INV-010 — The brand lockup file vizion-brand-lockup.html referenced by the remediation spec does not exist in the repo; the Wordmark component plus spec text are the de facto canon (doc/spec gap, not a redesign question).
 

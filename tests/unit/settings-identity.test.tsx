@@ -68,7 +68,8 @@ describe("Settings identity (form-commit)", () => {
         display_name: "sean",
       }),
     );
-    expect(await screen.findByText("Saved ✓")).toBeTruthy();
+    // "Saved" + check glyph — the mark is an aria-hidden SVG, not text.
+    expect(await screen.findByText("Saved")).toBeTruthy();
   });
 
   it("keeps Save disabled for an invalid display name and marks the field", () => {

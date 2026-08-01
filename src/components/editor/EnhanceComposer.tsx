@@ -22,6 +22,7 @@ import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
+import { SparkMark, WarningMark } from "@/components/ui/glyphs";
 import { useDraftParam } from "@/components/editor/use-draft-param";
 import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
 import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
@@ -289,7 +290,7 @@ export function EnhanceComposer() {
   const capUsage = view?.result.usage;
   const capWarning =
     capUsage && capUsage.todayCost >= capUsage.capUsd * 0.8
-      ? `⚠ $${capUsage.todayCost.toFixed(2)} of $${capUsage.capUsd.toFixed(2)} daily cap used`
+      ? `$${capUsage.todayCost.toFixed(2)} of $${capUsage.capUsd.toFixed(2)} daily cap used`
       : null;
 
   return (
@@ -511,7 +512,7 @@ export function EnhanceComposer() {
               onClick={() => setTemplatesOpen(true)}
               className="glass font-body pill tap-44 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-silver transition-colors hover:text-chalk"
             >
-              <span aria-hidden="true">✦</span> Try a template
+              <SparkMark className="h-3.5 w-3.5 shrink-0" /> Try a template
             </button>
           </div>
         )}
@@ -607,7 +608,14 @@ export function EnhanceComposer() {
           capWarning ? "font-body text-center text-xs text-amber-ink" : "sr-only"
         }
       >
-        {capWarning ?? ""}
+        {capWarning ? (
+          <>
+            <WarningMark className="mr-1 inline-block h-[1em] w-[1em] align-[-0.125em]" />
+            {capWarning}
+          </>
+        ) : (
+          ""
+        )}
       </p>
 
       {/* Live stream surface while the run is in flight; the finished diff

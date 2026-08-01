@@ -26,6 +26,8 @@ export interface AnalysisUsage {
   tokenOut: number;
   costUsd: number;
   target: TargetModelId;
+  /** Counts/cost are a provider-omitted-usage default, not a measurement. */
+  estimated?: boolean;
 }
 
 export interface MediaItem {

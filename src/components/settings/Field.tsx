@@ -1,4 +1,5 @@
 import type { SettingStatus } from "@/components/settings/use-setting-write";
+import { CheckMark } from "@/components/ui/glyphs";
 
 /** Section-row primitive: label left, control right (lifted out of the old
  *  ProfilePanel so every Settings section shares one shape). */
@@ -65,13 +66,18 @@ export function FieldStatus({ status }: { status: SettingStatus | undefined }) {
             }`
       }
     >
-      {state === "saving"
-        ? "Saving…"
-        : state === "saved"
-          ? "Saved ✓"
-          : state === "error"
-            ? status?.message
-            : ""}
+      {state === "saving" ? (
+        "Saving…"
+      ) : state === "saved" ? (
+        <span className="inline-flex items-center gap-1">
+          Saved
+          <CheckMark />
+        </span>
+      ) : state === "error" ? (
+        status?.message
+      ) : (
+        ""
+      )}
     </p>
   );
 }

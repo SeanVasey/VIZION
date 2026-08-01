@@ -10,6 +10,7 @@ import { sanitizeName } from "@/lib/media/context";
 import { savePromptAction } from "@/lib/library/actions";
 import { enqueueOutbox } from "@/lib/pwa/outbox";
 import { useCopy } from "@/components/ui/use-copy";
+import { CheckMark } from "@/components/ui/glyphs";
 import { highlightGenerationPrompt, stripEngineSyntax } from "@/lib/media/highlight";
 import type { MediaItem } from "@/lib/media/queue";
 
@@ -105,14 +106,25 @@ export function GenerateSheet({
             onClick={() => void copyPrompt()}
             className="btn-laser flex min-h-[44px] grow items-center justify-center rounded-xl px-4 text-sm"
           >
-            {copied ? "Copied ✓" : "Copy"}
+            {copied ? (
+              <span className="inline-flex items-center gap-1">
+                Copied
+                <CheckMark />
+              </span>
+            ) : (
+              "Copy"
+            )}
           </button>
           {savedId ? (
             <Link
               href={`/library/${savedId}`}
               className="flex min-h-[44px] grow items-center justify-center rounded-xl bg-pulse px-4 text-sm text-on-laser"
             >
-              Saved ✓ — open
+              <span className="inline-flex items-center gap-1">
+                Saved
+                <CheckMark />
+                — open
+              </span>
             </Link>
           ) : saveQueued ? (
             <span className="font-body flex min-h-[44px] grow items-center justify-center rounded-xl bg-amber px-4 text-xs text-on-laser">

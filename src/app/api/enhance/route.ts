@@ -325,6 +325,7 @@ export async function POST(request: NextRequest) {
             ...(result.title ? { title: result.title } : {}),
             ...(result.questions ? { questions: result.questions } : {}),
             ...(result.salvaged ? { salvaged: true } : {}),
+            ...(result.usageEstimated ? { usageEstimated: true } : {}),
             // Routing provenance — only on an auto-routed run, so its presence
             // is the signal. The client shouldn't have to diff the result
             // against its own request to learn which model it actually got.
@@ -359,11 +360,14 @@ export async function POST(request: NextRequest) {
         // Anthropic snapshots usage at message_start (abort → usage exists
         // but tokenOut is ~1). Estimate when absent; floor a stale snapshot
         // at the estimate when the run never completed.
+        let ledgerEstimated = result?.usageEstimated ?? false;
         if (streamedChars > 0 && !result) {
           const estOut = Math.ceil(streamedChars / 4);
           usage = usage
             ? { ...usage, tokenOut: Math.max(usage.tokenOut, estOut) }
             : { tokenIn: Math.ceil(input.length / 4), tokenOut: estOut };
+          // The abort-path numbers are estimates by construction.
+          ledgerEstimated = true;
         }
         if (usage && (usage.tokenIn > 0 || usage.tokenOut > 0)) {
           const costUsd =
@@ -379,6 +383,7 @@ export async function POST(request: NextRequest) {
             tokenIn: usage.tokenIn,
             tokenOut: usage.tokenOut,
             costUsd,
+            estimated: ledgerEstimated,
           });
           // The cap is only as good as this write — a silent failure would
           // let spend leak invisibly. (console.error survives prod stripping.)

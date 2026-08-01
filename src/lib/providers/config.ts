@@ -1,3 +1,4 @@
+import "server-only";
 import type { TargetModelId } from "@/lib/constants";
 
 export type Provider =

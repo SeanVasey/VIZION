@@ -2,9 +2,11 @@
 
 ## Reporting a vulnerability
 
-Please report security issues privately to **sean@vasey.audio** with the subject
-`VIZION SECURITY`. Do not open a public issue for undisclosed vulnerabilities. We aim
-to acknowledge within 72 hours and to ship a fix or mitigation promptly.
+Please report security issues privately through
+[GitHub private vulnerability reporting](https://github.com/SeanVasey/VIZION/security/advisories/new)
+("Report a vulnerability" on the repository's **Security** tab). Do not open a
+public issue for undisclosed vulnerabilities. We aim to acknowledge within 72
+hours and to ship a fix or mitigation promptly.
 
 ## Security posture (non-negotiable guardrails)
 
