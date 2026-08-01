@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
@@ -52,7 +52,13 @@ function targetLabel(id: TargetModelId): string {
   return LABEL_BY_ID.get(id) ?? id;
 }
 
-export function TargetPicker({
+// Memoized: nested in the composer, which re-renders per keystroke and per SSE
+// flush. Its props are all stable identity (store values + store setters), so
+// the memo holds and the picker reconciles only when the target actually
+// changes (PERF-006).
+export const TargetPicker = memo(TargetPickerImpl);
+
+function TargetPickerImpl({
   value,
   onChange,
   label,

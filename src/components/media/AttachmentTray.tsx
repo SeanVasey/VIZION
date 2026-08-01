@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { memo, useEffect, useId, useRef, useState } from "react";
+import { loadBrowserClient, type BrowserClient } from "@/lib/supabase/lazy-client";
 import { useUIStore } from "@/stores/ui";
 import { kindForMime, extractOnDevice, captureFrameDataUrl } from "@/lib/media/ondevice";
 import { budgetStatus, MEDIA_QUOTA_BYTES } from "@/lib/media/formatters";
@@ -79,7 +79,7 @@ function intentFamily(role: AttachmentRole): "reference" | "style" | "extract_te
   return intent === "describe" ? "reference" : intent;
 }
 
-function supabaseDeps(supabase: ReturnType<typeof createClient>): MediaStoreDeps {
+function supabaseDeps(supabase: BrowserClient): MediaStoreDeps {
   return {
     reserve: async (input) => {
       const { data, error } = await supabase.rpc("media_reserve", {
@@ -135,7 +135,12 @@ function supabaseDeps(supabase: ReturnType<typeof createClient>): MediaStoreDeps
  * never inferred to "generate"), per-kind capability is labeled honestly, and
  * reference context flows into the enhance request via `onContextChange`.
  */
-export function AttachmentTray({
+// Memoized: nested in the composer, which re-renders per keystroke and per SSE
+// flush. Its props (onContextChange, intakeRef) are stable identity, so the
+// memo holds and the tray reconciles only on its own internal state (PERF-006).
+export const AttachmentTray = memo(AttachmentTrayImpl);
+
+function AttachmentTrayImpl({
   onContextChange,
   intakeRef,
 }: {
@@ -186,7 +191,7 @@ export function AttachmentTray({
   }, []);
 
   async function loadUsage() {
-    const supabase = createClient();
+    const supabase = await loadBrowserClient();
     const { data } = await supabase.from("media_assets").select("size_bytes");
     setUsedBytes((data ?? []).reduce((sum, r) => sum + (r.size_bytes ?? 0), 0));
   }
@@ -244,7 +249,7 @@ export function AttachmentTray({
     }
     if (admitted.length === 0) return;
 
-    const supabase = createClient();
+    const supabase = await loadBrowserClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -282,7 +287,7 @@ export function AttachmentTray({
   }
 
   async function processItem(
-    supabase: ReturnType<typeof createClient>,
+    supabase: BrowserClient,
     item: MediaItem,
     file: File,
   ) {
@@ -318,7 +323,7 @@ export function AttachmentTray({
 
   /** The analysis half of the pipeline — reusable for role changes. */
   async function analyzeItem(
-    supabase: ReturnType<typeof createClient>,
+    supabase: BrowserClient,
     item: MediaItem,
     file: File,
     role: AttachmentRole,
@@ -414,8 +419,11 @@ export function AttachmentTray({
     if (role === item.role) return;
     patch(item.id, { role });
     if (item.assetId) {
-      const supabase = createClient();
-      void supabase.from("media_assets").update({ role }).eq("id", item.assetId);
+      const assetId = item.assetId;
+      void (async () => {
+        const supabase = await loadBrowserClient();
+        await supabase.from("media_assets").update({ role }).eq("id", assetId);
+      })();
     }
     // A role in a different analysis family needs a fresh pass (billed like
     // the original analysis — it is one).
@@ -426,7 +434,10 @@ export function AttachmentTray({
     ) {
       const file = filesRef.current.get(item.id);
       if (file) {
-        void analyzeItem(createClient(), { ...item, role }, file, role);
+        void (async () => {
+          const supabase = await loadBrowserClient();
+          await analyzeItem(supabase, { ...item, role }, file, role);
+        })();
       } else {
         patch(item.id, {
           error: "Re-attach this file to analyze it under the new role.",
@@ -438,7 +449,7 @@ export function AttachmentTray({
 
   async function removeItem(item: MediaItem) {
     if (item.assetId && item.storagePath) {
-      const outcome = await removeAsset(supabaseDeps(createClient()), {
+      const outcome = await removeAsset(supabaseDeps(await loadBrowserClient()), {
         id: item.assetId,
         storagePath: item.storagePath,
       });

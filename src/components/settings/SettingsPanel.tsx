@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { loadBrowserClient } from "@/lib/supabase/lazy-client";
 import { useUIStore } from "@/stores/ui";
 import { ThemeSegmented } from "@/components/ThemeToggle";
 import { ProviderIcon } from "@/components/auth/ProviderIcon";
@@ -131,7 +131,7 @@ export function SettingsPanel({
     setPickedFile(null);
     write("avatar", async () => {
       try {
-        const supabase = createClient();
+        const supabase = await loadBrowserClient();
         const path = `${profile.user_id}/avatar.png`;
         const { error: upErr } = await supabase.storage
           .from("avatars")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
@@ -27,7 +27,12 @@ import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
  * (three to five steps plus Auto) that the sheet is no worse a fit — it also
  * buys the room to say what Auto actually does, which an `<option>` cannot.
  */
-export function ThinkingPicker({
+// Memoized: like TargetPicker, nested in the composer. Its `onChange` is now a
+// useCallback in the composer, so all props are stable and the memo holds
+// across stream flushes (PERF-006).
+export const ThinkingPicker = memo(ThinkingPickerImpl);
+
+function ThinkingPickerImpl({
   value,
   options,
   onChange,

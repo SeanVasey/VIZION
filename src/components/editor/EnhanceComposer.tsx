@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import {
   TARGET_THINKING_LEVELS,
   type ModeId,
   type TargetModelId,
+  type ThinkingLevel,
 } from "@/lib/constants";
 import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
@@ -94,6 +95,11 @@ export function EnhanceComposer() {
   const sharedDraft = useDraftParam();
 
   const enhanceMutation = useEnhance();
+  // `mutate` is stable across renders (TanStack), unlike the enhanceMutation
+  // object itself (a fresh spread each render) — so the useCallback handlers
+  // below depend on `runMutation`/`isPending`, never the whole object, keeping
+  // their identity stable so the memoized result view + rails hold (PERF-003/006).
+  const { mutate: runMutation, isPending } = enhanceMutation;
   const { toast } = useToast();
   // The rendered result + the snapshot of what was actually SUBMITTED — input
   // AND mode AND target. The result tree must read these, not the live store
@@ -159,8 +165,8 @@ export function EnhanceComposer() {
 
   const isEmpty = editorDraft.trim() === "";
 
-  function runEnhance() {
-    const input = editorDraft.trim();
+  const runEnhance = useCallback(() => {
+    const input = useUIStore.getState().editorDraft.trim();
     if (!input) return;
     const submitted = {
       input,
@@ -172,7 +178,7 @@ export function EnhanceComposer() {
       ...(activeLength ? { length: activeLength } : {}),
     };
     setView(null);
-    enhanceMutation.mutate(
+    runMutation(
       {
         input,
         mode: activeMode,
@@ -192,7 +198,16 @@ export function EnhanceComposer() {
       // run that settles late can never overwrite a newer view.
       { onSuccess: (result) => setView({ submitted, result }) },
     );
-  }
+  }, [
+    activeMode,
+    targetModel,
+    autoTarget,
+    reformatFormat,
+    activeLength,
+    thinkingLevel,
+    mediaContext,
+    runMutation,
+  ]);
 
   /** Clear the draft + result. A pasted draft (or a finished result) is real
    *  work — the toast's Undo restores both. */
@@ -225,27 +240,34 @@ export function EnhanceComposer() {
   }
 
   /** "Use as draft" — replace the editor draft with the result, undoably. */
-  function handleUse(text: string) {
-    const prior = editorDraft;
-    setEditorDraft(text);
-    const reduced =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    document
-      .getElementById("prompt-input")
-      ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
-    if (prior.trim() !== "" && prior !== text) {
-      toast({
-        text: "Draft replaced",
-        action: { label: "Undo", onAction: () => setEditorDraft(prior) },
-      });
-    }
-  }
+  const handleUse = useCallback(
+    (text: string) => {
+      // Read the prior draft imperatively (not a closure dep) so this callback
+      // keeps a stable identity across keystrokes — otherwise the memoized
+      // result view re-renders on every keystroke (PERF-003).
+      const prior = useUIStore.getState().editorDraft;
+      setEditorDraft(text);
+      const reduced =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document
+        .getElementById("prompt-input")
+        ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
+      if (prior.trim() !== "" && prior !== text) {
+        toast({
+          text: "Draft replaced",
+          action: { label: "Undo", onAction: () => setEditorDraft(prior) },
+        });
+      }
+    },
+    [setEditorDraft, toast],
+  );
 
   /** Refinement pass — seeded from the CURRENT output (with any per-change
    *  decisions applied), keeping the original submitted input for saves. */
-  function handleRefine(kind: RefineKind, currentOutput: string) {
-    if (!view || enhanceMutation.isPending) return;
+  const handleRefine = useCallback(
+    (kind: RefineKind, currentOutput: string) => {
+    if (!view || isPending) return;
     const v = view;
     // A refine sticks to the model that produced this output. Under Auto that
     // is the RESOLVED target, not the fallback — re-routing halfway through an
@@ -255,7 +277,7 @@ export function EnhanceComposer() {
     const ladder = TARGET_THINKING_LEVELS[refineTarget];
     const stored = thinkingLevels[refineTarget];
     const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
-    enhanceMutation.mutate(
+    runMutation(
       {
         input: currentOutput,
         mode: v.submitted.mode,
@@ -274,14 +296,17 @@ export function EnhanceComposer() {
           setView({ submitted: v.submitted, result, refined: true }),
       },
     );
-  }
+    },
+    [view, thinkingLevels, isPending, runMutation],
+  );
 
   /** Clarify's answered re-run. NOT a refinement of the output — a redo of
    *  the ORIGINAL request with the model's own questions answered, so `input`
    *  is the author's text and the Q&A rides in `baseInput` (the tone
    *  precedent). One round: the answered pass is told not to ask again. */
-  function handleAnswer(questions: string[], answers: string[]) {
-    if (!view || enhanceMutation.isPending) return;
+  const handleAnswer = useCallback(
+    (questions: string[], answers: string[]) => {
+    if (!view || isPending) return;
     const v = view;
     const block = questions
       .map((q, i) => `Q: ${q}\nA: ${answers[i]?.trim() || "(no answer given)"}`)
@@ -290,7 +315,7 @@ export function EnhanceComposer() {
     const ladder = TARGET_THINKING_LEVELS[answeredTarget];
     const stored = thinkingLevels[answeredTarget];
     const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
-    enhanceMutation.mutate(
+    runMutation(
       {
         input: v.submitted.input,
         mode: v.submitted.mode,
@@ -307,7 +332,9 @@ export function EnhanceComposer() {
         onSuccess: (result) => setView({ submitted: v.submitted, result }),
       },
     );
-  }
+    },
+    [view, thinkingLevels, isPending, runMutation],
+  );
 
   // The daily-cap warning, resolved here so its live region can be mounted
   // unconditionally in the tree below.
@@ -316,6 +343,13 @@ export function EnhanceComposer() {
     capUsage && capUsage.todayCost >= capUsage.capUsd * 0.8
       ? `$${capUsage.todayCost.toFixed(2)} of $${capUsage.capUsd.toFixed(2)} daily cap used`
       : null;
+
+  // Stable-identity so the memoized ThinkingPicker holds across stream flushes
+  // (PERF-006) — the inline arrow it replaces was a fresh function each render.
+  const onThinkingChange = useCallback(
+    (next: ThinkingLevel | null) => setThinkingLevel(targetModel, next),
+    [targetModel, setThinkingLevel],
+  );
 
   return (
     <section className="flex flex-col gap-5">
@@ -439,7 +473,7 @@ export function EnhanceComposer() {
               label="Thinking depth"
               value={thinkingLevel}
               options={levelOptions}
-              onChange={(next) => setThinkingLevel(targetModel, next)}
+              onChange={onThinkingChange}
               triggerClassName={RAIL_TRIGGER_CLASS}
             />
           </div>

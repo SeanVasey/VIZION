@@ -98,6 +98,22 @@ export const HTTPS_ORIGIN = isHttpsOrigin();
 
 const securityHeaders = buildSecurityHeaders(HTTPS_ORIGIN);
 
+/**
+ * Long-lived caching for the content-stable public asset trees — the icon
+ * matrix, the iOS splash set, and the brand SVGs (PERF-008). Without this they
+ * revalidate on every load (`max-age=0`). They are regenerated only by
+ * `scripts/generate-icons.mjs`, and regeneration reuses the same filenames — so
+ * `immutable` is the wrong tool (a re-brand would strand the old art behind a
+ * year of forced staleness). `stale-while-revalidate` keeps the caching win — a
+ * day fresh, then served stale for a week while it refreshes — and lets an
+ * update propagate within a day. Fonts are already immutable (next/font emits
+ * hashed `/_next/static` assets); the SW installs its own no-store policy.
+ */
+const STATIC_ASSET_CACHE = {
+  key: "Cache-Control",
+  value: "public, max-age=86400, stale-while-revalidate=604800",
+};
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -144,6 +160,12 @@ const nextConfig: NextConfig = {
           staticCspHeader(HTTPS_ORIGIN),
         ],
       },
+      // Content-stable public asset trees get a long, revalidating cache instead
+      // of the default max-age=0 (PERF-008). These add to — not replace — the
+      // security headers from the /:path* rule above.
+      { source: "/icons/:path*", headers: [STATIC_ASSET_CACHE] },
+      { source: "/splash/:path*", headers: [STATIC_ASSET_CACHE] },
+      { source: "/brand/:path*", headers: [STATIC_ASSET_CACHE] },
     ];
   },
 };

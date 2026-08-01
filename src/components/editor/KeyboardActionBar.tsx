@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useKeyboardInset } from "@/components/nav/use-keyboard-inset";
 
@@ -22,7 +22,12 @@ import { useKeyboardInset } from "@/components/nav/use-keyboard-inset";
  * Renders nothing when no keyboard is detected (desktop, jsdom, server), so
  * the bottom nav — which hides under the same signal — never collides with it.
  */
-export function KeyboardActionBar({
+// Memoized: nested in the composer with a now-stable `onEnhance` (useCallback).
+// During a stream its display props (pending/tokens) hold steady, so the memo
+// spares it the per-flush reconciliation (PERF-006).
+export const KeyboardActionBar = memo(KeyboardActionBarImpl);
+
+function KeyboardActionBarImpl({
   active,
   tokens,
   pending,

@@ -1,6 +1,13 @@
 "use client";
 
-import { memo, useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useState,
+  useTransition,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -98,11 +105,14 @@ export function LibraryBrowser({
   /** Every mutation funnels here: drop the accumulated pages and the paged
    *  cursor BEFORE re-rendering page 1, so refreshed rows can't duplicate
    *  stale copies and the next Load more pages from the current boundary. */
-  function refreshAfterMutation() {
+  // useCallback so the swipe handlers below (and thus the memoized PromptRow)
+  // keep a stable identity — otherwise every keystroke in the search field
+  // re-renders all accumulated rows (PERF-004).
+  const refreshAfterMutation = useCallback(() => {
     setExtraCards([]);
     setPagedCursor(undefined);
     startRefresh(() => router.refresh());
-  }
+  }, [router]);
 
   // Belt to the reset's braces: never render the same card twice even if a
   // refreshed page 1 overlaps a just-loaded extra page.
@@ -118,7 +128,7 @@ export function LibraryBrowser({
   }
 
   /** Swipe-left delete: the same soft delete + Undo the ⋯ menu performs. */
-  function swipeDelete(p: PromptCard) {
+  const swipeDelete = useCallback((p: PromptCard) => {
     void softDeletePromptAction(p.id).then((res) => {
       if (!res.ok) {
         setLoadError(res.error ?? "Couldn't delete.");
@@ -135,15 +145,15 @@ export function LibraryBrowser({
         },
       });
     });
-  }
+  }, [refreshAfterMutation, toast]);
 
   /** Swipe-right favorite toggle. */
-  function swipeFavorite(p: PromptCard) {
+  const swipeFavorite = useCallback((p: PromptCard) => {
     void setFavoriteAction(p.id, !p.favorite).then((res) => {
       if (!res.ok) setLoadError(res.error ?? "Couldn't update favorites.");
       else refreshAfterMutation();
     });
-  }
+  }, [refreshAfterMutation]);
 
   function loadMore() {
     if (!cursor) return;

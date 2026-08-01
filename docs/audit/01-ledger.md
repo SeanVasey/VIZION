@@ -380,7 +380,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Add the ten media-qualified startupImage entries to the appleWebApp metadata matching the existing PNG matrix, plus the ledger's link-to-asset parity check so the set cannot drift back to zero
 - **verification:** Built HTML contains ten apple-touch-startup-image links whose (device-width/device-height/-webkit-device-pixel-ratio) media queries each resolve to a shipped public/splash file; then delete-and-reinstall the Home Screen app on a physical iOS device (iOS caches launch assets) per PR-5 — device step untestable in this environment
 - **independently found by:** DEAD ("Ten iOS splash PNGs in public/splash/ (518,512 bytes) are generated and shipped but referenced by nothing — no"); PERF ("528 KB of generated iOS splash screens deploy with every build but are referenced zero times — no apple-touch-")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (= APPLE-01): src/app/layout.tsx head emits ten apple-touch-startup-image links, one per device class, with device-width/height + -webkit-device-pixel-ratio + orientation media queries (the dpr clause disambiguates the two 414×896 devices); the 528 KB splash set is now wired
 
 ### PRI-008 — Service-worker runtime deps still resolve only as transitives of the workbox-build devDependency (was P1)
 
@@ -461,7 +461,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Enhance route initial JS bundle; settings route; CHANGELOG.md R8 record accuracy
 - **proposed_fix:** Rule whether the supersession is accepted: if yes, append a lessons.md/CHANGELOG note recording that R8.2's mechanism was dissolved into the composer tray (the tray is above-the-fold and needed at first paint); if the deferral intent still stands, the interaction-only sheets (GenerateSheet, AttachmentDetailsSheet, MediaPreviewSheet) are the natural next/dynamic candidates since they open only on user action.
 - **verification:** If deferral is restored: grep -rn 'next/dynamic' src/components/media returns the sheet imports, and next build route summary shows the enhance route's First Load JS reduced versus baseline (scratchpad/baseline/build.log).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (ruling Q14=a, = PERF-001): route-level splitting is restored via the lazy browser-client import — the supabase-js weight R8's media-studio dynamic import targeted is out of the /enhance and /profile first loads (build-verified). The R8 mechanism name is stale; the outcome it wanted is delivered
 
 ## Track MOD
 
@@ -1558,7 +1558,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** public/icons/** (12 of 21 files); scripts/build-sw.mjs precache glob; public/sw.js payload on every route for every installed client
 - **proposed_fix:** Never delete the icons (protected path, dispositive). Ruling options: (a) narrow the build-sw.mjs precache glob to the manifest-referenced sizes, cutting 70,325 B from every install; or (b) wire the orphan sizes via layout metadata if they are meant to serve legacy devices. Either touches PWA offline surface — owner decision.
 - **verification:** node -e scan of public/sw.js "url" entries after `npm run build:sw` lists only manifest/metadata-referenced assets; grep for the 12 filenames across src+public (excluding sw.js) still returns 0
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (via PERF-005): the 12 unreferenced public/icons files (favicons, intermediate iOS sizes, icon-1024) are no longer precached by the SW. They stay in the repo (protected, dispositive path — browser chrome + App Store) and are served on demand, so no first-visit download cost
 
 ### DEAD-002 — package.json `test:int` script targets tests/integration/ which does not exist — the script fails with 'No test files found, exiting with code 1' whenever invoked
 
@@ -1619,7 +1619,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/media/AttachmentTray.tsx, src/components/settings/SettingsPanel.tsx, src/components/media/MediaManager.tsx, src/lib/supabase/client.ts; routes /enhance, /profile (and /sign-in to a lesser, arguably legitimate degree)
 - **proposed_fix:** Replace the static createClient imports in AttachmentTray/SettingsPanel/MediaManager with a lazy accessor (const { createClient } = await import("@/lib/supabase/client")) invoked inside the handlers that already construct the client per call; keep type-only positions as `import type`. Cuts ~62 kB gz from /enhance and /profile first load, bringing /enhance to roughly the 150 kB line.
 - **verification:** npm run build (allowed in fix phase) and confirm build.log route table shows /enhance and /profile first-load JS dropped by ~50-60 kB and chunks 613-*/44530001-* no longer appear in those pages' entries in .next/app-build-manifest.json; then exercise attach-file and settings save flows in e2e.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (= Q14/PRI-016): the browser Supabase client loads via a dynamic import (src/lib/supabase/lazy-client.ts) in AttachmentTray/SettingsPanel/MediaManager; the build route table confirms /enhance 223→158 kB and /profile 208→143 kB first load (supabase-js out of both). /sign-in keeps it — auth needs it immediately
 
 ### PERF-002 — The reduced-effects performance knob hides the mesh canvas with CSS but never stops the rAF loop, so the full simulation and draw work keeps burning CPU into a display:none canvas at 30fps
 
@@ -1628,7 +1628,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/NeuralMeshBackground.tsx; every route (component mounts in the root layout, src/app/layout.tsx:70)
 - **proposed_fix:** In NeuralMeshBackground's effect, also gate start/stop on the reduced-effects state — either subscribe to useUIStore(s => s.reducedEffects) or extend the existing MutationObserver (line 230) to watch data-reduced-effects on documentElement — calling stop() + clearRect when it is set and start() when cleared (mirroring the prefers-reduced-motion path). No visual change: the canvas is already hidden in that state.
 - **verification:** npx vitest run tests/unit (mesh/reduced-effects specs) plus manual: toggle Reduced effects in Settings, confirm via DevTools Performance panel that no rAF ticks originate from NeuralMeshBackground while the attribute is set, and that the loop resumes on toggle-off.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: NeuralMeshBackground gates its rAF loop on data-reduced-effects (the existing MutationObserver + a shared canRun() predicate), so the simulation STOPS — not just CSS-hides the canvas — under reduced-effects, hidden, or reduced-motion
 
 ### PERF-003 — Typing in the composer re-renders the entire mounted result tree every keystroke — TransformationDiff is not memoized while EnhanceComposer subscribes to editorDraft, contradicting the R8 comment's claim
 
@@ -1637,7 +1637,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/diff/TransformationDiff.tsx, src/components/editor/EnhanceComposer.tsx; /enhance route (also /library/[id] re-enhance consumer benefits)
 - **proposed_fix:** Wrap TransformationDiff in React.memo (its props are already-stable snapshots plus stable-identity callbacks; hoist handleUse/handleRefine/handleAnswer into useCallback in EnhanceComposer so memo holds), and correct the R8 comment to say the result reads the submitted snapshot AND is memoized against composer re-renders.
 - **verification:** npx vitest run tests/unit (result-view specs stay green); React DevTools Profiler: type in the prompt textarea with a result mounted and confirm TransformationDiff shows zero commits.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: TransformationDiff is React.memo'd and the composer hoists handleUse/handleRefine/handleAnswer into useCallback (draft read via useUIStore.getState, mutation via the stable mutate), so the memo holds across keystrokes with a result mounted
 
 ### PERF-004 — PromptRow's memo is defeated by per-render callback identities in LibraryBrowser, so every keystroke in the library search re-renders all accumulated rows; the list is also fully rendered, never virtualized
 
@@ -1646,7 +1646,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/components/library/LibraryBrowser.tsx; /library route at scale
 - **proposed_fix:** Wrap swipeFavorite, swipeDelete (and loadMore/submitSearch while there) in useCallback with stable deps so the existing memo actually holds; the toast/router identities are stable. Virtualization proper (or a cap/flush of extraCards on filter change) is a larger follow-up if 500+ libraries become common — the stable-callback fix is the minimum viable change.
 - **verification:** React DevTools Profiler on /library with 100+ rows: typing in the search field should commit only the search input subtree, zero PromptRow commits. npx vitest run tests/unit for library specs.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: LibraryBrowser wraps refreshAfterMutation + swipeFavorite/swipeDelete in useCallback (stable deps), so the memoized PromptRow reconciles only when its own card changes, not on every search keystroke
 
 ### PERF-005 — Service worker precaches the entire 320.8 KiB icon matrix — including the 115 KB icon-1024.png — on first visit for every browser user, installed or not
 
@@ -1655,7 +1655,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/build-sw.mjs, public/sw.js (built artifact); first-visit network cost on every route
 - **proposed_fix:** Narrow globPatterns to the assets the offline experience actually uses: offline.html, manifest.webmanifest, icons/icon-192.png, icons/icon-256.png, icons/icon-384.png, icons/icon-512.png, icons/maskable-192.png, icons/maskable-512.png, icons/apple-touch-icon.png (~150 KiB). Remaining icons are still served on demand and runtime-cached by the StaleWhileRevalidate image route (sw-src.js:87-96).
 - **verification:** node scripts/build-sw.mjs and confirm the log reports the reduced entry count/size; grep public/sw.js for icon-1024 (must be absent); e2e offline test (shell.spec.ts) stays green.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6 (also DEAD-001): build-sw.mjs precache glob narrowed to the offline-needed icons (192/256/384/512 + maskable + apple-touch); the build log confirms 320.8 KiB/21 entries → 155.1 KiB/9 entries. icon-1024, favicons, and intermediate iOS sizes stay served on demand + runtime-cached
 
 ### PERF-006 — Every SSE flush re-renders the whole EnhanceComposer subtree (pickers, rails, tray, keyboard bar), not just the streaming card
 
@@ -1664,7 +1664,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/enhance/use-enhance.ts, src/components/editor/EnhanceComposer.tsx; /enhance during active streams
 - **proposed_fix:** Memoize the unmemoized composer children with stable callbacks (TargetPicker, ThinkingPicker, AttachmentTray, KeyboardActionBar), or move stream state out of the composer's render path (e.g., expose it via a subscription/ref consumed only by StreamingResult/StreamProgress) so per-frame commits touch only the streaming card.
 - **verification:** React DevTools Profiler during a streamed enhance: per-flush commits should list only StreamingResult/StreamProgress. Existing streaming unit tests via npx vitest run stay green.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: TargetPicker/ThinkingPicker/AttachmentTray/KeyboardActionBar are React.memo'd with stable callbacks (runEnhance + onThinkingChange useCallback'd), so an SSE flush reconciles only the streaming card, not the whole composer subtree
 
 ### PERF-007 — All 8 font files (~150 KB) are preloaded on every page, including three JetBrains Mono weights used only in enhance/library output regions
 
@@ -1673,7 +1673,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/fonts/index.ts; first-paint network contention on all routes, worst on auth/profile
 - **proposed_fix:** Set preload: false on the jetBrainsMono localFont call (and consider dropping the 500 weight if unused — verify with a class-usage grep before removing). The family still loads on demand with swap when an output region first renders.
 - **verification:** npm run build; view-source of a rendered auth page and count rel=preload font links (should drop from 8 to 5); confirm no FOUT regression on the enhance result card in e2e screenshots.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: jetBrainsMono localFont carries preload:false — the mono weights (~65 KB) load on demand when an output region first renders, no longer preloaded on the auth pages that never show them
 
 ### PERF-008 — No long-lived Cache-Control headers for public static assets — icons, splash, and brand SVGs revalidate on every load (max-age=0), with only sw.js given explicit headers
 
@@ -1682,7 +1682,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** next.config.ts (or vercel.json); repeat-visit latency for /icons, /splash, /brand
 - **proposed_fix:** Add a headers() rule for /icons/:path*, /splash/:path*, /brand/:path* with Cache-Control: public, max-age=31536000, immutable (assets are content-stable and regenerated only by scripts/generate-icons.mjs; if churn is a concern use max-age=86400, stale-while-revalidate=604800).
 - **verification:** npm run build then curl -I the deployed /icons/icon-192.png and confirm the Cache-Control header; confirm sw.js still returns no-cache.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W6: next.config headers() adds Cache-Control 'public, max-age=86400, stale-while-revalidate=604800' for /icons, /splash, /brand — a revalidating long cache (not immutable: the brand masters regenerate in place, so a re-brand must not be stranded a year)
 
 ## Track DOC
 

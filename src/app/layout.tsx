@@ -47,6 +47,29 @@ export const viewport: Viewport = {
 /** Set <html data-theme> before first paint to avoid a theme flash. */
 const NO_FLASH = `(function(){try{var r=localStorage.getItem("${UI_STORE_KEY}");var t=r?JSON.parse(r).state.theme:"system";document.documentElement.dataset.theme=t||"system";}catch(e){document.documentElement.dataset.theme="system";}})();`;
 
+/**
+ * iOS Home-Screen launch images (`apple-touch-startup-image`, PRI-007 / APPLE-01).
+ *
+ * Each entry pairs a device's CSS viewport + pixel ratio with the splash PNG
+ * `scripts/generate-icons.mjs` renders for it, so the media query resolves to
+ * exactly one image. iPhone XR/11 (dpr 2) and XS Max/11 Pro Max (dpr 3) share
+ * 414×896 CSS px, so the `-webkit-device-pixel-ratio` clause is what separates
+ * them. Portrait only — the manifest is portrait-locked. Without these links the
+ * 528 KB splash set shipped and was never referenced.
+ */
+const SPLASH_SCREENS = [
+  { w: 430, h: 932, dpr: 3, file: "splash-1290x2796.png" },
+  { w: 393, h: 852, dpr: 3, file: "splash-1179x2556.png" },
+  { w: 390, h: 844, dpr: 3, file: "splash-1170x2532.png" },
+  { w: 428, h: 926, dpr: 3, file: "splash-1284x2778.png" },
+  { w: 375, h: 812, dpr: 3, file: "splash-1125x2436.png" },
+  { w: 414, h: 896, dpr: 2, file: "splash-828x1792.png" },
+  { w: 414, h: 896, dpr: 3, file: "splash-1242x2688.png" },
+  { w: 768, h: 1024, dpr: 2, file: "splash-1536x2048.png" },
+  { w: 834, h: 1194, dpr: 2, file: "splash-1668x2388.png" },
+  { w: 1024, h: 1366, dpr: 2, file: "splash-2048x2732.png" },
+];
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The middleware's per-request CSP nonce (audit SEC-001): without it on this
   // script, the nonce policy would block the theme bootstrap and every load
@@ -68,6 +91,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
+        {/* iOS Home-Screen launch images — one per device class (PRI-007). */}
+        {SPLASH_SCREENS.map((s) => (
+          <link
+            key={s.file}
+            rel="apple-touch-startup-image"
+            media={`(device-width: ${s.w}px) and (device-height: ${s.h}px) and (-webkit-device-pixel-ratio: ${s.dpr}) and (orientation: portrait)`}
+            href={`/splash/${s.file}`}
+          />
+        ))}
       </head>
       <body>
         <a

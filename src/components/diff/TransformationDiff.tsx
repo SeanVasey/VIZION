@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { PressableButton } from "@/components/ui/PressableButton";
 import Link from "next/link";
 import {
@@ -52,7 +52,7 @@ const REFINE_CHIPS: { kind: RefineKind; label: string }[] = [
  * prompts, the full diff read lives in the Compare sheet, and Polish offers
  * per-change accept/reject. `onUse`/`onRefine` are wired by the composer.
  */
-export function TransformationDiff({
+function TransformationDiffImpl({
   input,
   mode,
   target,
@@ -836,3 +836,12 @@ export function TransformationDiff({
     </section>
   );
 }
+
+/**
+ * Memoized: the composer re-renders on every keystroke and every SSE flush, but
+ * this view reads the SUBMITTED snapshot (input+mode+target) and stable-identity
+ * callbacks, so it should reconcile only when the result itself changes
+ * (PERF-003). The composer hoists onUse/onRefine/onAnswer into useCallback so
+ * this memo actually holds.
+ */
+export const TransformationDiff = memo(TransformationDiffImpl);

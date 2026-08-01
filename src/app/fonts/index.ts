@@ -39,4 +39,10 @@ export const jetBrainsMono = localFont({
   ],
   variable: "--font-jetbrains",
   display: "swap",
+  // The mono family renders ONLY in the enhance/library OUTPUT regions — never
+  // on /sign-in, /set-password, or /profile. Default preloading would emit a
+  // <link rel=preload> per weight (~65 KB) on every route, auth pages included,
+  // for glyphs they never show. preload:false loads it on demand with swap when
+  // an output region first mounts (PERF-007).
+  preload: false,
 });

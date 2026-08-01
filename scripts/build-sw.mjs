@@ -52,11 +52,30 @@ async function main() {
     // static, auth-agnostic assets — `offline.html` is the navigation fallback.
     // App routes are auth-gated (they redirect by session state), so they are
     // cached at runtime via stale-while-revalidate rather than precached.
+    //
+    // Only the icons the OFFLINE experience actually needs are precached: the
+    // manifest's install icons (192/256/384/512 + maskable) and the iOS
+    // apple-touch-icon. icon-1024 (115 KB, an App-Store artifact), the favicons,
+    // and the intermediate iOS sizes are browser-chrome assets the SW never
+    // needs offline (PERF-005 / DEAD-001) — they are still served on demand and
+    // runtime-cached by the StaleWhileRevalidate image route. `icons/**/*.png`
+    // swept all 19 and spent ~130 KB of first-visit data on assets no offline
+    // path uses.
     const { count, size, warnings } = await injectManifest({
       swSrc: bundled,
       swDest: SW_DEST,
       globDirectory: "public",
-      globPatterns: ["icons/**/*.png", "manifest.webmanifest", "offline.html"],
+      globPatterns: [
+        "offline.html",
+        "manifest.webmanifest",
+        "icons/icon-192.png",
+        "icons/icon-256.png",
+        "icons/icon-384.png",
+        "icons/icon-512.png",
+        "icons/maskable-192.png",
+        "icons/maskable-512.png",
+        "icons/apple-touch-icon.png",
+      ],
     });
 
     for (const warning of warnings) {

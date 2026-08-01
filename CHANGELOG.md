@@ -6,6 +6,58 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Performance — audit Stage 2, Wave 6: bundle, render, and cache work (measured)
+
+Wave 6 clears the PERF track plus `PRI-007` and ruling **Q14**. No behaviour
+changes — the numbers below are from the build route table and the SW precache
+log.
+
+Bundle:
+
+- **PERF-001 / Q14 (`PRI-016`).** The browser Supabase client now loads through
+  a dynamic import (`src/lib/supabase/lazy-client.ts`) in the interaction-only
+  consumers (AttachmentTray, SettingsPanel, MediaManager), so `@supabase/*`
+  (~62 kB gz) leaves the first load: **/enhance 223 → 158 kB**, **/profile
+  208 → 143 kB**. `/sign-in` keeps it (auth needs it immediately). This is the
+  route-level split R8's since-removed media-studio dynamic import was meant to
+  provide.
+- **PERF-005 (also `DEAD-001`).** The service worker precache is narrowed to the
+  icons the offline experience uses (192/256/384/512 + maskable +
+  apple-touch): **320.8 KiB/21 entries → 155.1 KiB/9 entries**. icon-1024, the
+  favicons, and the intermediate iOS sizes are still served on demand and
+  runtime-cached — no download on install for assets no offline path needs.
+- **PERF-007.** The mono family is `preload: false` — its three weights (~65 kB)
+  load on demand when an output region first renders, not preloaded on the auth
+  pages that never show them.
+
+Render:
+
+- **PERF-002.** The neural-mesh rAF loop now stops when reduced-effects is on
+  (gated on `data-reduced-effects` through the existing observer), instead of
+  running the full simulation into a CSS-hidden canvas at 30fps.
+- **PERF-003.** `TransformationDiff` is memoized and the composer's
+  use/refine/answer handlers are `useCallback`s (draft read via `getState`,
+  mutation via the stable `mutate`), so typing with a result mounted no longer
+  reconciles the whole diff tree.
+- **PERF-006.** `TargetPicker` · `ThinkingPicker` · `AttachmentTray` ·
+  `KeyboardActionBar` are memoized with stable callbacks, so an SSE flush
+  reconciles only the streaming card, not the whole composer subtree.
+- **PERF-004.** `LibraryBrowser`'s swipe handlers (and their shared
+  `refreshAfterMutation`) are `useCallback`s, so the memoized `PromptRow` holds
+  and a search keystroke no longer re-renders every accumulated row.
+
+Cache + platform:
+
+- **PERF-008.** `/icons`, `/splash`, and `/brand` get
+  `Cache-Control: public, max-age=86400, stale-while-revalidate=604800` — a
+  revalidating long cache (not `immutable`: the brand masters regenerate in
+  place, so a re-brand must not be stranded for a year).
+- **PRI-007 (`APPLE-01`).** The ten iOS launch images are wired as
+  `apple-touch-startup-image` links, one per device class, with
+  device-width/height + `-webkit-device-pixel-ratio` + orientation media queries
+  (the pixel-ratio clause disambiguates the two 414×896 devices). The 528 KB
+  splash set is no longer dead weight.
+
 ### Hygiene — audit Stage 2, Wave 5: dead code, dependencies, docs, and rulings Q2/Q11/Q12/Q15
 
 Wave 5 clears the DEAD / DEP / DOC tracks (plus `INV-008`, `MED-007`,
