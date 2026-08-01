@@ -1,5 +1,10 @@
 # VIZION audit capstone — Stage 1 ledger
 
+> **Addendum 2026-08-01 (post-Gate, PR #73):** four entries added at the end of
+> this file — `PRV-010` (resolved), `A11Y-012`, `SEC-011`, `DSN-022` — from the
+> owner-directed Gemini fix and owner-console work. Headline counts below
+> describe the original Stage 1 sweep and exclude the addendum.
+
 Audit date: 2026-08-01 · Repo at `34a56db` (audit docs added on top) · Version 0.3.0
 
 Method: 19 read-only track auditors (multi-agent), each finding carrying
@@ -1836,3 +1841,52 @@ still-open or partial carry-forwards.
 - **verification:** git branch --show-current
 - **disposition:** pending
 
+
+## Addendum — post-Gate findings (2026-08-01, PR #73 work)
+
+Origin: owner-directed work outside the Gate (Gemini non-JSON failure fix and
+the owner console). Each item follows the standard ledger format; these feed
+the same manual-approval review as the Stage 1 list.
+
+| id | sev | conf | fix class | design | title |
+| --- | --- | --- | --- | --- | --- |
+| PRV-010 | S1 | certain | AUTO-REVIEW | none | Gemini SSE reader split frames on LF-LF while production sends CRLF — every run failed as "non-JSON response" |
+| A11Y-012 | S2 | certain | AUTO-REVIEW | none | The reduced-effects switch in Settings has no accessible name (role="switch" with no aria-label; the Field label is an unassociated span) |
+| SEC-011 | S3 | certain | NEEDS-RULING | none | Closed-access gates the authed shell, new signups, and both model routes — but existing sessions can still reach their RLS-scoped data through server actions while closed |
+| DSN-022 | S3 | certain | NEEDS-RULING | none | The owner console introduces the app's first native range input — a new control recipe outside the DSN-015 input-recipe question |
+
+### PRV-010 — Gemini SSE reader split frames on LF-LF while production sends CRLF
+
+- severity `S1` · confidence `certain` · fix_class `AUTO-REVIEW` · design_impact `none`
+- **evidence:** Production screenshot (vizion-io.vercel.app v0.3.0): every Gemini run ended "The model returned a non-JSON response." Root cause: `src/lib/providers/google.ts` split SSE frames with `buf.indexOf("\n\n")`; the `alt=sse` endpoint delimits events with CRLF pairs, and `\r\n\r\n` contains no adjacent `\n\n` — zero frames parsed, empty assembly, guaranteed `parseEnhancePayload` failure (`formatters.ts:303`). The unit fixture (`tests/unit/google-adapter.test.ts`) authored LF-separated frames mirroring the implementation rather than the wire, so the suite stayed green over a total production failure.
+- **blast_radius:** Gemini 3.6 Flash target (both thinking levels); every Gemini run since the adapter shipped
+- **proposed_fix:** Accept either separator (`/\r?\n\r?\n/`), flush a final unterminated frame at stream close, and filter `thought: true` parts so reasoning can never corrupt the JSON envelope
+- **verification:** `npx vitest run tests/unit/google-adapter.test.ts` (three regression tests added), plus a live Gemini run on the deployed preview
+- **disposition:** **resolved** — shipped in PR #73 (`d573379`), 2026-08-01. Lesson recorded in `tasks/lessons.md` (wire-protocol fixtures must mirror the wire, not the implementation)
+
+### A11Y-012 — The reduced-effects switch has no accessible name
+
+- severity `S2` · confidence `certain` · fix_class `AUTO-REVIEW` · design_impact `none`
+- **evidence:** `src/components/settings/SettingsPanel.tsx` (Appearance section): `<button role="switch" aria-checked=…>` with no `aria-label`; the visible "Reduced effects" label is a `<span>` inside `Field`, not programmatically associated (a `<button>` is not a labelable control for `<label htmlFor>`). Screen readers announce an unnamed switch (WCAG 4.1.2). Found while building the owner console, whose switch carries `aria-label="Open access"` for exactly this reason (`OwnerSection.tsx`).
+- **blast_radius:** /profile Appearance section; one control
+- **proposed_fix:** `aria-label="Reduced effects"` on the switch button (one attribute)
+- **verification:** `getByRole("switch", { name: /reduced effects/i })` resolves in a unit test
+- **disposition:** pending
+
+### SEC-011 — Closed-access boundary: server actions remain reachable for existing sessions
+
+- severity `S3` · confidence `certain` · fix_class `NEEDS-RULING` · design_impact `none`
+- **evidence:** By design, `open_access = false` gates: the authed shell (`(app)/layout.tsx` renders the closed notice), both model routes (403 before reserve — the spend-bearing surface), and new-account creation on the magic-link path. Not gated: server actions (library/drafts/profile reads and writes) invoked directly with a still-valid session cookie — RLS confines them to the caller's own rows, so there is no cross-user exposure and no provider spend, but a determined existing user could still sync their own data while "closed". The closed-screen copy ("Your data is safe") arguably implies exactly this.
+- **blast_radius:** `src/lib/library/actions.ts`, `src/lib/drafts/actions.ts`, `src/lib/profile/actions.ts` while closed
+- **proposed_fix:** Ruling: (a) accept the boundary as designed — closed access is a spend/registration control, not a data lockout (recommended; document in the ADR for the owner console), or (b) extend the `open_access` check into every server action (adds one settings read per action call)
+- **verification:** If (b): a unit test per action asserting the closed-path refusal
+- **disposition:** pending
+
+### DSN-022 — First native range input (owner console accent slider)
+
+- severity `S3` · confidence `certain` · fix_class `NEEDS-RULING` · design_impact `none`
+- **evidence:** `OwnerSection.tsx` ships the app's first `<input type="range">`, styled only with `accent-[var(--accent-ink)]` (theme-correct ink — deliberately not raw laser, which is the 1.06:1 light-theme failure class). Native range styling varies by engine; the control predates any range recipe in the design system. DSN-015 (input recipes, ruling Q7) covered text inputs only.
+- **blast_radius:** Owner section of /profile (owner-only surface)
+- **proposed_fix:** Fold into the Q7 input-recipe ruling: bless the native accent-tinted range as the low-chrome recipe for owner-only surfaces, or specify a custom track/thumb treatment
+- **verification:** Visual pass in both themes on the owner account
+- **disposition:** pending
