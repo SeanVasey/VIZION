@@ -14,7 +14,9 @@ import { useEffect, useRef } from "react";
  * Performance contract:
  *  - fully decoupled from React render (refs + rAF, zero per-frame state),
  *  - capped at ~30fps and particle count scaled to the viewport,
- *  - FULLY paused while document.hidden (logs "bg:paused" / "bg:resumed"),
+ *  - FULLY paused while document.hidden (debug-logs "bg:paused" /
+ *    "bg:resumed" — console.debug so removeConsole strips it from
+ *    production, where it was pure noise in every user's console),
  *  - FULLY paused under the reduced-effects knob (`data-reduced-effects`) — the
  *    simulation itself stops, not just the CSS-hidden canvas, so no rAF work
  *    burns into a display:none surface,
@@ -240,9 +242,9 @@ export function NeuralMeshBackground() {
       // Keep the documented pause/resume breadcrumb; the shared gate decides
       // whether work actually resumes (it won't if effects are reduced).
       if (document.hidden) {
-        console.warn("bg:paused");
+        console.debug("bg:paused");
       } else if (canRun()) {
-        console.warn("bg:resumed");
+        console.debug("bg:resumed");
       }
       sync();
     }

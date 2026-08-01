@@ -3,7 +3,8 @@
  *
  * Pure and Edge-safe: consumed by BOTH the middleware (per-request nonce
  * policy for every document) and `next.config.ts` (static fallback policy for
- * the middleware-excluded PWA assets — offline.html and sw.js). Locks the app
+ * the middleware-excluded PWA assets — offline.html, its cleanUrls form
+ * /offline, and sw.js). Locks the app
  * to its own origin plus the configured Supabase project. Model-provider
  * calls are server-side only, so they never appear in `connect-src`. Fonts
  * are self-hosted via next/font, so no external font origin is needed.
@@ -47,12 +48,13 @@ export function derivedWebsocketOrigin(origin: string): string {
 }
 
 /**
- * The directive list. With a `nonce`, `script-src` is nonce-based and
- * `'unsafe-inline'` is gone — the no-flash theme bootstrap and Next's own
- * inline scripts all carry the nonce (Next reads it from the request's CSP
- * header). Without one (the static fallback for offline.html/sw.js, whose
- * inline reload script cannot receive a per-request nonce), script-src keeps
- * `'unsafe-inline'` exactly as before.
+ * The directive list. With a `nonce`, `script-src` is nonce-based — the
+ * no-flash theme bootstrap and Next's own inline scripts all carry the nonce
+ * (Next reads it from the request's CSP header). Without one (the static
+ * fallback for offline.html / its clean-URL form / sw.js), script-src is
+ * `'self'` alone: no static asset carries an inline script — offline.html's
+ * recovery script is the external /offline.js precisely so no policy variant
+ * needs `'unsafe-inline'`.
  */
 export function cspDirectives(supabaseUrl: string | undefined, nonce?: string): string[] {
   const origin = configuredSupabaseOrigin(supabaseUrl);
@@ -63,7 +65,7 @@ export function cspDirectives(supabaseUrl: string | undefined, nonce?: string): 
 
   return [
     "default-src 'self'",
-    nonce ? `script-src 'self' 'nonce-${nonce}'` : "script-src 'self' 'unsafe-inline'",
+    nonce ? `script-src 'self' 'nonce-${nonce}'` : "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${httpSrc} https://lh3.googleusercontent.com https://avatars.githubusercontent.com`,
     "font-src 'self' data:",

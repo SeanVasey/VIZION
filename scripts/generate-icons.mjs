@@ -71,6 +71,37 @@ async function renderSquarePng(svgBuffer, size, outPath, { flatten = false } = {
   logWrite(outPath);
 }
 
+// Pack already-rendered square PNGs into a .ico container (ICONDIR + one
+// ICONDIRENTRY per image + the PNG blobs verbatim). PNG-compressed entries
+// have been valid ICO members since Vista and are what every browser expects.
+async function writeFaviconIco(pngPaths, outPath) {
+  const pngs = await Promise.all(pngPaths.map((p) => fs.readFile(p)));
+  const sizes = await Promise.all(
+    pngPaths.map(async (p) => (await sharp(p).metadata()).width),
+  );
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // type: icon
+  header.writeUInt16LE(pngs.length, 4);
+  const entries = [];
+  let offset = 6 + 16 * pngs.length;
+  for (let i = 0; i < pngs.length; i++) {
+    const entry = Buffer.alloc(16);
+    entry.writeUInt8(sizes[i] >= 256 ? 0 : sizes[i], 0); // width (0 = 256)
+    entry.writeUInt8(sizes[i] >= 256 ? 0 : sizes[i], 1); // height
+    entry.writeUInt8(0, 2); // palette size (none)
+    entry.writeUInt8(0, 3); // reserved
+    entry.writeUInt16LE(1, 4); // color planes
+    entry.writeUInt16LE(32, 6); // bits per pixel
+    entry.writeUInt32LE(pngs[i].length, 8);
+    entry.writeUInt32LE(offset, 12);
+    entries.push(entry);
+    offset += pngs[i].length;
+  }
+  await fs.writeFile(outPath, Buffer.concat([header, ...entries, ...pngs]));
+  logWrite(outPath);
+}
+
 // Composite the transparent mark, centered, onto a Void canvas of WxH. Used for
 // the maskable safe zone (square) and the iOS splash screens (portrait).
 async function renderMarkOnVoid(markBuffer, width, height, markSize, outPath) {
@@ -133,6 +164,14 @@ async function main() {
     const out = path.join(ICONS_DIR, `favicon-${size}.png`);
     await renderSquarePng(iconSvg, size, out, { flatten: true });
   }
+  // Also assemble /favicon.ico from those PNGs: browsers (and the offline 404
+  // console) still request the legacy path unconditionally, and App Router's
+  // <link rel="icon"> does not cover it. PNG-in-ICO container — fine for every
+  // consumer of this path, which is browsers only.
+  await writeFaviconIco(
+    [16, 32, 48].map((size) => path.join(ICONS_DIR, `favicon-${size}.png`)),
+    path.join(repoRoot, "public", "favicon.ico"),
+  );
 
   // 5. Next.js App Router auto-wired icons:
   //    • icon.svg   — scalable favicon (preferred by modern browsers)

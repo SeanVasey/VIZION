@@ -8,10 +8,12 @@ import { buildCsp, cspDirectives } from "@/lib/security/csp";
 
 /**
  * CSP + transport-dependent hardening (audit SEC-001 reshaped this):
- * documents get a per-request NONCE policy from the middleware; the two
- * middleware-excluded script-bearing assets (offline.html, sw.js) keep a
- * static 'unsafe-inline' policy from next.config. These tests pin both
- * variants and the transport split.
+ * documents get a per-request NONCE policy from the middleware; the
+ * middleware-excluded script-bearing assets (offline.html, /offline, sw.js)
+ * get a static policy from next.config whose script-src is 'self' alone —
+ * the offline recovery script is external (/offline.js) precisely so no
+ * variant needs 'unsafe-inline'. These tests pin both variants and the
+ * transport split.
  */
 
 const find = (ds: string[], name: string) => ds.find((d) => d.startsWith(`${name} `))!;
@@ -23,9 +25,10 @@ describe("nonce policy (documents, via middleware)", () => {
     expect(find(ds, "script-src")).not.toContain("unsafe-inline");
   });
 
-  it("without a nonce (the static asset fallback) script-src keeps unsafe-inline", () => {
+  it("without a nonce (the static asset fallback) script-src is 'self' alone", () => {
     const ds = cspDirectives("https://abcdefgh.supabase.co");
-    expect(find(ds, "script-src")).toBe("script-src 'self' 'unsafe-inline'");
+    expect(find(ds, "script-src")).toBe("script-src 'self'");
+    expect(find(ds, "script-src")).not.toContain("unsafe-inline");
   });
 
   it("buildCsp appends upgrade-insecure-requests only on https origins", () => {

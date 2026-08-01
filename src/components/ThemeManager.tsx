@@ -64,11 +64,18 @@ export function ThemeManager() {
 }
 
 function setMeta(name: string, content: string) {
-  let el = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
-  if (!el) {
-    el = document.createElement("meta");
+  // theme-color ships as a media-qualified PAIR (layout.tsx, DSN-002): one tag
+  // per OS scheme so the pre-hydration tint is right without JS. Once a
+  // concrete theme is resolved here it must win over the OS scheme, so write
+  // EVERY tag — updating only the first match left the browser free to pick
+  // the untouched, wrong-scheme tag whenever the OS opposed the stored theme.
+  const els = document.querySelectorAll<HTMLMetaElement>(`meta[name="${name}"]`);
+  if (els.length === 0) {
+    const el = document.createElement("meta");
     el.name = name;
+    el.content = content;
     document.head.appendChild(el);
+    return;
   }
-  el.content = content;
+  for (const el of els) el.content = content;
 }

@@ -49,7 +49,8 @@ async function main() {
     });
 
     // 2. Inject the precache manifest into the bundled worker. We precache only
-    // static, auth-agnostic assets — `offline.html` is the navigation fallback.
+    // static, auth-agnostic assets — `offline.html` is the navigation fallback
+    // (offline.js is its external recovery script; both or neither).
     // App routes are auth-gated (they redirect by session state), so they are
     // cached at runtime via stale-while-revalidate rather than precached.
     //
@@ -67,6 +68,7 @@ async function main() {
       globDirectory: "public",
       globPatterns: [
         "offline.html",
+        "offline.js",
         "manifest.webmanifest",
         "icons/icon-192.png",
         "icons/icon-256.png",

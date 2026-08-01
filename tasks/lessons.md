@@ -2339,3 +2339,22 @@ than as a puzzling failure in whichever spec ran first.
   said so. The identical specs passing on Chromium is what licenses "the
   hygiene/perf changes are unaffected" — never let the 25 WebKit launch failures
   read as a code regression (CLAUDE.md §3).
+- **A platform URL-rewrite layer can invalidate every path-keyed header rule —
+  verify header intent on the URL the platform actually serves.** Vercel's
+  `cleanUrls: true` 308s `/offline.html` to `/offline`, so the static CSP rule
+  and the middleware matcher exclusion — both keyed on the `.html` path — only
+  ever decorated a bodyless redirect while the real document got the nonce
+  policy and its inline recovery script was silently blocked in production
+  (local `next start` has no cleanUrls, so the e2e suite could never see it).
+  Two fixes compose: make the script external so *every* policy variant
+  (`script-src 'self'`) permits it, and teach both the matcher and the header
+  rules about the clean-URL form. Curl the deployed URL, not just the repo
+  path.
+- **`apply_migration` via the Supabase MCP stamps its own version — the remote
+  ledger drifts from the repo filenames unless repaired.** The three wave
+  migrations landed as `20260801184843/191808/214653` while the repo says
+  `…190000/200000/210000`; a future CLI `db push` would have re-run them into
+  duplicate-column errors. Repair is three UPDATEs to
+  `supabase_migrations.schema_migrations`; the durable habit is to pass the
+  repo's version explicitly (or repair immediately) whenever a migration is
+  applied outside the CLI.

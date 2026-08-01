@@ -37,9 +37,11 @@ export const config = {
    * Run on every path except Next internals and static assets. The service
    * worker, manifest, icons, and splash screens must stay publicly reachable so
    * the PWA shell installs and loads before auth. (offline.html and sw.js get
-   * a static CSP from next.config.ts instead — they cannot take a nonce.)
+   * a static CSP from next.config.ts instead — they cannot take a nonce.
+   * `offline$` is the same document at the URL Vercel's cleanUrls actually
+   * serves it from; without the exclusion it picks up the nonce policy here.)
    */
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|offline.html|icons/|splash/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sw.js|manifest.webmanifest|offline.html|offline$|icons/|splash/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
   ],
 };

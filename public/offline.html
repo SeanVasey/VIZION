@@ -7,6 +7,8 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0F1012" />
+    <!-- Precached (build-sw.mjs), so the tab icon resolves offline too. -->
+    <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192" />
     <title>VIZ(IO)N — Offline</title>
     <style>
       /* Static, token-mirrored fallback: follows the OS scheme (no JS theme
@@ -64,18 +66,11 @@
       <h1>VIZ(IO)N</h1>
       <p>VIZ(IO)N is offline — your saved work is safe on the server.</p>
     </main>
-    <script>
-      // Self-recover when connectivity returns. reload() retries the URL the
-      // user actually navigated to (the SW served this document at that URL),
-      // so their intended destination is preserved rather than discarded to
-      // "/". A once-guard stops a flapping connection from bouncing through
-      // repeated navigations.
-      var recovered = false;
-      window.addEventListener("online", function () {
-        if (recovered) return;
-        recovered = true;
-        window.location.reload();
-      });
-    </script>
+    <!-- External on purpose: every CSP variant that can serve this document
+         (the static policy here, the middleware nonce policy on Vercel's
+         cleanUrls "/offline" form, and the SW-precached copy's cached headers)
+         allows script-src 'self', while an inline script is blocked by the
+         nonce policy. Precached alongside this file so it loads offline. -->
+    <script src="/offline.js" defer></script>
   </body>
 </html>

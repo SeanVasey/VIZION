@@ -6,6 +6,51 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Production verification fixes (post-deploy sweep of 28314e4)
+
+A live audit of the deployed production site (HTTP/PWA sweep, real
+mobile-browser pass, hosted-DB health, repo↔prod consistency) confirmed the
+audit remediation is serving correctly — nonce CSP, cache tiers, icon matrix,
+fail-closed APIs, RLS — and surfaced four fixable divergences, all repaired
+here:
+
+- **Offline auto-recovery was dead in production (S2).** Vercel's
+  `cleanUrls: true` 308-redirects `/offline.html` to `/offline`, a path
+  neither the middleware matcher nor `next.config.ts`'s header rule knew, so
+  the document (and the SW-precached copy) shipped with the per-request
+  *nonce* CSP while its inline reload script carried no nonce — blocked in
+  every browser, on the exact page whose job is to reload when connectivity
+  returns. The recovery script is now the external `/offline.js` (valid under
+  `script-src 'self'` in **every** policy variant, and precached with the
+  page); the matcher excludes `/offline`; a mirrored static-CSP header rule
+  covers the clean URL. With no inline script left in any static asset, the
+  static fallback CSP drops `'unsafe-inline'` for scripts entirely — a strict
+  tightening of SEC-001.
+- **Browser-chrome tint wrong when the stored theme opposes the OS scheme.**
+  `ThemeManager.setMeta()` rewrote only the *first* `theme-color` meta (the
+  dark-media one of the DSN-002 media-qualified pair), so e.g. theme=dark on a
+  light-OS device kept the light tag authoritative and tinted `#EEF0F4` over a
+  dark page. It now writes the resolved surface color to every tag in the
+  pair (`tests/unit/theme-meta.test.tsx` pins all four scenarios).
+- **Legacy `/favicon.ico` 404 and `/robots.txt` auth-redirect.**
+  `generate-icons.mjs` now assembles `public/favicon.ico` (PNG-in-ICO from the
+  existing 16/32/48 favicons); `public/robots.txt` exists (`Disallow: /api/`);
+  both paths are middleware-excluded. The offline page also declares the
+  precached `icon-192.png` as its icon so its tab icon resolves offline.
+- **`bg:paused`/`bg:resumed` breadcrumbs no longer ship to production
+  consoles.** They were `console.warn`, which `removeConsole` deliberately
+  keeps; as visibility-change diagnostics they are `console.debug` — present
+  in dev, stripped from production.
+
+Operational, recorded here because the repo is the canon: the three audit-wave
+migrations were applied to the hosted project under MCP-generated versions
+(`20260801184843/191808/214653`); the remote `schema_migrations` ledger has
+been repaired to the repo's versions (`20260801190000/200000/210000`) so CLI
+migration tooling agrees with the repo again. Still open on the GitHub side
+(owner actions, unchanged from the adjudication): enable GitHub Actions
+(`docs/runbooks/ci-enablement.md`), then backfill the `v0.3.0` tag/Release via
+`release.yml`.
+
 ### Post-review fixes (PR #75 code review)
 
 Three correctness follow-ups on the wave work, each with a test:
