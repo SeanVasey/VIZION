@@ -32,7 +32,7 @@ accepted recommendation (a)).
      the 3→16 model and 5→6 mode transitions;
    - **`src/styles/tokens.css`**: the LOCKED 7-role design-token layer (additive
      tokens live in `globals.css`);
-   - **the audit ledger** under `docs/audit/` (`01-ledger.md` +
+   - **the audit ledger** under `docs/audits/` (`01-ledger.md` +
      `02-adjudication.md` + the decision records it cites).
 
 3. **Section citations survive the move.** Source comments cite the v1 spec and

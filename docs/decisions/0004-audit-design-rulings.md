@@ -5,7 +5,7 @@ Status: accepted
 
 ## Context
 
-The repo audit capstone (`docs/audit/`) raised several design-fidelity
+The repo audit capstone (`docs/audits/`) raised several design-fidelity
 questions where shipped code and the locked style canon disagreed, and asked
 for a ruling rather than a unilateral fix. The owner accepted the adjudication
 recommendations (PR #72 gate). This record fixes those decisions so the next

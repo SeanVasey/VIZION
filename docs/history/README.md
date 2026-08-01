@@ -16,7 +16,7 @@ written to stop.
 
 **Where the living canon lives now** (per ADR-0005): the code itself, the
 `CHANGELOG.md`, `src/styles/tokens.css` (the locked 7-role token layer), and the
-audit ledger under `docs/audit/`.
+audit ledger under `docs/audits/`.
 
 Section citations elsewhere in the tree (e.g. `product-spec §4.1`,
 `style-guide §1.4` in source comments) point at these documents by section for

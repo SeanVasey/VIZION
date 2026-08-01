@@ -15,7 +15,7 @@ media-aware prompting, accounts, and a versioned prompt library. **Ship-ready at
 every commit.**
 
 The **living canon** — reconcile against these — is the code, `CHANGELOG.md`,
-`src/styles/tokens.css`, and the audit ledger under `docs/audit/` (see
+`src/styles/tokens.css`, and the audit ledger under `docs/audits/` (see
 `docs/decisions/0005-living-canon.md`). The v1-era planning documents
 (`VIZION FINAL PLAN v1.md`, `VIZION-product-spec.md`, `VIZION-style-guide.html`)
 are **historical, not authoritative**: they moved to `docs/history/`; source

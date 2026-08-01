@@ -317,7 +317,7 @@ Offline outbox (SW-001/002/007, Q10):
 
 ### Fixed — audit Stage 2, Wave 1: the five invariant violations (PR #72 gate, `GO` received)
 
-The 2026-08-01 audit capstone (`docs/audit/`) found no S0 and five invariant
+The 2026-08-01 audit capstone (`docs/audits/`) found no S0 and five invariant
 violations; the owner accepted every adjudication recommendation. Wave 1
 clears the violations and hardens the guards that keep them cleared:
 
