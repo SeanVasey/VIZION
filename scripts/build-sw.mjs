@@ -13,9 +13,11 @@
  *      writes `public/sw.js`.
  *
  * Pre-build we cannot glob the Next.js `.next` output, so we precache from the
- * static `public/` directory plus a manually injected app-shell entry for
- * `/enhance`. The shell revision is a build timestamp so it revalidates each
- * deploy. Runs via the `prebuild` npm hook. Exits non-zero on failure.
+ * static `public/` directory only (icons + manifest + offline.html). No app
+ * route is precached — every navigation is NetworkOnly and falls back to
+ * offline.html, so there is no "app-shell entry" (the accurate rationale is at
+ * the injectManifest call below). Runs via the `prebuild` npm hook. Exits
+ * non-zero on failure.
  */
 
 import { build as esbuild } from "esbuild";

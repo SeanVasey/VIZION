@@ -9,7 +9,7 @@ import type { MediaItem } from "@/lib/media/queue";
  */
 
 export const MAX_CONTEXT_ITEMS = 4;
-export const MAX_CONTEXT_CHARS = 1500;
+const MAX_CONTEXT_CHARS = 1500;
 
 /** Display-safe file name: control characters stripped, middle-ellipsized. */
 export function sanitizeName(name: string, max = 40): string {

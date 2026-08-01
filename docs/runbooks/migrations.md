@@ -39,6 +39,20 @@ to re-run all sixteen against production — `create table public.collections`
 included. They now carry the versions the ledger recorded. `tests/unit/migrations.test.ts`
 keeps the naming parseable and the ordering stable.
 
+**Stale cross-references inside applied migrations (audit `INV-008`).** Three
+comment breadcrumbs cite companion migrations by the hand-rounded timestamps the
+files carried *before* they were renamed to their ledger versions. The SQL is
+unaffected — only the comments point at filenames that never shipped. Applied
+migrations are append-only, so the correction lives here, not in the files:
+
+| file (comment) | timestamp cited | actual file |
+| --- | --- | --- |
+| `20260730203605_atomic_spend_reservations.sql:123` | `20260730230000` | `20260730203737_fix_spend_reserve_ambiguity.sql` |
+| `20260730200124_usage_ledger_integrity.sql:32,63` · `…203605:248` | `20260730210000` | `20260730202138_usage_ledger_revoke.sql` |
+
+The apply *order* those comments describe is correct; only the filenames they
+name are stale. `tests/unit/migrations.test.ts` pins the real ordering.
+
 ## Proving the directory can still build the database
 
 ```bash

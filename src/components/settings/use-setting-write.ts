@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type SettingState = "idle" | "saving" | "saved" | "error";
+type SettingState = "idle" | "saving" | "saved" | "error";
 
 export interface SettingStatus {
   state: SettingState;

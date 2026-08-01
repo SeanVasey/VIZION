@@ -1,7 +1,8 @@
 # VIZ(IO)N — Architecture
 
-Condensed from `VIZION FINAL PLAN v1.md §3` and `VIZION-product-spec.md §2`. This is the
-working map; the locked plan is canonical.
+Condensed from the v1 planning docs (`docs/history/VIZION FINAL PLAN v1.md §3`,
+`docs/history/VIZION-product-spec.md §2`). Those are historical (ADR-0005); this
+working map plus the code are the canon of record.
 
 ## Layers
 
@@ -111,9 +112,13 @@ while its API took a `thinking_budget` all along.
 ## Data model (P2/P4)
 
 Entities: `User · Profile · OAuthIdentity · Prompt · PromptVersion · MediaAsset ·
-ActivityEvent`. Every table carries `user_id`; RLS policy = `auth.uid() = user_id`.
+ActivityEvent · Collection · Draft · UsageEvent · UsageReservation`. Most tables
+carry `user_id` with RLS `auth.uid() = user_id`; `PromptVersion` is the exception
+— it has no `user_id` and its policies traverse the parent prompt's ownership
+(`exists (select 1 from prompts …)`), keeping one source-of-ownership truth.
 `PromptVersion` rows are immutable snapshots; `Prompt.current_ver` points at the active
-one. Full field-level schema in `VIZION-product-spec.md §5.1`.
+one. Full field-level schema in `docs/history/VIZION-product-spec.md §5.1` (v1-era,
+historical — ADR-0005).
 
 `supabase/migrations/` is the whole schema, from `create type public.theme`
 onward — not a patch set layered on a hosted base. `npm run db:verify` replays

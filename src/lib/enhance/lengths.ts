@@ -32,7 +32,7 @@ export function hasLengthControl(mode: ModeId): boolean {
  * always the biggest — the dial reads consistently even though its ends mean
  * opposite things.
  */
-export const LENGTH_LABEL: Partial<Record<ModeId, Record<LengthId, string>>> = {
+const LENGTH_LABEL: Partial<Record<ModeId, Record<LengthId, string>>> = {
   condense: { short: "Tight", medium: "Balanced", long: "Essential" },
   expand: { short: "Focused", medium: "Thorough", long: "Comprehensive" },
 };

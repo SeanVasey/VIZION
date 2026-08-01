@@ -92,4 +92,5 @@ image-weight flag is ever embedded — asserted by negative tests):
 
 - **Midjourney** — `<desc> --ar <from extracted dimensions, default 16:9> --v 6`
 - **Runway / Sora / Kling** — labeled motion phrasing (`Subject / Camera & motion / …`)
-- **Audio** — structured spec (`Tempo / Timbre / Mood / Duration`)
+- **Audio** — structured spec (`Mood / Duration` — file metadata only, no
+  semantic tempo/timbre pass; the old fields were dead schema, 2026-07)

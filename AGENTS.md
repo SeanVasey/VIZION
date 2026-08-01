@@ -18,9 +18,9 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
 - **Dev server:** `npm run dev` → http://localhost:3000
 - **Verification gate** (before every commit, per `CLAUDE.md` §3):
   `npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run build`
-- **Narrower runs:** `npm run test` (Vitest, jsdom) · `npm run test:int`
-  (integration only) · `npm run test:e2e` (Playwright — does its own
-  `build:sw` + `next build` + `next start` on :3100) · `npm run format:check`
+- **Narrower runs:** `npm run test` (Vitest, jsdom) · `npm run test:e2e`
+  (Playwright — does its own `build:sw` + `next build` + `next start` on :3100)
+  · `npm run format:check`
 - **Before e2e, once per machine:** `npx playwright install --with-deps` — the
   same line CI uses.
 - **`npm run check:db-enum`** — a read-only preflight asking the *hosted*
@@ -76,27 +76,18 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
   braced glob in the tree, and it went unnoticed because nothing in the repo used
   one: an ESLint `files: ["src/**/*.{ts,tsx}"]` is the first thing to hit it.
   The keys are `brace-expansion@1` / `@2` / `@5`, each pinned to the newest
-  release of its own line, so every consumer gets an API it can actually call.
-  **Consequence, deliberately accepted:** the advisory range is `<=5.0.7`, so
-  every 1.x and 2.x release matches it no matter how patched, and the FULL-tree
-  `npm audit` reports 14 high entries, all in dev tooling (the eslint chain and
-  workbox-build). See the next bullet for why that is a false positive. CI gates
-  `npm audit --omit=dev --audit-level=high`, which stays at **0**, and the
-  full-tree step is now GATED by `npm run audit:check` rather than
-  `npm audit || true`.
-- **The 14 full-tree entries are one advisory, and it is a false positive.** They
-  all fan out from GHSA-mh99-v99m-4gvg on `brace-expansion` (range `<=5.0.7`).
-  The fix — CVE-2026-14257's `EXPANSION_MAX` / `EXPANSION_MAX_LENGTH` limits —
-  WAS backported to 1.1.17 and 2.1.3; the advisory range was never narrowed, so
-  patched releases still match it. Verify for yourself:
-  `grep EXPANSION_MAX_LENGTH node_modules/minimatch/node_modules/brace-expansion/index.js`.
-  It also cannot be removed: `eslint@9` requires `minimatch@^3.1.5`, and
-  minimatch@3 calls brace-expansion as a function, so a 1.x is the only patched
-  shape available to it. **`npm audit` cannot reach 0 on the full tree while this
-  project uses ESLint 9** — which is why the gate verifies the exemption instead
-  of chasing the number. `scripts/check-audit.mjs` fails on any advisory that is
-  not exempt, AND re-proves each exemption by checking that every installed copy
-  really contains the limits, so the allowlist cannot rot into a blanket ignore.
+  release of its own line, so every consumer gets an API it can actually call —
+  and they stay as **defensive floors** even now that the advisory is gone
+  (below).
+- **The brace-expansion advisory is no longer reported (2026-08-01, audit
+  DEP-002).** GHSA-mh99-v99m-4gvg (`<=5.0.7`) previously fanned out into ~14
+  full-tree high entries, all dev tooling. Its range has since been re-scoped
+  and the per-major overrides floor every installed copy at a patched release,
+  so a full-tree `npm audit` now reports **0**. The stale exemption and its
+  source-level verifier were removed from `scripts/check-audit.mjs`; the gate
+  is **zero-exemption** — any advisory that appears hard-fails, which is the
+  intended posture. CI still gates `npm audit --omit=dev --audit-level=high`
+  (0) plus the full-tree `npm run audit:check`.
 - **`eslint-plugin-tailwindcss` must stay on the `3.x` line** while this project
   is on Tailwind 3. `4.x` declares `peer tailwindcss@^4` and will not install
   without `--force`. Its `settings.tailwindcss.config` also has to be an

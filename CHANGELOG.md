@@ -6,6 +6,76 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Hygiene — audit Stage 2, Wave 5: dead code, dependencies, docs, and rulings Q2/Q11/Q12/Q15
+
+Wave 5 clears the DEAD / DEP / DOC tracks (plus `INV-008`, `MED-007`,
+`SW-003/004`) and lands the remaining hygiene rulings. No runtime behaviour
+changes — this wave is code hygiene, dependency accuracy, and documentation
+truth.
+
+Dead surface:
+
+- **DEAD-004.** The `export` keyword is dropped from 14 grep-verified
+  module-internal symbols (6 values + 8 types across 10 files) — compile-time
+  surface only, no runtime change.
+- **DEAD-002 (ruling Q12).** The broken `test:int` script (targeted a
+  non-existent `tests/integration/`) is removed from `package.json` and
+  `AGENTS.md`; no integration tier is planned.
+- **DEAD-005 / DEAD-001.** The 8 generated Supabase type aliases are recorded as
+  accepted scaffolding (hand-editing fights the generator); the 12 unreferenced
+  `public/icons/` files are left for Wave 6's precache trim (they are a
+  protected, dispositive path — `PERF-005`, not a deletion).
+
+Dependencies:
+
+- **DEP-001 / PRI-008.** The six `workbox-*` runtime packages
+  (`core/precaching/routing/strategies/expiration/cacheable-response`) are now
+  declared as direct devDependencies at `^7.4.1` instead of relying on
+  `workbox-build`'s transitive hoist.
+- **DEP-002.** The stale `GHSA-mh99-v99m-4gvg` exemption and its source-level
+  verifier are removed from `scripts/check-audit.mjs` (now zero-exemption); the
+  advisory is no longer reported and the per-major `brace-expansion` overrides
+  stay as defensive floors. `AGENTS.md` rewritten to match.
+- **DEP-003.** `engines.node` tightened to `^20.19.0 || >=22.12.0` (the vite 7
+  intersection), so the declared floor matches the toolchain. `DEP-004`
+  (deprecated transitives, no advisory) and `DEP-005` (openai v4→current, an
+  API-breaking migration) are recorded as tracked debt.
+
+Docs:
+
+- **Ruling Q2 (`DOC-005` / `MOD-002`), [ADR-0005](docs/decisions/0005-living-canon.md).**
+  The three v1-era canon files (`VIZION FINAL PLAN v1.md`,
+  `VIZION-product-spec.md`, `VIZION-style-guide.html`) moved to `docs/history/`
+  and are reclassified as historical. The **living canon** is code + CHANGELOG +
+  `tokens.css` + the audit ledger. `CLAUDE.md` §1, `docs/architecture.md`, and
+  ADR-0001 references updated; source `§`-citations remain valid.
+- **`DOC-008`.** The four undocumented decisions since ADR-0003 get records:
+  [0006](docs/decisions/0006-tolerant-envelope-salvage.md) (envelope salvage),
+  [0007](docs/decisions/0007-collections.md) (collections),
+  [0008](docs/decisions/0008-service-role-account-deletion.md) (service-role
+  deletion), [0009](docs/decisions/0009-atomic-spend-reservations.md) (atomic
+  spend reservations).
+- **`DOC-004`.** The vendored OFL fonts ship their license: `src/app/fonts/OFL.txt`
+  carries the full SIL OFL 1.1 text and per-family copyright notices, pointed at
+  from `LICENSE`, `README`, and `fonts/index.ts`.
+- **`DOC-001/002/003/006/009/010/011/012`, ruling Q15 (`DOC-007`).** README
+  route handlers corrected Edge→Node and the SW-strategy line to reality; README
+  phases relabeled as feature milestones (no phantom v0.4/v0.5 tags); the
+  copyright holder aligned to `LICENSE`; `CLAUDE.md` §4/§9 and `SECURITY.md`
+  (all 12 provider keys), `architecture.md` (4 missing entities), and
+  `local-dev.md` (icons are brand-derived, not placeholders) brought current.
+- **`INV-008`, `MED-007`, `SW-003/004`.** The stale migration timestamp
+  cross-references are mapped in `docs/runbooks/migrations.md` (applied
+  migrations are append-only); the audio generation spec and the service-worker
+  comments (`register-sw.ts`, `sw-src.js`, `build-sw.mjs`) now describe the
+  shipped NetworkOnly behaviour.
+
+Strictness (**ruling Q11**, `TYP-007`): `tsconfig` enables
+`noFallthroughCasesInSwitch`, `noUnusedLocals`, and `noUnusedParameters`
+alongside the already-on `noUncheckedIndexedAccess` and `noImplicitOverride` —
+the whole scheduled strictness set is green. `DOC-014` resolves the `DOC-XXX`
+placeholder; the `docs/audit`→`docs/audits` fold is deferred to finalize.
+
 ### Design — audit Stage 2, Wave 4: token centralization, consumers, and design rulings
 
 Wave 4 clears the DSN track and records the design rulings Q1/Q6/Q7/Q8 in

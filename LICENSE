@@ -19,3 +19,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+The MIT license above covers the VIZ(IO)N source code. The fonts vendored under
+`src/app/fonts/` (Bebas Neue, Reddit Sans, JetBrains Mono) are third-party Font
+Software licensed separately under the SIL Open Font License 1.1 — full text and
+per-family copyright notices in `src/app/fonts/OFL.txt`.

@@ -13,7 +13,7 @@ import type { TargetModelId } from "@/lib/constants";
  * parallel fan-out.
  */
 
-export type MediaItemStatus =
+type MediaItemStatus =
   | "queued"
   | "reserving"
   | "uploading"
@@ -21,7 +21,7 @@ export type MediaItemStatus =
   | "ready"
   | "error";
 
-export interface AnalysisUsage {
+interface AnalysisUsage {
   tokenIn: number;
   tokenOut: number;
   costUsd: number;

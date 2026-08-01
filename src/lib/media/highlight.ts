@@ -15,7 +15,7 @@
 
 import { GEN_TARGETS, type GenTargetId } from "./types";
 
-export type PromptTokenKind =
+type PromptTokenKind =
   | "text"
   /** An engine flag and its value (`--ar 16:9`). */
   | "flag"

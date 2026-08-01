@@ -267,7 +267,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Do not edit applied migrations (history is append-only per the repo's own note). Record the filename corrections in docs/runbooks (or the next migration's header) mapping the stale 230000/210000 references to 20260730203737 and 20260730202138.
 - **verification:** grep -rn '20260730230000\|20260730210000' supabase/migrations docs/ shows the stale references documented or annotated; no migration file content hash changes.
 - **independently found by:** DOC ("Dangling migration citation the citation-resolution test cannot see: 20260730203605_atomic_spend_reservations.")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: docs/runbooks/migrations.md maps the stale timestamp breadcrumbs (20260730230000→…203737 fix_spend_reserve_ambiguity, 20260730210000→…202138 usage_ledger_revoke); applied migrations are append-only so the correction lives in the runbook, not the files
 
 ### INV-009 — No automated assertion enforces the icon alpha contract (transparent any-matrix, opaque maskable/apple-touch/favicons); INV-09 is currently verified only by manual measurement and a regeneration regression would ship undetected.
 
@@ -494,7 +494,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** VIZION-product-spec.md; any agent or human using the spec as source of truth will build five-mode assumptions; misciting comments in src/lib/enhance/modes.ts, src/lib/constants.ts, src/components/diff/TransformationDiff.tsx
 - **proposed_fix:** With owner approval (the spec is locked): add Polish to the §4.1 table and 'polish' to the enum sketch at spec line 269, and record per-change review under Polish; or, if the spec must not change, correct the three code comments to cite the migration/UX-audit rather than §4.1. PR-7 (taxonomy immutable) is not contravened — Polish already shipped; this reconciles the record, it does not change the taxonomy.
 - **verification:** grep -n 'polish' VIZION-product-spec.md returns the mode table row and the enum sketch; grep -c mode rows in §4.1 equals MODES.length.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q2=a): the locked-spec five-mode text is reclassified historical, not rewritten — the three v1 canon files moved to docs/history/ and ADR-0005 names code+CHANGELOG+tokens.css+ledger as the living canon (six modes). = DOC-005
 
 ### MOD-003 — Refinement passes silently drop the format and length knobs: a Reformat run with an explicitly chosen shape regains the 'whichever fits' latitude on refine, and Condense/Expand depth settings vanish
 
@@ -719,7 +719,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/runbooks/media.md only
 - **proposed_fix:** Edit line 95 to '(`Mood / Duration` — file metadata only, no semantic tempo/timbre pass)'.
 - **verification:** grep -n 'Tempo / Timbre' docs/runbooks/media.md returns nothing.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: docs/runbooks/media.md audio spec now reads 'Mood / Duration' (file metadata only); the dead tempo/timbre fields are gone from the doc as they are from audioSpec
 
 ### MED-008 — No test exercises the /api/media route handler: auth gate, size guard, target/intent validation, reserve-release-on-failure, settle wiring, and the fallbackFrom response contract are all unpinned
 
@@ -887,7 +887,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/pwa/register-sw.ts, src/lib/pwa/sw-src.js (comments only)
 - **proposed_fix:** Rewrite both comments to match reality: vizion-shell holds same-origin static assets only; navigations are NetworkOnly and offline always falls back to /offline.html; the /sign-in purge clears cached assets, not HTML.
 - **verification:** grep -n 'visited page HTML' src/lib/pwa/register-sw.ts and grep -n 'served from the runtime' src/lib/pwa/sw-src.js return nothing; npx vitest run tests/unit/library-integrity.test.ts stays green (its SW assertions target code, not these comments).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: register-sw.ts and sw-src.js comments now say the runtime cache holds only same-origin static assets (SWR), never page HTML — navigations are NetworkOnly → offline.html (CACHE-01)
 
 ### SW-004 — build-sw.mjs header comment claims a manually injected /enhance app-shell precache entry with a build-timestamp revision; neither exists in the code or the built output
 
@@ -896,7 +896,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/build-sw.mjs (comment only)
 - **proposed_fix:** Delete the phantom '/enhance entry' and 'build timestamp revision' sentences from the header comment; the accurate rationale already exists at lines 49-52.
 - **verification:** grep -n 'enhance' scripts/build-sw.mjs returns nothing; node scripts/build-sw.mjs still reports 'Precached 21 entries'.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: build-sw.mjs header no longer claims a manually injected /enhance app-shell entry; it precaches from public/ only (icons + manifest + offline.html), matching the NetworkOnly design
 
 ### SW-005 — Redundant dead update-flow plumbing: sw-src.js calls self.skipWaiting() unconditionally on install, making the SKIP_WAITING message channel and register-sw's 'ask it to activate' handler dead code with a misleading comment
 
@@ -1451,7 +1451,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** tsconfig.json; repo-wide compile behavior
 - **proposed_fix:** Enable noFallthroughCasesInSwitch now (0 errors); enable noImplicitReturns with the one ThemeManager fix; decide whether the 30-error exactOptionalPropertyTypes migration is worth scheduling — that is a policy call, not a defect fix.
 - **verification:** npm run typecheck exits 0 with the chosen flags added to tsconfig.json
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q11=a, exceeded): tsconfig enables noFallthroughCasesInSwitch, noUnusedLocals, noUnusedParameters (the free tier) AND keeps noUncheckedIndexedAccess + noImplicitOverride on — the whole strictness set the ruling scheduled is already green
 
 ### TYP-008 — Two uncommented `as unknown as` double casts on Supabase query rows, one of which appears unnecessary
 
@@ -1501,7 +1501,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/build-sw.mjs, src/lib/pwa/sw-src.js, public/sw.js (prebuild step of every `npm run build`); breaks under pnpm/isolated-mode installs or if a future workbox-build release drops any of these from its dependency list
 - **proposed_fix:** Add the six imported workbox-* packages to devDependencies at ^7.4.1 (matching the versions already installed and deduped against workbox-build) so the SW bundle's imports are declared, not inherited.
 - **verification:** npm ls workbox-core workbox-precaching workbox-routing workbox-strategies workbox-expiration workbox-cacheable-response shows each as a direct devDependency; `npm run build:sw` produces a byte-identical public/sw.js (same versions dedupe).
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (= PRI-008): the six workbox-* runtime packages (core/precaching/routing/strategies/expiration/cacheable-response) are declared as direct devDependencies at ^7.4.1, no longer relying on workbox-build's transitive hoist
 
 ### DEP-002 — Audit-gate exemption for GHSA-mh99-v99m-4gvg is stale — the advisory is no longer reported — and AGENTS.md still asserts 14 high entries that no longer exist
 
@@ -1510,7 +1510,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** scripts/check-audit.mjs, AGENTS.md, comment block in .github/workflows/ci.yml:62-65; no runtime effect
 - **proposed_fix:** Follow the script's own designed prompt: remove the EXEMPT entry and its verify helper from scripts/check-audit.mjs (the gate then hard-fails if the advisory ever returns, which is the intended behavior), and update AGENTS.md:83-97 to record that the advisory was withdrawn/re-ranged and the per-major overrides are retained as defensive floors.
 - **verification:** npm run audit:check exits 0 printing "0 high, 0 critical across 0 distinct advisories" with no "drop this exemption" line; grep -c GHSA-mh99 scripts/check-audit.mjs returns 0.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: the stale GHSA-mh99-v99m-4gvg EXEMPT entry and its source-level verifier are removed from scripts/check-audit.mjs (now zero-exemption); AGENTS.md rewritten to record the advisory is no longer reported and the per-major overrides remain defensive floors
 
 ### DEP-003 — engines.node ">=20.0.0" understates the real floor — installed toolchain requires Node ^20.19.0 || >=22.12.0
 
@@ -1519,7 +1519,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** package.json engines field; local developer environments only — CI and Vercel (Node 22) are inside the supported range
 - **proposed_fix:** Tighten engines.node to "^20.19.0 || >=22.12.0" (the intersection-defining constraint, from vite 7) so the declared floor matches what the toolchain actually supports.
 - **verification:** node -e "const s=require('semver');['20.0.0','20.18.0','21.0.0','22.11.0'].forEach(v=>console.log(v, s.satisfies(v, require('./package.json').engines.node)))" prints false for all four; `npm install --dry-run` on Node 22 emits no EBADENGINE warnings.
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: engines.node tightened to '^20.19.0 || >=22.12.0' (the vite 7 intersection), so the declared floor matches what the toolchain actually supports
 
 ### DEP-004 — Four deprecated transitive packages in the installed tree: glob@11.1.0, source-map@0.8.0-beta.0, node-domexception@1.0.0, whatwg-encoding@3.1.1
 
@@ -1528,7 +1528,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** Dev/build tree only, except node-domexception which sits in the production dependency graph via openai@4; no runtime defect today
 - **proposed_fix:** No local fix for the workbox-build pair (upstream pins); clearing node-domexception requires the openai major bump (see separate finding); whatwg-encoding clears with a jsdom major bump (^25.0.1 declared, newer majors available). Track as upstream-currency debt rather than patching with overrides.
 - **verification:** node -e over package-lock.json listing entries with a `deprecated` field returns empty (or only the accepted workbox-build residue) after the respective bumps; npm run test stays green.
-- **disposition:** pending
+- **disposition:** accepted — Stage 2 W5: the four deprecated transitives (glob@11, source-map beta, node-domexception, whatwg-encoding) carry no advisory; the workbox-build pair is upstream-pinned and node-domexception/whatwg-encoding clear only with the openai/jsdom major bumps. Tracked as upstream-currency debt (rides DEP-005), no override applied
 
 ### DEP-005 — openai pinned to legacy major 4 (installed 4.104.0), at least two majors behind current, dragging node-fetch@2 + whatwg-url@5 into the production dependency graph
 
@@ -1537,7 +1537,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/providers/openai.ts, openai-compat.ts, mistral.ts, xai.ts, vision.ts, config.ts, src/lib/constants.ts, and the /api/enhance route paths that call them; upgrade is API-breaking (v4 -> v5+ changed client construction and streaming types)
 - **proposed_fix:** Plan a deliberate openai v4 -> current-major migration for the compat providers (client init, streaming iterator types, error classes), which also removes deprecated node-domexception and the duplicate whatwg-url@5 from prod. Not urgent: zero open advisories today.
 - **verification:** After migration: npm ls node-fetch whatwg-url shows no openai-rooted entries; npx vitest run tests/unit/compat-adapter.test.ts tests/unit/vision-fallback.test.ts tests/unit/models.test.tsx passes; npm audit --omit=dev --audit-level=high stays 0.
-- **disposition:** pending
+- **disposition:** deferred (by adjudication) — Stage 2 W5: openai v4→current is an API-breaking migration across 9 provider/test files (client init, streaming iterator types, error classes), not a hygiene commit; zero open advisories today. Left on the backlog with its evidence
 
 ## Track DEAD
 
@@ -1568,7 +1568,7 @@ still-open or partial carry-forwards.
 - **proposed_fix:** Prior ledger poses the exact fork: delete the script or implement tests/integration/. Deleting removes a documented entry point (CLAUDE.md gate wording says 'integration/e2e' but its command runs test:e2e only); implementing is net-new test scope. Ask, do not guess.
 - **verification:** npx vitest run --dir tests/integration currently prints 'No test files found, exiting with code 1'; after ruling, either the script is gone from package.json or the directory exists with at least one passing spec
 - **independently found by:** PRI ("npm run test:int still targets tests/integration, a directory that does not exist"); DOC ("AGENTS.md documents 'npm run test:int (integration only)' but the script exits 1 because tests/integration doe")
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q12=a): the test:int script is removed from package.json and its AGENTS.md doc line dropped — no integration tier is planned
 
 ### DEAD-003 — tailwind.config.ts carries dead entries: extend.backdropBlur.glass, extend.boxShadow.hair, extend.backgroundColor.glass generate utilities (backdrop-blur-glass, shadow-hair, bg-glass) used nowhere; colors.void-2 and colors.lift likewise emit no used utility
 
@@ -1586,7 +1586,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** 10 source/test files; compile-time export surface only, zero runtime change
 - **proposed_fix:** Drop the export keyword on the 14 symbols (several read as deliberate tuning knobs — DIFF_TOKEN_BUDGET, MAX_CONTEXT_CHARS — so an alternative is a knip ignore list; either resolves the dead surface).
 - **verification:** npm run lint && npm run typecheck && npm run test stay green; npx --yes knip no longer lists the symbols
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: the export keyword dropped on all 14 grep-verified module-internal symbols (6 values + 8 types across 10 files); gate green, no cross-module importer existed
 
 ### DEAD-005 — src/lib/supabase/database.types.ts exports 8 helper aliases with zero importers (TablesInsert, TablesUpdate, OAuthIdentity, Prompt, PromptVersion, ActivityEvent, MediaAsset, Collection) — accepted generated-file scaffolding, not a deletion candidate
 
@@ -1595,7 +1595,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/lib/supabase/database.types.ts only; type-level only
 - **proposed_fix:** No code change — hand-editing fights the generator. Record as accepted scaffolding (or add a knip ignore for the file) so future dead-code passes do not re-flag it.
 - **verification:** grep -rEn 'TablesInsert|TablesUpdate|OAuthIdentity|PromptVersion|ActivityEvent|MediaAsset|Collection' src tests --include='*.ts*' | grep -v database.types.ts returns 0 lines
-- **disposition:** pending
+- **disposition:** accepted — Stage 2 W5: generated Supabase scaffolding (database.types.ts header says 'Do not edit by hand'); hand-removing the 8 aliases fights the generator. Recorded as accepted, no code change (no knip config exists to add an ignore to)
 
 ## Track PERF
 
@@ -1713,7 +1713,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** README.md only (public-facing repo front page)
 - **proposed_fix:** Change README.md:44 to 'Next Route Handlers (Node)' to match CLAUDE.md section 7 and docs/architecture.md:15.
 - **verification:** grep -n 'Edge' README.md returns no route-handler Edge claim
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: README architecture diagram now reads 'Next Route Handlers (Node)', matching CLAUDE.md §7 and docs/architecture.md
 
 ### DOC-002 — README.md service-worker line advertises 'network-first(enhance, auth) . cache-fallback(library)' caching strategies that were deliberately removed (one had been caching Supabase auth session PII)
 
@@ -1722,7 +1722,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** README.md only, but it misdescribes the privacy posture of the shipped SW
 - **proposed_fix:** Change README.md:41 to match reality: 'Service worker: SWR(shell) . network-only navigations . offline fallback', per docs/architecture.md:24-49.
 - **verification:** README SW line names only strategies present in src/lib/pwa/sw-src.js (grep -n 'NetworkOnly\|StaleWhileRevalidate' src/lib/pwa/sw-src.js)
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: README SW line now reads 'SWR(same-origin static assets) · NetworkOnly navigations → offline.html' — only strategies that exist in sw-src.js; the removed enhance/auth/library caching claims are gone
 
 ### DOC-003 — CLAUDE.md contradicts itself: section 9 still says 'edge DDoS posture' while section 7 explicitly retracts the Edge claim and names spend_reserve atomic admission as the real abuse control
 
@@ -1731,7 +1731,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** CLAUDE.md (the operating contract every agent reads first); any agent may act on the stale posture claim
 - **proposed_fix:** Amend CLAUDE.md:120 to '- Rate limits on all endpoints; abuse control via atomic per-user admission in spend_reserve (section 7).' CLAUDE.md is the governance contract, so a human should approve the wording.
 - **verification:** grep -in 'edge' CLAUDE.md shows only the section 7 correction, no surviving 'edge DDoS posture' claim
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: CLAUDE.md §9 'edge DDoS posture' replaced with 'the abuse control is atomic per-user admission in spend_reserve (§7)', aligning §9 with the §7 correction
 
 ### DOC-004 — Eight vendored SIL OFL font files (Bebas Neue, Reddit Sans, JetBrains Mono woff2) are redistributed with no OFL license text or copyright notice anywhere in the repo; LICENSE is MIT-only
 
@@ -1740,7 +1740,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** src/app/fonts/ (8 files), LICENSE/README attribution posture of the public repo
 - **proposed_fix:** Add src/app/fonts/OFL.txt (or one per family) carrying each family's original copyright line plus the OFL 1.1 text, and a one-line pointer in LICENSE or README that vendored fonts are OFL-licensed separately from the MIT code license.
 - **verification:** test -f src/app/fonts/OFL.txt && grep -q 'SIL OPEN FONT LICENSE' src/app/fonts/OFL.txt
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: src/app/fonts/OFL.txt carries the full SIL OFL 1.1 text with per-family copyright notices (Bebas Neue, Reddit Sans, JetBrains Mono); LICENSE, README, and fonts/index.ts point at it
 
 ### DOC-005 — The three 'locked canon' files (VIZION FINAL PLAN v1.md, VIZION-product-spec.md, VIZION-style-guide.html) describe the v1-era 3-model/5-mode product while CLAUDE.md simultaneously calls them 'authoritative companions (treat as locked)' and states 16 models/6 modes
 
@@ -1749,7 +1749,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** All three root canon files plus CLAUDE.md section 1; any agent told to treat the plan as canonical inherits a 3-model/5-mode spec
 - **proposed_fix:** Ruling needed: either (a) annotate each canon file with a dated supersession header ('locked historical plan; current roster/modes per CLAUDE.md section 1 and src/lib/constants.ts') without touching their locked content, or (b) revise them — which contradicts the lock. Recommend (a).
 - **verification:** head -20 of each canon file shows a supersession note, or CLAUDE.md section 1 clarifies which claims in the companions remain binding
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q2=a): the three v1-era canon files moved to docs/history/ (with a README), ADR-0005 names the living canon (code + CHANGELOG + tokens.css + audit ledger), and CLAUDE.md §1 / architecture.md / ADR-0001 references were updated. = MOD-002
 
 ### DOC-006 — docs/architecture.md data-model entity list omits four shipped tables/entities: collections, drafts, usage_events, usage_reservations
 
@@ -1758,7 +1758,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/architecture.md data-model section; downstream pointer to VIZION-product-spec.md section 5.1 which is also pre-collections
 - **proposed_fix:** Extend the entity list in docs/architecture.md:113-114 with Collection, Draft, UsageEvent, UsageReservation and note that the spec section 5.1 pointer predates them.
 - **verification:** Every table named by 'grep create table supabase/migrations/*.sql' appears in docs/architecture.md's data-model section
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: architecture.md data-model list gains Collection · Draft · UsageEvent · UsageReservation, plus a note that PromptVersion has no user_id and its RLS traverses the parent prompt's ownership
 
 ### DOC-007 — README status table marks phases 'v0.4 — Library' and 'v0.5 — Media prompts' done, but no 0.4.x/0.5.x release exists — both phases shipped inside release 0.3.0, conflicting with release.md's 'minor for a phase gate' policy
 
@@ -1767,7 +1767,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** README.md status table; versioning expectations set by docs/runbooks/release.md
 - **proposed_fix:** Ruling needed: relabel README phases as P4/P5 (decoupling phase names from versions, with a note that both gates shipped in 0.3.0), or keep v-labels and accept the drift explicitly; also give the in-progress row a distinct marker. Do not backfill fake 0.4.0/0.5.0 tags.
 - **verification:** README phase labels no longer imply git tags that do not exist (git tag -l 'v0.4*' 'v0.5*' empty and README makes that unambiguous)
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5 (ruling Q15=a): README phase table relabeled as feature milestones (Shell/Auth/Enhance/Library/Media/Hardening) decoupled from version numbers, so it no longer implies v0.4/v0.5 git tags that do not exist
 
 ### DOC-008 — ADR coverage gap: four significant decisions since ADR-0003 have no decision record — tolerant envelope parsing/salvage, Collections, service-role account deletion, and atomic spend reservations
 
@@ -1776,7 +1776,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/decisions/ (4 new files); no code affected
 - **proposed_fix:** Write ADRs 0004-0007 for the four decisions, sourcing content from the existing CHANGELOG sections and SECURITY.md text (the rationale is already written, just not filed as decisions).
 - **verification:** ls docs/decisions returns records covering salvage parsing, collections, service-role deletion, spend atomicity
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: ADRs 0006 (tolerant envelope salvage), 0007 (collections), 0008 (service-role account deletion), 0009 (atomic spend reservations) written from the shipped code/migrations/SECURITY.md — the four decisions since ADR-0003 now have records
 
 ### DOC-009 — CLAUDE.md section 4 (and the CI job name) understate what CI runs: e2e, icon generation and the gated full-tree audit are executed by ci.yml but absent from the documented list
 
@@ -1785,7 +1785,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** CLAUDE.md section 4; ci.yml job display name (workflow file is a protected path)
 - **proposed_fix:** Update CLAUDE.md section 4 to 'lint . typecheck . test . e2e . build . audit (prod-gated + audit:check)'. Renaming the ci.yml job to match is optional and touches a protected path, hence manual approval.
 - **verification:** CLAUDE.md section 4 step list matches the step names in .github/workflows/ci.yml
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: CLAUDE.md §4 CI list expanded to 'lint · typecheck · icon generation · unit · build · Playwright e2e · production npm audit (blocking) · full-tree audit:check (blocking)', matching ci.yml
 
 ### DOC-010 — docs/runbooks/local-dev.md still calls the generated icons 'placeholder assets — swap for final brand art', but the final brand masters shipped and drive generation
 
@@ -1794,7 +1794,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/runbooks/local-dev.md only
 - **proposed_fix:** Replace the placeholder sentence with the README's current statement: the matrix is derived from the two brand-master SVGs; edit those, never the PNGs.
 - **verification:** grep -n 'placeholder' docs/runbooks/local-dev.md returns nothing about icons
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: local-dev.md no longer calls the icons 'placeholder'; it states the brand-master SVGs (vizion-icon-token/vizion-mark-token) drive generation
 
 ### DOC-011 — SECURITY.md names only 3 of the 12 server-side provider key env vars, understating the guardrail's actual surface
 
@@ -1803,7 +1803,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** SECURITY.md only
 - **proposed_fix:** Reword SECURITY.md:16 to 'All twelve provider keys (see .env.example) are read only inside Next route handlers...' instead of enumerating three.
 - **verification:** SECURITY.md either enumerates all keys in PROVIDER_KEY_ENV or defers to .env.example
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: SECURITY.md now enumerates all twelve provider key env vars (deferring to PROVIDER_KEY_ENV / .env.example), not three
 
 ### DOC-012 — Copyright holder mismatch: LICENSE says '(c) 2026 Sean Vasey' while README's license footer says 'MIT (c) VASEY/AI'
 
@@ -1812,7 +1812,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** LICENSE or README.md (legal attribution wording)
 - **proposed_fix:** Owner picks one holder string (person or brand) and aligns the other file; likely README changes to 'MIT (c) 2026 Sean Vasey' since LICENSE is the legal instrument.
 - **verification:** The holder string in README's license line matches LICENSE:3
-- **disposition:** pending
+- **disposition:** resolved — Stage 2 W5: README license line aligned to LICENSE's holder — '© 2026 Sean Vasey (VASEY/AI)'
 
 ### DOC-013 — CHANGELOG Unreleased section has grown to ~1,324 lines on top of 0.3.0 (2026-07-27), including release-worthy work (P2-P5 schema recovery, light-theme contrast fixes) that release.md policy says should have been cut
 
@@ -1830,7 +1830,7 @@ still-open or partial carry-forwards.
 - **blast_radius:** docs/audit/ and docs/audits/ organization; future audit tooling that globs one or the other
 - **proposed_fix:** At capstone close, move the capstone artifacts under docs/audits/ (one directory), resolve the DOC-XXX placeholder to a real ledger id, and ensure 01-ledger.md exists before anything cites it. Do not move mid-run.
 - **verification:** find docs -maxdepth 1 -type d -name 'audit*' returns one directory; grep -rn 'DOC-XXX' docs returns nothing
-- **disposition:** pending
+- **disposition:** partially-resolved — Stage 2 W5: the DOC-XXX placeholder is resolved (00-baseline.md cites DOC-015) and 01-ledger.md exists; per the ruling the docs/audit→docs/audits directory fold is deferred to Stage 4 (finalize), not done mid-run
 
 ### DOC-015 — Capstone prompt and session mandate disagree on the audit branch name
 

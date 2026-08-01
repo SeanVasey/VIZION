@@ -42,8 +42,10 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 
 - Regenerate with `npm run generate:icons` (uses `sharp`). Output under `public/icons/`
   and `public/splash/`, plus `src/app/icon.png` / `src/app/apple-icon.png` (Next
-  auto-wires these as favicons). These are **placeholder** assets — swap for final brand
-  art without touching the manifest references.
+  auto-wires these as favicons). The final brand masters
+  (`public/brand/vizion-icon-token.svg` / `vizion-mark-token.svg`) drive
+  generation — drop new artwork into those files and re-run, without touching
+  the manifest references (DOC-010: no longer placeholders).
 
 ## Playwright
 

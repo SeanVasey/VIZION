@@ -1,16 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  // RTL's waitFor, NOT vi.waitFor: this one wraps each poll in `act`, so React
-  // actually flushes pending transitions between attempts. `vi.waitFor` polls
-  // without flushing, so a `useTransition` pending flag never clears and an
-  // assertion like `toBeEnabled()` can never come true — which is exactly how
-  // two of these tests failed while passing in isolation.
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import type { DraftCard } from "@/lib/drafts/queries";
 import type { LibraryFilter } from "@/lib/library/paging";
