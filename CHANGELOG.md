@@ -6,6 +6,30 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Scroll-time glass restyle removed (grey shift on library/settings)
+
+Follow-up device report on the entry below: with the stand-down's fill swap
+live, every `.glass` panel on the library and settings screens visibly
+changed grey the moment a flick started. Root cause is two-state rendering
+itself — each panel's resting appearance (72%/82% tint, blurred and
+saturated, over the aurora-lit ground) varies with what sits behind it, so
+**no** single scroll-time appearance can match all panels: blur-off read as
+see-through (first report), the opaque swap reads as a grey shift (this
+one). The `[data-scrolling] .glass` rule is removed outright — panels now
+keep their backdrop-filter, grain and fill in motion and render identically
+scrolling or still, in both themes (the light-mode question answers itself:
+there is no scroll-time restyle left to differ). The FAB keeps its
+stand-down: it is fixed over the list (the strongest per-frame cost) and its
+82%-Laser fill makes the swap genuinely invisible — the same screenshots
+that showed the panels shifting show the FAB identical. `ui-contracts`
+now bans a `[data-scrolling] .glass` rule and pins the gate's allowlist to
+the FAB alone; both e2e scroll specs assert a real panel computes the same
+blur + fill mid-scroll as at rest. The per-frame blur cost this re-accepts
+has never been measured as jank on the target device, while both stand-down
+generations drew appearance reports within a day — if jank is ever
+measured, the fix is non-visual optimization, never a scroll-time restyle
+(rationale recorded in the globals.css scroll-gate comment).
+
 ### On-device report fixes (composer translucency · settings · Gemini)
 
 Five issues reported from a production device, four repaired in code and the

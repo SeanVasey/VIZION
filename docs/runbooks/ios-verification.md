@@ -34,7 +34,7 @@ Taken in an iPhone 14 Pro device context, on a confirmed secure context
 
 Good uses — things where sharing the rendering engine is the whole point:
 
-- cascade-layer resolution (`.glass:focus-visible`, `[data-scrolling] .glass`)
+- cascade-layer resolution (`.glass:focus-visible`, `[data-scrolling] .fab-glass::before`)
 - computed styles, `@supports` in the negative, prefixed-property need
 - layout, safe-area, `dvh`, scroll behaviour
 

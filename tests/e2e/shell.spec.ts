@@ -248,32 +248,38 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     ).toBe("smooth");
   });
 
-  test("glass stands its backdrop blur down while the page is moving", async ({
+  test("glass keeps its appearance while the page is moving", async ({
     page,
   }) => {
-    // Same class of bug as the focus-ring test above, and unreachable from a
-    // unit test for the same reason: `.glass` declares `backdrop-filter` in
-    // the components layer and the scroll gate overrides it from the
-    // utilities layer, so only a real engine can say which one wins.
+    // The scroll gate must not touch `.glass`. Two stand-down generations
+    // were falsified on device (2026-08): blur-off made panels see-through
+    // mid-flick, and an opaque fill swap made the greys visibly shift. Only
+    // a real engine can prove the cascade leaves a panel computing the SAME
+    // blur and fill mid-scroll as at rest — which is exactly the regression
+    // this pins. (The FAB keeps its own gate; unit-tested.)
     await page.goto("/sign-in");
     const email = page.locator("input#email");
     await expect(email).toHaveClass(/\bglass\b/);
 
-    const blurAtRest = await email.evaluate((el) => getComputedStyle(el).backdropFilter);
-    expect(blurAtRest).toContain("blur");
+    const atRest = await email.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { blur: s.backdropFilter, fill: s.backgroundColor };
+    });
+    expect(atRest.blur).toContain("blur");
 
     // Drive the real listener rather than stamping the attribute by hand.
     await page.evaluate(() => window.dispatchEvent(new Event("scroll")));
     await expect(page.locator("html")).toHaveAttribute("data-scrolling", "");
-    expect(await email.evaluate((el) => getComputedStyle(el).backdropFilter)).toBe(
-      "none",
-    );
+    expect(
+      await email.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { blur: s.backdropFilter, fill: s.backgroundColor };
+      }),
+    ).toEqual(atRest);
 
-    // ...and it comes back on its own once the page settles.
+    // ...and the attribute still clears once the page settles (the FAB's gate
+    // depends on the stamp lifecycle staying alive).
     await expect(page.locator("html")).not.toHaveAttribute("data-scrolling", "");
-    expect(await email.evaluate((el) => getComputedStyle(el).backdropFilter)).toContain(
-      "blur",
-    );
   });
 
   test("the service worker is served with a no-store cache policy", async ({
