@@ -32,6 +32,32 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
 export const DEV_ACCENT_STRENGTH_MIN = 0;
 export const DEV_ACCENT_STRENGTH_MAX = 60;
 
+/**
+ * The rule the authed layout server-renders to apply the stored accent
+ * strength. It MUST target `:root`: dev-accents.css derives `--dev-peak`
+ * AT `:root`, and a custom property substituted there can never see a value
+ * declared on a descendant — the previous carrier (a wrapper div's style
+ * attribute) was masked entirely, so the stored strength never rendered
+ * after a load and only the owner slider's live preview (an inline style on
+ * `<html>`, which resolves at `:root`) ever took. That same inline preview
+ * keeps winning DURING a drag because inline style out-cascades this rule.
+ *
+ * Clamped to the CHECK-constraint bounds and integer-rounded: the string is
+ * interpolated into a `<style>` element, so nothing unvalidated may ride it.
+ */
+export function devAccentCss(strength: number): string {
+  const bounded = Math.min(
+    DEV_ACCENT_STRENGTH_MAX,
+    Math.max(
+      DEV_ACCENT_STRENGTH_MIN,
+      Number.isFinite(strength)
+        ? Math.round(strength)
+        : DEFAULT_APP_SETTINGS.devAccentStrength,
+    ),
+  );
+  return `:root{--dev-peak-user:${bounded}%}`;
+}
+
 export async function getAppSettings(
   supabase: SupabaseClient<Database>,
 ): Promise<AppSettings> {

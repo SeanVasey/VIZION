@@ -2358,3 +2358,50 @@ than as a puzzling failure in whichever spec ran first.
   `supabase_migrations.schema_migrations`; the durable habit is to pass the
   repo's version explicitly (or repair immediately) whenever a migration is
   applied outside the CLI.
+
+## 2026-08-02 — On-device report fixes (translucency · settings · Gemini)
+
+**What broke (and the fix):**
+
+- **A custom property derived at `:root` cannot see a descendant's value.**
+  `--dev-peak` is substituted AT `:root` (dev-accents.css), so the authed
+  layout's wrapper-div `style={{--dev-peak-user}}` was invisible to it — the
+  owner's stored accent strength never rendered after a load; only the
+  slider's inline-on-`<html>` preview worked, which made the bug read as
+  "doesn't persist visually". Fix: the layout server-renders
+  `:root{--dev-peak-user:N%}` (`devAccentCss`, clamped before interpolation).
+  Rule: a `var()` consumed in a `:root` declaration must be DECLARED at
+  `:root` (inline on `<html>` or a `:root` rule) — any lower carrier is
+  silently dead.
+- **"The stand-down is imperceptible" was a design premise, not a
+  measurement.** `[data-scrolling] .glass` dropped the blur assuming the
+  72%/82% tint hides what's behind; on a real device the page read straight
+  through every panel mid-flick, and the composer showed ambient-mesh nodes
+  even at rest. Fix: the stand-down swaps to the opaque `--glass-still`
+  composite, and the composer moved to the new `.glass-solid` tier. Avoid
+  perceptual claims in comments without a device check — this is the second
+  such premise falsified on device (after the iOS-claims rule, §3).
+- **A glyph can collide with a developer mark.** The template button's
+  four-point spark was, at 14px, the Gemini mark from the Target rail. In an
+  app that renders developer identities, check any new glyph against the
+  DeveloperIcon silhouettes before shipping it.
+- **Provider 4xx bodies deserve translation AND a server-side log line.**
+  Google's "Your project has been denied access. Please contact support."
+  reached the user verbatim (reads as an app defect; the "support" is
+  Google's) and left no trace in the Vercel runtime logs — diagnosis had to
+  start from a screenshot. The google adapter now warn-logs upstream
+  failures and appends the key-rotation remediation to 401/403; runbook
+  section "Gemini key/project refusals" carries the procedure.
+
+**Environment notes:**
+
+- This remote container CAN run the WebKit leg: `sudo npx playwright
+  install-deps webkit` + `npx playwright install webkit` (and `install
+  chromium` when the pinned Playwright's revision differs from the
+  pre-installed one). Both e2e projects executed here — an upgrade over the
+  earlier sessions that had to disclose a Chromium-only pass.
+- The `mobile-safari` a11y spec can flake on a cold first WebKit run: axe
+  samples the sign-in footer mid `footer-fade-in` (fg ≈ silver at ~62%
+  opacity → 2.7:1). Clean on re-run and on the following full suite. If it
+  recurs, settle the footer animation before the axe scan — don't loosen the
+  assertion.

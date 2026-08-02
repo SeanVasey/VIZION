@@ -122,11 +122,23 @@ export async function* streamGoogle(
 
     if (!res.ok || !res.body) {
       const data = (await res.json().catch(() => ({}))) as GeminiResponse;
-      throw new ProviderError(
-        "google",
-        `Gemini request failed: ${data.error?.message ?? res.statusText}`,
-        res.status,
-      );
+      const upstream = data.error?.message ?? res.statusText;
+      // 401/403 are Google refusing the KEY'S PROJECT ("Your project has
+      // been denied access. Please contact support." — Google's words about
+      // Google's project), not this request or the model. Relayed bare it
+      // reads as a VIZ(IO)N capability gap and dead-ends at the wrong
+      // support desk, so name the actual remediation (2026-08 incident;
+      // docs/runbooks/providers.md § Gemini key/project refusals).
+      const message =
+        res.status === 401 || res.status === 403
+          ? `Gemini request failed: ${upstream} — Google is refusing the server's API key/project, not this request. Replace GOOGLE_API_KEY with a key from a Google AI Studio project that has Gemini API access.`
+          : `Gemini request failed: ${upstream}`;
+      // warn survives the production console strip; without it the only copy
+      // of the upstream status goes to the one client that hit it, and the
+      // deployment logs say nothing (which is how the 2026-08 refusal went
+      // undiagnosed).
+      console.warn("[google] upstream error", res.status, upstream);
+      throw new ProviderError("google", message, res.status);
     }
 
     const reader = res.body.getReader();

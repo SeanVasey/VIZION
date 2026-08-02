@@ -54,6 +54,40 @@ permissions"** — use an unrestricted key or grant the inference scope.
 `/api/media` retries such failures on another configured provider
 (see `docs/runbooks/media.md`); `/api/enhance` surfaces them directly.
 
+### Gemini key/project refusals ("Your project has been denied access")
+
+> Diagnosed in production 2026-08: every Gemini run failed with
+> **"Gemini request failed: Your project has been denied access. Please
+> contact support."** That sentence is **Google's own 403 body**, relayed
+> verbatim by the adapter — it is *not* a VIZ(IO)N capability limit, and
+> "support" means *Google's* support. Google returns it when the **Google
+> Cloud project behind `GOOGLE_API_KEY`** has lost access to the Gemini API
+> (project flagged/denied by Google's abuse systems, API disabled or terms
+> unaccepted on that project, or a free-tier project in a state that now
+> requires linked billing). The adapter, endpoint (`v1beta`
+> `streamGenerateContent?alt=sse`), and the default `gemini-3.6-flash` model
+> string are all correct in this failure mode — no code or model change fixes
+> it.
+>
+> Remediation, in order:
+> 1. In Google AI Studio, create a **fresh API key under a different (or
+>    newly created) project** with the Gemini API enabled — and billing
+>    linked, if the account's tier requires it. Verify it with a one-off
+>    `curl` `generateContent` call before deploying.
+> 2. Replace `GOOGLE_API_KEY` in the Vercel project env (Vercel → vizion →
+>    Settings → Environment Variables) and redeploy.
+> 3. While there, confirm no stray `MODEL_GEMINI` override points at a
+>    preview/allowlisted id — an entitlement the project lacks surfaces the
+>    same way.
+> 4. If a fresh project is also denied, the *account* is flagged — that one
+>    genuinely is "contact Google support" (or use a different Google
+>    account's key).
+>
+> The adapter now appends the remediation hint to 401/403 messages and logs
+> `[google] upstream error <status>` server-side (`console.warn` survives the
+> production strip), so the next refusal is visible in the Vercel runtime
+> logs instead of only in one client's error paragraph.
+
 > **Deploy note:** each key needs adding to the Vercel project env (Vercel →
 > vizion → Settings → Environment Variables). Until a key is set, that
 > provider's target returns 503 "not configured" while the rest keep working —
