@@ -71,7 +71,11 @@ function ThinkingPickerImpl({
         <span className="grow truncate text-left">
           {value ? THINKING_LEVEL_LABEL[value] : "Auto"}
         </span>
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-silver">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="h-4 w-4 shrink-0 text-silver"
+        >
           <path
             d="M8 10l4 4 4-4"
             fill="none"
@@ -123,7 +127,16 @@ function ThinkingPickerSheet({
   );
 
   return (
-    <Sheet open={open} onClose={onClose} title={title} initialFocusRef={initialFocus}>
+    // anchor="side": the trigger pill sits mid-screen in the composer rail,
+    // so the picker docks beside it rather than a viewport away at the
+    // bottom edge (same call as TargetPicker — the pair must match).
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      initialFocusRef={initialFocus}
+      anchor="side"
+    >
       <div
         role="radiogroup"
         aria-label={title}

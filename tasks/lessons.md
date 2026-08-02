@@ -241,12 +241,12 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 - **Brand files named in a spec may not be in the repo.** The remediation prompt
   referenced `vizion-mark.svg`/`vizion-icon.svg`/`vm-monogram.svg`/`vai-monogram.svg`
   and a `vizion-brand-lockup.html` that don't exist — only the `*-token.svg` pair
-  does. Verify asset presence *before* planning; wire the real tokens, and gate the
+  does. Verify asset presence _before_ planning; wire the real tokens, and gate the
   missing monograms behind `BRAND_MONOGRAMS_READY` so the footer ships with a
   typographic fallback and flips to the real files with no code change.
 - **The contrast-law guardrail (§6) overrides literal brand wording.** "IO in
   `--laser`" fails on light (laser-on-light = 1.09:1). Resolved with theme-aware
-  *ink* tokens: `--accent-ink` (laser→deep green on light) and a light-only
+  _ink_ tokens: `--accent-ink` (laser→deep green on light) and a light-only
   `--flare` (#c81d10) for error text. Laser stays a FILL (`--laser` + `--on-laser`),
   which is always legible. Verified every text/bg pair ≥ AA in both themes.
 - **Role tokens must be theme-swapped, not fixed.** Making `--chalk`/`--silver`
@@ -293,7 +293,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 
 - **Swap the source content, not the filenames.** The pipeline + components key off
   `public/brand/vizion-icon-token.svg` and `vizion-mark-token.svg`. Dropping the new
-  artwork *into those existing files* (rather than renaming to the uploaded
+  artwork _into those existing files_ (rather than renaming to the uploaded
   `vizion-icon.svg`/`vizion-glyph.svg`) means `generate-icons.mjs`, `ScreenHeader`,
   and `AuthHero` keep working with zero ref churn — one `npm run generate:icons`
   re-derives all 32 outputs. The root-level uploads were just the delivery vehicle;
@@ -305,7 +305,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   the hand-placed hero needed the fix.
 - **Aspect-correct ≠ balanced — re-check rendered scale after an art swap.** The new
   mark fills its viewBox far more tightly than the old 1024² square (almost no
-  internal padding), so matching the *old* visual height (≈150px tall → 260px wide
+  internal padding), so matching the _old_ visual height (≈150px tall → 260px wide
   at the new aspect) made the hero glyph read as oversized and out of proportion on
   the sign-in screen. Dropping it to `w-[176px]` (≈102px tall) restores balance with
   the wordmark and tagline. Lesson: when the source art's "ink coverage" within the
@@ -318,20 +318,20 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   header) still carried a `1px solid var(--hair)` hairline and sharp corners, so on
   device it read as a bordered card with a bright top edge, clashing with the
   borderless, soft-cornered `.glass-nav` below. Fix: drop the border, round the
-  *bottom* corners (`border-bottom-{left,right}-radius: 20px`) and cast the shadow
-  *downward* (`0 8px 28px`) — the vertical mirror of the bottom nav's top-rounded,
+  _bottom_ corners (`border-bottom-{left,right}-radius: 20px`) and cast the shadow
+  _downward_ (`0 8px 28px`) — the vertical mirror of the bottom nav's top-rounded,
   upward-shadow treatment — so both bars read as the same floating frosted sheet.
 
 ## Footer/fixed-nav clearance — tie the reserve to the nav, don't guess it
 
 - **A fixed bottom nav over an in-flow footer needs the scroll region to reserve
-  *exactly* the nav's height — a hardcoded guess rots.** The footer collided with the
+  _exactly_ the nav's height — a hardcoded guess rots.** The footer collided with the
   nav (monograms trapped behind it, copyright spilling below) because the reserved
   bottom padding was a literal `80px` while the nav's true height was
   `min-h-[56px]` + `py-2` + `pb-safe` — a different number that grows with the
   home-indicator inset. Once the real nav exceeds the guess, the footer slips under.
 - **Fix: one CSS variable drives both sides.** `--bottom-nav-h` sets the nav's tap
-  height *and* feeds the scroll reserve
+  height _and_ feeds the scroll reserve
   (`calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + buffer)`), so clearance
   tracks the nav by construction. Lesson: when element A must clear fixed element B,
   derive A's spacing from B's size via a shared token — never re-type B's height as a
@@ -349,7 +349,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   now receives an explicit `FORMAT_PRESERVATION` directive ("keep the input's format,
   voice, and length; no bullets/headings/XML/JSON the author didn't use") instead of the
   target idioms. Reformat/target/expand/condense keep the idioms — restructuring is
-  their point. Lesson: a shared prompt suffix applied to *all* modes will fight the
+  their point. Lesson: a shared prompt suffix applied to _all_ modes will fight the
   modes whose contract is "change as little as possible." Scope the suffix to intent.
 - **New enum values need a DB migration.** Adding the `polish` mode meant the
   `enhance_mode` Postgres enum had to gain the value or every save of a polished prompt
@@ -383,12 +383,12 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   role-labelled system prompt (`System: … / User message to respond to: "…"`) —
   the user saw "the system prompt outputting" instead of their expanded prompt. The
   wiring (mode → instruction → provider) was correct end-to-end; the defect was
-  purely in the prompt contract. Debug the *contract text* before the plumbing.
+  purely in the prompt contract. Debug the _contract text_ before the plumbing.
 - **State the output contract explicitly, for every mode.** A shared
   `OUTPUT_CONTRACT` now pins what the `output` field IS (the single paste-ready
   prompt in the author's voice; no role labels, no persona specs, no quoting the
-  input as a message to answer). Conventions describe *structure inside the one
-  prompt*; anything that reads as "produce multiple roles" gets rewritten. The
+  input as a message to answer). Conventions describe _structure inside the one
+  prompt_; anything that reads as "produce multiple roles" gets rewritten. The
   contract is unit-tested across every mode × target so a future convention edit
   can't silently reintroduce role framing (asserted by negative substring checks).
 - **When mirroring a CTA's form factor for a sibling action, reuse the existing
@@ -415,10 +415,10 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   run with GitHub's own token instead of needing local tag-push rights
   (dispatch table in `docs/runbooks/release.md`).
 - **Owner direction beats an earlier style rationale.** The reset control had
-  deliberately been made a *secondary* pill to keep the Laser fill unique to
+  deliberately been made a _secondary_ pill to keep the Laser fill unique to
   ENHANCE — but the owner asked again for it "in the style of the submit
   button", so it now mirrors `btn-laser` exactly. When a style guardrail
-  (§6 forbids Laser *text on light*, not a second Laser fill) doesn't actually
+  (§6 forbids Laser _text on light_, not a second Laser fill) doesn't actually
   block the request, follow the request; note the supersession in the changelog.
 - **Put quick actions where the eyes are.** Copy lived only in the action row
   below the fold of the result; the fix is an icon on the output card header
@@ -435,11 +435,11 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   `parseEnhancePayload` stays authoritative at the end (ADR 0002). The
   lesson-hardened contract, the `json_object` enforcement, and every formatter
   guard test survived untouched. When a contract is battle-scarred, engineer
-  *around* it before engineering *away* from it.
+  _around_ it before engineering _away_ from it.
 - **Make the buffered path a drain of the streaming path.** `enhance()` is now
   `for await … if done return` over `enhanceStream()` — one code path, so the
   pre-existing route/tests exercised the new stream machinery from day one.
-- **Gate failures must stay plain HTTP.** Returning SSE for *everything* would
+- **Gate failures must stay plain HTTP.** Returning SSE for _everything_ would
   have broken the e2e 401 contract and made error handling client-side
   guesswork. Pre-stream failures keep real statuses + JSON; only post-header
   failures ride the stream as `error` events. The client branches on
@@ -459,7 +459,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 - **thesvg.org icons live on jsDelivr** (`glincker/thesvg` on GitHub) with
   `mono`/`default` variants per icon — fetch `…/icons/<slug>/mono.svg`, SVGO,
   strip fills to `currentColor`. When only a multicolour `default` exists
-  (Gemini), the alpha *mask path* is usually the clean monochrome glyph.
+  (Gemini), the alpha _mask path_ is usually the clean monochrome glyph.
 - **The `server-only` poison-pill blocks vitest.** Alias it to an empty stub in
   vitest.config so adapter/provider modules unit-test in plain Node; Next
   builds still enforce the real package.
@@ -502,15 +502,15 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   (CSS 2.1 App. E paint order). The P1 body gradient therefore occluded the
   entire R4 ambient background (mesh canvas + auroras) in both themes — the
   canvas animated at 30fps, invisibly, on every screen, and every gate stayed
-  green because nothing *asserts* pixels. The committed docs/preview.png even
+  green because nothing _asserts_ pixels. The committed docs/preview.png even
   showed the flat background and nobody noticed. Lessons: (1) put page-wide
   background ownership in ONE place (html guards, the fixed layer paints);
   (2) an "is it actually visible?" screenshot beats any amount of code review
-  for layered/z-index work — my stacking-context *theory* pointed at the wrong
+  for layered/z-index work — my stacking-context _theory_ pointed at the wrong
   fill (the shell div) until pixel-sampling the render exposed the second one.
 - **`var(--tw-shadow, fallback)` is always dead under Tailwind.** Using any
   shadow utility anywhere makes Tailwind emit `*,::before,::after
-  { --tw-shadow: 0 0 #0000 }`, so the custom-property fallback never fires —
+{ --tw-shadow: 0 0 #0000 }`, so the custom-property fallback never fires —
   the global focus ring's 1px Laser layer had never rendered. Write literals
   in hand-authored CSS; utilities still override by cascade.
 - **Grep for server actions with no client callers.** `updateTagsAction`,
@@ -527,7 +527,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   Cache Storage. Audit SW route matchers against the actual method + origin
   of the traffic they claim to govern.
 - **Snapshot every input of a run, not just the big one.** The composer
-  snapshotted the submitted *input* (R8) but passed live `activeMode`/
+  snapshotted the submitted _input_ (R8) but passed live `activeMode`/
   `targetModel` to the result tree, so flipping either after a run mislabeled
   saves/exports. If a result must be stable, snapshot the whole request.
 - **Subagent verification can vanish mid-flight** (session limits) — the
@@ -629,11 +629,11 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 - **Don't draw an original when an official mark already exists.** Meta's slot
   got a hand-drawn twin-spark glyph on the reasoning that Muse Spark has no
   published mark — but the row is keyed on `Developer`/`DEVELOPER_LABEL`
-  ("Meta AI"), so the mark answers *who made this*, not *which model*. The
+  ("Meta AI"), so the mark answers _who made this_, not _which model_. The
   official Meta infinity mark was already in the repo and was the right
   answer; it is now restored from thesvg.org `icons/meta/mono.svg` and pinned
   by a unit test (`models.test.tsx`) so it can't drift again. The
-  draw-an-original escape hatch applies only when the *developer* has no
+  draw-an-original escape hatch applies only when the _developer_ has no
   glyph in the source set — not when a model is new.
 - **Verify guardrail §6 sourcing before re-attributing an asset.** The
   2026-07 comment moved Meta into the "Simple Icons" group; the path was in
@@ -652,7 +652,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 
 - **`npm audit fix` made it worse: 11 → 22.** It left the one that mattered
   (`next`) untouched while drifting `workbox-build`, `minimatch`, and the
-  eslint chain into *newly* vulnerable versions. Read the report, pick
+  eslint chain into _newly_ vulnerable versions. Read the report, pick
   versions deliberately, and re-audit after each step. Reach for
   `npm audit fix` only to confirm what it would do, never to do it.
 - **Chase root causes, not entry counts.** Fourteen of the reported entries
@@ -660,7 +660,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   `.via` (a string means "cascaded from that package", an object is a real
   advisory) and `.nodes` (the actual installed paths) separate causes from
   cascade. Nonsense `fixAvailable` values — "fix" `@eslint/eslintrc` by
-  *downgrading* to 0.1.0, or `eslint-config-next` to 12.0.4 — are the tell
+  _downgrading_ to 0.1.0, or `eslint-config-next` to 12.0.4 — are the tell
   that an entry is cascade, not cause.
 - **Check whether the old major has any patched release at all.** The
   `brace-expansion` OOM advisory covers everything `<=5.0.7`, so the 1.x/2.x
@@ -693,7 +693,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
 
 - **Five green gates cannot see the hosted schema.** `20260726000000` sat in
   `supabase/migrations/` unapplied for a day; lint, typecheck, unit, e2e, and
-  build all passed because every one of them reads the migration *file*.
+  build all passed because every one of them reads the migration _file_.
   Meanwhile four of sixteen targets (GPT-5.6 Terra/Luna, Kimi K3, MiniMax M3)
   `22P02`'d on every write. The gate that was missing wasn't a better test —
   it was a check that talks to the actual database (`npm run check:db-enum`).
@@ -705,14 +705,14 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   types assert the roster back to itself.
 - **Replaying migrations is a cheap, exact oracle.** Parsing every
   `ALTER TYPE … ADD VALUE / RENAME VALUE` out of the SQL and applying it to a
-  declared baseline reproduced the hosted enum's fourteen labels *in order*,
+  declared baseline reproduced the hosted enum's fourteen labels _in order_,
   which is how the baseline (`opus_4_8`, `gpt_5_5`, `gemini_pro_3_1`) was
   confirmed rather than guessed. Worth doing for any enum the app writes.
 - **Rank the silent failure above the loud one.** The visible symptom was a raw
   Postgres string in the save button's error slot. The real damage was the
   `usage_events` insert failing behind a `console.error`: those four models'
   spend never reached the ledger, so the §6 daily cost cap silently stopped
-  applying to them. When one bad value breaks several writes, audit *every*
+  applying to them. When one bad value breaks several writes, audit _every_
   write site — the one nobody reported is the expensive one.
 - **Verify a DB fix through the app's own path, not just the SQL console.**
   `ALTER TYPE` succeeding proves the DDL ran. Probing PostgREST
@@ -752,7 +752,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   where a wider signature is expected. The `as const` on that map was what
   blocked it.
 - **Each provider's level vocabulary is its own.** Gemini has `minimal…high`,
-  Anthropic `low…max` (and `budget_tokens` is *removed* on the Claude 5
+  Anthropic `low…max` (and `budget_tokens` is _removed_ on the Claude 5
   family — sending it 400s), OpenAI's SDK types accept `low/medium/high`.
   One app-wide ladder with per-target subsets — validated by the route,
   narrowed again at each adapter — keeps a bad value from ever hitting a
@@ -765,7 +765,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   bump needs a "check the deployed overrides" line in the changelog.
 - **Renames chain; legacy maps don't.** `gemini_pro_3_1` had pointed at
   `gemini_3_5_thinking`, which this change renamed away. Every entry in
-  `LEGACY_TARGET_IDS` has to point at the *current* id, not the next hop —
+  `LEGACY_TARGET_IDS` has to point at the _current_ id, not the next hop —
   the enum contract test checks values against the live roster, which is what
   catches a half-updated chain.
 
@@ -832,7 +832,7 @@ went frosted-glass. What broke, what changed, what to avoid:
   is the cheap existence proof.
 - **Two FK paths make embedded selects ambiguous (HTTP 300).** With both
   `prompt_versions.prompt_id -> prompts` and `prompts.current_ver ->
-  prompt_versions`, `prompt_versions(count)` answers 300 — disambiguate as
+prompt_versions`, `prompt_versions(count)` answers 300 — disambiguate as
   `prompt_versions!prompt_id(count)`. Probe embedded shapes against the live
   API before writing the query code.
 - **Top-level PostgREST aggregates are disabled on Supabase (PGRST123).**
@@ -909,19 +909,19 @@ whole paid run over it.
   reaching admin calls is the JWT's own user id. A destructive native form
   POST beats a fetch-based flow when the session dies mid-action.
 - **A merged PR's follow-up is a fresh branch.** `checkout -B <branch>
-  origin/main` and a NEW draft PR — never stack on merged history.
+origin/main` and a NEW draft PR — never stack on merged history.
 - **A hand-rolled drag must CLAIM the axis it wants.** The swipe row put
   pointer handlers on a wrapper whose descendant `<a>` inherits the base
-  `touch-action: manipulation` — which permits panning on *both* axes, so the
+  `touch-action: manipulation` — which permits panning on _both_ axes, so the
   UA stayed free to take the horizontal drag and hand back a `pointercancel`.
   Mapping cancel to pointer-up settles the swipe politely but cannot prevent
   the theft. `touch-action: pan-y` on the dragged element is the claim; it
-  works from the ancestor because the used value is the *intersection* down
+  works from the ancestor because the used value is the _intersection_ down
   the chain, so a descendant can never widen it. Returning it from the hook
   next to the transform keeps the two halves of one contract together.
 - **Widening a regex to fix a no-op can start eating content.** `[runway]`
   had to go for the Plain copy to mean anything on the motion engines — but
-  `^\[[a-z]+\]` also matched the *user's* first word, and only the motion
+  `^\[[a-z]+\]` also matched the _user's_ first word, and only the motion
   grammar prepends a tag at all: midjourney and audio prompts begin with the
   base prompt, where `[intro]`/`[verse]`/`[lofi]` are ordinary content. Anchor
   a stripper to the real id set (derived from `GEN_TARGETS`, so a new engine
@@ -936,7 +936,7 @@ whole paid run over it.
   control's existence actually depends on.
 - **Strip what the formatter ADDED, not what looks like syntax.** Two review
   rounds landed on the same defect from opposite ends: a pattern sweep over
-  the whole generated prompt deleted the *user's* leading `[intro]` and then
+  the whole generated prompt deleted the _user's_ leading `[intro]` and then
   the user's mid-sentence `--help option,`. Everything but the appended
   syntax is user text, and user text may contain anything. The fix that ends
   the class is positional and engine-aware — midjourney's trailing
@@ -948,7 +948,7 @@ whole paid run over it.
 - **A component-layer `box-shadow` silently eats the focus ring.** Adding the
   glass sheen replaced the base-layer `:focus-visible` ring on every `.glass`
   button, link and input — and because several of them also carry
-  `focus:outline-none`, that left keyboard users with *no* focus indicator
+  `focus:outline-none`, that left keyboard users with _no_ focus indicator
   (WCAG 2.4.7). It was invisible in review because cascade LAYERS decided it,
   not specificity: no selector looked stronger, the later layer simply won.
   `box-shadow` is one property, so decorative shadows on interactive surfaces
@@ -1027,7 +1027,7 @@ whole paid run over it.
 - **An agent-authored doc can be right about the machine and wrong about the
   repo.** Every environment claim in the incoming `AGENTS.md` held up —
   fail-closed middleware, jsdom, port 3100, the WebKit skip, vendored fonts.
-  Every claim about repo *state* had rotted, because it was authored against a
+  Every claim about repo _state_ had rotted, because it was authored against a
   base thirty commits old: one tracked migration (there are ten), three provider
   keys (there are twelve), and an "update script" belonging to another tool's
   environment config. Verify a doc against `HEAD`, claim by claim, before
@@ -1039,7 +1039,7 @@ whole paid run over it.
   the incoming file's real value was exposing a stale troubleshooting entry that
   had been quietly wrong for weeks in a doc nobody had reason to re-read.
 - **Cherry-pick rather than re-type, when someone else wrote it.** `git
-  cherry-pick` kept Cursor Agent as the author and put the corrections in a
+cherry-pick` kept Cursor Agent as the author and put the corrections in a
   separate commit, so the diff says plainly what arrived and what was changed.
   Rewriting it as my own commit would have made the record less true for no
   gain.
@@ -1101,7 +1101,7 @@ storage meter, a picture-frame emoji per file, and a truncated UUID. Every part
 of the plumbing worked — the objects were in the bucket the whole time — but
 the UI presented a bill for files the user could not see. A quota meter over
 unviewable items is an accusation, not information: the first question it
-provokes is "18 MB of *what*?", and the screen had no answer.
+provokes is "18 MB of _what_?", and the screen had no answer.
 
 **What changed.** Image rows render the stored file, and any `ready` row opens
 its actual bytes in a sheet. Both go through signed URLs (the bucket is
@@ -1158,14 +1158,14 @@ browser this iOS-first PWA is built for.
 **What to avoid.**
 
 - **"Configured" is not "run."** Two projects in `playwright.config.ts` looked
-  like Chromium *and* WebKit coverage. One of them was decoration. A browser
+  like Chromium _and_ WebKit coverage. One of them was decoration. A browser
   binary that isn't installed doesn't fail loudly in a way anyone reads —
   it fails at launch, which reads as an environment problem, which reads as
   "not my test". Check that each project has actually produced a pass.
 - **The failing assertion named the symptom, not the cause.** The focus-ring
   spec reported `box-shadow: none` and I nearly filed it as a WCAG regression.
   It wasn't: every custom property resolved to `""`, which meant no stylesheet,
-  which meant a *loading* failure wearing a *styling* failure's clothes. When a
+  which meant a _loading_ failure wearing a _styling_ failure's clothes. When a
   computed value is empty, check whether the sheet loaded before you debug the
   cascade — `document.styleSheets[0].cssRules.length` and the page's
   `requestfailed` events answered it in one probe.
@@ -1201,8 +1201,8 @@ The original probe was answered by a **stale `next-server` still holding port
 3100"` had matched the `npx` wrapper, not the `next-server` process it spawns.
 
 The compounding part: I hit that same stale-server trap twice more that hour,
-diagnosed it, and wrote it up in the entry directly above — *"treat an
-implausibly fast run as a result you have not actually got"* — and never went
+diagnosed it, and wrote it up in the entry directly above — _"treat an
+implausibly fast run as a result you have not actually got"_ — and never went
 back to re-check the earlier result that the same trap had already poisoned.
 The design decision it justified survived on inertia.
 
@@ -1240,7 +1240,7 @@ pointer-up, so a 40ms tap bought 40ms of feedback.
 Navigation was slow for a reason no amount of press polish could fix: **no
 route had a `loading.tsx`**, so a tab press blocked on the destination's full
 server render — `auth.getUser()` plus two to three Supabase queries — with the
-*old* screen on-screen the whole time. The second-order cost was worse than the
+_old_ screen on-screen the whole time. The second-order cost was worse than the
 first: without a loading boundary, automatic `<Link>` prefetch of a dynamic
 route has nothing to warm, so the framework's own latency-hiding was inert too.
 
@@ -1305,7 +1305,7 @@ touch family — `touchstart`, `touchmove`, `touchend`, `touchcancel` — to
 rested on had never been unmet. The listener was removed; the component that
 held it now does one thing and is named for it.
 
-The replacement explanation was *also* wrong on first pass. I reasoned that a
+The replacement explanation was _also_ wrong on first pass. I reasoned that a
 150ms ramp could never complete inside a tap, so the scale stayed invisible.
 Measured in WebKit, an ~80ms press reaches 0.951 — essentially the full
 `scale-95`. The affordance was not failing to render; **5% is just not much to
@@ -1315,8 +1315,8 @@ look at**, with no second channel and the native tap highlight suppressed.
 
 - **This is the third entry in this file about asserting an unverified claim
   about a platform or framework, and the second in two days.** The prior one
-  ("`has`/`missing` don't enforce") even ends with *"a negative claim about a
-  framework is an extraordinary claim."* I read that file, wrote a new entry
+  ("`has`/`missing` don't enforce") even ends with _"a negative claim about a
+  framework is an extraordinary claim."_ I read that file, wrote a new entry
   under it, and made the same class of error in the same session. Reading the
   lessons is not the same as applying them. Before a platform claim goes into
   a comment, a commit or a changelog: reproduce it, or write "unverified".
@@ -1351,8 +1351,8 @@ Researching harder did not resolve it. Every source says the same thing —
 including Apple's own Safari Web Content Guide — and every one of them is a
 decade old, with nothing version-current to confirm or retire it. One of them
 did surface a cost I had not weighed: the standard `document.addEventListener
-('touchstart', …)` workaround makes controls flash active *as you scroll past
-them*. So the fix I originally shipped would have introduced a visible bug on
+('touchstart', …)` workaround makes controls flash active _as you scroll past
+them_. So the fix I originally shipped would have introduced a visible bug on
 every list in the app, to satisfy a requirement I could not demonstrate exists.
 
 So the question was closed by removing everything that depended on it. All four
@@ -1383,7 +1383,7 @@ returning.
   The e2e spec asserts `.pressable` against a hand-written probe element. When
   the scale moved from `.nav-tab` to `.pressable` I updated the probe and not
   the component, so the stylesheet was right, the test was green, and the real
-  nav had no scale at all. Caught only because the probe was *also* stale in
+  nav had no scale at all. Caught only because the probe was _also_ stale in
   the other direction. Pair any synthesized-markup test with a unit assertion
   that the real component carries the class.
 
@@ -1396,7 +1396,7 @@ a confirmed secure context.
 Most held. `navigator.vibrate` really is absent (so `lib/haptics.ts`'s HONEST
 SCOPE note is right), Background Sync really is absent (so `OutboxFlusher`'s
 premise is right), `inert` / `content-visibility` / `color-mix` / `text-box`
-are all supported, and Chromium notably does *not* support
+are all supported, and Chromium notably does _not_ support
 `-webkit-backdrop-filter`, so both declarations have to stay.
 
 Then `navigator.storage` came back **absent in WebKit** — in a secure context,
@@ -1406,8 +1406,8 @@ mitigation. My immediate reading was: the mitigation is a no-op on the primary
 target platform, and I started writing that up.
 
 It is the opposite. Safari 17 / iOS 17 support the Storage API **in full**, and
-WebKit grants `persist()` on heuristics that explicitly include *"opened as a
-Home Screen Web App"* — which is precisely this app's primary surface. The
+WebKit grants `persist()` on heuristics that explicitly include _"opened as a
+Home Screen Web App"_ — which is precisely this app's primary surface. The
 absence is a **WebKitGTK gap**, not an iOS gap.
 
 **What to avoid.**
@@ -1420,7 +1420,7 @@ absence is a **WebKitGTK gap**, not an iOS gap.
 - **I was one edit away from encoding the error as a test.** The plan had been
   a spec asserting the measured capability matrix, so a future engine change
   would surface. That test would have pinned "WebKit has no Storage API" as a
-  *requirement*, mislabelled a Linux fact as an iOS fact in a file called
+  _requirement_, mislabelled a Linux fact as an iOS fact in a file called
   `mobile-safari`, and failed as a bug report the day WebKitGTK shipped it.
   There is deliberately no such spec; `docs/runbooks/ios-verification.md`
   carries the matrix as dated measurements instead. Not everything you learn
@@ -1428,7 +1428,7 @@ absence is a **WebKitGTK gap**, not an iOS gap.
 - **A rule that looks redundant may be load-bearing for one user.**
   `touch-action: manipulation` reads like dead weight post-iOS-9.3, since
   `width=device-width` already kills the tap delay. But that only applies at
-  *initial scale*, and this app deliberately allows `maximumScale: 5` so a
+  _initial scale_, and this app deliberately allows `maximumScale: 5` so a
   low-vision user can zoom. Delete the rule and the 350ms delay comes back for
   that user and nobody else. Check who a "redundant" guard is still protecting.
 - **Label the half you could not test, specifically.** The
@@ -1459,7 +1459,7 @@ became 41.
   `if (process.env.E2E) skipAuth()` is four lines and would have worked. It is
   also a production auth hole one config mistake away from being real, and it
   means the suite verifies a path no user executes. The seam already existed:
-  the app reads its backend from an env var, so redirecting *that* needs no
+  the app reads its backend from an env var, so redirecting _that_ needs no
   production code at all. Look for the seam the configuration already gives you
   before adding one to the product.
 - **Every failure mode of a fake backend is silent, so build the alarms first.**
@@ -1488,8 +1488,8 @@ became 41.
 ## Follow-up: two review findings on the e2e-coverage PR (#51)
 
 Both were raised by an automated reviewer after the PR merged, and both were
-real. Neither was a mistake in what the code *did*; both were mistakes in what
-it *reached*.
+real. Neither was a mistake in what the code _did_; both were mistakes in what
+it _reached_.
 
 **What broke.**
 
@@ -1516,7 +1516,7 @@ it *reached*.
   as permissive in every case. Always include a control case that must fail;
   mine (`connect-src 'self'` against a `wss://` target) is what exposed the
   discriminator as engine-specific.
-- **A reset that resets *some* state is worse than none.** It looks like the
+- **A reset that resets _some_ state is worse than none.** It looks like the
   cure, so nobody looks further — and the state it misses is the one that has
   already been recorded as a diagnostic, i.e. exactly the state that makes the
   next run lie. Reset everything mutable the process owns, in one function, so
@@ -1534,7 +1534,7 @@ it *reached*.
 
 **A later review round on the same fix, worth its own line.** The reset helper
 checked that `/__stub/reset` returned 200 and called that success. But
-`reuseExistingServer` can hand a run a stub process from an *older revision* —
+`reuseExistingServer` can hand a run a stub process from an _older revision_ —
 including one predating this very fix, whose reset reseeds tables, answers
 `{"ok":true}`, and leaves the diagnostics poisoned. Verified against the parent
 revision's handler: 200, still poisoned. So the fix for "a reused stub carries
@@ -1581,7 +1581,7 @@ than as a puzzling failure in whichever spec ran first.
   spec.** Horizon reproduced the emblem's `min(width / 5, 64px)` exactly, which
   was right for the swap and wrong a commit later: 64px of box was sized for an
   SVG lockup, and once the lockup was a hairline and a 5px dot the same
-  footprint read as ~1.5x too much air. When the *content* of an element
+  footprint read as ~1.5x too much air. When the _content_ of an element
   changes class, re-derive its footprint from the new content instead of
   inheriting the old one on the strength of "no spacing changed."
 - **When a box is pure padding, say so — then a "make it smaller" note is
@@ -1686,7 +1686,7 @@ than as a puzzling failure in whichever spec ran first.
   to be dropped or the same row renders twice with different text.
 - **One `pending` flag for two operations mislabels both.** The shared
   `useTransition` made the save button read "Saving…" while the sheet was still
-  *loading* the body — and it broke the tests, which is how I noticed. Separate
+  _loading_ the body — and it broke the tests, which is how I noticed. Separate
   flags for separate operations; a spinner that lies about what it is doing is a
   small bug that reads as a big one.
 - **Wait on the last step of an async flow, not the first.** `vi.waitFor` on the
@@ -1793,7 +1793,7 @@ than as a puzzling failure in whichever spec ran first.
   "no patched 1.x/2.x in existence", which was false: the fix WAS backported to
   1.1.17 and 2.1.3, and the range `<=5.0.7` just never got narrowed. Same numbers,
   different conclusion — the entries are a false positive, not an accepted risk,
-  which is what makes a *verified* exemption (`scripts/check-audit.mjs` re-proving
+  which is what makes a _verified_ exemption (`scripts/check-audit.mjs` re-proving
   the limits are present in every installed copy) the right answer instead of a
   tradeoff. Check the fix's presence in the source before concluding a range means
   what it appears to; and when that conclusion changes, chase down every place the
@@ -1838,7 +1838,7 @@ than as a puzzling failure in whichever spec ran first.
   second time this session a self-check was quietly proving nothing.
 - **A shared default is not a shared fact.** The OpenAI-compat factory's 16k
   `max_tokens` was inherited by seven providers, one of which (DashScope) caps it
-  at 8192 and 400s above it — so Qwen3.7 Max failed *every* call from the day it
+  at 8192 and 400s above it — so Qwen3.7 Max failed _every_ call from the day it
   shipped, and nothing in the suite noticed because no test ever built its request
   body. When a factory centralises a value that each API bounds differently, the
   bound belongs in the per-provider config and the body builder belongs in a pure,
@@ -1877,7 +1877,7 @@ than as a puzzling failure in whichever spec ran first.
   had already left `<select>` for a different reason and inherited the fix for
   free. **Rule: when a control has to match a non-form control's size, it cannot
   be a replaced form element.** The floor is behind a `-webkit-touch-callout`
-  gate, which is iOS-only *by construction*, so CI can never see this class of
+  gate, which is iOS-only _by construction_, so CI can never see this class of
   defect — only a phone or a reasoned read of the cascade will.
 - **Two copies of a class string is a drift generator.** The Target and Thinking
   pills were "the same" by having identical literals in two places, which is how
@@ -1954,7 +1954,7 @@ than as a puzzling failure in whichever spec ran first.
 - **"Not ok" is not the same as "not done".** The outbox removed an item only
   when the handler returned `res.ok`, and `savePromptAction` returns
   `{ok: false, duplicate}` when the content is already saved. So an item the
-  server had *already accepted* could never drain: every reconnect retried it,
+  server had _already accepted_ could never drain: every reconnect retried it,
   and the duplicate check was the thing rejecting it. When a replay is
   idempotent, the drain condition is **"is the world in the desired state"**,
   not "did this call succeed".
@@ -1979,7 +1979,7 @@ than as a puzzling failure in whichever spec ran first.
   milliseconds instead.
 - **Scope a negative assertion to the thing you mean.** The test for the
   service-worker cache leak started as `not.toMatch(/request.mode ===
-  "navigate"/)` over the whole file. That expression also appears in
+"navigate"/)` over the whole file. That expression also appears in
   `setCatchHandler`, which is what serves `/offline.html` when a navigation
   FAILS — so the assertion, as written, demanded the deletion of offline support
   in the name of fixing a cache leak. It went red immediately, which is the only
@@ -1999,14 +1999,14 @@ than as a puzzling failure in whichever spec ran first.
   permanently. The hold was 31x the largest request this project has ever
   actually made. A hold only has to stop parallel requests from collectively
   overshooting; sized as a worst case, the cap starts rejecting on the
-  *reservation* instead of on real spend. **Size a hold from observed behaviour
+  _reservation_ instead of on real spend. **Size a hold from observed behaviour
   and clamp it to a fraction of the limit** — the clamp is what makes the
   failure structurally impossible rather than merely fixed today.
 - **The fix that is worse than the bug still has to be caught by something.**
   #62 was green: it typechecked, it had tests, and its SQL was well-written. What
   it did not have was any test that compared the size of a hold to the size of
   the cap. When a change introduces a new number that interacts with an existing
-  number, the test that matters is the one about their *relationship*, not about
+  number, the test that matters is the one about their _relationship_, not about
   either one being present.
 - **`create function` does not resolve identifiers in the body.** `spend_reserve`
   declared `returns table (… reserved_usd numeric)` and summed the pending holds
@@ -2064,7 +2064,7 @@ than as a puzzling failure in whichever spec ran first.
   other violators while you're there.
 - **The scrim is part of the entrance.** `.sheet-in` rose the panel over 200ms
   while its scrim popped to 80% Void on frame one — the flash read as the
-  overlay arriving *before* its content. Animating the wrapper's opacity
+  overlay arriving _before_ its content. Animating the wrapper's opacity
   (`.scrim-in`, same duration/ease, end state = resting state so the global
   reduced-motion collapse lands fully opaque) costs one keyframe and removes
   the pop. Any overlay that fades its panel in should fade its scrim with it.
@@ -2077,7 +2077,7 @@ than as a puzzling failure in whichever spec ran first.
   this: the token resolves, the class applies, the build is green, and the text
   is simply not there. `tokens.css` declares the light theme **twice** — once
   for `[data-theme="light"]` and once for the system-preference path — so
-  "declared for light" means *three* declarations, which is exactly what
+  "declared for light" means _three_ declarations, which is exactly what
   `developer-accents.test.ts` had already learned about `--dev-peak`. The new
   `a11y.test.ts` asserts the count.
 - **Split a token the moment it is both a fill and an ink.** `--laser` already
@@ -2114,7 +2114,7 @@ than as a puzzling failure in whichever spec ran first.
   at mount is `<body>`; the host has to name the control.
 - **A live region has to exist before the text it announces.** Rendering
   `<p role="status">Saved ✓</p>` conditionally means the region and its content
-  arrive together, and screen readers announce *changes within* a region they
+  arrive together, and screen readers announce _changes within_ a region they
   are already observing. Mount it always. Idle should be `sr-only` rather than
   an empty box — every one of these sits inside a `flex flex-col gap-*`, and a
   permanently-present static child adds a gap to every row, while an absolutely
@@ -2176,7 +2176,7 @@ than as a puzzling failure in whichever spec ran first.
   `supabase_migrations.schema_migrations.statements` holds the statements as
   applied, comments and all. Recovering from there gave files byte-identical to
   what ran (md5-checked); reconstructing from `pg_dump` or from the current
-  catalog would have produced *a* schema that matches, with none of the
+  catalog would have produced _a_ schema that matches, with none of the
   reasoning and no way to prove it was the same one.
 - **Verify a baseline by replaying it, not by reading it.** No Docker in this
   container, but the Postgres server binaries were installed — `initdb` a
@@ -2203,7 +2203,7 @@ than as a puzzling failure in whichever spec ran first.
   under `src`/`scripts`/`tests`/`docs/runbooks` costs nothing and is the only
   thing that would ever notice.
 - **A workaround is a record of a missing thing — delete it when the thing
-  arrives.** `BASELINE_LABELS` was hand-written *because* the `create type` was
+  arrives.** `BASELINE_LABELS` was hand-written _because_ the `create type` was
   hosted-only, and it made the enum replay assert its own starting point. The
   moment the baseline landed the constant became derivable, and the test got
   strictly stronger for being three lines longer.
@@ -2231,7 +2231,7 @@ than as a puzzling failure in whichever spec ran first.
   policy can deny everything while every predicate stays identical),
   `pg_trigger.tgenabled` (`pg_get_triggerdef` reconstructs the same
   `CREATE TRIGGER` for a disabled trigger), and owner on a SECURITY DEFINER
-  function (the owner *is* the privilege set the body runs with). A `pg_dump`
+  function (the owner _is_ the privilege set the body runs with). A `pg_dump`
   diff would have missed the first two as well.
 - **Check whether a new comparison field is comparable before adding it.**
   Adding table owner to the RLS fact immediately broke the match — hosted
@@ -2246,13 +2246,13 @@ than as a puzzling failure in whichever spec ran first.
   on layer order and the button had NO keyboard indicator. Verified by stashing
   the change and reading `getComputedStyle` on the old class list in a real
   engine: the focused shadow was the drop shadow alone. The `--focus-ring`
-  comment already warned that any *later-layer rule* setting a box-shadow must
+  comment already warned that any _later-layer rule_ setting a box-shadow must
   re-include it; the case it does not cover is a **utility**, which is exactly
   the form a shadow usually takes. Shadows on focusable elements belong in the
   component rule, next to the `:focus-visible` that composes them.
 - **A negative-z-index pseudo paints AFTER its parent's own background, not
   before it.** So `backdrop-filter` on `::before` + tint on the element does not
-  make a lens: the tint lands *inside* the pseudo's backdrop and gets blurred
+  make a lens: the tint lands _inside_ the pseudo's backdrop and gets blurred
   and re-saturated with the page. Tint and blur have to travel together onto the
   pseudo. (`.glass-nav` already did it that way; the reason was not written
   down, so it read as arbitrary.)
@@ -2288,9 +2288,9 @@ than as a puzzling failure in whichever spec ran first.
 
 - **Keep supabase-js out of first load with a dynamic import behind a tiny
   seam, not by scattering `import()` at call sites.** `src/lib/supabase/
-  lazy-client.ts` re-exports `loadBrowserClient()` (whose only reference to the
+lazy-client.ts` re-exports `loadBrowserClient()` (whose only reference to the
   heavy client is `await import(...)`) plus `type BrowserClient =
-  Awaited<ReturnType<typeof loadBrowserClient>>`. Consumers import the tiny
+Awaited<ReturnType<typeof loadBrowserClient>>`. Consumers import the tiny
   module statically; the bundler splits `@supabase/*` into an async chunk.
   Measured: /enhance 223→158 kB, /profile 208→143 kB (PERF-001/Q14). The type
   alias sidesteps the `import type { createClient }` + `typeof` trap — a
@@ -2311,7 +2311,7 @@ than as a puzzling failure in whichever spec ran first.
 - **`immutable` is the wrong cache header for assets that regenerate in place.**
   The icon/splash/brand matrix is rebuilt by `generate-icons.mjs` under the SAME
   filenames, so a year of `immutable` would strand a re-brand. `max-age=86400,
-  stale-while-revalidate=604800` keeps the win and lets an update propagate in a
+stale-while-revalidate=604800` keeps the win and lets an update propagate in a
   day (PERF-008). Reserve `immutable` for content-hashed names (fonts already
   are).
 - **Bulk ledger-disposition edits need bounded, asserted matching.** Replacing
@@ -2346,7 +2346,7 @@ than as a puzzling failure in whichever spec ran first.
   ever decorated a bodyless redirect while the real document got the nonce
   policy and its inline recovery script was silently blocked in production
   (local `next start` has no cleanUrls, so the e2e suite could never see it).
-  Two fixes compose: make the script external so *every* policy variant
+  Two fixes compose: make the script external so _every_ policy variant
   (`script-src 'self'`) permits it, and teach both the matcher and the header
   rules about the clean-URL form. Curl the deployed URL, not just the repo
   path.
@@ -2396,8 +2396,8 @@ than as a puzzling failure in whichever spec ran first.
 **Environment notes:**
 
 - This remote container CAN run the WebKit leg: `sudo npx playwright
-  install-deps webkit` + `npx playwright install webkit` (and `install
-  chromium` when the pinned Playwright's revision differs from the
+install-deps webkit` + `npx playwright install webkit` (and `install
+chromium` when the pinned Playwright's revision differs from the
   pre-installed one). Both e2e projects executed here — an upgrade over the
   earlier sessions that had to disclose a Chromium-only pass.
 - The `mobile-safari` a11y spec can flake on a cold first WebKit run: axe
@@ -2433,3 +2433,40 @@ don't delete them — ui-contracts now asserts NO `[data-scrolling] .glass`
 rule exists, and the two e2e scroll specs assert a real panel computes
 identical blur + fill mid-scroll. The removed optimization can't drift back
 in casually.
+
+## 2026-08-02 — Picker anchoring (Sheet grows a side anchor + real drag-dismiss)
+
+**What broke.** Device report: the Target/Thinking pickers opened as bottom
+sheets a viewport away from the mid-screen pills that trigger them, and the
+Sheet's grab handle looked draggable but wasn't — an affordance that
+promised a gesture the code never implemented. Ornamental affordances are
+debt: every handle/chevron/pill that implies an interaction must either
+perform it or not exist.
+
+**What changed.** `Sheet` gained `anchor="side"` (card centered on the right
+edge of the app column, entry/exit slide from that edge), a working
+drag-to-close scoped to the handle strip, and a real exit animation. The
+exiting node goes `aria-hidden` + pointer-inert on the first closed frame,
+with focus restore and scroll unlock keyed to `open`, not unmount — that is
+what let every existing `queryByRole("dialog")`-is-null-after-close test
+pass untouched. If an exit animation forces test rewrites, the a11y timing
+is wrong, not the tests.
+
+**What to avoid / remember.**
+
+- `ui-contracts` bans `active:` utilities anywhere in src (touch feedback
+  must not ride `:active` — WebKit quirk). It caught a decorative
+  `active:cursor-grabbing` immediately. Check the contract tests BEFORE
+  reaching for a variant prefix, not after.
+- Pointer-capture retargets the subsequent click to the capturing element.
+  Capturing on `pointerdown` therefore silently eats taps on any control
+  inside the grab zone (the close X). The shape that works: capture
+  immediately only when the press starts outside interactive elements;
+  otherwise capture after the slop threshold commits a real drag.
+- This environment pre-installs a Playwright Chromium for a NEWER build tag
+  than you may resolve from `^`-ranged devDeps — `global-setup`'s
+  browser preflight then reports _chromium_ missing even though a chromium
+  sits in `/opt/pw-browsers`. `npx playwright install chromium webkit`
+  (matching the resolved version) is the fix; piping test output through
+  `tail` also swallowed the failing exit code, so check `PIPESTATUS`, not
+  the pipeline's.
