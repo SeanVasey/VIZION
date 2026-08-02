@@ -18,8 +18,9 @@ Escape, scrim click, scroll lock):
 - **`anchor="side"`.** A second anchor renders the panel as a card
   vertically centered against the right edge of the app column — beside the
   composer rail on any viewport — sliding in from that edge
-  (`.sheet-in-side`). Both pickers adopt it; every other sheet keeps the
-  bottom anchor unchanged.
+  (`.sheet-in-side`), corners at the 20px chrome radius the nav and header
+  bars share. Both pickers adopt it; every other sheet keeps the bottom
+  anchor unchanged.
 - **The grab handle works.** The handle strip carries pointer handlers:
   drag past a distance threshold (or flick) to dismiss, short drags spring
   back, sub-slop presses stay taps so the header's X still clicks. The

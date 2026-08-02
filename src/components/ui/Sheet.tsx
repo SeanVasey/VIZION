@@ -337,7 +337,10 @@ export function Sheet({
       aria-modal="true"
       aria-labelledby={titleId}
       tabIndex={-1}
-      className={`glass ${panelAnim} flex max-h-[min(70dvh,34rem)] w-[min(20rem,calc(100vw-4rem))] rounded-2xl focus-visible:shadow-none`}
+      // rounded-[20px]: the chrome radius — .glass-nav/.glass-chrome corner
+      // both bars at 20px (globals.css), and this card floats as peer
+      // chrome, so a Tailwind step (16px/24px) reads subtly off beside them.
+      className={`glass ${panelAnim} flex max-h-[min(70dvh,34rem)] w-[min(20rem,calc(100vw-4rem))] rounded-[20px] focus-visible:shadow-none`}
     >
       {/* Leading-edge grab rail: the vertical pill says "this card slides
           sideways", and the whole strip is the drag target. */}
