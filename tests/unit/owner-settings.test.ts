@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import {
   DEFAULT_APP_SETTINGS,
+  devAccentCss,
   getAppSettings,
   isOwnerEmail,
   isOwnerUser,
@@ -72,6 +73,27 @@ describe("isOwnerUser (recorded claim first, env before/without one)", () => {
       isOwnerUser({ id: "uid-3", email: "guest@example.com" }, settings("uid-1")),
     ).toBe(false);
     expect(isOwnerUser(null, settings("uid-1"))).toBe(false);
+  });
+});
+
+describe("devAccentCss (the :root carrier for the stored strength)", () => {
+  it("targets :root — the only place dev-accents.css's derivation can see it", () => {
+    // --dev-peak is substituted AT :root; a value declared on any descendant
+    // (the original wrapper-div carrier) is invisible there. The stored
+    // strength rendering at all depends on this selector.
+    expect(devAccentCss(34)).toBe(":root{--dev-peak-user:34%}");
+  });
+
+  it("clamps to the CHECK-constraint bounds before interpolating into <style>", () => {
+    expect(devAccentCss(999)).toBe(":root{--dev-peak-user:60%}");
+    expect(devAccentCss(-5)).toBe(":root{--dev-peak-user:0%}");
+    expect(devAccentCss(30.6)).toBe(":root{--dev-peak-user:31%}");
+  });
+
+  it("falls back to the shipped default on a non-finite value", () => {
+    expect(devAccentCss(Number.NaN)).toBe(
+      `:root{--dev-peak-user:${DEFAULT_APP_SETTINGS.devAccentStrength}%}`,
+    );
   });
 });
 

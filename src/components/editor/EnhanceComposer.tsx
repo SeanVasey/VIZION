@@ -23,7 +23,7 @@ import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
-import { SparkMark, WarningMark } from "@/components/ui/glyphs";
+import { TemplateMark, WarningMark } from "@/components/ui/glyphs";
 import { useDraftParam } from "@/components/editor/use-draft-param";
 import { FORMATS, FORMAT_LABEL, type FormatId } from "@/lib/enhance/formats";
 import { LENGTHS, lengthOptions, type LengthId } from "@/lib/enhance/lengths";
@@ -403,9 +403,16 @@ export function EnhanceComposer() {
 
       {/* Composer — a single rounded surface that nests the target picker into
           its top rail and the reset / Enhance actions into its bottom rail, so
-          every control lives within the one rounded-rectangle. */}
+          every control lives within the one rounded-rectangle.
+
+          `.glass-solid`, not `.glass`: this is the app's primary work surface,
+          and the translucent tier let the ambient mesh read through it — at
+          rest (a bright node bleeds through 72% alpha even blurred) and worse
+          during the scroll stand-down (both reported on device, 2026-08).
+          The opaque tier keeps the hairline/sheen/grain material language and
+          guarantees nothing behind the draft ever shows through it. */}
       <div
-        className={`glass no-pull-refresh overflow-hidden rounded-2xl transition-shadow ${
+        className={`glass-solid no-pull-refresh overflow-hidden rounded-2xl transition-shadow ${
           dragging ? "shadow-focus" : "focus-within:shadow-focus"
         }`}
         // React focus events bubble (focusin/focusout), so the chassis knows
@@ -570,7 +577,7 @@ export function EnhanceComposer() {
               onClick={() => setTemplatesOpen(true)}
               className="glass font-body pill tap-44 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-silver transition-colors hover:text-chalk"
             >
-              <SparkMark className="h-3.5 w-3.5 shrink-0" /> Try a template
+              <TemplateMark className="h-3.5 w-3.5 shrink-0" /> Try a template
             </button>
           </div>
         )}

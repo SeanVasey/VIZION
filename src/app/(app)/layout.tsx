@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { needsPasswordOnboarding } from "@/lib/auth/onboarding";
-import { getAppSettings, isOwnerUser } from "@/lib/owner/settings";
+import { devAccentCss, getAppSettings, isOwnerUser } from "@/lib/owner/settings";
 import { ProfileHydrator } from "@/components/ProfileHydrator";
 import { OutboxFlusher } from "@/components/pwa/OutboxFlusher";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -64,14 +64,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userId={user.id}
       />
       <OutboxFlusher userId={user.id} />
-      {/* display:contents — no box, but the owner-tuned accent variable still
-          inherits to every library card below (see dev-accents.css). */}
-      <div
-        className="contents"
-        style={{ "--dev-peak-user": `${settings.devAccentStrength}%` } as React.CSSProperties}
-      >
-        {children}
-      </div>
+      {/* The owner-tuned accent strength, as a server-rendered `:root` rule.
+          NOT a style attribute on a wrapper: dev-accents.css derives
+          --dev-peak AT :root, where a descendant's declaration is invisible —
+          the wrapper-div carrier shipped with the stored value silently never
+          rendering (only the owner slider's live preview worked, and only
+          until the next load). devAccentCss clamps before interpolating. */}
+      <style>{devAccentCss(settings.devAccentStrength)}</style>
+      {children}
       {/* Inside ToastProvider, not the root layout: the button raises toasts,
           and useToast throws outside the provider. Authed-only chrome belongs
           in the authed shell anyway — `showsNewPromptFab` picks the routes. */}

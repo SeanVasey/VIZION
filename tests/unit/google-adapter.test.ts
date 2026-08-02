@@ -100,6 +100,60 @@ describe("streamGoogle request body", () => {
   });
 });
 
+describe("streamGoogle upstream refusals", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  /** Drain against a mocked non-OK response and hand back the thrown error. */
+  async function failWith(status: number, statusText: string, message?: string) {
+    vi.stubEnv("GOOGLE_API_KEY", "g-test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status,
+        statusText,
+        json: async () => (message ? { error: { message } } : {}),
+      }),
+    );
+    try {
+      for await (const _chunk of streamGoogle("sys", "in", "gemini-3.6-flash")) {
+        void _chunk;
+      }
+    } catch (e) {
+      return e as Error & { status?: number };
+    }
+    throw new Error("streamGoogle did not throw");
+  }
+
+  it("names the key/project remediation on a 403, keeping Google's own words", async () => {
+    // The 2026-08 production refusal: Google's "denied access… contact
+    // support" is about GOOGLE's project, but relayed bare it read as a
+    // VIZ(IO)N capability gap. The remediation (rotate GOOGLE_API_KEY) must
+    // ride with it — and the upstream text must survive, uneditorialized.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const denial = "Your project has been denied access. Please contact support.";
+    const e = await failWith(403, "Forbidden", denial);
+    expect(e.name).toBe("ProviderError");
+    expect(e.status).toBe(403);
+    expect(e.message).toContain(denial);
+    expect(e.message).toContain("GOOGLE_API_KEY");
+    // The deployment logs said nothing while this failed in production —
+    // the retained-in-prod warn is the fix for that.
+    expect(warn).toHaveBeenCalledWith("[google] upstream error", 403, denial);
+  });
+
+  it("leaves non-auth failures un-editorialized", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const e = await failWith(429, "Too Many Requests", "Resource exhausted.");
+    expect(e.message).toBe("Gemini request failed: Resource exhausted.");
+    expect(e.message).not.toContain("GOOGLE_API_KEY");
+  });
+});
+
 /** Body from raw pre-encoded SSE text, so tests control the frame separators
  *  byte-for-byte. */
 function rawBody(text: string): ReadableStream<Uint8Array> {

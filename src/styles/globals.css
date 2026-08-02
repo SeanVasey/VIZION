@@ -123,6 +123,29 @@
     --scrim-heavy: color-mix(in srgb, var(--void) 78%, transparent);
   }
 
+  /* The glass tint pre-composited over the page ground — the OPAQUE stand-in
+     used wherever the translucent tier would let content read through: the
+     scroll stand-down fill and the `.glass-solid` work-surface tier (both in
+     the components layer).  --onyx IS the glass rgb (tokens.css pairs them);
+     72% / 82% is each theme's --glass alpha, so these mixes land on the same
+     composited card fills dev-accents.css derives its contrast from
+     (#23252A dark · #FCFCFD light).  Lives here, not in the LOCKED
+     tokens.css — same containment as the dev-accent layer — and is declared
+     THREE times for the same reason dev-accents.css declares --dev-peak three
+     times: the light theme exists twice (explicit choice + system path), and
+     a single declaration would leave system-light users on the dark mix. */
+  :root {
+    --glass-still: color-mix(in srgb, var(--onyx) 72%, var(--void));
+  }
+  :root[data-theme="light"] {
+    --glass-still: color-mix(in srgb, var(--onyx) 82%, var(--void));
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="system"] {
+      --glass-still: color-mix(in srgb, var(--onyx) 82%, var(--void));
+    }
+  }
+
   body {
     /* NO background here. A body background paints ABOVE negative-z-index
        fixed layers (only the ROOT element's background sits beneath them), so
@@ -228,6 +251,31 @@
      replace: ring first so it draws outside the sheen. Utilities still win
      over this, so `focus-visible:shadow-none` (Sheet) keeps working. */
   .glass:focus-visible {
+    box-shadow:
+      var(--focus-ring),
+      var(--glass-sheen);
+  }
+
+  /* Opaque tier of the glass family — for the primary WORK surfaces (the
+     composer chassis) where content behind the panel must never read through.
+     The translucent tier cannot promise that: a bright ambient-mesh node
+     bleeds visibly through 72% alpha even under the blur, and during the
+     scroll stand-down the tint alone hides nothing (both reported from a
+     production device, 2026-08).  Same hairline, sheen and grain as .glass;
+     the fill is --glass-still (the tint pre-composited over the ground), so
+     it sits flush with the translucent panels around it — and it carries NO
+     backdrop-filter, so it costs nothing to move and there is nothing for
+     [data-scrolling] to stand down (keep it out of that gate's allowlist). */
+  .glass-solid {
+    background-color: var(--glass-still);
+    background-image: var(--grain, none);
+    border: 1px solid var(--hair);
+    box-shadow: var(--glass-sheen);
+  }
+
+  /* Same composition trap as .glass: ring first, or focusing shows the sheen
+     and nothing else (WCAG 2.4.7). */
+  .glass-solid:focus-visible {
     box-shadow:
       var(--focus-ring),
       var(--glass-sheen);
@@ -670,9 +718,16 @@
 
      Scoped to `.glass` and NOT to the two chrome bars: `--chrome` is only
      ~0.42–0.45 opaque, so text passing under an unblurred header would be
-     plainly legible through it. `--glass` is 0.72 (dark) / 0.82 (light) over a
-     deliberately low-contrast ambient mesh, where dropping the blur is not
-     perceptible — least of all mid-flick.
+     plainly legible through it.
+
+     The fill swaps to the OPAQUE composite for the same duration. The
+     original premise here — that 0.72/0.82 alpha over the ambient mesh made
+     the blur's absence imperceptible — was measured false on a production
+     device (2026-08): with the blur down, page content read plainly through
+     every panel mid-flick. --glass-still is the same tint pre-composited
+     over the ground, so the swap holds the panel's resting colour while
+     guaranteeing nothing shows through it; at flick speed the fill change
+     itself is the invisible part.
 
      Toggling `backdrop-filter` also toggles a stacking context and a
      containing block for fixed descendants. Safe here because no `.glass`
@@ -684,6 +739,7 @@
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     background-image: none;
+    background-color: var(--glass-still);
   }
 
   /* The FAB answers to the same gate, and has the strongest claim to it: it is
@@ -838,6 +894,12 @@
   /* Grain is ambient texture, so it answers to the same switch — otherwise
      "Reduced effects" would quietly stop meaning what it says. */
   [data-reduced-effects] .glass {
+    background-image: none;
+  }
+  /* The solid tier carries the same grain, so it answers too. A standalone
+     block for the same reason as the rule above: reduced-effects.test.ts
+     pins that rule's exact single-selector shape. */
+  [data-reduced-effects] .glass-solid {
     background-image: none;
   }
   /* The trailing corner FIELD is ambient colour and answers to the same

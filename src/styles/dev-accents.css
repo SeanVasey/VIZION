@@ -84,9 +84,16 @@
      for a statement.
 
      `--dev-peak-user` is the owner console's runtime override (app_settings.
-     dev_accent_strength, set by the authed layout): ONE stored number drives
-     both themes, because the light blocks below derive their +2% from it.
-     Unset, the defaults are exactly the shipped 26%/28%. */
+     dev_accent_strength): ONE stored number drives both themes, because the
+     light blocks below derive their +2% from it.  Unset, the defaults are
+     exactly the shipped 26%/28%.
+
+     IT MUST BE DECLARED AT :root — the authed layout server-renders a
+     `:root{--dev-peak-user:N%}` rule (devAccentCss), and the owner slider's
+     live preview writes an inline style on <html>.  Both resolve where the
+     var() below is substituted.  A value on any DESCENDANT (the original
+     carrier was a wrapper div's style attribute) is invisible to this
+     derivation and silently never renders. */
   --dev-peak: var(--dev-peak-user, 26%);
 
   /* Horizontal reach of that field.  48px is NOT a taste value and must not be

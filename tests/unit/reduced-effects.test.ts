@@ -53,6 +53,7 @@ describe("reduced-effects gate covers every ambient layer", () => {
     ".mesh-canvas",
     ".result-shimmer::before",
     ".glass",
+    ".glass-solid",
     ".dev-edge",
     ".horizon-node",
   ])("%s is gated", (selector) => {

@@ -6,6 +6,52 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### On-device report fixes (composer translucency · settings · Gemini)
+
+Five issues reported from a production device, four repaired in code and the
+fifth diagnosed to deployment config:
+
+- **Composer no longer lets the page read through it.** The chassis moves
+  from `.glass` to a new opaque `.glass-solid` tier (same hairline, sheen,
+  grain; fill is the new `--glass-still` — the glass tint pre-composited
+  over the page ground, `color-mix` over `--onyx`/`--void`, declared for
+  dark + both light paths). The translucent tier could not keep the promise
+  on the app's primary work surface: bright ambient-mesh nodes bled through
+  72% alpha even blurred, and during the scroll stand-down the tint alone
+  hid nothing. The stand-down itself is fixed for **every** glass panel:
+  `[data-scrolling] .glass` now swaps to the `--glass-still` fill while the
+  blur is down, so mid-flick panels hold their color instead of going
+  see-through (the rule's old "not perceptible" premise was measured false
+  on device). `.glass-solid` answers to Reduced effects like its parent
+  tier; `reduced-effects.test.ts` now pins that.
+- **"Try a template" no longer wears Gemini's silhouette.** The button's
+  `SparkMark` (a filled concave four-point star) was visually the Gemini
+  developer mark from the Target rail; it is replaced by `TemplateMark`, a
+  stroke-style framed template card, so no developer identity is spent on an
+  unrelated affordance.
+- **Owner console moved below the sections every account has.** It rendered
+  between Appearance and Data & privacy, splitting the ordinary settings
+  order with an administrative group only the owner sees; it now sits after
+  Data & privacy (whose stored-media manager it follows), before About.
+- **Stored developer-accent strength actually renders now.** dev-accents.css
+  derives `--dev-peak` AT `:root`, but the authed layout carried the stored
+  `--dev-peak-user` on a wrapper div — invisible to a `var()` substituted at
+  `:root`, so the saved strength (the "60%" label) never changed the cards
+  after a load; only the slider's live preview (inline on `<html>`) worked.
+  The layout now server-renders `:root{--dev-peak-user:N%}` via
+  `devAccentCss()` (clamped to the CHECK bounds before interpolation;
+  unit-tested), and dev-accents.css documents the `:root` requirement.
+- **Gemini "Your project has been denied access. Please contact support."**
+  Diagnosed, not a code defect: that text is Google's own 403 body relayed
+  verbatim — Google refusing the Cloud project behind the deployed
+  `GOOGLE_API_KEY`, not a model or adapter limitation (endpoint, request
+  shape, and the `gemini-3.6-flash` id verified current). Remediation is
+  key rotation in the Vercel env — procedure added to
+  `docs/runbooks/providers.md` ("Gemini key/project refusals"). The adapter
+  now appends the remediation hint to 401/403 messages and warn-logs the
+  upstream status server-side, so the next refusal shows up in Vercel
+  runtime logs (this one was visible only in the failing client).
+
 ### Production verification fixes (post-deploy sweep of 28314e4)
 
 A live audit of the deployed production site (HTTP/PWA sweep, real

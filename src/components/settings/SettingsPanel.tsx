@@ -53,10 +53,13 @@ const DISPLAY_NAME_RE = /^[a-z0-9_-]{3,24}$/;
 /**
  * Settings (2026-07 UX audit — the old "Profile" was preferences and account
  * management, not a profile): Identity · Account · Defaults · Appearance ·
- * Data & privacy · About. ONE persistence path (useSettingWrite over server
- * actions) with per-control status; identity is form-commit (Save gated on
- * dirty ∧ valid), discrete pickers are control-commit; email is a distinct
- * verified workflow.
+ * Data & privacy · [Owner] · About. The owner console renders only for the
+ * owner and sits AFTER the sections every account has (below the media
+ * manager in Data & privacy), so the ordinary settings order is never
+ * interrupted by an administrative group. ONE persistence path
+ * (useSettingWrite over server actions) with per-control status; identity is
+ * form-commit (Save gated on dirty ∧ valid), discrete pickers are
+ * control-commit; email is a distinct verified workflow.
  */
 export function SettingsPanel({
   profile,
@@ -411,6 +414,13 @@ export function SettingsPanel({
         </p>
       </SettingsSection>
 
+      <DataPrivacySection deleteError={deleteError} />
+
+      {/* Owner console LAST among the functional groups — after Data &
+          privacy (which ends in the stored-media manager), before the
+          informational About block. It is a separate administrative surface
+          only the owner ever sees; parked mid-page it broke the settings
+          order every other account actually has. */}
       {owner && (
         <OwnerSection
           openAccess={owner.openAccess}
@@ -418,7 +428,6 @@ export function SettingsPanel({
         />
       )}
 
-      <DataPrivacySection deleteError={deleteError} />
       <AboutSection />
 
       <Footer inset />

@@ -85,11 +85,19 @@ export function WarningMark({ className }: { className?: string }) {
   );
 }
 
-/** Template spark — a concave four-point star, filled like the old ✦. */
-export function SparkMark({ className }: { className?: string }) {
+/** Template card — a framed layout with a title row, for "Try a template".
+ *  Deliberately NOT the four-point spark that replaced the old ✦: that
+ *  concave-star silhouette is the Gemini developer mark (DeveloperIcon
+ *  `google`), and an app whose Target rail renders developer marks cannot
+ *  spend one of those identities on an unrelated affordance. Stroke, not
+ *  filled: this is an action affordance, not a state marker. */
+export function TemplateMark({ className }: { className?: string }) {
   return (
-    <Glyph className={className} filled>
-      <path d="M12 3.5c.62 4.55 3.83 7.83 8.5 8.5-4.67.67-7.88 3.95-8.5 8.5-.62-4.55-3.83-7.83-8.5-8.5 4.67-.67 7.88-3.95 8.5-8.5z" />
+    <Glyph className={className}>
+      <rect x="4" y="3.5" width="16" height="17" rx="2.5" />
+      <path d="M4 9h16" />
+      <path d="M8.5 13.5h7" />
+      <path d="M8.5 17h4.5" />
     </Glyph>
   );
 }
