@@ -27,47 +27,43 @@ function block(headPattern: RegExp): string {
 }
 
 describe("UI contracts", () => {
-  describe("glass stands down while the page is in motion", () => {
-    it("drops the backdrop blur under [data-scrolling]", () => {
-      const decls = block(/^\[data-scrolling\]\s+\.glass$/);
-      expect(decls, "no [data-scrolling] .glass rule").not.toBe("");
-      expect(decls).toMatch(/(^|[\s;])backdrop-filter:\s*none/);
-      // Safari is the platform this PWA targets first and still needs the
-      // prefixed property — without it the whole optimisation is a no-op there.
-      expect(decls).toMatch(/-webkit-backdrop-filter:\s*none/);
-      // The grain is a tiled background image, re-sampled on the same schedule.
-      expect(decls).toMatch(/background-image:\s*none/);
+  describe("glass renders identically while the page is in motion", () => {
+    /**
+     * Two generations of a `[data-scrolling] .glass` stand-down were
+     * falsified on a production device within a day of each other (2026-08):
+     * dropping the blur left every panel see-through mid-flick, and swapping
+     * to an opaque fill made the library/settings greys visibly shift with
+     * every gesture — the resting composite varies with the ambient ground
+     * behind each panel, so no scroll-time restyle can match it. The
+     * contract is now that there is NONE: panels keep blur, grain and fill
+     * in motion. The e2e scroll specs assert the same from a real engine.
+     */
+    it("has no [data-scrolling] .glass rule — scroll-time panel restyles are banned", () => {
+      expect(
+        block(/^\[data-scrolling\]\s+\.glass\b/),
+        "a scroll-time .glass restyle is back; read the scroll-gate comment in globals.css",
+      ).toBe("");
     });
 
-    it("leaves the chrome bars blurred", () => {
-      // --chrome is only ~0.42–0.45 opaque, so text passing under an
-      // unblurred header would be plainly legible through it. The bars are two
-      // elements; the cards are the ones that scale with content.
-      expect(block(/\[data-scrolling\][^{]*glass-(chrome|nav)/)).toBe("");
-    });
-
-    it("stands down the FAB's lens too, with the prefixed property", () => {
-      // It is the one blurred surface that is FIXED over a list, so its
-      // snapshot is re-blurred on every frame of every scroll rather than only
-      // while it is itself on screen. No `background-image` here: the pseudo
-      // carries the tint and the blur, and no grain.
+    it("stands down the FAB's lens only, with the prefixed property", () => {
+      // The FAB earns the one remaining gate: it is FIXED over the list, so
+      // its snapshot is re-blurred on every frame of every scroll — and its
+      // 82%-Laser fill makes the swap invisible in a way the panels' varying
+      // grey composites never were. Safari still needs the prefixed property.
       const decls = block(/^\[data-scrolling\]\s+\.fab-glass::before$/);
       expect(decls, "no [data-scrolling] .fab-glass::before rule").not.toBe("");
       expect(decls).toMatch(/(^|[\s;])backdrop-filter:\s*none/);
       expect(decls).toMatch(/-webkit-backdrop-filter:\s*none/);
     });
 
-    it("never stands down the ambient or nav layers", () => {
-      // An allowlist, not a count: the gate trades a visual for a frame budget,
-      // and every surface added to it has to be one where the blur is not
-      // load-bearing. `--chrome` is not (see above); the ambient layers are not
-      // blurred at all, so reaching them would only ever be a mistake.
+    it("scopes the scroll gate to the FAB alone", () => {
+      // An allowlist, not a count: anything else joining the gate — panels,
+      // chrome bars (~0.42-opaque, text would read through them unblurred),
+      // ambient layers — re-introduces a two-state rendering somewhere.
       const heads = [...RULES.matchAll(/([^{}]+)\{/g)]
         .map((m) => m[1]!.trim())
         .filter((h) => h.includes("[data-scrolling]"));
-      expect(new Set(heads)).toEqual(
-        new Set(["[data-scrolling] .glass", "[data-scrolling] .fab-glass::before"]),
-      );
+      expect(new Set(heads)).toEqual(new Set(["[data-scrolling] .fab-glass::before"]));
     });
   });
 
@@ -191,13 +187,14 @@ describe("UI contracts", () => {
 
   describe("the stacking-context invariant", () => {
     /**
-     * Toggling `backdrop-filter` also toggles a stacking context and a
-     * containing block for `position: fixed` descendants. `[data-scrolling]
-     * .glass` is therefore only safe while no fixed-position element lives
-     * inside a `.glass` subtree — otherwise it would re-anchor to the viewport
-     * mid-scroll and jump. Every fixed overlay in the app is either portaled
-     * to <body> or a root-level sibling; this pins that down so a new one has
-     * to make the decision consciously.
+     * A `backdrop-filter` makes an element a stacking context and a
+     * containing block for `position: fixed` descendants — so a fixed
+     * element inside a `.glass` subtree would anchor to the panel, not the
+     * viewport (and the FAB's gate still TOGGLES its filter mid-scroll,
+     * where a contained descendant would visibly re-anchor and jump). Every
+     * fixed overlay in the app is either portaled to <body> or a root-level
+     * sibling; this pins that down so a new one has to make the decision
+     * consciously.
      */
     const ALLOWED = new Map([
       ["components/ui/Sheet.tsx", "portaled to <body>"],
@@ -208,7 +205,9 @@ describe("UI contracts", () => {
       // Rendered in the (app) layout as a SIBLING of {children}, so its
       // ancestors are SafeAreaProvider's div/main and ToastProvider's
       // fragment — none of them .glass. It sits outside every page's panels,
-      // which is what keeps [data-scrolling] .glass from re-anchoring it.
+      // so no panel's stacking context can capture it — and its OWN gate
+      // ([data-scrolling] .fab-glass::before) toggles a filter on its pseudo,
+      // not on an ancestor of anything fixed.
       ["components/nav/NewPromptFab.tsx", "authed-shell chrome, sibling of {children}"],
       ["components/settings/SettingsPanel.tsx", "root-level sibling in the panel"],
     ]);

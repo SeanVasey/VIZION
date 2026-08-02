@@ -123,10 +123,10 @@
     --scrim-heavy: color-mix(in srgb, var(--void) 78%, transparent);
   }
 
-  /* The glass tint pre-composited over the page ground — the OPAQUE stand-in
-     used wherever the translucent tier would let content read through: the
-     scroll stand-down fill and the `.glass-solid` work-surface tier (both in
-     the components layer).  --onyx IS the glass rgb (tokens.css pairs them);
+  /* The glass tint pre-composited over the page ground — the OPAQUE fill of
+     the `.glass-solid` work-surface tier (components layer), for surfaces
+     where the translucent tier would let content read through.
+     --onyx IS the glass rgb (tokens.css pairs them);
      72% / 82% is each theme's --glass alpha, so these mixes land on the same
      composited card fills dev-accents.css derives its contrast from
      (#23252A dark · #FCFCFD light).  Lives here, not in the LOCKED
@@ -259,13 +259,12 @@
   /* Opaque tier of the glass family — for the primary WORK surfaces (the
      composer chassis) where content behind the panel must never read through.
      The translucent tier cannot promise that: a bright ambient-mesh node
-     bleeds visibly through 72% alpha even under the blur, and during the
-     scroll stand-down the tint alone hides nothing (both reported from a
+     bleeds visibly through 72% alpha even under the blur (reported from a
      production device, 2026-08).  Same hairline, sheen and grain as .glass;
      the fill is --glass-still (the tint pre-composited over the ground), so
      it sits flush with the translucent panels around it — and it carries NO
-     backdrop-filter, so it costs nothing to move and there is nothing for
-     [data-scrolling] to stand down (keep it out of that gate's allowlist). */
+     backdrop-filter, so it costs nothing to move and must stay out of the
+     FAB-only [data-scrolling] gate (see the scroll-gate comment below). */
   .glass-solid {
     background-color: var(--glass-still);
     background-image: var(--grain, none);
@@ -706,48 +705,40 @@
     contain-intrinsic-size: auto 116px;
   }
 
-  /* Frosted glass is expensive to MOVE. Each `.glass` panel makes the
-     compositor snapshot the pixels behind it, blur them and re-composite —
-     every frame, for every panel, and a library screen holds a dozen. At rest
-     that cost buys the design. In motion it buys nothing: a backdrop sliding
-     past at flick speed is already a blur, so blurring it again is work no one
-     can see. `ScrollStateManager` stamps `data-scrolling` on <html> for the
-     duration of a scroll gesture (+140ms), and these rules stand that work
-     down for exactly that long. The grain goes with it — a tiled background
-     image is re-sampled on the same schedule.
+  /* Scroll gate — the FAB ONLY (the rule below).
 
-     Scoped to `.glass` and NOT to the two chrome bars: `--chrome` is only
-     ~0.42–0.45 opaque, so text passing under an unblurred header would be
-     plainly legible through it.
+     `.glass` panels are deliberately NOT restyled while the page moves.
+     Two generations of a scroll stand-down for them were falsified on a
+     production device within a day of each other (2026-08): dropping the
+     blur left every panel see-through mid-flick (the 72%/82% tint alone
+     hides nothing), and swapping to an opaque fill instead made the greys
+     of the library and settings screens visibly shift with every flick —
+     each panel's resting composite varies with the aurora-lit ground behind
+     it, so NO single scroll-time appearance can match all of them. Any
+     two-state rendering is a visible artifact somewhere; the only rendering
+     that always matches rest is rest itself. Panels therefore keep their
+     backdrop-filter, grain and fill in motion — `ui-contracts.test.ts` and
+     both e2e scroll specs pin that.
 
-     The fill swaps to the OPAQUE composite for the same duration. The
-     original premise here — that 0.72/0.82 alpha over the ambient mesh made
-     the blur's absence imperceptible — was measured false on a production
-     device (2026-08): with the blur down, page content read plainly through
-     every panel mid-flick. --glass-still is the same tint pre-composited
-     over the ground, so the swap holds the panel's resting colour while
-     guaranteeing nothing shows through it; at flick speed the fill change
-     itself is the invisible part.
+     The per-frame blur cost this re-accepts is real but has never been
+     MEASURED as jank on the target device, while both stand-down
+     generations drew appearance reports immediately. If scroll jank is
+     ever measured, optimize by non-visual means (smaller blur radius, fewer
+     on-screen panels, .scroll-row containment) — never by a scroll-time
+     restyle.
 
-     Toggling `backdrop-filter` also toggles a stacking context and a
-     containing block for fixed descendants. Safe here because no `.glass`
-     element hosts a `position: fixed` descendant: Sheet, Toast and
-     KeyboardActionBar all portal to <body>, and the avatar-crop modal is a
-     root-level sibling in SettingsPanel. `tests/unit/ui-contracts.test.ts`
-     is what keeps that true. */
-  [data-scrolling] .glass {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background-image: none;
-    background-color: var(--glass-still);
-  }
+     `ScrollStateManager` still stamps `data-scrolling` on <html>; its one
+     remaining consumer is the FAB. */
 
-  /* The FAB answers to the same gate, and has the strongest claim to it: it is
-     the one blurred surface that is FIXED over a list, so its snapshot region
-     is re-blurred on every frame of every scroll rather than only while it is
-     itself on screen. At 82% Laser over the ambient ground the stand-down is
-     no more visible than `.glass`'s. Kept a separate rule because the pseudo
-     carries no grain to silence. */
+  /* Why the FAB keeps a stand-down when `.glass` lost its: it is the one
+     blurred surface that is FIXED over a list, so its snapshot region is
+     re-blurred on every frame of every scroll rather than only while it is
+     itself on screen — the strongest per-frame cost in the app. And unlike
+     the panels, its swap is genuinely invisible: the fill is 82% Laser, so
+     what shows through at rest is a 18% whisper of ground, not the varying
+     grey composite that made the panel stand-down read as a color shift.
+     The device reports that killed the `.glass` gate showed the FAB
+     identical in both states. */
   [data-scrolling] .fab-glass::before {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

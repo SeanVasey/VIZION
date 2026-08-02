@@ -2405,3 +2405,31 @@ than as a puzzling failure in whichever spec ran first.
   opacity → 2.7:1). Clean on re-run and on the following full suite. If it
   recurs, settle the footer animation before the axe scan — don't loosen the
   assertion.
+
+## 2026-08-02 — Scroll stand-down removed (second device report)
+
+**What broke:** the previous fix's opaque fill swap traded the see-through
+artifact for a grey-shift artifact — every library/settings panel visibly
+changed color the moment a flick started. Two stand-down generations, two
+device reports, one day.
+
+**The general lesson:** a panel whose resting appearance depends on what is
+BEHIND it (translucent tint + blur over a position-varying ambient ground)
+has no substitutable scroll-time rendering — the resting composite differs
+per panel, so any single stand-down appearance mismatches somewhere. Don't
+iterate on WHAT to swap to; the only rendering that always matches rest is
+rest itself. Two-state rendering of visible surfaces is the defect class.
+
+**Perf posture:** the stand-down was a from-principle optimization; the jank
+it guarded against was never measured on the target device, while its
+appearance cost was reported twice within a day. Visual-costing
+optimizations need a measured problem first. The FAB's gate stays because
+its premise holds measurably (82% Laser fill — the swap is invisible in the
+same screenshots that condemned the panels'; and as a fixed element over a
+scrolling list it has the app's strongest per-frame blur cost).
+
+**Contract inversion:** when removing a pinned behavior, flip the pins,
+don't delete them — ui-contracts now asserts NO `[data-scrolling] .glass`
+rule exists, and the two e2e scroll specs assert a real panel computes
+identical blur + fill mid-scroll. The removed optimization can't drift back
+in casually.

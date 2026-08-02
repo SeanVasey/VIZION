@@ -12,12 +12,17 @@ const SETTLE_MS = 140;
 /**
  * Stamps `data-scrolling` on `<html>` while the page is moving. Renders nothing.
  *
- * Frosted glass is expensive to MOVE: every `.glass` panel makes the compositor
- * snapshot the pixels behind it, blur them and re-composite — every frame, for
- * every panel, and a library screen can hold a dozen. At rest that cost buys
- * the design; in motion it buys nothing, because a backdrop sliding past at
- * flick speed is already a blur. The attribute lets `globals.css` stand that
- * work down while the page moves and bring it back the moment it stops.
+ * ONE consumer remains: `[data-scrolling] .fab-glass::before` (globals.css),
+ * which stands the FAB's backdrop blur down mid-scroll — the FAB is fixed
+ * over the list, so its snapshot region re-blurs every frame of every
+ * scroll, and its 82%-Laser fill makes the swap genuinely invisible.
+ *
+ * `.glass` panels are deliberately NOT wired to this attribute. Two
+ * generations of a panel stand-down were falsified on device (2026-08):
+ * blur-off made panels see-through mid-flick, and an opaque fill swap made
+ * the library/settings greys visibly shift with every gesture. Panels now
+ * render identically in motion and at rest — see the scroll-gate comment in
+ * globals.css before wiring anything else to this attribute.
  *
  * The listener is passive, so it cannot delay a scroll frame.
  */

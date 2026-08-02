@@ -98,23 +98,33 @@ test.describe("authenticated app", () => {
     await expectNoUnhandledStubRoutes();
   });
 
-  test("glass stands down its blur while an authed page is scrolling", async ({
+  test("glass cards hold their appearance while an authed page is scrolling", async ({
     page,
   }) => {
-    // The signed-out version of this asserts on a form input. This one runs
-    // over a real list of `.glass` cards — the case the optimisation exists
-    // for, and the one where a dozen panels are on screen at once.
+    // The reported defect (2026-08): every library/settings panel visibly
+    // shifted grey the moment a flick started, because the scroll gate
+    // restyled `.glass`. The signed-out spec asserts this on a form input;
+    // this one runs it over a real library card — the panel-dense case where
+    // the shift was reported — and must compute the SAME fill and blur
+    // mid-scroll as at rest.
     await page.getByRole("navigation").getByRole("link", { name: "Library" }).click();
     await page.waitForURL(/\/library/);
 
     const card = page.locator("li.scroll-row a.glass").first();
-    expect(await card.evaluate((el) => getComputedStyle(el).backdropFilter)).toContain(
-      "blur",
-    );
+    const atRest = await card.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { blur: s.backdropFilter, fill: s.backgroundColor };
+    });
+    expect(atRest.blur).toContain("blur");
 
     await page.evaluate(() => window.dispatchEvent(new Event("scroll")));
     await expect(page.locator("html")).toHaveAttribute("data-scrolling", "");
-    expect(await card.evaluate((el) => getComputedStyle(el).backdropFilter)).toBe("none");
+    expect(
+      await card.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { blur: s.backdropFilter, fill: s.backgroundColor };
+      }),
+    ).toEqual(atRest);
 
     await expect(page.locator("html")).not.toHaveAttribute("data-scrolling", "");
   });
