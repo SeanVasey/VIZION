@@ -104,14 +104,20 @@ function TargetPickerImpl({
         {auto ? (
           <AutoGlyph className="h-4 w-4 text-accent" />
         ) : (
-          developer && <DeveloperIcon developer={developer} className="h-4 w-4 text-accent" />
+          developer && (
+            <DeveloperIcon developer={developer} className="h-4 w-4 text-accent" />
+          )
         )}
         {/* `grow` so a full-width trigger (Settings) pushes the chevron to the
             right edge; in a content-width pill (composer) it is a no-op. */}
         <span className="grow truncate text-left">
           {auto ? "Auto" : targetLabel(value)}
         </span>
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-silver">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="h-4 w-4 shrink-0 text-silver"
+        >
           <path
             d="M8 10l4 4 4-4"
             fill="none"
@@ -176,13 +182,19 @@ function TargetPickerSheet({
     ],
     [onPickAuto],
   );
-  const roving = useRovingRadios(
-    flatIds.length,
-    auto ? 0 : flatIds.indexOf(value),
-  );
+  const roving = useRovingRadios(flatIds.length, auto ? 0 : flatIds.indexOf(value));
 
   return (
-    <Sheet open={open} onClose={onClose} title={title} initialFocusRef={initialFocus}>
+    // anchor="side": both picker triggers live mid-screen in the composer
+    // rail (and Settings), so the list opens beside them as a centered edge
+    // card instead of a bottom sheet a viewport away from the press.
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      initialFocusRef={initialFocus}
+      anchor="side"
+    >
       <div
         role="radiogroup"
         aria-label={title}

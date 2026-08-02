@@ -6,7 +6,37 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
-### Scroll-time glass restyle removed (grey shift on library/settings)
+### Model/Thinking pickers anchor beside their triggers; sheets drag to close
+
+On-device report: both composer pickers (Target model, Thinking depth)
+opened as bottom sheets a full viewport away from the mid-screen pills that
+summon them, and the sheet's grab handle was decorative — it promised a
+drag-down dismiss it couldn't perform. Three changes to the `Sheet`
+primitive, none of which alter its dialog contract (portal, focus trap,
+Escape, scrim click, scroll lock):
+
+- **`anchor="side"`.** A second anchor renders the panel as a card
+  vertically centered against the right edge of the app column — beside the
+  composer rail on any viewport — sliding in from that edge
+  (`.sheet-in-side`). Both pickers adopt it; every other sheet keeps the
+  bottom anchor unchanged.
+- **The grab handle works.** The handle strip carries pointer handlers:
+  drag past a distance threshold (or flick) to dismiss, short drags spring
+  back, sub-slop presses stay taps so the header's X still clicks. The
+  handle's orientation now states the true gesture — horizontal pill on top
+  of a bottom sheet (drag down), vertical pill on the side card's leading
+  edge (drag out). Drag is scoped to the handle strip so it can never fight
+  the option list's own scroll.
+- **Closing animates.** Sheets play a short exit (reverse of their entry;
+  a drag-dismiss instead finishes its throw from wherever the finger left
+  it) before unmounting. The exiting node is aria-hidden and pointer-inert
+  from the first closed frame — focus restore, scroll unlock, and every
+  role query see the close as instant, and the global reduced-motion
+  collapse snaps the exit to immediate.
+
+`sheet.test.tsx` pins all three (drag past threshold closes, short drag
+springs back, tap stays a tap, side card keeps the dialog contract, exit
+leaves the a11y tree at once).
 
 Follow-up device report on the entry below: with the stand-down's fill swap
 live, every `.glass` panel on the library and settings screens visibly

@@ -180,9 +180,7 @@
      (The vars inside resolve at the point of USE, so a composed ring still
      picks up the focused element's own theme.) */
   :root {
-    --focus-ring:
-      0 0 0 1px var(--accent-ink),
-      0 0 24px var(--laser-glow);
+    --focus-ring: 0 0 0 1px var(--accent-ink), 0 0 24px var(--laser-glow);
   }
   :focus-visible {
     /* 2px TRANSPARENT outline, not `none` (A11Y-001): forced-colors mode
@@ -251,9 +249,7 @@
      replace: ring first so it draws outside the sheen. Utilities still win
      over this, so `focus-visible:shadow-none` (Sheet) keeps working. */
   .glass:focus-visible {
-    box-shadow:
-      var(--focus-ring),
-      var(--glass-sheen);
+    box-shadow: var(--focus-ring), var(--glass-sheen);
   }
 
   /* Opaque tier of the glass family — for the primary WORK surfaces (the
@@ -275,9 +271,7 @@
   /* Same composition trap as .glass: ring first, or focusing shows the sheen
      and nothing else (WCAG 2.4.7). */
   .glass-solid:focus-visible {
-    box-shadow:
-      var(--focus-ring),
-      var(--glass-sheen);
+    box-shadow: var(--focus-ring), var(--glass-sheen);
   }
 
   /* Translucent chrome — the top header and bottom nav. Thinner fill + a touch
@@ -449,9 +443,7 @@
      this is a control's own surface — the same call `.glass`'s blur and the
      focus ring's glow already make. */
   .fab-glass {
-    --_fab-shadow:
-      0 6px 20px -4px rgba(0, 0, 0, 0.5),
-      0 0 24px var(--laser-glow);
+    --_fab-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.5), 0 0 24px var(--laser-glow);
     /* The tint moves to the ::before with the blur; see below. */
     background: transparent;
     box-shadow: var(--_fab-shadow);
@@ -468,9 +460,7 @@
      the base :focus-visible ring outright and leaves a keyboard user with
      nothing — the trap documented on --focus-ring.  Compose, ring first. */
   .fab-glass:focus-visible {
-    box-shadow:
-      var(--focus-ring),
-      var(--_fab-shadow);
+    box-shadow: var(--focus-ring), var(--_fab-shadow);
   }
 
   /* Blur AND tint both live here, not just the blur.  A negative-z-index child
@@ -962,6 +952,24 @@
     }
   }
 
+  /* Side-anchored sheet entry (Sheet anchor="side") — slides IN from the
+     right edge it is docked against, mirroring the gesture that dismisses
+     it. Same reduced-motion posture as .sheet-in: the end state is the
+     resting one, so the collapse lands on a fully-visible card. */
+  .sheet-in-side {
+    animation: sheet-in-side 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  @keyframes sheet-in-side {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
   /* Overlay scrim entry — the panel rises with .sheet-in but its scrim used
      to pop to 80% Void on the first frame, which read as a flash before the
      panel arrived. Same duration/ease as the panel, same reduced-motion
@@ -976,6 +984,50 @@
     }
     to {
       opacity: 1;
+    }
+  }
+
+  /* Overlay EXITS — reverse of the entries, `forwards` so the final frame
+     holds until React unmounts on animationend (Sheet keeps the node ~200ms
+     for exactly this). END state is gone-and-transparent, so the global
+     reduced-motion collapse snaps straight to closed — an exit that lingered
+     would be motion for its own sake. Drag-dismissal does NOT use these: the
+     throw finishes on an inline transition from wherever the finger left it. */
+  .sheet-out {
+    animation: sheet-out 180ms ease-in forwards;
+  }
+  @keyframes sheet-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+  }
+  .sheet-out-side {
+    animation: sheet-out-side 180ms ease-in forwards;
+  }
+  @keyframes sheet-out-side {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  }
+  .scrim-out {
+    animation: scrim-out 180ms ease-in forwards;
+  }
+  @keyframes scrim-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
     }
   }
 
