@@ -2470,3 +2470,28 @@ is wrong, not the tests.
   (matching the resolved version) is the fix; piping test output through
   `tail` also swallowed the failing exit code, so check `PIPESTATUS`, not
   the pipeline's.
+
+## 2026-08-06 — Picker sheet padding (third device report)
+
+**What broke.** Device report: the Thinking depth sheet's Auto card rendered
+its title and description flush against the card borders. The rows were sized
+by `min-h-[44px]` + `items-center` with no `py-*` — a shape that _looks_
+padded exactly as long as the content is one 20px line centered in a 44px
+box. Auto's description wraps on a phone, the content outgrew the floor, and
+the apparent padding vanished to zero.
+
+**What changed.** All rows in both picker sheets (ThinkingPicker,
+TargetPicker — the pair must match) gained `py-3`. Single-line rows are
+pixel-identical (20 + 24 = the same 44px), wrapping rows keep a 12px inset.
+
+**What to avoid / remember.**
+
+- **min-height is not padding.** A min-h floor with `items-center` mimics an
+  inset only until content wraps; any row that can carry two lines needs the
+  inset stated as actual padding. When adding a min-h tap floor, pair it with
+  the `py-*` whose arithmetic meets it (text-sm line 20px + py-3 24px = 44px)
+  so the floor is the _backstop_, not the layout.
+- The pickers are a matched pair by declared contract (comments + the
+  trigger-equality unit test). A fix found in one MUST be applied to the
+  other in the same commit — TargetPicker's Auto row had the identical bug,
+  just unreported.

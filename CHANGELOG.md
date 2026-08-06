@@ -6,6 +6,18 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Picker sheet rows carry real vertical padding
+
+On-device report: in the Thinking depth sheet, the Auto card's text sat
+flush against the card's top and bottom borders. The sheet rows sized
+themselves with `min-h-[44px]` alone and had no vertical padding — which
+reads as padded only while a row's content is a single 20px line. Auto's
+wrapping description grew the row past the floor, and what looked like
+padding turned out to be leftover min-height. Rows in both picker sheets
+(Thinking and Target — the pair must match) now carry `py-3`: single-line
+rows render pixel-identical (one 20px line + 24px padding is exactly the
+44px floor), and rows that wrap keep a real 12px inset.
+
 ### Model/Thinking pickers anchor beside their triggers; sheets drag to close
 
 On-device report: both composer pickers (Target model, Thinking depth)
