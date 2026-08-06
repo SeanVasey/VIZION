@@ -214,7 +214,12 @@ function TargetPickerSheet({
                 role="radio"
                 aria-checked={auto ?? false}
                 onClick={onPickAuto}
-                className="font-body flex min-h-[44px] w-full items-center gap-3 px-4 text-left text-sm text-text transition-colors hover-hair"
+                // py-3 is not redundant with the 44px floor: one text-sm line
+                // (20px) + 24px padding IS 44px, so single-line rows don't
+                // move — but this row's description wraps, and without the
+                // padding the grown content renders flush against the card
+                // borders.
+                className="font-body flex min-h-[44px] w-full items-center gap-3 px-4 py-3 text-left text-sm text-text transition-colors hover-hair"
               >
                 <AutoGlyph className="h-4 w-4 shrink-0 text-accent" />
                 <span className="grow">
@@ -249,7 +254,7 @@ function TargetPickerSheet({
                     role="radio"
                     aria-checked={active}
                     onClick={() => onPick(m.id)}
-                    className="font-body flex min-h-[44px] items-center gap-3 px-4 text-left text-sm text-text transition-colors hover-hair"
+                    className="font-body flex min-h-[44px] items-center gap-3 px-4 py-3 text-left text-sm text-text transition-colors hover-hair"
                   >
                     <DeveloperIcon
                       developer={group.developer}
