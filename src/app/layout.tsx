@@ -7,7 +7,7 @@ import { QueryProvider } from "@/lib/query/provider";
 import { ThemeManager } from "@/components/ThemeManager";
 import { ReducedEffectsManager } from "@/components/ReducedEffectsManager";
 import { ScrollStateManager } from "@/components/ScrollStateManager";
-import { NeuralMeshBackground } from "@/components/NeuralMeshBackground";
+import { AmbientNebula } from "@/components/background/AmbientNebula";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
 
@@ -112,7 +112,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <ThemeManager />
           <ReducedEffectsManager />
           <ScrollStateManager />
-          <NeuralMeshBackground />
+          <AmbientNebula />
           <SafeAreaProvider>{children}</SafeAreaProvider>
           <BottomNav />
         </QueryProvider>
