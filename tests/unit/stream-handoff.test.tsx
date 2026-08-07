@@ -86,20 +86,25 @@ describe("streaming → result handoff", () => {
     expect(card.querySelector(".mono")).toBeNull();
   });
 
-  it("keeps the ⌁ ticker glyphs decorative while numbers stay announced (PRI-013)", () => {
+  it("keeps the ⌁ ticker decorative while an sr-only phrase relates the counts (PRI-013)", () => {
     mockMutation.stream.active = true;
     mockMutation.isPending = true;
     renderComposer();
     const card = screen.getByLabelText("Enhancement in progress");
-    for (const glyph of card.querySelectorAll("span")) {
-      const text = glyph.textContent ?? "";
-      if (/[⌁→]/.test(text) && !/\d/.test(text)) {
-        expect(glyph).toHaveAttribute("aria-hidden", "true");
-      }
-    }
-    // The mock's tokenIn/tokenOut — the readable half of the ticker.
-    expect(card.textContent).toContain("5");
-    expect(card.textContent).toContain("9");
+    // The visible glyph cluster is hidden from AT wholesale — hiding only
+    // the arrow would announce "5 9 tok", two counts with no relationship.
+    const visible = [...card.querySelectorAll('span[aria-hidden="true"]')].find(
+      (s) => /⌁/.test(s.textContent ?? ""),
+    );
+    expect(visible).toBeTruthy();
+    expect(visible!.textContent).toContain("→");
+    // ...and the relationship survives as a readable phrase (mock: 5 in, 9 out).
+    const phrase = [...card.querySelectorAll(".sr-only")].find((s) =>
+      /tokens in/.test(s.textContent ?? ""),
+    );
+    expect(phrase).toBeTruthy();
+    expect(phrase!.textContent).toContain("5");
+    expect(phrase!.textContent).toContain("9");
   });
 });
 

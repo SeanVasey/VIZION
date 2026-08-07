@@ -73,15 +73,20 @@ export function StreamingResult({
             <span className="stream-beacon shrink-0" aria-hidden="true" />
             Streaming
           </p>
-          {/* Usage ticker: numbers announced, glyphs decorative (the
-              EnhanceComposer ⌁ pattern — PRI-013). Outside the aria-live
-              region, so per-token updates never flood a screen reader. */}
+          {/* Usage ticker. The visible cluster (⌁ 5→9 tok) is decorative for
+              AT — hiding only the arrow left "5 9 tok", two counts with no
+              relationship — and an sr-only phrase carries in/out instead
+              (PRI-013 + its Codex follow-up on PR #84). Cost is plain text,
+              announced as printed. Outside the aria-live region, so
+              per-token updates never flood a screen reader. */}
           {showUsage && (
             <p className="font-body shrink-0 text-xs tabular-nums text-silver">
-              <span aria-hidden="true">⌁ </span>
-              {tokenIn}
-              <span aria-hidden="true">→</span>
-              {tokenOut} tok
+              <span className="sr-only">
+                {tokenIn} tokens in, {tokenOut} out
+              </span>
+              <span aria-hidden="true">
+                ⌁ {tokenIn}→{tokenOut} tok
+              </span>
               {costUsd > 0 && ` · $${costUsd.toFixed(4)}`}
             </p>
           )}

@@ -36,9 +36,10 @@ mono body classes stay byte-identical to TransformationDiff's, so the
 handoff never reflows. Closes ledger UX-03 — the card scrolls itself
 into view on run start (smooth, or instant under reduced motion) with a
 scroll margin clearing the sticky header; the growing tail is
-deliberately not followed — and PRI-013 — the `⌁`/`→` usage glyphs are
-decorative in both StreamProgress and the new ticker, numbers still
-announced. Reduced motion collapses every new animation to its static
+deliberately not followed — and PRI-013 — the visible `⌁ 5→9` cluster is
+decorative in both StreamProgress and the new ticker, while an sr-only
+"N tokens in, M out" phrase keeps the relationship audible (per a Codex
+review pass). Reduced motion collapses every new animation to its static
 base and swaps the edge light to the sweep's sanctioned slow pulse;
 Reduced effects removes the edge light entirely (gate test extended).
 Horizon's reserved in-flight `data-state` hook stays deliberately unlit:

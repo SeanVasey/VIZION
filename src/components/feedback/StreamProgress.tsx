@@ -40,13 +40,17 @@ export function StreamProgress({
           {step}
         </span>
         {showUsage && (
-          // Numbers announced, glyphs decorative (PRI-013 — the same split
-          // EnhanceComposer's ⌁ readout already makes).
+          // The visible cluster is decorative for AT; an sr-only phrase
+          // carries the in/out relationship — hiding only the arrow read as
+          // "5 9 tok" (PRI-013 + its Codex follow-up on PR #84). Cost is
+          // plain text, announced as printed.
           <span className="font-body shrink-0 text-xs tabular-nums text-silver">
-            <span aria-hidden="true">⌁ </span>
-            {tokenIn}
-            <span aria-hidden="true">→</span>
-            {tokenOut} tok
+            <span className="sr-only">
+              {tokenIn} tokens in, {tokenOut} out
+            </span>
+            <span aria-hidden="true">
+              ⌁ {tokenIn}→{tokenOut} tok
+            </span>
             {typeof costUsd === "number" && costUsd > 0 && ` · $${costUsd.toFixed(4)}`}
           </span>
         )}
