@@ -2495,3 +2495,47 @@ pixel-identical (20 + 24 = the same 44px), wrapping rows keep a 12px inset.
   trigger-equality unit test). A fix found in one MUST be applied to the
   other in the same commit — TargetPicker's Auto row had the identical bug,
   just unreported.
+
+## 2026-08-07 — Depth meter, streaming console, Originals chip
+
+**What broke.** Nothing at runtime — three owner reports of UI that
+understated itself: depth rows with no scannable weight, a streaming card
+that read as bland, and a storage toggle styled as a caption. Two of the
+fixes reversed rulings this repo had explicitly recorded (DepthGlyph
+"static by design"; the Originals dial "smaller and quieter").
+
+**What changed.** DepthGlyph became a per-level readout (filled bars,
+ultra-violet above High, Max overshooting the meter's top line);
+StreamingResult became a one-card live console (beacon caption, in-card
+progress, keyed tail fade, designed caret, top-edge light, skeleton
+wait-state, the UX-03 scroll-into-view, PRI-013 aria-hidden glyphs); the
+Originals dial took the app chip recipe with an 8px state dot. New
+`--ultra-ink` token in globals.css + Tailwind `ultra` ink role.
+
+**What to avoid / remember.**
+
+- **Reversing a recorded ruling is a two-site edit**: rewrite the source
+  comment that states the ruling AND log the reversal in the changelog in
+  the same commit — otherwise the next reader restores the "documented"
+  state in good faith. Carry the surviving half of the old rationale
+  forward (both reversals here kept one: the meter's label stays the
+  authoritative readout; the dial still never takes a laser fill).
+- **Streaming-text ornament must be opacity-only.** The fade span is an
+  inline box inside `whitespace-pre-wrap`: transforms don't apply to
+  inline boxes, and `inline-block` breaks pre-wrap line wrapping at the
+  span boundary. Key the span by settled length so the fade restarts per
+  rAF flush, and never start from opacity 0 — the newest words must stay
+  readable mid-stream.
+- **globals.css theme tokens are invisible to the tokens.css-scoped a11y
+  harness.** A token added there (the LOCKED-file containment) needs its
+  own declaration-count + contrast pins, and the light theme still exists
+  twice — dark, explicit light, AND system light.
+- **Contrast-tune brand hue picks against COMPOSITED surfaces, not the
+  page.** The picked #ab68ff cleared the void but measured 4.499:1 on the
+  alpha-composited glass card — under the 4.5:1 text bar by a thousandth.
+  One lightness step (#b47aff) kept the hue and bought 5.24:1.
+- Components that touch `window.matchMedia` / `scrollIntoView` on MOUNT
+  make every jsdom test that renders them stub both (the composer-error
+  pattern). The failures surface in *unrelated* suites that merely mount
+  the composer mid-run (composer-reset) — grep for other renderers of the
+  surface before calling the fix done.
