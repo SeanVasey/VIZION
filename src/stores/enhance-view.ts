@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
+import { useUIStore } from "@/stores/ui";
 import {
   ENHANCE_VIEW_STORE_KEY,
   MODES,
@@ -44,6 +45,10 @@ export interface EnhanceView {
 }
 
 interface EnhanceViewState {
+  /** Account the current view belongs to — stamped by setView, persisted
+   *  with it, checked by ProfileHydrator on rehydrate. Null when there is
+   *  no view or the write predated auth hydration. */
+  userId: string | null;
   view: EnhanceView | null;
   setView: (view: EnhanceView | null) => void;
 }
@@ -154,16 +159,32 @@ function isPersistableView(v: unknown): v is EnhanceView {
 export const useEnhanceViewStore = create<EnhanceViewState>()(
   persist(
     (set) => ({
+      userId: null,
       view: null,
-      setView: (view) => set({ view }),
+      // Stamped at write time from the UI store (hydrated by the authed
+      // layout before any interaction — the outbox's defensive story). The
+      // stamp is what lets ProfileHydrator catch the cross-tab race: account
+      // A's still-open tab re-writing its view AFTER account B's one-time
+      // storage wipe (a Codex review catch on PR #85). Null = pre-hydrate
+      // write, adopted rather than dropped, the UI store's own rule.
+      setView: (view) =>
+        set({ view, userId: view ? useUIStore.getState().userId : null }),
     }),
     {
       name: ENHANCE_VIEW_STORE_KEY,
       storage: createJSONStorage(() => safeLocalStorage),
       skipHydration: true,
       merge: (persisted, current) => {
-        const view = (persisted as { view?: unknown } | undefined)?.view;
-        return { ...current, view: isPersistableView(view) ? view : null };
+        const p = persisted as { view?: unknown; userId?: unknown } | undefined;
+        const candidate = p?.view;
+        const view = isPersistableView(candidate) ? candidate : null;
+        return {
+          ...current,
+          view,
+          // The owner riding with a dropped view would let a later valid
+          // write inherit a stale stamp — the two live and die together.
+          userId: view && typeof p?.userId === "string" ? p.userId : null,
+        };
       },
     },
   ),

@@ -2572,3 +2572,13 @@ render identical; account change wipes storage before rehydrating (the
 - **A new module-singleton store needs `setState` resets in every test
   file that renders its consumer** — vitest isolates files, but within a
   file a leaked view pre-mounts the result tree in later tests.
+- **"Skip the first run" boolean effect flags are StrictMode-unsafe.**
+  Dev StrictMode runs mount effects setup→cleanup→setup; the first setup
+  flips the flag and the second runs the guarded body anyway. Gate on a
+  previous-value ref (`prev.current === value`) instead — both mount
+  setups see the same reference and skip.
+- **A one-time storage wipe cannot outrun a still-open tab.** Account
+  B's `clearStorage()` on sign-in doesn't stop account A's open tab from
+  re-writing its state afterwards. Every persisted envelope that can
+  carry private content needs an owner stamp checked on every load, not
+  only at the wipe.

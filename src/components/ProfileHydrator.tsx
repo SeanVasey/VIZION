@@ -46,6 +46,16 @@ export function ProfileHydrator({
     // merely cleared after it was already read into memory.
     if (accountChanged) useEnhanceViewStore.persist.clearStorage();
     void useEnhanceViewStore.persist.rehydrate();
+    // Belt over the wipe's braces (a Codex catch on PR #85): the one-time
+    // clearStorage can't stop a previous account's STILL-OPEN tab from
+    // re-writing its view afterwards — any revert toggle re-persists it. The
+    // envelope therefore carries its owner, and a mismatch is dropped here,
+    // where the authoritative id lives. Null adopts (pre-stamp state), the
+    // UI store's own rule.
+    const viewStore = useEnhanceViewStore.getState();
+    if (viewStore.userId !== null && viewStore.userId !== userId) {
+      viewStore.setView(null);
+    }
   }, [theme, defaultModel, userId]);
 
   return null;

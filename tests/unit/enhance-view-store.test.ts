@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useEnhanceViewStore, type EnhanceView } from "@/stores/enhance-view";
+import { useUIStore } from "@/stores/ui";
 import { ENHANCE_VIEW_STORE_KEY } from "@/lib/constants";
 
 const VALID_VIEW: EnhanceView = {
@@ -17,16 +18,17 @@ const VALID_VIEW: EnhanceView = {
 };
 
 /** Write a raw persisted envelope the way zustand's persist would. */
-function seedStorage(view: unknown) {
+function seedStorage(view: unknown, userId?: string) {
   localStorage.setItem(
     ENHANCE_VIEW_STORE_KEY,
-    JSON.stringify({ state: { view }, version: 0 }),
+    JSON.stringify({ state: { view, userId }, version: 0 }),
   );
 }
 
 beforeEach(() => {
   localStorage.clear();
-  useEnhanceViewStore.setState({ view: null });
+  useEnhanceViewStore.setState({ view: null, userId: null });
+  useUIStore.setState({ userId: null });
 });
 
 describe("useEnhanceViewStore", () => {
@@ -114,6 +116,29 @@ describe("useEnhanceViewStore", () => {
     seedStorage(rich);
     void useEnhanceViewStore.persist.rehydrate();
     expect(useEnhanceViewStore.getState().view).toEqual(rich);
+  });
+
+  it("setView stamps the signed-in account and persists it with the view", () => {
+    useUIStore.setState({ userId: "account-a" });
+    useEnhanceViewStore.getState().setView(VALID_VIEW);
+    expect(useEnhanceViewStore.getState().userId).toBe("account-a");
+    const raw = JSON.parse(localStorage.getItem(ENHANCE_VIEW_STORE_KEY)!);
+    expect(raw.state.userId).toBe("account-a");
+    // Clearing the view clears the stamp — no view, no owner.
+    useEnhanceViewStore.getState().setView(null);
+    expect(useEnhanceViewStore.getState().userId).toBeNull();
+  });
+
+  it("rehydrate restores the owner stamp with the view, never without it", () => {
+    seedStorage(VALID_VIEW, "account-a");
+    void useEnhanceViewStore.persist.rehydrate();
+    expect(useEnhanceViewStore.getState().view).toEqual(VALID_VIEW);
+    expect(useEnhanceViewStore.getState().userId).toBe("account-a");
+    // A dropped view must not leave a stale stamp for a later write to inherit.
+    seedStorage({ garbage: true }, "account-a");
+    void useEnhanceViewStore.persist.rehydrate();
+    expect(useEnhanceViewStore.getState().view).toBeNull();
+    expect(useEnhanceViewStore.getState().userId).toBeNull();
   });
 
   it("clearStorage makes a wiped account's result unrecoverable", () => {

@@ -140,10 +140,7 @@ function TransformationDiffImpl({
   // result.diff is null when the pair exceeded the server's diff budget
   // (PRI-001) — every consumer below degrades to plain text.
   const hunks = useMemo(() => (result.diff ? toHunks(result.diff) : []), [result]);
-  const hunkOf = useMemo(
-    () => (result.diff ? assignHunks(result.diff) : []),
-    [result],
-  );
+  const hunkOf = useMemo(() => (result.diff ? assignHunks(result.diff) : []), [result]);
   const reviewable = mode === "polish" && hunks.length > 0;
 
   /** What Copy/Use/Save/Share/export all consume — the output with the
@@ -196,18 +193,23 @@ function TransformationDiffImpl({
   const [showOriginal, setShowOriginal] = useState(ORIGINAL_STARTS_OPEN);
 
   // A new result (fresh run or refine) resets every per-result decision.
-  // NOT on the first run: mount is not a new result, and clearing there would
+  // NOT on mount: mount is not a new result, and clearing there would
   // clobber the `initialRejected` seed a navigation remount just restored.
   // (Skipping is a no-op for the other resets — on mount they already hold
   // their initial values.) No onRejectedChange call here either: the owner
   // replaced the whole view object to get a new result, so its copy is
   // already empty.
-  const isFirstResult = useRef(true);
+  //
+  // Gated on whether `result` actually CHANGED, not a "first run" boolean:
+  // under StrictMode (dev) effects run setup→cleanup→setup on mount, so a
+  // flag would be flipped by the first setup and the second would wrongly
+  // reset, wiping the seed (a Vercel review catch on PR #85). Both mount
+  // setups see the identical `result` reference and skip; a genuine
+  // refine/new run changes the reference and resets.
+  const prevResult = useRef(result);
   useEffect(() => {
-    if (isFirstResult.current) {
-      isFirstResult.current = false;
-      return;
-    }
+    if (prevResult.current === result) return;
+    prevResult.current = result;
     setRejected(new Set());
     setSavedId(null);
     setQueued(false);
@@ -564,8 +566,7 @@ function TransformationDiffImpl({
             >
               <span className="inline-flex items-center gap-1">
                 Saved
-                <CheckMark />
-                — open
+                <CheckMark />— open
               </span>
             </Link>
           ) : queued ? (
@@ -830,7 +831,8 @@ function TransformationDiffImpl({
         <div
           className="sheet-in glass-chrome sticky z-30 -mx-1 flex items-center gap-2 rounded-2xl px-2 py-2"
           style={{
-            bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
+            bottom:
+              "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
           }}
         >
           <button

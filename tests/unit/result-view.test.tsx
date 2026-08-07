@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { diffWords } from "@/lib/enhance/diff";
@@ -301,6 +302,27 @@ describe("Polish per-change accept/reject", () => {
     expect(screen.getByRole("button", { name: "Keep" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     expect(clipboardWrite).toHaveBeenCalledWith(INPUT);
+  });
+
+  it("the initialRejected seed survives a StrictMode double-mount", () => {
+    // StrictMode (on in next.config) runs mount effects setup→cleanup→setup.
+    // A "skip first run" boolean gate is flipped by the first setup, so the
+    // second wrongly reset the seed (a Vercel review catch on PR #85) — the
+    // reset must gate on the result REFERENCE changing instead.
+    render(
+      <StrictMode>
+        <ToastProvider>
+          <TransformationDiff
+            input={INPUT}
+            mode="polish"
+            target="opus_5"
+            result={makeResult(INPUT, OUTPUT)}
+            initialRejected={[0]}
+          />
+        </ToastProvider>
+      </StrictMode>,
+    );
+    expect(screen.getByText("0/1 changes kept")).toBeTruthy();
   });
 
   it("reports every revert-set change through onRejectedChange", () => {
