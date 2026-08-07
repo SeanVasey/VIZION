@@ -132,7 +132,7 @@ The full ladder, lowest to highest:
 
 | Layer | z-index | Where |
 | --- | --- | --- |
-| Ambient background (mesh + auroras) | `-10` | `NeuralMeshBackground` |
+| Ambient background (ground + blooms + particle field) | `-10` | `AmbientNebula` |
 | Glass/chrome `::before` tints | `-1` | `.glass-chrome` / `.glass-nav` pseudo |
 | Content (mode-rig cells, bottom-nav base) | `1`–`10` | in-flow chrome |
 | Sticky result action bar | `30` | `TransformationDiff` |

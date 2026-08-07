@@ -6,6 +6,32 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The ambient background is the NEBULA+ composite
+
+The R4 neural mesh — linked nodes on a single canvas under two Laser
+auroras — retires in favour of the approved NEBULA+ ambient system
+(`AmbientNebula`): a static theme-derived ground vignette (an accent
+wash from the top, a silver wash from the bottom), four blurred
+colour blooms drifting on CSS keyframes alone (42/54/66/34s alternate
+loops), and a three-tier parallax particle field — far, mid and near
+motes that pulse, wrap at the viewport margins, and scale to viewport
+area with no ceiling now that the mesh's O(n²) link pass is gone. The
+first nine particles glow accent; the light theme multiplies alphas
+×2.2 (clamped) and swaps the motes to the NEBULA+ charcoal.
+
+The performance architecture carries over unchanged: one canvas, a
+30fps frame-delta gate, a full stop — not a CSS hide — while the tab
+is hidden or Reduced effects is on, and live theme re-resolution off
+the tokens with no remount. Accents ride `--accent-ink`, so no layer
+can paint raw Laser on a light surface. Two deliberate behaviour
+changes: under `prefers-reduced-motion` the ground vignette now
+stands alone (the old system kept frozen auroras visible), and the
+ground no longer paints a solid Void gradient — `html`'s `var(--bg)`
+carries the solid, as it already did beneath everything. Where the
+NEBULA+ parameter table and `tokens.css` disagreed, the tokens won
+and the substitutions are noted in the component: dark motes
+`185, 188, 197` and light accents `63, 107, 0`.
+
 ### The name is written VIZION everywhere — the parentheses retire with the old art
 
 With the icon re-cut to the bare I›O mark, the parenthesized wordmark

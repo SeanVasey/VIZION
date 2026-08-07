@@ -49,8 +49,8 @@ describe("reduced-effects gate covers every ambient layer", () => {
   });
 
   it.each([
-    ".bg-aurora",
-    ".mesh-canvas",
+    ".bg-nebula-bloom",
+    ".nebula-canvas",
     ".result-shimmer::before",
     ".stream-live::after",
     ".glass",
