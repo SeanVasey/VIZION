@@ -6,6 +6,49 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### A finished enhancement survives leaving the Enhance screen
+
+Owner report: run an enhancement, visit Library or Profile without saving
+or copying it, come back — the result is gone, and the tokens it cost are
+washed. The result lived in `EnhanceComposer` component state, so App
+Router navigation unmounted the route and destroyed it; the draft
+survived (it lives in the persisted UI store), which made the loss read
+as a bug rather than a rule. The submitted-snapshot + result view now
+lives in a dedicated persisted store (`vizion.enhance-view.v1` — separate
+from the UI store on purpose: that store re-serializes on every draft
+keystroke, and a result is orders of magnitude larger than every
+preference combined), so a finished run survives in-app navigation, a
+reload, and an iOS PWA relaunch — subject to the limits of any local
+cache (§6: iOS can evict site storage, and quota/private-mode writes
+fail silent-but-safe). Server-side persistence of the unsaved run is the
+follow-up that closes that last gap; this change closes the everyday
+one. Every consumer of the view is unchanged
+— R8 submitted-snapshot reads, undoable Clear, refines, Clarify answers,
+saves and exports all sit on the same object, now durable. Persisted
+state is validated on every rehydrate and dropped if the model roster
+renamed under it (a stale target would 400 the next refine); the store
+skips module-init hydration so the server-rendered HTML never diverges,
+with ProfileHydrator doing the once-per-load rehydrate — after the
+account check, so on a shared device another account's result is wiped
+before it can ever render, the `editorDraft` rule extended. A run still
+in flight during navigation is out of scope here: the stream aborts on
+unmount as designed, and keeping it alive is its own piece of work.
+
+Polish's per-change revert decisions ride along (a Codex review catch on
+the PR): they were component state inside the diff, so with the result
+now surviving navigation a remount would have silently forgotten which
+edits were reverted and shipped the model's fully-accepted output to
+Copy/Use/Save/Share/export. The revert set persists inside the view
+object — it is meaningless apart from this result's diff, and a new run
+replaces both together — seeded back into the diff on mount and
+reported out on every change. Two more review catches hardened the
+seams: the diff's reset-on-new-result effect gates on the result
+reference changing rather than a first-run flag (StrictMode's dev
+double-invoke flipped the flag and wiped the seed — Vercel bot), and
+the persisted envelope now carries its owning account, checked on every
+load — the one-time account-change wipe couldn't stop a previous
+account's still-open tab from re-writing its view afterwards (Codex).
+
 ### The tray's Originals dial is a pill again
 
 On-device feedback: the bare 10px "Originals stored" text read as a

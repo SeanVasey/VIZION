@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useUIStore } from "@/stores/ui";
+import { useEnhanceViewStore } from "@/stores/enhance-view";
 import type { Theme, TargetModelId } from "@/lib/constants";
 
 /**
@@ -38,6 +39,23 @@ export function ProfileHydrator({
       userId,
       ...(accountChanged ? { editorDraft: "" } : {}),
     });
+    // The last enhancement result rides the same shared-device rule as the
+    // draft. Its store skips hydration (SSR — see the store's header), so this
+    // is the once-per-load rehydrate; wiping storage FIRST on an account
+    // change means the previous user's result is unrecoverable by then, not
+    // merely cleared after it was already read into memory.
+    if (accountChanged) useEnhanceViewStore.persist.clearStorage();
+    void useEnhanceViewStore.persist.rehydrate();
+    // Belt over the wipe's braces (a Codex catch on PR #85): the one-time
+    // clearStorage can't stop a previous account's STILL-OPEN tab from
+    // re-writing its view afterwards — any revert toggle re-persists it. The
+    // envelope therefore carries its owner, and a mismatch is dropped here,
+    // where the authoritative id lives. Null adopts (pre-stamp state), the
+    // UI store's own rule.
+    const viewStore = useEnhanceViewStore.getState();
+    if (viewStore.userId !== null && viewStore.userId !== userId) {
+      viewStore.setView(null);
+    }
   }, [theme, defaultModel, userId]);
 
   return null;

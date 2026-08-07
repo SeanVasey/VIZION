@@ -161,3 +161,9 @@ export const TARGET_THINKING_LEVELS: Partial<
 /** localStorage key for the UI store. Local cache is convenience only —
  *  the server is the source of truth for anything that matters. */
 export const UI_STORE_KEY = "vizion.ui.v1";
+
+/** localStorage key for the last enhancement result (the composer's view
+ *  snapshot). Separate from UI_STORE_KEY on purpose: the UI store re-serializes
+ *  its whole state on every draft keystroke, and a result (output + diff) is
+ *  orders of magnitude larger than every preference combined. */
+export const ENHANCE_VIEW_STORE_KEY = "vizion.enhance-view.v1";

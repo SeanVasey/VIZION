@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { diffWords } from "@/lib/enhance/diff";
@@ -283,5 +284,62 @@ describe("Polish per-change accept/reject", () => {
     fireEvent.click(screen.getByRole("button", { name: "Keep all" }));
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     expect(clipboardWrite).toHaveBeenLastCalledWith(output);
+  });
+
+  it("initialRejected seeds the revert set on mount (a navigation remount)", () => {
+    // The Codex P1 on PR #85: the view survives navigation but the revert
+    // decisions were component state — a remount silently shipped the
+    // model's fully-accepted output. The seed must survive the reset effect's
+    // first run AND drive every export payload.
+    renderView({
+      mode: "polish",
+      input: INPUT,
+      result: makeResult(INPUT, OUTPUT),
+      initialRejected: [0],
+    });
+    expect(screen.getByText("0/1 changes kept")).toBeTruthy();
+    // The reverted hunk offers Keep (aria-pressed=false), not Revert.
+    expect(screen.getByRole("button", { name: "Keep" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    expect(clipboardWrite).toHaveBeenCalledWith(INPUT);
+  });
+
+  it("the initialRejected seed survives a StrictMode double-mount", () => {
+    // StrictMode (on in next.config) runs mount effects setup→cleanup→setup.
+    // A "skip first run" boolean gate is flipped by the first setup, so the
+    // second wrongly reset the seed (a Vercel review catch on PR #85) — the
+    // reset must gate on the result REFERENCE changing instead.
+    render(
+      <StrictMode>
+        <ToastProvider>
+          <TransformationDiff
+            input={INPUT}
+            mode="polish"
+            target="opus_5"
+            result={makeResult(INPUT, OUTPUT)}
+            initialRejected={[0]}
+          />
+        </ToastProvider>
+      </StrictMode>,
+    );
+    expect(screen.getByText("0/1 changes kept")).toBeTruthy();
+  });
+
+  it("reports every revert-set change through onRejectedChange", () => {
+    const onRejectedChange = vi.fn();
+    const input = "alpha one beta two gamma";
+    const output = "alpha ONE beta TWO gamma";
+    renderView({
+      mode: "polish",
+      input,
+      result: makeResult(input, output),
+      onRejectedChange,
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Revert" })[0]!);
+    expect(onRejectedChange).toHaveBeenLastCalledWith(new Set([0]));
+    fireEvent.click(screen.getByRole("button", { name: "Revert all" }));
+    expect(onRejectedChange).toHaveBeenLastCalledWith(new Set([0, 1]));
+    fireEvent.click(screen.getByRole("button", { name: "Keep all" }));
+    expect(onRejectedChange).toHaveBeenLastCalledWith(new Set());
   });
 });

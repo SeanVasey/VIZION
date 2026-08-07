@@ -2,13 +2,9 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
-import {
-  TARGET_THINKING_LEVELS,
-  type ModeId,
-  type TargetModelId,
-  type ThinkingLevel,
-} from "@/lib/constants";
-import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
+import { useEnhanceViewStore } from "@/stores/enhance-view";
+import { TARGET_THINKING_LEVELS, type ThinkingLevel } from "@/lib/constants";
+import { useEnhance } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { TargetPicker } from "@/components/models/TargetPicker";
@@ -25,8 +21,8 @@ import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
 import { TemplateMark, WarningMark } from "@/components/ui/glyphs";
 import { useDraftParam } from "@/components/editor/use-draft-param";
-import { FORMATS, FORMAT_LABEL, type FormatId } from "@/lib/enhance/formats";
-import { LENGTHS, lengthOptions, type LengthId } from "@/lib/enhance/lengths";
+import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
+import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
 
 /** Frozen option list for the format rail — built once, not per render. */
 const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
@@ -84,9 +80,7 @@ export function EnhanceComposer() {
   const lengthChoices = lengthOptions(activeMode);
   const storedLength = lengthByMode[activeMode];
   const activeLength =
-    lengthChoices && storedLength && LENGTHS.includes(storedLength)
-      ? storedLength
-      : null;
+    lengthChoices && storedLength && LENGTHS.includes(storedLength) ? storedLength : null;
 
   // `?draft=` prefill (Siri Shortcuts and the iOS share sheet land here).
   // A conflict comes back as `pending` and is rendered as a persistent banner
@@ -101,29 +95,15 @@ export function EnhanceComposer() {
   // their identity stable so the memoized result view + rails hold (PERF-003/006).
   const { mutate: runMutation, isPending } = enhanceMutation;
   const { toast } = useToast();
-  // The rendered result + the snapshot of what was actually SUBMITTED — input
-  // AND mode AND target. The result tree must read these, not the live store
-  // values: flipping the mode grid or target select after a run must not
-  // relabel the save payload, the exports, or the developer chip (R8).
-  // Holding the result here (rather than reading enhanceMutation.data) is
-  // what makes Clear undoable: mutation.reset() wipes the mutation, not the
-  // snapshot we can restore.
-  const [view, setView] = useState<{
-    submitted: {
-      input: string;
-      mode: ModeId;
-      target: TargetModelId;
-      /** The run's knob snapshot (Q4 ruling): refines re-send these so an
-       *  explicitly chosen shape/depth survives the pass instead of silently
-       *  regaining the "whichever fits" latitude. */
-      format?: FormatId;
-      length?: LengthId;
-    };
-    result: EnhanceResponse;
-    /** True once a refinement pass replaced the result — the diff's input
-     *  side is then the previous result, not the author's original. */
-    refined?: boolean;
-  } | null>(null);
+  // The rendered result + the R8 submitted snapshot (see EnhanceView). In the
+  // view STORE, not component state, and both halves of that matter. Holding
+  // the result outside enhanceMutation.data is what makes Clear undoable:
+  // mutation.reset() wipes the mutation, not the snapshot we can restore. And
+  // holding it outside the component is what lets it survive navigation — as
+  // useState it died with the route, so visiting Library or Profile silently
+  // destroyed a result the user had already paid tokens for.
+  const view = useEnhanceViewStore((s) => s.view);
+  const setView = useEnhanceViewStore((s) => s.setView);
   const [confirmStopOpen, setConfirmStopOpen] = useState(false);
   // Reference-role attachment context (built by the tray) — visual context
   // for the text task, sent alongside the enhance request.
@@ -172,9 +152,7 @@ export function EnhanceComposer() {
       input,
       mode: activeMode,
       target: targetModel,
-      ...(activeMode === "reformat" && reformatFormat
-        ? { format: reformatFormat }
-        : {}),
+      ...(activeMode === "reformat" && reformatFormat ? { format: reformatFormat } : {}),
       ...(activeLength ? { length: activeLength } : {}),
     };
     setView(null);
@@ -207,6 +185,7 @@ export function EnhanceComposer() {
     thinkingLevel,
     mediaContext,
     runMutation,
+    setView,
   ]);
 
   /** Clear the draft + result. A pasted draft (or a finished result) is real
@@ -267,37 +246,37 @@ export function EnhanceComposer() {
    *  decisions applied), keeping the original submitted input for saves. */
   const handleRefine = useCallback(
     (kind: RefineKind, currentOutput: string) => {
-    if (!view || isPending) return;
-    const v = view;
-    // A refine sticks to the model that produced this output. Under Auto that
-    // is the RESOLVED target, not the fallback — re-routing halfway through an
-    // iteration would change voice mid-conversation, and `auto` is deliberately
-    // not re-sent: the routing decision was already made for this result.
-    const refineTarget = v.result.resolvedTarget ?? v.submitted.target;
-    const ladder = TARGET_THINKING_LEVELS[refineTarget];
-    const stored = thinkingLevels[refineTarget];
-    const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
-    runMutation(
-      {
-        input: currentOutput,
-        mode: v.submitted.mode,
-        target: refineTarget,
-        // The run's knob snapshot carries through (Q4): a chosen shape or
-        // depth was an explicit withdrawal of latitude — the refine keeps it,
-        // and the refine instruction supersedes it only where they conflict.
-        ...(v.submitted.format ? { format: v.submitted.format } : {}),
-        ...(v.submitted.length ? { length: v.submitted.length } : {}),
-        ...(level ? { thinkingLevel: level } : {}),
-        // Tone needs the author's ORIGINAL voice as reference material.
-        refine: kind === "tone" ? { kind, baseInput: v.submitted.input } : { kind },
-      },
-      {
-        onSuccess: (result) =>
-          setView({ submitted: v.submitted, result, refined: true }),
-      },
-    );
+      if (!view || isPending) return;
+      const v = view;
+      // A refine sticks to the model that produced this output. Under Auto that
+      // is the RESOLVED target, not the fallback — re-routing halfway through an
+      // iteration would change voice mid-conversation, and `auto` is deliberately
+      // not re-sent: the routing decision was already made for this result.
+      const refineTarget = v.result.resolvedTarget ?? v.submitted.target;
+      const ladder = TARGET_THINKING_LEVELS[refineTarget];
+      const stored = thinkingLevels[refineTarget];
+      const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
+      runMutation(
+        {
+          input: currentOutput,
+          mode: v.submitted.mode,
+          target: refineTarget,
+          // The run's knob snapshot carries through (Q4): a chosen shape or
+          // depth was an explicit withdrawal of latitude — the refine keeps it,
+          // and the refine instruction supersedes it only where they conflict.
+          ...(v.submitted.format ? { format: v.submitted.format } : {}),
+          ...(v.submitted.length ? { length: v.submitted.length } : {}),
+          ...(level ? { thinkingLevel: level } : {}),
+          // Tone needs the author's ORIGINAL voice as reference material.
+          refine: kind === "tone" ? { kind, baseInput: v.submitted.input } : { kind },
+        },
+        {
+          onSuccess: (result) =>
+            setView({ submitted: v.submitted, result, refined: true }),
+        },
+      );
     },
-    [view, thinkingLevels, isPending, runMutation],
+    [view, thinkingLevels, isPending, runMutation, setView],
   );
 
   /** Clarify's answered re-run. NOT a refinement of the output — a redo of
@@ -306,34 +285,34 @@ export function EnhanceComposer() {
    *  precedent). One round: the answered pass is told not to ask again. */
   const handleAnswer = useCallback(
     (questions: string[], answers: string[]) => {
-    if (!view || isPending) return;
-    const v = view;
-    const block = questions
-      .map((q, i) => `Q: ${q}\nA: ${answers[i]?.trim() || "(no answer given)"}`)
-      .join("\n\n");
-    const answeredTarget = v.result.resolvedTarget ?? v.submitted.target;
-    const ladder = TARGET_THINKING_LEVELS[answeredTarget];
-    const stored = thinkingLevels[answeredTarget];
-    const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
-    runMutation(
-      {
-        input: v.submitted.input,
-        mode: v.submitted.mode,
-        ...(v.submitted.format ? { format: v.submitted.format } : {}),
-        ...(v.submitted.length ? { length: v.submitted.length } : {}),
-        target: answeredTarget,
-        ...(level ? { thinkingLevel: level } : {}),
-        refine: { kind: "answers", baseInput: block },
-      },
-      {
-        // `refined` stays false: this is the original request answered, not a
-        // pass over a previous output, so the diff's input side is still the
-        // author's own text and must keep saying "original".
-        onSuccess: (result) => setView({ submitted: v.submitted, result }),
-      },
-    );
+      if (!view || isPending) return;
+      const v = view;
+      const block = questions
+        .map((q, i) => `Q: ${q}\nA: ${answers[i]?.trim() || "(no answer given)"}`)
+        .join("\n\n");
+      const answeredTarget = v.result.resolvedTarget ?? v.submitted.target;
+      const ladder = TARGET_THINKING_LEVELS[answeredTarget];
+      const stored = thinkingLevels[answeredTarget];
+      const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
+      runMutation(
+        {
+          input: v.submitted.input,
+          mode: v.submitted.mode,
+          ...(v.submitted.format ? { format: v.submitted.format } : {}),
+          ...(v.submitted.length ? { length: v.submitted.length } : {}),
+          target: answeredTarget,
+          ...(level ? { thinkingLevel: level } : {}),
+          refine: { kind: "answers", baseInput: block },
+        },
+        {
+          // `refined` stays false: this is the original request answered, not a
+          // pass over a previous output, so the diff's input side is still the
+          // author's own text and must keep saying "original".
+          onSuccess: (result) => setView({ submitted: v.submitted, result }),
+        },
+      );
     },
-    [view, thinkingLevels, isPending, runMutation],
+    [view, thinkingLevels, isPending, runMutation, setView],
   );
 
   // The daily-cap warning, resolved here so its live region can be mounted
@@ -350,6 +329,23 @@ export function EnhanceComposer() {
     (next: ThinkingLevel | null) => setThinkingLevel(targetModel, next),
     [targetModel, setThinkingLevel],
   );
+
+  // Persist Polish's revert decisions with the result they belong to — as
+  // component state in the diff they died on navigation while the result now
+  // survives, silently shipping the model's fully-accepted output (Codex
+  // review, PR #85). Reads the store imperatively so the identity stays
+  // stable and the memoized diff holds (the handleUse pattern, PERF-003).
+  const handleRejectedChange = useCallback((next: ReadonlySet<number>) => {
+    const store = useEnhanceViewStore.getState();
+    const current = store.view;
+    if (!current) return;
+    store.setView({
+      ...current,
+      // `undefined` (not a dropped key) when empty — JSON serialization
+      // erases it, so the persisted envelope stays clean either way.
+      rejected: next.size > 0 ? [...next].sort((a, b) => a - b) : undefined,
+    });
+  }, []);
 
   return (
     <section className="flex flex-col gap-5">
@@ -723,6 +719,8 @@ export function EnhanceComposer() {
           onUse={handleUse}
           onRefine={handleRefine}
           onAnswer={handleAnswer}
+          initialRejected={view.rejected}
+          onRejectedChange={handleRejectedChange}
         />
       )}
 

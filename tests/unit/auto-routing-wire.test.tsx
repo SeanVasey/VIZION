@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
+import { useEnhanceViewStore } from "@/stores/enhance-view";
 import type { EnhanceRequest } from "@/lib/enhance/use-enhance";
 
 const mockMutation = {
@@ -63,6 +64,9 @@ const BASE_RESULT = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The view store is a module singleton — a result set by one test must not
+  // leak into the next as a pre-mounted result view.
+  useEnhanceViewStore.setState({ view: null });
   useUIStore.setState({
     editorDraft: "",
     autoTarget: false,

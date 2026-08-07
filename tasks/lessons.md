@@ -2536,6 +2536,49 @@ Originals dial took the app chip recipe with an 8px state dot. New
   One lightness step (#b47aff) kept the hue and bought 5.24:1.
 - Components that touch `window.matchMedia` / `scrollIntoView` on MOUNT
   make every jsdom test that renders them stub both (the composer-error
-  pattern). The failures surface in *unrelated* suites that merely mount
+  pattern). The failures surface in _unrelated_ suites that merely mount
   the composer mid-run (composer-reset) — grep for other renderers of the
   surface before calling the fix done.
+
+## 2026-08-07 — Enhancement result lost on navigation (paid-usage wash)
+
+**What broke.** Running an enhancement and visiting Library or Profile
+before saving/copying destroyed the result: it lived in
+`EnhanceComposer` `useState`, and App Router navigation unmounts the
+route. The draft survived (persisted UI store), so the loss read as a
+bug, not a rule — and the tokens the run cost were washed.
+
+**What changed.** The R8 submitted-snapshot + result view moved to a new
+persisted zustand store (`src/stores/enhance-view.ts`,
+`vizion.enhance-view.v1`). Rehydrate-time validation drops a stored view
+whose target left the roster; `skipHydration` + a once-per-load
+`persist.rehydrate()` in ProfileHydrator keeps SSR HTML and first client
+render identical; account change wipes storage before rehydrating (the
+`editorDraft` shared-device rule extended).
+
+**What to avoid / remember.**
+
+- **Transient component state must never be the only copy of a paid
+  artifact.** Anything a request spent money producing needs to live at
+  least at store level, ideally persisted — audit `useState` around every
+  metered mutation.
+- **Persisting a store that conditionally mounts a subtree needs
+  `skipHydration`.** A textarea value mismatch is quietly patched;
+  a whole result tree present client-side but absent in server HTML is a
+  hydration error. Rehydrate explicitly after mount instead.
+- **`setState` on a persist-wrapped store writes through to storage.**
+  In tests, seeding `localStorage` and then calling `setState` silently
+  overwrites the seed — order the arrange steps state-first, storage-last.
+- **A new module-singleton store needs `setState` resets in every test
+  file that renders its consumer** — vitest isolates files, but within a
+  file a leaked view pre-mounts the result tree in later tests.
+- **"Skip the first run" boolean effect flags are StrictMode-unsafe.**
+  Dev StrictMode runs mount effects setup→cleanup→setup; the first setup
+  flips the flag and the second runs the guarded body anyway. Gate on a
+  previous-value ref (`prev.current === value`) instead — both mount
+  setups see the same reference and skip.
+- **A one-time storage wipe cannot outrun a still-open tab.** Account
+  B's `clearStorage()` on sign-in doesn't stop account A's open tab from
+  re-writing its state afterwards. Every persisted envelope that can
+  carry private content needs an owner stamp checked on every load, not
+  only at the wipe.

@@ -62,6 +62,8 @@ function TransformationDiffImpl({
   onUse,
   onRefine,
   onAnswer,
+  initialRejected,
+  onRejectedChange,
 }: {
   input: string;
   mode: ModeId;
@@ -76,6 +78,15 @@ function TransformationDiffImpl({
   /** Clarify's answered re-run. Absent = the questions card isn't offered
    *  (the library's re-enhance has no follow-up loop). */
   onAnswer?: (questions: string[], answers: string[]) => void;
+  /** Seed for the Polish revert set, read ONCE on mount. The composer passes
+   *  the persisted decisions back in after a navigation remount — without
+   *  this, the restored result would quietly forget which edits the user had
+   *  already reverted and every export payload would revert to the model's
+   *  fully-accepted output (Codex review, PR #85). */
+  initialRejected?: readonly number[];
+  /** Reports every revert-set change so the owner can persist it alongside
+   *  the result. Interaction state itself stays internal. */
+  onRejectedChange?: (next: ReadonlySet<number>) => void;
 }) {
   const { copied, copy } = useCopy();
   // Recorded on the queued item so an offline save replayed later cannot land
@@ -111,18 +122,25 @@ function TransformationDiffImpl({
     return () => observer.disconnect();
   }, []);
 
-  // Per-change decisions (Polish only): hunk ids the user reverted.
-  const [rejected, setRejected] = useState<ReadonlySet<number>>(new Set());
+  // Per-change decisions (Polish only): hunk ids the user reverted. Seeded
+  // from the persisted view on mount; every change is reported back through
+  // updateRejected so the owner can persist it with the result.
+  const [rejected, setRejected] = useState<ReadonlySet<number>>(
+    () => new Set(initialRejected),
+  );
+  /** The one sanctioned writer: keeps the internal set and the owner's
+   *  persisted copy in lockstep. */
+  const updateRejected = (next: ReadonlySet<number>) => {
+    setRejected(next);
+    onRejectedChange?.(next);
+  };
   // Clarify's answers, positional against result.questions.
   const [answers, setAnswers] = useState<string[]>([]);
   const answeredCount = answers.filter((a) => a.trim() !== "").length;
   // result.diff is null when the pair exceeded the server's diff budget
   // (PRI-001) — every consumer below degrades to plain text.
   const hunks = useMemo(() => (result.diff ? toHunks(result.diff) : []), [result]);
-  const hunkOf = useMemo(
-    () => (result.diff ? assignHunks(result.diff) : []),
-    [result],
-  );
+  const hunkOf = useMemo(() => (result.diff ? assignHunks(result.diff) : []), [result]);
   const reviewable = mode === "polish" && hunks.length > 0;
 
   /** What Copy/Use/Save/Share/export all consume — the output with the
@@ -143,8 +161,10 @@ function TransformationDiffImpl({
   // Detected during RENDER, which is normally a hydration hazard — the server
   // and the client would disagree about whether the button exists. It is safe
   // here for a specific reason: this component's only consumer renders it
-  // behind `{view && ...}`, and `view` is client state set exclusively in a
-  // mutation's onSuccess. There is no server render and no first-client
+  // behind `{view && ...}`, and `view` is client state set only in a
+  // mutation's onSuccess or by the enhance-view store's post-hydration
+  // rehydrate (the store skips module-init hydration precisely so this stays
+  // true). There is no server render and no first-client
   // render, so there is no pair of markups to mismatch. If this component ever
   // gains a server-rendered consumer, THIS is the line that has to change —
   // move the detection into an effect behind a `mounted` flag.
@@ -173,7 +193,23 @@ function TransformationDiffImpl({
   const [showOriginal, setShowOriginal] = useState(ORIGINAL_STARTS_OPEN);
 
   // A new result (fresh run or refine) resets every per-result decision.
+  // NOT on mount: mount is not a new result, and clearing there would
+  // clobber the `initialRejected` seed a navigation remount just restored.
+  // (Skipping is a no-op for the other resets — on mount they already hold
+  // their initial values.) No onRejectedChange call here either: the owner
+  // replaced the whole view object to get a new result, so its copy is
+  // already empty.
+  //
+  // Gated on whether `result` actually CHANGED, not a "first run" boolean:
+  // under StrictMode (dev) effects run setup→cleanup→setup on mount, so a
+  // flag would be flipped by the first setup and the second would wrongly
+  // reset, wiping the seed (a Vercel review catch on PR #85). Both mount
+  // setups see the identical `result` reference and skip; a genuine
+  // refine/new run changes the reference and resets.
+  const prevResult = useRef(result);
   useEffect(() => {
+    if (prevResult.current === result) return;
+    prevResult.current = result;
     setRejected(new Set());
     setSavedId(null);
     setQueued(false);
@@ -444,7 +480,7 @@ function TransformationDiffImpl({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setRejected(new Set())}
+                onClick={() => updateRejected(new Set())}
                 disabled={rejected.size === 0}
                 className="tap-44 font-body text-xs text-silver transition-colors hover:text-chalk disabled:opacity-50"
               >
@@ -452,7 +488,7 @@ function TransformationDiffImpl({
               </button>
               <button
                 type="button"
-                onClick={() => setRejected(new Set(hunks.map((h) => h.index)))}
+                onClick={() => updateRejected(new Set(hunks.map((h) => h.index)))}
                 disabled={rejected.size === hunks.length}
                 className="tap-44 font-body text-xs text-silver transition-colors hover:text-chalk disabled:opacity-50"
               >
@@ -491,14 +527,16 @@ function TransformationDiffImpl({
                   <button
                     type="button"
                     aria-pressed={!isRejected}
-                    onClick={() =>
-                      setRejected((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(h.index)) next.delete(h.index);
-                        else next.add(h.index);
-                        return next;
-                      })
-                    }
+                    onClick={() => {
+                      // Direct compute (not the functional-update form):
+                      // updateRejected must see the concrete next set to
+                      // report it, and one click is one event — there is no
+                      // batching window for `rejected` to be stale in.
+                      const next = new Set(rejected);
+                      if (next.has(h.index)) next.delete(h.index);
+                      else next.add(h.index);
+                      updateRejected(next);
+                    }}
                     className="glass font-body min-h-[44px] shrink-0 rounded-xl px-3 text-xs text-text hover-hair transition-colors"
                   >
                     {isRejected ? "Keep" : "Revert"}
@@ -528,8 +566,7 @@ function TransformationDiffImpl({
             >
               <span className="inline-flex items-center gap-1">
                 Saved
-                <CheckMark />
-                — open
+                <CheckMark />— open
               </span>
             </Link>
           ) : queued ? (
@@ -794,7 +831,8 @@ function TransformationDiffImpl({
         <div
           className="sheet-in glass-chrome sticky z-30 -mx-1 flex items-center gap-2 rounded-2xl px-2 py-2"
           style={{
-            bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
+            bottom:
+              "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
           }}
         >
           <button
