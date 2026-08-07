@@ -61,14 +61,14 @@ See [`docs/architecture.md`](./docs/architecture.md) and the locked decision log
 
 ## Status
 
-| Phase                     | Scope                                                     | State          |
-| ------------------------- | --------------------------------------------------------- | -------------- |
-| **Shell**                 | Tokens · manifest · Workbox SW · safe-area · nav · themes | 🟢 done        |
-| **Auth & profile**        | Supabase Auth · RLS · avatar crop · onboarding            | 🟢 done        |
-| **Enhance core**          | Provider adapter · 6 modes · transformation diff · caps   | 🟢 done        |
-| **Library**               | Save · immutable versions · diff/restore · activity feed  | 🟢 done        |
-| **Media prompts**         | Attach media · extraction · generation-syntax formatters  | 🟢 done        |
-| **Hardening**             | CSP · rate limits · eviction outbox · a11y · checklist    | 🟢 done        |
+| Phase              | Scope                                                     | State   |
+| ------------------ | --------------------------------------------------------- | ------- |
+| **Shell**          | Tokens · manifest · Workbox SW · safe-area · nav · themes | 🟢 done |
+| **Auth & profile** | Supabase Auth · RLS · avatar crop · onboarding            | 🟢 done |
+| **Enhance core**   | Provider adapter · 6 modes · transformation diff · caps   | 🟢 done |
+| **Library**        | Save · immutable versions · diff/restore · activity feed  | 🟢 done |
+| **Media prompts**  | Attach media · extraction · generation-syntax formatters  | 🟢 done |
+| **Hardening**      | CSP · rate limits · eviction outbox · a11y · checklist    | 🟢 done |
 
 ## Getting started
 
@@ -104,13 +104,13 @@ Inngest (async, P5+) · Vercel.
 
 VIZ(IO)N is a **VASEY/AI** product. No association with VASEY.AUDIO.
 
-The identity is the **aperture glyph** — a neon-lime bar, chevron and split ring
-framed by two chrome parentheses — shown two ways:
+The identity is the **I›O mark** — a laser-green bar, chevron and split ring,
+reading as I › O — shown two ways:
 
-- **App icon** (`public/brand/vizion-icon-token.svg`) — the glyph on a glossy black
-  squircle with a lime-green glowing border. Drives the opaque surfaces: the iOS
-  Add-to-Home-Screen tile (`apple-touch-icon`), the favicons, and the App Router
-  `icon`/`apple-icon`.
+- **App icon** (`public/brand/vizion-icon-token.svg`) — the mark on a glossy
+  near-black squircle with a laser-green glowing border. Drives the opaque
+  surfaces: the iOS Add-to-Home-Screen tile (`apple-touch-icon`), the favicons,
+  and the App Router `icon`/`apple-icon`.
 - **Glyph** (`public/brand/vizion-mark-token.svg`) — the same mark alone on a
   transparent ground. Drives the transparent `any` PWA icon matrix, the maskable
   safe-zone tiles, and the iOS splash glyph.

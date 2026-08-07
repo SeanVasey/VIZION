@@ -6,6 +6,28 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### The app icon is the I›O mark, re-anchored on the laser tokens
+
+The brand artwork is re-cut down to its core: the chrome parentheses,
+the four hairline arcs, the six dot accents and the two lens-flare
+stars are gone, leaving the bar → chevron → split-ring mark alone. The
+palette is now derived from `src/styles/tokens.css` rather than
+approximated beside it — the old art's hue 64–74° greens are corrected
+to `--laser: #b7ff3c` (hue 82°) with the `#ceff7a → #b7ff3c → #81cc00`
+gradient, and the tile background ramp sits on the neutral tokens
+(`--onyx` → `--lift` → `--void-2`). The mark now occupies 72% of the
+tile width. Both master SVGs live in `public/brand/` and the full
+33-file icon + splash matrix is regenerated from them.
+
+Because the glyph's aspect changed from 1872×1084 (1.727:1) to
+1560×987 (1.581:1), two consumers needed retuning: the maskable
+safe-zone factor drops from 0.78 to 0.68 so the art's corners stay
+inside Android's 0.40 × size mask circle, and the AuthHero `<Image>`
+narrows to 161px wide to preserve the 102px rendered height tuned
+against the wordmark. ScreenHeader's 36px tile rounds at 8px instead
+of `rounded-xl`, matching the squircle's own corner radius at that
+size and keeping the glow border unclipped.
+
 ### A finished enhancement survives leaving the Enhance screen
 
 Owner report: run an enhancement, visit Library or Profile without saving
