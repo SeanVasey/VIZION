@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
+import { useEnhanceViewStore } from "@/stores/enhance-view";
 
 const mockMutation = {
   isPending: false,
@@ -49,6 +50,9 @@ const FAKE_RESPONSE = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The view store is a module singleton — a result set by one test must not
+  // leak into the next as a pre-mounted result view.
+  useEnhanceViewStore.setState({ view: null });
   mockMutation.isPending = false;
   mockMutation.mutate.mockImplementation(
     (_req: unknown, opts?: { onSuccess?: (r: typeof FAKE_RESPONSE) => void }) => {

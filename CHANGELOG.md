@@ -6,6 +6,30 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### A finished enhancement survives leaving the Enhance screen
+
+Owner report: run an enhancement, visit Library or Profile without saving
+or copying it, come back — the result is gone, and the tokens it cost are
+washed. The result lived in `EnhanceComposer` component state, so App
+Router navigation unmounted the route and destroyed it; the draft
+survived (it lives in the persisted UI store), which made the loss read
+as a bug rather than a rule. The submitted-snapshot + result view now
+lives in a dedicated persisted store (`vizion.enhance-view.v1` — separate
+from the UI store on purpose: that store re-serializes on every draft
+keystroke, and a result is orders of magnitude larger than every
+preference combined), so a finished run survives in-app navigation, a
+reload, and an iOS PWA relaunch. Every consumer of the view is unchanged
+— R8 submitted-snapshot reads, undoable Clear, refines, Clarify answers,
+saves and exports all sit on the same object, now durable. Persisted
+state is validated on every rehydrate and dropped if the model roster
+renamed under it (a stale target would 400 the next refine); the store
+skips module-init hydration so the server-rendered HTML never diverges,
+with ProfileHydrator doing the once-per-load rehydrate — after the
+account check, so on a shared device another account's result is wiped
+before it can ever render, the `editorDraft` rule extended. A run still
+in flight during navigation is out of scope here: the stream aborts on
+unmount as designed, and keeping it alive is its own piece of work.
+
 ### The tray's Originals dial is a pill again
 
 On-device feedback: the bare 10px "Originals stored" text read as a

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
+import { useEnhanceViewStore } from "@/stores/enhance-view";
 
 /** Configurable useEnhance mock — the composer only reads this surface. */
 const mockMutation = {
@@ -66,6 +67,9 @@ beforeEach(() => {
     },
   );
   useUIStore.setState({ editorDraft: "" });
+  // The view store is a module singleton too — a result set by one test must
+  // not leak into the next as a pre-mounted result view.
+  useEnhanceViewStore.setState({ view: null });
   // jsdom implements neither — StreamingResult touches both on mount (the
   // UX-03 scroll-into-view), and the in-flight Clear test mounts it.
   window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as never;
@@ -90,9 +94,7 @@ describe("composer Clear (was RESET)", () => {
       target: { value: "my pasted draft" },
     });
     fireEvent.click(screen.getByRole("button", { name: /clear/i }));
-    expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe(
-      "",
-    );
+    expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe("");
     expect(mockMutation.reset).toHaveBeenCalled();
     // getAllByRole, not getByRole: the composer now keeps a permanently
     // mounted (and normally empty) status region for the daily-cap notice —
@@ -136,9 +138,23 @@ describe("composer Clear (was RESET)", () => {
     expect(dialog).toHaveAccessibleName("Stop this run?");
     fireEvent.click(screen.getByRole("button", { name: "Stop & clear" }));
     expect(mockMutation.reset).toHaveBeenCalled();
-    expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe(
-      "",
-    );
+    expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe("");
+  });
+
+  it("a finished result survives unmount and remount (navigation must not wash paid usage)", () => {
+    // The bug this encodes: the result lived in component state, so visiting
+    // Library or Profile unmounted the enhance route and silently destroyed a
+    // result the user had already paid tokens for. The view store is what
+    // keeps it alive across the round trip.
+    const first = renderComposer();
+    fireEvent.change(screen.getByLabelText("Prompt input"), {
+      target: { value: "paid work" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /enhance/i }));
+    expect(screen.getByTestId("result-view")).toHaveTextContent("paid work");
+    first.unmount(); // navigate away…
+    renderComposer(); // …and back
+    expect(screen.getByTestId("result-view")).toHaveTextContent("paid work");
   });
 
   it("the result view renders the SUBMITTED input even after the draft changes (R8)", () => {

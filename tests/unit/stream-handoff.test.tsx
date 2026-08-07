@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
+import { useEnhanceViewStore } from "@/stores/enhance-view";
 
 /**
  * The streaming→result handoff must never show a frame with neither surface
@@ -42,6 +43,9 @@ function renderComposer() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The view store is a module singleton — a result set by one test must not
+  // leak into the next as a pre-mounted result view.
+  useEnhanceViewStore.setState({ view: null });
   mockMutation.isPending = false;
   mockMutation.stream.active = false;
   // Module-shared mock: the wait-state test empties this, so restore it.
