@@ -298,7 +298,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   and `AuthHero` keep working with zero ref churn — one `npm run generate:icons`
   re-derives all 32 outputs. The root-level uploads were just the delivery vehicle;
   delete them so the single source of truth stays in `public/brand/`.
-- **A non-square glyph breaks fixed square sizing.** The new glyph is 1560×987, not
+- **A non-square glyph breaks fixed square sizing.** The new glyph is 1565×996, not
   the old 1024² square. `next/image` with `width={150} height={150}` would distort
   it — size by one axis (`w-[260px] h-auto`) to preserve aspect. The generator's
   `fit: "contain"` already handles the square PNG matrix (it letterboxes), so only
