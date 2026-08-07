@@ -6,6 +6,20 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The I›O mark is re-cut with solid chevron and ring wedges
+
+Corrected masters replace the first I›O cut: the chevron and the two
+split-ring halves are now closed, filled paths — the chevron a mitered
+polygon, each ring half a tapered wedge between a 379 px outer and a
+232 px inner arc — instead of stroked lines with butt caps, so the
+mark's terminals render as drawn geometry rather than stroke
+artifacts. Palette and tile chrome are unchanged. The glyph's viewBox
+tightens from 1560×987 (1.581:1) to 1565×996 (1.571:1), so the AuthHero
+image narrows to 160px wide to hold its 102px rendered height; the
+maskable 0.68 factor still lands the art's corners at ≈0.40 × size, so
+it stays. The full 33-file icon + splash matrix is regenerated from the
+corrected masters.
+
 ### The name is written VIZION everywhere — the parentheses retire with the old art
 
 With the icon re-cut to the bare I›O mark, the parenthesized wordmark

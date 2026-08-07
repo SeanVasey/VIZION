@@ -11,16 +11,16 @@ export function AuthHero() {
   return (
     <div className="flex flex-col items-center gap-4 text-center">
       {/* Decorative: the Wordmark below carries the accessible brand name.
-          The aperture glyph is wide (1560×987) and fills its viewBox tightly,
+          The aperture glyph is wide (1565×996) and fills its viewBox tightly,
           so size by width (keeping native aspect) and keep it modest so it
           stays in balance with the wordmark and the rest of the page. */}
       <Image
         src="/brand/vizion-mark-token.svg"
         alt=""
-        width={161}
+        width={160}
         height={102}
         priority
-        className="h-auto w-[161px]"
+        className="h-auto w-[160px]"
       />
       {/* The gate's h1 (A11Y-008): every screen gets one so the document
           outline never starts below level 1 — the ScreenHeader brand pattern. */}

@@ -146,7 +146,7 @@ async function main() {
   // 2. Maskable set: mark centered on a full-bleed Void canvas, sized so the
   //    art's corners stay inside the Android maskable safe circle — the
   //    rendered corner radius must stay ≤ 0.40 × size. With fit: "contain" and
-  //    the 1560×987 (1.581:1) mark, a 0.68 bounding box puts the corners at
+  //    the 1565×996 (1.571:1) mark, a 0.68 bounding box puts the corners at
   //    ≈0.40 × size from centre; anything larger gets clipped by the mask.
   console.log("Rendering maskable icons...");
   for (const size of [192, 512]) {
