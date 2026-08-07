@@ -50,7 +50,7 @@ export function MediaPrivacySheet({
           <span aria-hidden="true" className="text-accent">
             ▸
           </span>
-          Files upload to your private VIZ(IO)N storage (50 MB per account) and stay
+          Files upload to your private VIZION storage (50 MB per account) and stay
           until you remove them — manage anytime in Settings → Data &amp; privacy.
         </li>
         <li className="flex gap-2">

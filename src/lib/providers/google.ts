@@ -126,7 +126,7 @@ export async function* streamGoogle(
       // 401/403 are Google refusing the KEY'S PROJECT ("Your project has
       // been denied access. Please contact support." — Google's words about
       // Google's project), not this request or the model. Relayed bare it
-      // reads as a VIZ(IO)N capability gap and dead-ends at the wrong
+      // reads as a VIZION capability gap and dead-ends at the wrong
       // support desk, so name the actual remediation (2026-08 incident;
       // docs/runbooks/providers.md § Gemini key/project refusals).
       const message =

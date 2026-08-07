@@ -1,6 +1,6 @@
 {
-  "name": "VIZ(IO)N",
-  "short_name": "VIZ(IO)N",
+  "name": "VIZION",
+  "short_name": "VIZION",
   "description": "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.",
   "id": "/",
   "start_url": "/?source=pwa",

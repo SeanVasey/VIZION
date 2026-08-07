@@ -15,7 +15,7 @@ export interface ExportData {
  *  artifact whose stability outlives label renames). */
 export function toMarkdown(d: ExportData): string {
   return [
-    `# VIZ(IO)N — ${MODE_LABEL[d.mode]} → ${TARGET_LABEL[d.target]}`,
+    `# VIZION — ${MODE_LABEL[d.mode]} → ${TARGET_LABEL[d.target]}`,
     "",
     "## Input",
     "",

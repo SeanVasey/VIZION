@@ -100,7 +100,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           output region only (INV-11 / R2); tabular-nums keeps the version
           digits steady in Reddit Sans. */}
       <p className="font-body mb-4 text-[11px] tabular-nums text-silver">
-        VIZ(IO)N v{APP_VERSION} · Multi-Model Prompt Studio
+        VIZION v{APP_VERSION} · Multi-Model Prompt Studio
       </p>
       <p className="font-body text-[11px] leading-relaxed text-silver">
         © {year}{" "}

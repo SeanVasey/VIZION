@@ -22,7 +22,7 @@ export function AboutSection() {
       </div>
       <Divider />
       <p className="font-body text-xs leading-relaxed text-silver">
-        VIZ(IO)N is a VASEY/AI product. License and security policy live in the
+        VIZION is a VASEY/AI product. License and security policy live in the
         repository (LICENSE · SECURITY.md).
       </p>
     </SettingsSection>

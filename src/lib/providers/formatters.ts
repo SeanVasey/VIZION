@@ -4,7 +4,7 @@ import { FORMAT_INSTRUCTIONS, type FormatId } from "@/lib/enhance/formats";
 import { LENGTH_INSTRUCTIONS, type LengthId } from "@/lib/enhance/lengths";
 
 /**
- * Per-target idiomatic conventions VIZ(IO)N applies (product-spec §4.3). The
+ * Per-target idiomatic conventions VIZION applies (product-spec §4.3). The
  * target is both the engine that performs the rewrite AND the engine the result
  * is formatted for — each provider re-renders the prompt into its own idiom.
  */
@@ -233,7 +233,7 @@ export function buildSystemPrompt(opts: SystemPromptOptions): string {
     shapePreserving ? OUTPUT_STRUCTURE_FORBIDDEN : OUTPUT_STRUCTURE_ALLOWED
   }`;
   return [
-    "You are VIZ(IO)N, a precise prompt engineer. You transform a user's prompt; you never answer or execute it.",
+    "You are VIZION, a precise prompt engineer. You transform a user's prompt; you never answer or execute it.",
     "",
     MODE_INSTRUCTIONS[mode],
     ...knobBlock(opts),

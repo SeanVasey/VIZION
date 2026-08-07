@@ -1,4 +1,4 @@
-# VIZ(IO)N — Architecture
+# VIZION — Architecture
 
 Condensed from the v1 planning docs (`docs/history/VIZION FINAL PLAN v1.md §3`,
 `docs/history/VIZION-product-spec.md §2`). Those are historical (ADR-0005); this

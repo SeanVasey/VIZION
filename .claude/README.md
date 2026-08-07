@@ -1,6 +1,6 @@
 # `.claude/` — agent workspace configuration
 
-This directory configures Claude Code for the VIZ(IO)N repo.
+This directory configures Claude Code for the VIZION repo.
 
 - **`settings.json`** — project settings. Currently defensive only (denies reading
   `.env*` secret files). Add permission allow-rules here per your own preference; they

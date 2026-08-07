@@ -16,7 +16,7 @@ export const MEDIA_ALLOWED_MIME: Record<MediaKind, readonly string[]> = {
 /** Flat accept-attribute value for the file input. */
 export const MEDIA_ACCEPT = Object.values(MEDIA_ALLOWED_MIME).flat().join(",");
 
-/** Attributes VIZ(IO)N "reads" from an attached reference (product-spec §4.2).
+/** Attributes VIZION "reads" from an attached reference (product-spec §4.2).
  *  Audio never reaches a model (only file metadata is read), so there are no
  *  semantic audio fields — the old `tempo`/`timbre` were dead schema nothing
  *  could ever populate (2026-07 UX audit, honest-capability fix). */

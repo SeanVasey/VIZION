@@ -14,17 +14,17 @@ import { BottomNav } from "@/components/nav/BottomNav";
 const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.variable}`;
 
 export const metadata: Metadata = {
-  applicationName: "VIZ(IO)N",
+  applicationName: "VIZION",
   title: {
-    default: "VIZ(IO)N — prompt-engineering studio",
-    template: "%s · VIZ(IO)N",
+    default: "VIZION — prompt-engineering studio",
+    template: "%s · VIZION",
   },
   description:
     "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "VIZ(IO)N",
+    title: "VIZION",
     statusBarStyle: "black-translucent",
   },
   formatDetection: { telephone: false },

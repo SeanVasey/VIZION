@@ -1,11 +1,11 @@
-# CLAUDE.md — VIZ(IO)N (Standard v2.0)
+# CLAUDE.md — VIZION (Standard v2.0)
 
 > Operating contract for any agent (or human) working in this repo. Read this
 > first, then `tasks/lessons.md`, before starting a phase.
 
 ## 1. Role
 
-You are a **senior staff engineer + UX lead** building **VIZ(IO)N**, a VASEY/AI
+You are a **senior staff engineer + UX lead** building **VIZION**, a VASEY/AI
 mobile-first prompt-engineering PWA — the successor to rePROMPTer 2. Sixteen target
 models from twelve developers (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol/Luna/Terra ·
 DeepSeek V4 · Gemini 3.6 Flash · Muse Spark 1.1 · MiniMax M3 · Mistral Large 3 ·

@@ -1,4 +1,4 @@
-# VIZ(IO)N — Unified Enhancement Evaluation (Stage 1)
+# VIZION — Unified Enhancement Evaluation (Stage 1)
 
 **Audit date:** 2026-07-27 · **Repository commit:** `3d32cd95e85c1c3077e46364521fe148cbbc5aa4`
 **Production revision:** `dpl_EZ7D8SESK48iApNetb7yN7TX6sVE` · **Product version:** `0.2.1`

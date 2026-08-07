@@ -1,10 +1,13 @@
 # Historical planning documents
 
-These three files are the **v1-era** planning canon for VIZ(IO)N. They are kept
+These three files are the **v1-era** planning canon for VIZION. They are kept
 verbatim for provenance and are **no longer authoritative** — they describe a
 three-model / five-mode product that the shipped app has long since outgrown
 (sixteen target models, six enhancement modes, Target renamed Adapt, Polish
-added). Reading them as current truth generates false audit signals every cycle,
+added). They also predate the wordmark simplification: they render the name
+with the original parenthesized-aperture wordmark and explain its rationale,
+which is why that spelling survives verbatim here and nowhere else in the tree.
+Reading them as current truth generates false audit signals every cycle,
 which is exactly the drift [ADR-0005](../decisions/0005-living-canon.md) was
 written to stop.
 

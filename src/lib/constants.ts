@@ -1,4 +1,4 @@
-/** Shared, UI-facing constants for the VIZ(IO)N shell. */
+/** Shared, UI-facing constants for the VIZION shell. */
 
 export const THEMES = ["dark", "light", "system"] as const;
 export type Theme = (typeof THEMES)[number];

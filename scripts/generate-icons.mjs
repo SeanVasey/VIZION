@@ -1,4 +1,4 @@
-// VIZ(IO)N PWA icon + splash generator.
+// VIZION PWA icon + splash generator.
 //
 // Renders the full brand asset matrix (icons, maskable tiles, apple-touch-icon,
 // Next.js App Router favicons, and iOS splash screens) from the master brand

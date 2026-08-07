@@ -1,6 +1,6 @@
 # Commands
 
-Project slash-commands for VIZ(IO)N live here as Markdown files (`<name>.md`). None are
+Project slash-commands for VIZION live here as Markdown files (`<name>.md`). None are
 defined yet.
 
 Candidate: **`/verify`** — run the full gate

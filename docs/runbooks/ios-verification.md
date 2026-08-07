@@ -2,7 +2,7 @@
 
 ## Why this exists
 
-VIZ(IO)N is an iOS-first PWA, so a large number of decisions in this codebase
+VIZION is an iOS-first PWA, so a large number of decisions in this codebase
 rest on a claim about iOS Safari. Playwright's `mobile-safari` project looks
 like the way to check them. It is not, and mistaking it for one has already
 produced two wrong claims that shipped (`tasks/lessons.md`, 2026-07-28).
