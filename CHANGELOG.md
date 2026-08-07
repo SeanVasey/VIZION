@@ -6,6 +6,30 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Google's library accent is green; OpenAI's is a new magenta
+
+Owner direction from an on-device review: green reads as Google's
+association, not OpenAI's — so `--dev-google` is now green, and
+`--dev-openai` moves to a colour nothing else in the accent list uses.
+Both values were re-derived under the 0003 method (luminance corridor,
+ΔE2000 floors, tiered lightness), not eyeballed:
+
+- **Google `#219042`** anchors on the green of Google's published logo
+  palette (`#34a853`) with the hue *held* (drift +0.01) — the collision
+  with `--pulse`, the app's success green, is solved by moving to the
+  darker lightness tier instead of drifting the hue (ΔE2000 20.5 against
+  a floor of 15). The retired Gemini-mark violet leaves the roster.
+- **OpenAI `#cf70ba`** is *assigned, not sourced* — with the green ceded,
+  openai.com's palette (black/white) leaves nothing to anchor, and
+  neutrality stays reserved for xAI. The hue fills the widest gap the
+  roster leaves open, biased away from the retired violet so it reads as
+  its own identity. The token comment states the sourcing fact plainly,
+  as xAI's does.
+
+Every floor, both card contrasts (3.09:1/3.99:1 and 4.02:1/3.07:1), and
+the single-neutral test hold for both values; decision record in
+`docs/decisions/0010-google-green-openai-reassignment.md`.
+
 ### Picker sheet rows carry real vertical padding
 
 On-device report: in the Thinking depth sheet, the Auto card's text sat

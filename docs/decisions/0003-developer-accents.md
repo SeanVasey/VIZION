@@ -1,7 +1,9 @@
 # 3. Per-developer colour on library cards
 
 Date: 2026-07-28
-Status: accepted
+Status: accepted — amended by [0010](./0010-google-green-openai-reassignment.md)
+(2026-08-07): `--dev-google` and `--dev-openai` were re-derived per owner
+direction; the method below is unchanged and was reapplied.
 
 ## Context
 

@@ -43,9 +43,24 @@
 :root {
   /* tier | published anchor | OKLCH hue drift from that anchor */
   --dev-anthropic: #a77159; /* A | anthropic.com --swatch--clay #d97757  +6.01 */
-  --dev-openai: #0ea480; /*    B | OpenAI --openai-green #10a37f         +0.17 */
+  /* OWNER-DIRECTED REASSIGNMENT (2026-08-07, see 0010): green moved to
+     Google, and OpenAI's own palette (openai.com brand: black/white; the
+     historic #10a37f was ceded with the green) leaves nothing to source.
+     Neutral is reserved — the tests hold xAI as the ONLY neutral — so this
+     hue is ASSIGNED BY RULE, not sourced: OKLCH h336, filling the widest
+     hue gap the roster leaves open (qwen 290 -> minimax 7), biased +8 past
+     the geometric midpoint so it reads as its own identity rather than the
+     vacated Gemini violet (dE2000 10.0 to retired #b379da).  The second
+     entry with no first-party chromatic basis, after xAI, and it says so. */
+  --dev-openai: #cf70ba; /*    B | ASSIGNED, no published colour — h336    n/a */
   --dev-deepseek: #798aee; /*  B | thesvg deepseek #4d6bfe               +4.76 */
-  --dev-google: #b379da; /*    B | thesvg google-gemini #8e75b2          +7.95 */
+  /* Green per the same owner direction (previously the Gemini-mark violet
+     #b379da).  Anchored on the green of Google's published four-colour
+     logo palette; the hue is HELD at the anchor — the anthropic precedent —
+     and the collision is solved in LIGHTNESS instead: only tier A clears
+     --pulse at this hue (dE2000 20.5 vs the 15 floor; a tier-B green gets
+     ~13.9 and cannot clear without drifting off the anchor). */
+  --dev-google: #219042; /*    A | Google brand green #34a853             +0.01 */
   --dev-meta: #3b7ed6; /*      A | thesvg meta bright stop #0082fb       +1.25 */
   --dev-minimax: #c85975; /*   A | MiniMax's own repo mark #e73562       -5.51 */
   --dev-mistral: #da772a; /*   B | Mistral's OWN ramp stop #ff8205       +0.03 */
