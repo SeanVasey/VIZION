@@ -22,7 +22,7 @@ function tokenize(text: string): string[] {
 
 /**
  * Longest-common-subsequence diff over word tokens. O(n·m) which is fine for the
- * prompt-sized inputs VIZ(IO)N handles. Returns segments in output order, with
+ * prompt-sized inputs VIZION handles. Returns segments in output order, with
  * removed tokens interleaved at their original position.
  */
 export function diffWords(before: string, after: string): DiffSegment[] {

@@ -139,7 +139,7 @@ describe("?draft= conflict — the offer has no deadline", () => {
     expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe(
       "my own prompt",
     );
-    expect(screen.getByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeTruthy();
+    expect(screen.getByText(/A prompt was shared to VIZION/i)).toBeTruthy();
     expect(screen.getByText("shared prompt")).toBeTruthy();
   });
 
@@ -171,7 +171,7 @@ describe("?draft= conflict — the offer has no deadline", () => {
     try {
       renderComposer();
       act(() => vi.advanceTimersByTime(60_000));
-      expect(screen.getByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeTruthy();
+      expect(screen.getByText(/A prompt was shared to VIZION/i)).toBeTruthy();
       expect(window.location.search).toContain("draft=shared");
     } finally {
       vi.useRealTimers();
@@ -183,7 +183,7 @@ describe("?draft= conflict — the offer has no deadline", () => {
     fireEvent.click(screen.getByRole("button", { name: /replace draft/i }));
     expect(useUIStore.getState().editorDraft).toBe("shared prompt");
     expect(window.location.search).toBe("");
-    expect(screen.queryByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeNull();
+    expect(screen.queryByText(/A prompt was shared to VIZION/i)).toBeNull();
   });
 
   it("undoes to what was there AT CLICK TIME, not at mount", () => {
@@ -205,6 +205,6 @@ describe("?draft= conflict — the offer has no deadline", () => {
     fireEvent.click(screen.getByRole("button", { name: /discard it/i }));
     expect(useUIStore.getState().editorDraft).toBe("my own prompt");
     expect(window.location.search).toBe("");
-    expect(screen.queryByText(/A prompt was shared to VIZ\(IO\)N/i)).toBeNull();
+    expect(screen.queryByText(/A prompt was shared to VIZION/i)).toBeNull();
   });
 });

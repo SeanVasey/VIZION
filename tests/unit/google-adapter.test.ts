@@ -132,7 +132,7 @@ describe("streamGoogle upstream refusals", () => {
   it("names the key/project remediation on a 403, keeping Google's own words", async () => {
     // The 2026-08 production refusal: Google's "denied access… contact
     // support" is about GOOGLE's project, but relayed bare it read as a
-    // VIZ(IO)N capability gap. The remediation (rotate GOOGLE_API_KEY) must
+    // VIZION capability gap. The remediation (rotate GOOGLE_API_KEY) must
     // ride with it — and the upstream text must survive, uneditorialized.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const denial = "Your project has been denied access. Please contact support.";

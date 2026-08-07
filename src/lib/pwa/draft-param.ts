@@ -1,5 +1,5 @@
 /**
- * `?draft=` prefill — the seam that lets an outside launcher hand VIZ(IO)N a
+ * `?draft=` prefill — the seam that lets an outside launcher hand VIZION a
  * prompt.
  *
  * The point of this is Siri Shortcuts. iOS has no Web Share Target (that API

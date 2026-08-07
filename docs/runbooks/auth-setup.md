@@ -1,6 +1,6 @@
 # Runbook — auth & Supabase setup (P2)
 
-VIZ(IO)N uses **Supabase Auth** (magic link + GitHub + Google) against the provisioned
+VIZION uses **Supabase Auth** (magic link + GitHub + Google) against the provisioned
 project. The app code is complete; the items below are the **dashboard/provider config**
 that only you can do (they need real OAuth apps and your deploy URL).
 

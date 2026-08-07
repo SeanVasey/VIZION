@@ -355,7 +355,7 @@ export function EnhanceComposer() {
       {sharedDraft.pending !== null && (
         <div className="glass flex flex-col gap-2 rounded-2xl border border-hair p-4">
           <p className="font-body text-xs uppercase tracking-wider text-silver">
-            A prompt was shared to VIZ(IO)N
+            A prompt was shared to VIZION
           </p>
           <p className="font-body line-clamp-3 text-sm text-text">
             {sharedDraft.pending}

@@ -3,7 +3,7 @@
  *
  * HONEST SCOPE: `Navigator.vibrate` is unimplemented in WebKit — `safari` and
  * `safari_ios` are both false through iOS 26.5 (MDN BCD, confirmed in
- * docs/audits/VIZION-enhancement-evaluation.md). VIZ(IO)N's primary surface is
+ * docs/audits/VIZION-enhancement-evaluation.md). VIZION's primary surface is
  * the installed iOS web app, where every call here is a no-op. It fires on
  * Android/Chromium only.
  *

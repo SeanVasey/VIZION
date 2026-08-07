@@ -1,6 +1,6 @@
 # Skills
 
-Project-specific skills for VIZ(IO)N live here. None are defined yet.
+Project-specific skills for VIZION live here. None are defined yet.
 
 Candidates as the build progresses:
 

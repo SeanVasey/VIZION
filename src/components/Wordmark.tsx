@@ -1,5 +1,5 @@
 /**
- * The VIZ(IO)N wordmark (remediation R2.4).
+ * The VIZION wordmark (remediation R2.4).
  *
  * Plain "VIZION": V I Z N in --chalk, the "IO" in --laser.  No brackets and no
  * chevron — the brand mark / app icon carry the (I›O) aperture motif, so the

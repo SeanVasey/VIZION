@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("VIZ(IO)N shell + auth gate", () => {
+test.describe("VIZION shell + auth gate", () => {
   test("unauthenticated root redirects to the sign-in gate", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/sign-in$/);
@@ -316,7 +316,7 @@ test.describe("VIZ(IO)N shell + auth gate", () => {
     // precached static offline.html (auth-agnostic shell).
     await context.setOffline(true);
     await page.goto("/enhance");
-    await expect(page.getByRole("heading", { name: "VIZ(IO)N" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "VIZION" })).toBeVisible();
     await expect(page.locator("body")).toContainText(/offline/i);
     await context.setOffline(false);
   });

@@ -1,5 +1,5 @@
 /**
- * VIZ(IO)N — Workbox service worker SOURCE.
+ * VIZION — Workbox service worker SOURCE.
  *
  * This is the hand-authored injectManifest SOURCE. It is compiled by
  * `scripts/build-sw.mjs` (workbox-build `injectManifest`) into `public/sw.js`,

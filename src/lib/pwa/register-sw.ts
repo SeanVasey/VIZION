@@ -1,5 +1,5 @@
 /**
- * Service-worker registration helper for VIZ(IO)N.
+ * Service-worker registration helper for VIZION.
  *
  * Registers `public/sw.js` (compiled from `sw-src.js` by `scripts/build-sw.mjs`).
  * Designed to be called once from a client component. It is React-free,
@@ -29,7 +29,7 @@ function canRegister(): boolean {
  * VERIFIED (2026-07-28): the claim holds, and it matters more here than most
  * apps. Safari 17 / iOS 17 support the Storage API in full, and WebKit grants
  * `persist()` on heuristics that explicitly include *"opened as a Home Screen
- * Web App"* — i.e. exactly VIZ(IO)N's primary surface, the installed PWA.
+ * Web App"* — i.e. exactly VIZION's primary surface, the installed PWA.
  *
  * NOT COVERED BY ANY TEST, and it cannot be: `navigator.storage` is absent
  * outright in Playwright's Linux WebKit (`'storage' in navigator === false`,
@@ -66,7 +66,7 @@ function purgeShellCacheOnGate(): void {
 }
 
 /**
- * Register the VIZ(IO)N service worker. Safe to call on every client mount.
+ * Register the VIZION service worker. Safe to call on every client mount.
  */
 export function registerServiceWorker(): void {
   if (!canRegister()) {

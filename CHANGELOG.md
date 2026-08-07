@@ -1,10 +1,22 @@
 # Changelog
 
-All notable changes to VIZ(IO)N are documented here. The format follows
+All notable changes to VIZION are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### The name is written VIZION everywhere — the parentheses retire with the old art
+
+With the icon re-cut to the bare I›O mark, the parenthesized wordmark
+spelling no longer has an aperture to echo, so every reference in the
+tree — UI copy and metadata, the manifest and offline page, provider
+system prompts, source comments, README, docs, workflows — now writes
+the name plainly as VIZION. The rendered `Wordmark` component was
+already parenthesis-free; this aligns the written form with it. The
+three v1 planning documents under `docs/history/` keep the original
+spelling verbatim: they document the aperture rationale itself, and
+their README now says so.
 
 ### The app icon is the I›O mark, re-anchored on the laser tokens
 
@@ -1909,7 +1921,7 @@ why the palette is what it is.
 
 ### Added — the app can pick the model, and the modes stopped overlapping
 
-- **Auto routing.** VIZ(IO)N picks the model per run from a documented table,
+- **Auto routing.** VIZION picks the model per run from a documented table,
   chosen by how much *judgement* the mode needs rather than how much text it
   moves: the shape-preserving modes can't restructure, so a fast model reaches
   their ceiling, while Expand, Reformat and Adapt invent structure and take the

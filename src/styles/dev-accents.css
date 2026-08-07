@@ -1,5 +1,5 @@
 /* =====================================================================
- * VIZ(IO)N — ADDITIVE accent layer.  `tokens.css` is deliberately NOT edited:
+ * VIZION — ADDITIVE accent layer.  `tokens.css` is deliberately NOT edited:
  * its header declares it LOCKED, and it defines the light theme TWICE
  * (`:root[data-theme="light"]` and the verbatim
  * `@media (prefers-color-scheme: light) :root[data-theme="system"]`), so every

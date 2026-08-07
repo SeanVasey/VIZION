@@ -2,7 +2,7 @@
 
 Place Claude Code hooks here and reference them from `../settings.json`.
 
-Suggested for VIZ(IO)N (not yet wired, to keep settings free of un-requested grants):
+Suggested for VIZION (not yet wired, to keep settings free of un-requested grants):
 
 - **SessionStart** — verify `node_modules` exists and run `npm run generate:icons` so a
   fresh web session can build and test immediately.

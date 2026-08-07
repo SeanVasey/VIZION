@@ -1,12 +1,12 @@
-# Sending a prompt into VIZ(IO)N from iOS
+# Sending a prompt into VIZION from iOS
 
-VIZ(IO)N accepts a prompt through a `?draft=` URL parameter. That one seam
+VIZION accepts a prompt through a `?draft=` URL parameter. That one seam
 covers the Siri Shortcut, the iOS share sheet, a Home Screen bookmark, and a
 link in a note — anything that can open a URL.
 
 ## Why a URL parameter and not a share target
 
-The Web Share **Target** API — the thing that would put VIZ(IO)N in the iOS
+The Web Share **Target** API — the thing that would put VIZION in the iOS
 share sheet natively — is Chromium-only. It is unimplemented in WebKit, so on
 an iPhone it does nothing at all. `docs/audits/VIZION-enhancement-evaluation.md`
 (PWA-02) records that finding and recommends the paste affordance and a URL
@@ -37,7 +37,7 @@ Siri triggers on the shortcut name.
 ## Behaviour once it opens
 
 - **Empty composer** → the prompt is filled in, ready to run.
-- **Composer already has something** → VIZ(IO)N does **not** overwrite it. A
+- **Composer already has something** → VIZION does **not** overwrite it. A
   banner appears above the composer showing the incoming prompt with *Replace
   draft* / *Discard it*. It has **no timer** — it stays until you answer it,
   and replacing is undoable to whatever the draft held at the moment you

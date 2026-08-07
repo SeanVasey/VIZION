@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="./public/icons/icon-192.png" alt="VIZ(IO)N" width="96" height="96" />
+<img src="./public/icons/icon-192.png" alt="VIZION" width="96" height="96" />
 
-# VIZ(IO)N
+# VIZION
 
 **A VASEY/AI prompt-engineering studio — mobile-first PWA.**
 
@@ -17,7 +17,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 
 </div>
 
-> **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZ(IO)N
+> **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZION
 > _transforms_ it — across sixteen target models from twelve developers
 > (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol/Luna/Terra · DeepSeek V4 ·
 > Gemini 3.6 Flash · Muse Spark 1.1 · MiniMax M3 · Mistral Large 3 · Kimi K3 ·
@@ -28,7 +28,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 <div align="center">
 
 <!-- Live capture of the shipped sign-in gate (v0.2.0), rendered from the production build. -->
-<img src="./docs/preview.png" alt="VIZ(IO)N sign-in gate — the aperture glyph, wordmark, VASEY/AI + version pills, and the three Supabase auth methods" width="300" />
+<img src="./docs/preview.png" alt="VIZION sign-in gate — the aperture glyph, wordmark, VASEY/AI + version pills, and the three Supabase auth methods" width="300" />
 
 </div>
 
@@ -102,7 +102,7 @@ Inngest (async, P5+) · Vercel.
 
 ## Brand
 
-VIZ(IO)N is a **VASEY/AI** product. No association with VASEY.AUDIO.
+VIZION is a **VASEY/AI** product. No association with VASEY.AUDIO.
 
 The identity is the **I›O mark** — a laser-green bar, chevron and split ring,
 reading as I › O — shown two ways:

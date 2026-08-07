@@ -317,7 +317,7 @@ function TransformationDiffImpl({
   async function share() {
     const text = effectiveOutput;
     try {
-      await navigator.share({ title: "VIZ(IO)N prompt", text });
+      await navigator.share({ title: "VIZION prompt", text });
       // The activity feed advertises "shared" events — log them when the
       // shared prompt is saved (the action existed, unwired). Swallow a
       // failed log so it never becomes an unhandled rejection.

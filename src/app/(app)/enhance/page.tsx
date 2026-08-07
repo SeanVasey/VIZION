@@ -21,7 +21,7 @@ export default function EnhancePage() {
             sentence sits here instead. Per-mode detail lives in the ModeRig
             helper below the rig. */}
         <p className="sr-only">
-          Paste a prompt and VIZ(IO)N rewrites it for your target model — the six modes
+          Paste a prompt and VIZION rewrites it for your target model — the six modes
           below each transform it a different way.
         </p>
         <Horizon className="-mb-3" />

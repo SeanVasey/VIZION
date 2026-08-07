@@ -88,7 +88,7 @@ export function OwnerSection({
       </Field>
       <FieldStatus status={status.owner_access} />
       <p className="font-body text-xs text-silver">
-        When off, only you can register for or use VIZ(IO)N — new sign-ups
+        When off, only you can register for or use VIZION — new sign-ups
         pause and other accounts see a closed notice instead of the app.
       </p>
 

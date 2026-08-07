@@ -2,7 +2,7 @@
 
 ## Executive assessment
 
-VIZ(IO)N is a notably disciplined, product-coherent Next.js PWA. It has strong
+VIZION is a notably disciplined, product-coherent Next.js PWA. It has strong
 typing, unusually broad unit coverage, authenticated browser coverage through a
 realistic Supabase seam, deliberate mobile interaction work, server-only model
 credentials, RLS-oriented data access, bounded inputs, security headers, and an

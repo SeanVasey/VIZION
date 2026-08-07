@@ -1,6 +1,6 @@
 # Runbook — versioning & releases
 
-How VIZ(IO)N versions are defined, surfaced in the UI, cut, and published.
+How VIZION versions are defined, surfaced in the UI, cut, and published.
 
 ## Policy
 
@@ -22,7 +22,7 @@ package.json  "version"
       └─ next.config.ts   env: { NEXT_PUBLIC_APP_VERSION: pkg.version }   (build-time)
              └─ src/lib/version.ts   APP_VERSION
                     ├─ BrandPills   (sign-in gate `v0.2.1` pill)
-                    └─ Footer       ("VIZ(IO)N v0.2.1 · Multi-Model Prompt Studio")
+                    └─ Footer       ("VIZION v0.2.1 · Multi-Model Prompt Studio")
 ```
 
 Bump the one number and every surface follows at the next build.
@@ -52,7 +52,7 @@ All in **one PR**, so `main` is never in a half-released state:
 3. Otherwise extracts the `## [<version>]` section from `CHANGELOG.md` — and
    **fails loudly if the section is missing**, so a bump can't ship undocumented.
 4. Creates the `v<version>` tag at the merge commit and publishes a GitHub
-   Release titled `VIZ(IO)N v<version>` with the changelog section as notes.
+   Release titled `VIZION v<version>` with the changelog section as notes.
 
 No secrets are involved: the workflow uses the repo-scoped `github.token` with
 `contents: write`.

@@ -1,4 +1,4 @@
-# AGENTS.md — VIZ(IO)N
+# AGENTS.md — VIZION
 
 The authoritative operating contract lives in `CLAUDE.md` (role, principles,
 verification gate, guardrails, project structure). Read it first, then

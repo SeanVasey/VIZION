@@ -1,7 +1,7 @@
 import type { MediaAttributes } from "@/lib/media/types";
 
 export const MEDIA_EXTRACT_SYSTEM = [
-  "You are VIZ(IO)N's media analyst. Read the attached reference and describe what it actually contains.",
+  "You are VIZION's media analyst. Read the attached reference and describe what it actually contains.",
   "Return ONLY a JSON object with these fields:",
   '- "description" (required): a 2-4 sentence prose visual description of the image, written so it can be pasted straight into a generation prompt — concrete nouns, spatial layout, notable detail; no preamble like "This image shows".',
   "And these optional fields (omit any you can't determine):",
@@ -17,7 +17,7 @@ export const MEDIA_EXTRACT_SYSTEM = [
 /** Style-only analysis (the "Style reference" attachment role): capture how
  *  the reference looks, never what it depicts. */
 export const MEDIA_STYLE_SYSTEM = [
-  "You are VIZ(IO)N's media analyst. Read the attached reference and describe its visual STYLE only — never its subject matter.",
+  "You are VIZION's media analyst. Read the attached reference and describe its visual STYLE only — never its subject matter.",
   "Return ONLY a JSON object with these fields (omit any you can't determine):",
   '- "description" (required): 1-3 sentences capturing the style — medium, rendering technique, era or movement, finish — written to steer a generation prompt; no subject nouns.',
   '- "palette": dominant colors as an array of hex strings',
@@ -29,7 +29,7 @@ export const MEDIA_STYLE_SYSTEM = [
 
 /** Faithful transcription (the "Extract text" attachment role). */
 export const MEDIA_OCR_SYSTEM = [
-  "You are VIZ(IO)N's text extractor. Transcribe ALL legible text in the attached image faithfully.",
+  "You are VIZION's text extractor. Transcribe ALL legible text in the attached image faithfully.",
   'Return ONLY a JSON object: {"text": string} — the full transcription, preserving line breaks and reading order. Correct nothing; transcribe exactly what is written.',
   'If no text is legible, return {"text": ""}.',
   "Do not describe the image. Do not wrap the JSON in markdown. Do not add any other text.",

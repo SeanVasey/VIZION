@@ -44,4 +44,4 @@ real values live in `.env*.local` (gitignored) and in the Vercel project environ
 
 ## Supported versions
 
-VIZ(IO)N is pre-1.0; security fixes target the latest `main`.
+VIZION is pre-1.0; security fixes target the latest `main`.

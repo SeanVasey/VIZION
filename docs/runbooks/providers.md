@@ -59,7 +59,7 @@ permissions"** — use an unrestricted key or grant the inference scope.
 > Diagnosed in production 2026-08: every Gemini run failed with
 > **"Gemini request failed: Your project has been denied access. Please
 > contact support."** That sentence is **Google's own 403 body**, relayed
-> verbatim by the adapter — it is *not* a VIZ(IO)N capability limit, and
+> verbatim by the adapter — it is *not* a VIZION capability limit, and
 > "support" means *Google's* support. Google returns it when the **Google
 > Cloud project behind `GOOGLE_API_KEY`** has lost access to the Gemini API
 > (project flagged/denied by Google's abuse systems, API disabled or terms

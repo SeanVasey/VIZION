@@ -81,5 +81,5 @@ jobs:
         run: |
           gh release create "v${{ steps.pkg.outputs.version }}" \
             --target "${{ steps.pkg.outputs.target }}" \
-            --title "VIZ(IO)N v${{ steps.pkg.outputs.version }}" \
+            --title "VIZION v${{ steps.pkg.outputs.version }}" \
             --notes-file release-notes.md
