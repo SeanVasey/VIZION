@@ -6,6 +6,21 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### The tray's Originals dial is a pill again
+
+On-device feedback: the bare 10px "Originals stored" text read as a
+caption, not a control — nothing about it said tappable. It now wears
+the app chip recipe (glass fill, rounded-full, text-xs — the
+LibraryFilterSheet/DraftsToolbar quiet arm) with an 8px state dot:
+pulse-filled while originals are stored, hollow while not kept, so the
+state never rides on color alone. This reverses the earlier "one step
+smaller and quieter" ruling from the attach-rail pass; the half that
+survives is the reason it was made quiet — the dial still never takes a
+laser fill, because a standing preference must not compete with Attach
+or ENHANCE beside it. `aria-pressed` and the "Originals …" accessible
+name are unchanged, so the privacy sheet's pointer to "the tray's
+'Originals' toggle" stays truthful.
+
 ### Streaming output is a live console card
 
 On-device report: the token stream read as bland and hard to interpret —
