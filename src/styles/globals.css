@@ -146,6 +146,31 @@
     }
   }
 
+  /* Ultra-tier ink — the violet marking the two reasoning depths above High
+     (xhigh · max) in the thinking meter. An INK role only (glyph strokes /
+     text): never a fill under --on-laser, and never developer identity —
+     the --dev-* corridor is library-list-only. Lives here, not in the
+     LOCKED tokens.css — same containment as --glass-still above — and is
+     declared THREE times for the same reason: the light theme exists twice
+     (explicit choice + system path). The owner picked the ChatGPT-electric
+     family (#ab68ff), which measures 4.499:1 on the composited dark glass
+     card (#23252A) — a hair under the 4.5:1 text bar — so dark is tuned to
+     #b47aff: same hue, 6.50:1 page / 5.24:1 glass / 5.57:1 surface. Light
+     #7c3aed measures 4.99:1 page / 5.56:1 glass / 5.50:1 surface. Every
+     theme/surface combo clears text AA (pinned in tests/unit/a11y.test.ts),
+     so this ink can never join laser's thin-stroke-on-light failure class. */
+  :root {
+    --ultra-ink: #b47aff;
+  }
+  :root[data-theme="light"] {
+    --ultra-ink: #7c3aed;
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="system"] {
+      --ultra-ink: #7c3aed;
+    }
+  }
+
   body {
     /* NO background here. A body background paints ABOVE negative-z-index
        fixed layers (only the ROOT element's background sits beneath them), so

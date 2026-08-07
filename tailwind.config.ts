@@ -40,6 +40,11 @@ const config: Config = {
       amber: "var(--amber)",
       "pulse-ink": "var(--pulse-ink)",
       "amber-ink": "var(--amber-ink)",
+      // Ultra-tier reasoning ink (the xhigh/max meter in the thinking
+      // picker). Ink only — both theme values live in globals.css because
+      // tokens.css is LOCKED; tests/unit/a11y.test.ts pins the
+      // 3-declaration shape and text-AA contrast on every surface.
+      ultra: "var(--ultra-ink)",
       // Theme-resolved semantic aliases (flip with [data-theme]).
       bg: "var(--bg)",
       surface: "var(--surface)",

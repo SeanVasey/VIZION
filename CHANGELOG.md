@@ -6,6 +6,27 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Thinking depth rows carry a filled meter, violet above High
+
+On-device request: in the Thinking depth sheet only Auto carried the
+rising-bars mark, so the ladder read as bare text with no scannable
+weight. The meter is now ALSO a readout — deliberately reversing
+`DepthGlyph`'s recorded "static by design… not a readout" ruling; the
+label stays authoritative, the meter now agrees with it. Sheet rows and
+the rail trigger fill bars to the chosen effort (Minimal 0 · Low 1 ·
+Medium 2 · High 3; unfilled bars stay faint at 0.28), keyed to the level
+id so the same id renders identically on every model's ladder. The two
+tiers above High (Extra High · Max) trade Silver for a new ultra-violet
+ink, and Max's tall bar overshoots the meter's top line — effort past
+the marked scale. The owner picked the ChatGPT-electric family
+(`#ab68ff`); dark is tuned to `#b47aff` because the raw pick measures
+4.499:1 on the composited glass card — a hair under the 4.5:1 text bar —
+and light is `#7c3aed` (every theme/surface combo clears text AA).
+`--ultra-ink` lives in globals.css (tokens.css is LOCKED), declared for
+dark + both light paths with a Tailwind `ultra` ink role; the
+3-declaration shape and the contrast floor are pinned in
+tests/unit/a11y.test.ts.
+
 ### Google's library accent is green; OpenAI's is a new magenta
 
 Owner direction from an on-device review: green reads as Google's

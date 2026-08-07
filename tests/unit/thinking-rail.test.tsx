@@ -129,6 +129,35 @@ describe("thinking rail behaviour", () => {
     expect(submit()).not.toHaveProperty("thinkingLevel");
   });
 
+  it("fills the meter glyph to match each row's level", () => {
+    renderComposer();
+    fireEvent.click(thinkingTrigger());
+    // Low = one strong bar, the other two faint. The label stays the
+    // authoritative readout — the meter is its scannable echo.
+    const low = screen.getByRole("radio", { name: "Low" });
+    const lowBars = low.querySelectorAll("svg path");
+    expect(lowBars).toHaveLength(3);
+    expect(
+      [...lowBars].filter((p) => p.getAttribute("opacity") === "1"),
+    ).toHaveLength(1);
+    // Max breaks the meter (tall bar overshoots) and carries the ultra ink.
+    const max = screen.getByRole("radio", { name: "Max" });
+    expect(max.querySelector('svg path[d="M18 19V4"]')).not.toBeNull();
+    expect(max.querySelector("svg")!.getAttribute("class")).toContain("text-ultra");
+    // Auto keeps the neutral full meter in Silver — the original mark.
+    const auto = screen.getByRole("radio", { name: /^Auto/ });
+    expect(auto.querySelectorAll('svg path[opacity="1"]')).toHaveLength(3);
+    expect(auto.querySelector("svg")!.getAttribute("class")).toContain("text-silver");
+  });
+
+  it("reflects the stored level in the trigger glyph, neutral under Auto", () => {
+    useUIStore.setState({ thinkingLevels: { opus_5: "max" } });
+    renderComposer();
+    expect(
+      thinkingTrigger().querySelector('svg path[d="M18 19V4"]'),
+    ).not.toBeNull();
+  });
+
   it("offers only the selected target's ladder, and no rail without one", () => {
     const { rerender } = renderComposer();
     fireEvent.click(thinkingTrigger());

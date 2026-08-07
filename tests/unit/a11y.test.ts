@@ -183,6 +183,43 @@ describe("the ink split is declared in all three blocks", () => {
   });
 });
 
+describe("the ultra ink is declared for dark and both light paths (globals.css)", () => {
+  // --ultra-ink lives in globals.css — tokens.css is LOCKED — so the
+  // tokens.css-scoped harness above cannot see it. The same two contracts are
+  // pinned here: the light theme exists twice, and the ink must clear text AA
+  // over every real backdrop. It composites over tokens.css's surfaces, so
+  // THEMES still supplies the backdrops.
+  const GLOBALS = strip(read("src/styles/globals.css"));
+  const decls = [...GLOBALS.matchAll(/--ultra-ink:\s*(#[0-9a-f]{6})/gi)].map(
+    (m) => m[1]!,
+  );
+
+  it("declares the token exactly three times (dark, light, system-light)", () => {
+    expect(decls).toHaveLength(3);
+    // Authored dark-first beside --glass-still: both light paths identical,
+    // dark its own value — the shape the tokens.css check above pins.
+    expect(decls[1]).toBe(decls[2]);
+    expect(decls[0]).not.toBe(decls[1]);
+  });
+
+  it("clears WCAG AA text contrast on every surface, in every theme", () => {
+    const inkFor: Record<(typeof THEMES)[number]["name"], string> = {
+      dark: decls[0]!,
+      light: decls[1]!,
+      "system-light": decls[2]!,
+    };
+    for (const { name, block } of THEMES) {
+      const ink = parseColor(inkFor[name]) as RGB;
+      for (const [surface, bg] of Object.entries(backdrops(block))) {
+        expect(
+          contrast(ink, bg),
+          `--ultra-ink on ${name}/${surface}`,
+        ).toBeGreaterThanOrEqual(AA_TEXT);
+      }
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 
 /** Every source file under src/, so a new call site can't slip past. */
