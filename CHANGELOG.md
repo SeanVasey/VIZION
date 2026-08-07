@@ -6,6 +6,17 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The NEBULA+ glow steps down and the particles step up
+
+Owner tune after seeing the composite in production: the top/bottom
+glow read ~30% too strong, and the drifting motes too faint. The four
+bloom peak alphas drop ×0.7 in both themes (dark A/B/C/D now 11.2% ·
+9.8% · 0.077 · 6.3%; light 15.4% · 0.119 · 0.098 · 9.1%), and the
+particle core dots gain a ×1.2 boost applied before the light-theme
+multiplier so its clamps still bound. Halos, the ground vignette, and
+every behavioural invariant (30fps gate, pause, theme reactivity, no
+raw Laser on light) are untouched.
+
 ### The I›O mark is re-cut with solid chevron and ring wedges
 
 Corrected masters replace the first I›O cut: the chevron and the two

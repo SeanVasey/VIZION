@@ -769,31 +769,33 @@
      top wash ride --accent-ink, which IS Laser on dark and the deep-green
      ink on light, so no layer can paint raw Laser on a light surface
      (contrast law §6). Bloom C's cool slate and bloom B's light charcoal
-     are locked NEBULA+ literals — no matching token exists. */
+     are locked NEBULA+ literals — no matching token exists. Bloom peaks sit
+     at ×0.7 of the original NEBULA+ table in both themes (owner tune: the
+     top/bottom glow read ~30% too strong in production). */
   .bg-nebula {
     --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 5%, transparent);
     --nebula-ground-bottom: color-mix(in srgb, var(--silver) 6%, transparent);
-    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 16%, transparent);
-    --nebula-bloom-b: color-mix(in srgb, var(--silver) 14%, transparent);
-    --nebula-bloom-c: rgba(75, 120, 150, 0.11);
-    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 9%, transparent);
+    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 11.2%, transparent);
+    --nebula-bloom-b: color-mix(in srgb, var(--silver) 9.8%, transparent);
+    --nebula-bloom-c: rgba(75, 120, 150, 0.077);
+    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 6.3%, transparent);
   }
   :root[data-theme="light"] .bg-nebula {
     --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 7%, transparent);
     --nebula-ground-bottom: color-mix(in srgb, var(--silver) 7%, transparent);
-    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 22%, transparent);
-    --nebula-bloom-b: rgba(43, 45, 51, 0.17);
-    --nebula-bloom-c: rgba(40, 70, 95, 0.14);
-    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 13%, transparent);
+    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 15.4%, transparent);
+    --nebula-bloom-b: rgba(43, 45, 51, 0.119);
+    --nebula-bloom-c: rgba(40, 70, 95, 0.098);
+    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 9.1%, transparent);
   }
   @media (prefers-color-scheme: light) {
     :root[data-theme="system"] .bg-nebula {
       --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 7%, transparent);
       --nebula-ground-bottom: color-mix(in srgb, var(--silver) 7%, transparent);
-      --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 22%, transparent);
-      --nebula-bloom-b: rgba(43, 45, 51, 0.17);
-      --nebula-bloom-c: rgba(40, 70, 95, 0.14);
-      --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 13%, transparent);
+      --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 15.4%, transparent);
+      --nebula-bloom-b: rgba(43, 45, 51, 0.119);
+      --nebula-bloom-c: rgba(40, 70, 95, 0.098);
+      --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 9.1%, transparent);
     }
   }
 

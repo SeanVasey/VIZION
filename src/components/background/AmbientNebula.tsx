@@ -58,6 +58,9 @@ export function AmbientNebula() {
     const WRAP = 40; // wrap margin, px — particles re-enter on the far side.
     const ACCENT_COUNT = 9;
     const LASER_RGB = "183, 255, 60";
+    // Owner tune: core dots read too faint at the NEBULA+ table alphas.
+    // Applied before the light-theme multiplier, so its clamps still bound.
+    const CORE_BOOST = 1.2;
 
     // Parallax tiers, far → mid → near: [rMin, rMax, speed, brightness].
     // A particle's tier is its index mod 3, so the tiers stay interleaved
@@ -203,7 +206,9 @@ export function AmbientNebula() {
           const rgb = accent ? accentRgb : silverRgb;
           let haloA = (accent ? 0.2 : 0.13) * glow * brightness;
           let coreA =
-            (accent ? 0.32 + 0.28 * glow : 0.24 + 0.2 * glow) * brightness;
+            (accent ? 0.32 + 0.28 * glow : 0.24 + 0.2 * glow) *
+            brightness *
+            CORE_BOOST;
           if (isLight) {
             haloA = Math.min(haloA * 2.2, 0.45);
             coreA = Math.min(coreA * 2.2, accent ? 0.85 : 0.8);
