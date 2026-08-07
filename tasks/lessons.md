@@ -2604,3 +2604,32 @@ render identical; account change wipes storage before rehydrating (the
   start from the token hexes and diff the art's palette against `tokens.css`
   before committing — the icon must re-derive from the tokens, never
   approximate them.
+
+## NEBULA+ background swap — the contracts around a component outlive the component
+
+- **A stylesheet-grepping test is a spelling contract, not just coverage.**
+  `reduced-effects.test.ts` matches gate rule heads with
+  `endsWith(" .classname")`, so the `[data-reduced-effects]` gate had to
+  target the SHARED `.bg-nebula-bloom` class — a head ending in a variant
+  class (`.bg-nebula-bloom-a`) would silently fail the shared-class
+  assertion. When replacing a component, read the tests that grep for it
+  before choosing the new class names, not after.
+- **"The browser is installed" is a build-number claim, not a binary one.**
+  The environment ships a Playwright chromium at build 1194; the lockfile's
+  Playwright 1.60 resolves to chromium-1223 and the e2e global-setup guard
+  (correctly) hard-failed on it. WebKit additionally needed
+  `playwright install-deps` for ~30 host libraries. Budget for browser
+  provisioning on any fresh runner; the guard's message is the remedy.
+- **Theme-dependent JS can read the effective scheme off the CSS cascade.**
+  `tokens.css` sets `color-scheme` in all three theme blocks, so
+  `getComputedStyle(document.documentElement).getPropertyValue("color-scheme")`
+  resolves dark/light/system-light without replicating the
+  `data-theme` + `matchMedia` logic in JS — one source of truth, and it
+  re-reads correctly through the existing MutationObserver + scheme
+  listener. Prefer this over a second, drift-prone scheme resolver.
+- **Scoped custom properties let a LOCKED token file stay locked.** The
+  NEBULA+ palette lives as `--nebula-*` properties on the wrapper class in
+  `globals.css`, derived from `--accent-ink`/`--silver` via `color-mix` —
+  tokens.css untouched, theme reactivity free. The cost is the tri-block
+  rule: every light value is written twice (explicit + system-light), and
+  forgetting the media block hands system-light users the dark values.

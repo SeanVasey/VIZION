@@ -174,9 +174,10 @@
   body {
     /* NO background here. A body background paints ABOVE negative-z-index
        fixed layers (only the ROOT element's background sits beneath them), so
-       the P1-era gradient was silently occluding the entire R4 ambient layer
-       (mesh canvas + aurora + .bg-mesh-ground) in both themes. The ambient
-       layer owns the canvas; html's background-color guards overscroll. */
+       the P1-era gradient was silently occluding the entire ambient layer
+       (nebula canvas + blooms + .bg-nebula-ground) in both themes. The
+       ambient layer owns the canvas; html's background-color guards
+       overscroll. */
     color: var(--text);
     font-family: var(--font-body);
     line-height: 1.55;
@@ -759,57 +760,133 @@
     -webkit-backdrop-filter: none;
   }
 
-  /* Ambient mesh ground — quiet directional wash over Void; the animated
-     canvas (or, under reduced-motion, nothing) layers on top. */
-  .bg-mesh-ground {
-    background:
-      radial-gradient(120% 80% at 50% -10%, var(--lift) 0%, transparent 60%),
-      linear-gradient(180deg, var(--void) 0%, var(--void-2) 100%);
+  /* NEBULA+ ambient composite (R4-REV4) — ground vignette + four blurred
+     blooms + the particle canvas (AmbientNebula). The theme-swapped colours
+     live as custom properties scoped on the wrapper, NOT in tokens.css
+     (LOCKED): dark is the base, and light is declared TWICE — explicit
+     [data-theme="light"] plus the system-light media block — per the
+     tri-block rule (see dev-accents.css header). Blooms A/D and the ground's
+     top wash ride --accent-ink, which IS Laser on dark and the deep-green
+     ink on light, so no layer can paint raw Laser on a light surface
+     (contrast law §6). Bloom C's cool slate and bloom B's light charcoal
+     are locked NEBULA+ literals — no matching token exists. */
+  .bg-nebula {
+    --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 5%, transparent);
+    --nebula-ground-bottom: color-mix(in srgb, var(--silver) 6%, transparent);
+    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 16%, transparent);
+    --nebula-bloom-b: color-mix(in srgb, var(--silver) 14%, transparent);
+    --nebula-bloom-c: rgba(75, 120, 150, 0.11);
+    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 9%, transparent);
+  }
+  :root[data-theme="light"] .bg-nebula {
+    --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 7%, transparent);
+    --nebula-ground-bottom: color-mix(in srgb, var(--silver) 7%, transparent);
+    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 22%, transparent);
+    --nebula-bloom-b: rgba(43, 45, 51, 0.17);
+    --nebula-bloom-c: rgba(40, 70, 95, 0.14);
+    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 13%, transparent);
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="system"] .bg-nebula {
+      --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 7%, transparent);
+      --nebula-ground-bottom: color-mix(in srgb, var(--silver) 7%, transparent);
+      --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 22%, transparent);
+      --nebula-bloom-b: rgba(43, 45, 51, 0.17);
+      --nebula-bloom-c: rgba(40, 70, 95, 0.14);
+      --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 13%, transparent);
+    }
   }
 
-  /* Ambient aurora blooms — soft Laser glow that drifts behind the glass. The
-     top bloom sits under the translucent header so the chrome reveals a halo;
-     a slower secondary bloom keeps the lower canvas alive. Drift is paused by
-     the global reduced-motion rule (the blooms stay as a static glow). */
-  .bg-aurora {
+  /* Ground vignette — transparent base over html's solid var(--bg); a quiet
+     accent wash from the top, a silver wash from the bottom. Always present:
+     under prefers-reduced-motion this alone is the background. */
+  .bg-nebula-ground {
+    background:
+      radial-gradient(120% 80% at 50% -10%, var(--nebula-ground-top) 0%, transparent 60%),
+      radial-gradient(120% 80% at 50% 110%, var(--nebula-ground-bottom) 0%, transparent 60%);
+  }
+
+  /* Blurred colour blooms — CSS keyframes only, no JS; GPU-composited
+     transform drift on an alternate loop. */
+  .bg-nebula-bloom {
     position: absolute;
-    border-radius: 9999px;
-    filter: blur(64px);
+    border-radius: 50%;
+    filter: blur(80px);
     will-change: transform;
   }
-  .bg-aurora-top {
-    top: -160px;
-    left: 50%;
-    height: 360px;
-    width: min(680px, 92vw);
-    background: radial-gradient(closest-side, var(--laser-glow), transparent 72%);
-    opacity: 0.85;
-    animation: aurora-top 19s ease-in-out infinite alternate;
+  .bg-nebula-bloom-a {
+    width: 70vmax;
+    height: 70vmax;
+    left: -20vmax;
+    top: -26vmax;
+    background: radial-gradient(closest-side, var(--nebula-bloom-a), transparent 64%);
+    animation: nebula-bloom-a 42s ease-in-out infinite alternate;
   }
-  .bg-aurora-drift {
-    bottom: 8%;
-    left: 8%;
-    height: 320px;
-    width: min(560px, 80vw);
-    background: radial-gradient(closest-side, var(--laser-glow), transparent 70%);
-    opacity: 0.4;
-    animation: aurora-drift 27s ease-in-out infinite alternate;
+  .bg-nebula-bloom-b {
+    width: 80vmax;
+    height: 80vmax;
+    right: -28vmax;
+    bottom: -32vmax;
+    background: radial-gradient(closest-side, var(--nebula-bloom-b), transparent 62%);
+    animation: nebula-bloom-b 54s ease-in-out infinite alternate;
+  }
+  .bg-nebula-bloom-c {
+    width: 46vmax;
+    height: 46vmax;
+    left: 30vw;
+    top: 36vh;
+    background: radial-gradient(closest-side, var(--nebula-bloom-c), transparent 62%);
+    animation: nebula-bloom-c 66s ease-in-out infinite alternate;
+  }
+  .bg-nebula-bloom-d {
+    width: 38vmax;
+    height: 38vmax;
+    left: -8vmax;
+    bottom: -4vmax;
+    background: radial-gradient(closest-side, var(--nebula-bloom-d), transparent 60%);
+    animation: nebula-bloom-d 34s ease-in-out infinite alternate;
   }
 
-  @keyframes aurora-top {
+  @keyframes nebula-bloom-a {
     from {
-      transform: translate(-56%, -8%) scale(1);
+      transform: translate(0, 0) scale(1);
     }
     to {
-      transform: translate(-44%, 6%) scale(1.18);
+      transform: translate(10vmax, 8vmax) scale(1.14);
     }
   }
-  @keyframes aurora-drift {
+  @keyframes nebula-bloom-b {
     from {
-      transform: translate(-6%, 6%) scale(1);
+      transform: translate(0, 0) scale(1.1);
     }
     to {
-      transform: translate(14%, -10%) scale(1.22);
+      transform: translate(-9vmax, -7vmax) scale(0.94);
+    }
+  }
+  @keyframes nebula-bloom-c {
+    from {
+      transform: translate(-4vmax, 3vmax) scale(0.9);
+    }
+    to {
+      transform: translate(5vmax, -4vmax) scale(1.1);
+    }
+  }
+  @keyframes nebula-bloom-d {
+    from {
+      transform: translate(0, 2vmax) scale(0.92);
+    }
+    to {
+      transform: translate(6vmax, -5vmax) scale(1.12);
+    }
+  }
+
+  /* Reduced motion: the ground alone is the experience — the global collapse
+     (base layer) freezes the keyframes, and this removes the blooms and the
+     canvas outright. The JS loop is independently gated and never starts. */
+  @media (prefers-reduced-motion: reduce) {
+    .bg-nebula-bloom,
+    .nebula-canvas {
+      display: none;
     }
   }
 
@@ -888,12 +965,12 @@
   }
 
   /* Reduced effects (Settings → Appearance): a device-local comfort/perf
-     knob that silences the AMBIENT layers — mesh canvas, aurora blooms, the
-     result shimmer, the streaming card's top-edge light — while leaving
+     knob that silences the AMBIENT layers — nebula canvas, colour blooms,
+     the result shimmer, the streaming card's top-edge light — while leaving
      functional motion (sheets, progress) governed by the OS reduced-motion
      preference. Applied as a root attribute by ReducedEffectsManager. */
-  [data-reduced-effects] .bg-aurora,
-  [data-reduced-effects] .mesh-canvas,
+  [data-reduced-effects] .bg-nebula-bloom,
+  [data-reduced-effects] .nebula-canvas,
   [data-reduced-effects] .result-shimmer::before,
   [data-reduced-effects] .stream-live::after {
     display: none;

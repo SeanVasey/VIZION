@@ -6,19 +6,31 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
-### The I›O mark is re-cut with solid chevron and ring wedges
+### The ambient background is the NEBULA+ composite
 
-Corrected masters replace the first I›O cut: the chevron and the two
-split-ring halves are now closed, filled paths — the chevron a mitered
-polygon, each ring half a tapered wedge between a 379 px outer and a
-232 px inner arc — instead of stroked lines with butt caps, so the
-mark's terminals render as drawn geometry rather than stroke
-artifacts. Palette and tile chrome are unchanged. The glyph's viewBox
-tightens from 1560×987 (1.581:1) to 1565×996 (1.571:1), so the AuthHero
-image narrows to 160px wide to hold its 102px rendered height; the
-maskable 0.68 factor still lands the art's corners at ≈0.40 × size, so
-it stays. The full 33-file icon + splash matrix is regenerated from the
-corrected masters.
+The R4 neural mesh — linked nodes on a single canvas under two Laser
+auroras — retires in favour of the approved NEBULA+ ambient system
+(`AmbientNebula`): a static theme-derived ground vignette (an accent
+wash from the top, a silver wash from the bottom), four blurred
+colour blooms drifting on CSS keyframes alone (42/54/66/34s alternate
+loops), and a three-tier parallax particle field — far, mid and near
+motes that pulse, wrap at the viewport margins, and scale to viewport
+area with no ceiling now that the mesh's O(n²) link pass is gone. The
+first nine particles glow accent; the light theme multiplies alphas
+×2.2 (clamped) and swaps the motes to the NEBULA+ charcoal.
+
+The performance architecture carries over unchanged: one canvas, a
+30fps frame-delta gate, a full stop — not a CSS hide — while the tab
+is hidden or Reduced effects is on, and live theme re-resolution off
+the tokens with no remount. Accents ride `--accent-ink`, so no layer
+can paint raw Laser on a light surface. Two deliberate behaviour
+changes: under `prefers-reduced-motion` the ground vignette now
+stands alone (the old system kept frozen auroras visible), and the
+ground no longer paints a solid Void gradient — `html`'s `var(--bg)`
+carries the solid, as it already did beneath everything. Where the
+NEBULA+ parameter table and `tokens.css` disagreed, the tokens won
+and the substitutions are noted in the component: dark motes
+`185, 188, 197` and light accents `63, 107, 0`.
 
 ### The name is written VIZION everywhere — the parentheses retire with the old art
 

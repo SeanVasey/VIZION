@@ -24,11 +24,14 @@ const compat = new FlatCompat({
  */
 const PROJECT_CLASSNAMES = [
   // Ambient background layers.
-  "bg-aurora",
-  "bg-aurora-drift",
-  "bg-aurora-top",
-  "bg-mesh-ground",
-  "mesh-canvas",
+  "bg-nebula",
+  "bg-nebula-bloom",
+  "bg-nebula-bloom-a",
+  "bg-nebula-bloom-b",
+  "bg-nebula-bloom-c",
+  "bg-nebula-bloom-d",
+  "bg-nebula-ground",
+  "nebula-canvas",
   // Buttons + surfaces (@layer components).
   "btn-destructive",
   "btn-laser",
