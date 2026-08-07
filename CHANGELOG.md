@@ -6,6 +6,68 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### The tray's Originals dial is a pill again
+
+On-device feedback: the bare 10px "Originals stored" text read as a
+caption, not a control — nothing about it said tappable. It now wears
+the app chip recipe (glass fill, rounded-full, text-xs — the
+LibraryFilterSheet/DraftsToolbar quiet arm) with an 8px state dot:
+pulse-filled while originals are stored, hollow while not kept, so the
+state never rides on color alone. This reverses the earlier "one step
+smaller and quieter" ruling from the attach-rail pass; the half that
+survives is the reason it was made quiet — the dial still never takes a
+laser fill, because a standing preference must not compete with Attach
+or ENHANCE beside it. `aria-pressed` and the "Originals …" accessible
+name are unchanged, so the privacy sheet's pointer to "the tray's
+'Originals' toggle" stays truthful.
+
+### Streaming output is a live console card
+
+On-device report: the token stream read as bland and hard to interpret —
+a bare glass card with a floating progress bar above it and a stock
+pulsing `▍`. The in-flight surface is now one cohesive card: a breathing
+beacon beside a STREAMING caption (the finished card's exact header
+geometry, so it morphs into "Enhanced" in place), the token ticker on
+the right, the slim sweep track and aria-live step line under the
+header, newly-arrived text materializing through a keyed opacity fade, a
+designed 2px accent caret, a travelling top-edge light while tokens
+arrive, and a skeleton wait-state before the first token. Wrapper and
+mono body classes stay byte-identical to TransformationDiff's, so the
+handoff never reflows. Closes ledger UX-03 — the card scrolls itself
+into view on run start (smooth, or instant under reduced motion) with a
+scroll margin clearing the sticky header; the growing tail is
+deliberately not followed — and PRI-013 — the visible `⌁ 5→9` cluster is
+decorative in both StreamProgress and the new ticker, while an sr-only
+"N tokens in, M out" phrase keeps the relationship audible (per a Codex
+review pass). Reduced motion collapses every new animation to its static
+base and swaps the edge light to the sweep's sanctioned slow pulse;
+Reduced effects removes the edge light entirely (gate test extended).
+Horizon's reserved in-flight `data-state` hook stays deliberately unlit:
+stream state lives client-side under a server-rendered Horizon, and the
+reduced-effects gate's specificity dance would have to grow in lockstep
+— deferred rather than half-shipped.
+
+### Thinking depth rows carry a filled meter, violet above High
+
+On-device request: in the Thinking depth sheet only Auto carried the
+rising-bars mark, so the ladder read as bare text with no scannable
+weight. The meter is now ALSO a readout — deliberately reversing
+`DepthGlyph`'s recorded "static by design… not a readout" ruling; the
+label stays authoritative, the meter now agrees with it. Sheet rows and
+the rail trigger fill bars to the chosen effort (Minimal 0 · Low 1 ·
+Medium 2 · High 3; unfilled bars stay faint at 0.28), keyed to the level
+id so the same id renders identically on every model's ladder. The two
+tiers above High (Extra High · Max) trade Silver for a new ultra-violet
+ink, and Max's tall bar overshoots the meter's top line — effort past
+the marked scale. The owner picked the ChatGPT-electric family
+(`#ab68ff`); dark is tuned to `#b47aff` because the raw pick measures
+4.499:1 on the composited glass card — a hair under the 4.5:1 text bar —
+and light is `#7c3aed` (every theme/surface combo clears text AA).
+`--ultra-ink` lives in globals.css (tokens.css is LOCKED), declared for
+dark + both light paths with a Tailwind `ultra` ink role; the
+3-declaration shape and the contrast floor are pinned in
+tests/unit/a11y.test.ts.
+
 ### Google's library accent is green; OpenAI's is a new magenta
 
 Owner direction from an on-device review: green reads as Google's

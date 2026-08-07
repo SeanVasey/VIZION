@@ -64,7 +64,7 @@ function ThinkingPickerImpl({
         }
       >
         <span className="sr-only">{label}: </span>
-        <DepthGlyph className="h-4 w-4 shrink-0 text-silver" />
+        <DepthGlyph level={value ?? null} className="h-4 w-4 shrink-0" />
         {/* `grow` mirrors the target trigger so a full-width variant would push
             the chevron to the edge; in the composer's content-width pill it is
             a no-op. */}
@@ -161,7 +161,7 @@ function ThinkingPickerSheet({
               // grown content renders flush against the card borders.
               className="font-body flex min-h-[44px] w-full items-center gap-3 px-4 py-3 text-left text-sm text-text transition-colors hover-hair"
             >
-              <DepthGlyph className="h-4 w-4 shrink-0 text-silver" />
+              <DepthGlyph className="h-4 w-4 shrink-0" />
               <span className="grow">
                 Auto
                 <span className="block text-xs text-silver">
@@ -192,6 +192,7 @@ function ThinkingPickerSheet({
                   onClick={() => onPick(level)}
                   className="font-body flex min-h-[44px] items-center gap-3 px-4 py-3 text-left text-sm text-text transition-colors hover-hair"
                 >
+                  <DepthGlyph level={level} className="h-4 w-4 shrink-0" />
                   <span className="grow truncate">{THINKING_LEVEL_LABEL[level]}</span>
                   {active && <CheckGlyph />}
                 </button>
@@ -204,19 +205,59 @@ function ThinkingPickerSheet({
   );
 }
 
-/** Depth's category mark — a rising meter. Static by design: it names the
- *  control the way the developer mark names the target, and is not a readout
- *  of the chosen step (the label beside it is). */
-function DepthGlyph({ className }: { className?: string }) {
+/** Depth's category mark — a rising three-bar meter that is now ALSO a
+ *  readout: bars fill to the chosen effort, and the two tiers above High
+ *  (xhigh · max) trade Silver for the ultra-violet ink. This reverses the
+ *  earlier "static by design" ruling (owner request — the text-only rows
+ *  gave the choice no scannable weight; the label stays the authoritative
+ *  readout, the meter now agrees with it). `level` null/omitted renders the
+ *  neutral mark (the trigger under Auto, the Auto row) — pixel-identical to
+ *  the old single-path glyph. Keyed to the level id, not ladder position,
+ *  so the same id renders identically for every model's ladder. Max's tall
+ *  bar overshoots the meter's top line: effort past the marked scale. */
+const BAR_PATHS = ["M6 19v-4", "M12 19v-8", "M18 19V7"] as const;
+const MAX_TALL_PATH = "M18 19V4";
+const STRONG_BARS: Record<ThinkingLevel, 0 | 1 | 2 | 3> = {
+  minimal: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  xhigh: 3,
+  max: 3,
+};
+/** Faint enough to read as "empty slots", strong enough to keep the meter's
+ *  silhouette — the filled count is decoration over the label, never the
+ *  only signal. */
+const FAINT = 0.28;
+
+function DepthGlyph({
+  level = null,
+  className,
+}: {
+  level?: ThinkingLevel | null;
+  className?: string;
+}) {
+  const strong = level ? STRONG_BARS[level] : 3;
+  const ultra = level === "xhigh" || level === "max";
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className={className}>
-      <path
-        d="M6 19v-4M12 19v-8M18 19V7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={[className, ultra ? "text-ultra" : "text-silver"]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {BAR_PATHS.map((d, i) => (
+        <path
+          key={d}
+          d={i === 2 && level === "max" ? MAX_TALL_PATH : d}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          opacity={i < strong ? 1 : FAINT}
+        />
+      ))}
     </svg>
   );
 }

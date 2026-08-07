@@ -74,20 +74,30 @@ describe("attach rail", () => {
     expect(cls).not.toContain("text-xs");
   });
 
-  it("keeps the originals dial, quieter than the action beside it", () => {
+  it("gives the originals dial real pill chrome with a state dot", () => {
     renderTray();
-    const dial = screen.getByRole("button", { name: /Originals/ });
+    const dial = screen.getByRole("button", { name: /^Originals/ });
     expect(dial).toHaveAttribute("aria-pressed", "true");
     expect(dial).toHaveTextContent("stored");
-    // Smaller than the attach button, and small enough to need the 44pt
-    // hit-area extender rather than intrinsic size.
-    expect(dial.className).toContain("text-[0.625rem]");
+    // The app chip recipe (LibraryFilterSheet/DraftsToolbar's quiet arm) —
+    // reversing the earlier "smaller and quieter" bare-text ruling — plus the
+    // hit-area extender the ~30px visual still needs.
+    expect(dial.className).toContain("rounded-full");
+    expect(dial.className).toContain("glass");
+    expect(dial.className).toContain("text-xs");
     expect(dial.className).toContain("tap-44");
+    // Never the CTA treatment: it must not compete with Attach/ENHANCE.
+    expect(dial.className).not.toContain("bg-laser");
+    // Stored = filled pulse dot (decorative; the word carries the state).
+    expect(dial.querySelector(".bg-pulse")).not.toBeNull();
 
     fireEvent.click(dial);
     expect(useUIStore.getState().mediaStoreByDefault).toBe(false);
-    expect(screen.getByRole("button", { name: /Originals/ })).toHaveTextContent(
-      "not kept",
-    );
+    const off = screen.getByRole("button", { name: /^Originals/ });
+    expect(off).toHaveAttribute("aria-pressed", "false");
+    expect(off).toHaveTextContent("not kept");
+    expect(off.querySelector(".bg-pulse")).toBeNull();
+    // Not-kept = hollow dot, so the state never rides on color alone.
+    expect(off.querySelector(".border-hair")).not.toBeNull();
   });
 });

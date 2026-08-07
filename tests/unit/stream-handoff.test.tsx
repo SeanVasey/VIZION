@@ -44,7 +44,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockMutation.isPending = false;
   mockMutation.stream.active = false;
+  // Module-shared mock: the wait-state test empties this, so restore it.
+  mockMutation.stream.partialOutput = "half a prompt";
   useUIStore.setState({ editorDraft: "" });
+  // jsdom implements neither — StreamingResult touches both on mount (the
+  // UX-03 scroll-into-view), same stub composer-error.test.tsx carries.
+  window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as never;
+  HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
 describe("streaming → result handoff", () => {
@@ -68,6 +74,37 @@ describe("streaming → result handoff", () => {
     renderComposer();
     expect(screen.queryByLabelText("Enhancement in progress")).toBeNull();
     expect(screen.queryByTestId("result-view")).toBeNull();
+  });
+
+  it("shows a waiting skeleton before the first token, then the mono body", () => {
+    mockMutation.stream.active = true;
+    mockMutation.isPending = true;
+    mockMutation.stream.partialOutput = "";
+    renderComposer();
+    const card = screen.getByLabelText("Enhancement in progress");
+    expect(card.querySelector(".skeleton")).not.toBeNull();
+    expect(card.querySelector(".mono")).toBeNull();
+  });
+
+  it("keeps the ⌁ ticker decorative while an sr-only phrase relates the counts (PRI-013)", () => {
+    mockMutation.stream.active = true;
+    mockMutation.isPending = true;
+    renderComposer();
+    const card = screen.getByLabelText("Enhancement in progress");
+    // The visible glyph cluster is hidden from AT wholesale — hiding only
+    // the arrow would announce "5 9 tok", two counts with no relationship.
+    const visible = [...card.querySelectorAll('span[aria-hidden="true"]')].find(
+      (s) => /⌁/.test(s.textContent ?? ""),
+    );
+    expect(visible).toBeTruthy();
+    expect(visible!.textContent).toContain("→");
+    // ...and the relationship survives as a readable phrase (mock: 5 in, 9 out).
+    const phrase = [...card.querySelectorAll(".sr-only")].find((s) =>
+      /tokens in/.test(s.textContent ?? ""),
+    );
+    expect(phrase).toBeTruthy();
+    expect(phrase!.textContent).toContain("5");
+    expect(phrase!.textContent).toContain("9");
   });
 });
 

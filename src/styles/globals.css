@@ -146,6 +146,31 @@
     }
   }
 
+  /* Ultra-tier ink — the violet marking the two reasoning depths above High
+     (xhigh · max) in the thinking meter. An INK role only (glyph strokes /
+     text): never a fill under --on-laser, and never developer identity —
+     the --dev-* corridor is library-list-only. Lives here, not in the
+     LOCKED tokens.css — same containment as --glass-still above — and is
+     declared THREE times for the same reason: the light theme exists twice
+     (explicit choice + system path). The owner picked the ChatGPT-electric
+     family (#ab68ff), which measures 4.499:1 on the composited dark glass
+     card (#23252A) — a hair under the 4.5:1 text bar — so dark is tuned to
+     #b47aff: same hue, 6.50:1 page / 5.24:1 glass / 5.57:1 surface. Light
+     #7c3aed measures 4.99:1 page / 5.56:1 glass / 5.50:1 surface. Every
+     theme/surface combo clears text AA (pinned in tests/unit/a11y.test.ts),
+     so this ink can never join laser's thin-stroke-on-light failure class. */
+  :root {
+    --ultra-ink: #b47aff;
+  }
+  :root[data-theme="light"] {
+    --ultra-ink: #7c3aed;
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="system"] {
+      --ultra-ink: #7c3aed;
+    }
+  }
+
   body {
     /* NO background here. A body background paints ABOVE negative-z-index
        fixed layers (only the ROOT element's background sits beneath them), so
@@ -864,12 +889,13 @@
 
   /* Reduced effects (Settings → Appearance): a device-local comfort/perf
      knob that silences the AMBIENT layers — mesh canvas, aurora blooms, the
-     result shimmer — while leaving functional motion (sheets, progress)
-     governed by the OS reduced-motion preference. Applied as a root
-     attribute by ReducedEffectsManager. */
+     result shimmer, the streaming card's top-edge light — while leaving
+     functional motion (sheets, progress) governed by the OS reduced-motion
+     preference. Applied as a root attribute by ReducedEffectsManager. */
   [data-reduced-effects] .bg-aurora,
   [data-reduced-effects] .mesh-canvas,
-  [data-reduced-effects] .result-shimmer::before {
+  [data-reduced-effects] .result-shimmer::before,
+  [data-reduced-effects] .stream-live::after {
     display: none;
   }
   /* Grain is ambient texture, so it answers to the same switch — otherwise
@@ -1099,8 +1125,95 @@
       background-position-x: 160%;
     }
   }
+
+  /* The streaming card's "live" layer — an accent light travelling the top
+     edge while tokens arrive. A ::after so the pinned .result-shimmer::before
+     hairline underneath stays untouched; reuses @keyframes stream-sweep (one
+     keyframe, two consumers). Ambient decoration: it answers to Reduced
+     effects (the display:none gate above) and joins the sweep's sanctioned
+     slow pulse under reduced motion (the media block below). */
+  .stream-live {
+    position: relative;
+  }
+  .stream-live::after {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--accent-ink) 45%,
+      var(--accent-ink) 55%,
+      transparent 100%
+    );
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-ink) 25%, transparent);
+    opacity: 0.9;
+    animation: stream-sweep 1.4s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  /* Status beacon beside the STREAMING caption. Functional state (like the
+     CTA spinner), so NOT under the Reduced-effects gate; the OS
+     reduced-motion collapse ends the breathe after one 0.01ms iteration, and
+     the base declarations ARE the static rest state — a full-opacity dot. */
+  .stream-beacon {
+    display: inline-block;
+    height: 8px;
+    width: 8px;
+    border-radius: 9999px;
+    background: var(--accent-ink);
+    box-shadow: 0 0 8px var(--laser-glow);
+    animation: beacon-breathe 1.8s ease-in-out infinite;
+  }
+  @keyframes beacon-breathe {
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  /* Newly-arrived stream text materializes. Opacity-only: the span is an
+     INLINE box inside whitespace-pre-wrap — transforms don't apply to inline
+     boxes, and inline-block would break line wrapping. From 0.25, not 0, so
+     the newest words stay readable mid-stream. Functional feedback, governed
+     by the OS collapse alone: one 0.01ms iteration → rests at full opacity. */
+  .stream-tail {
+    animation: stream-tail-in 220ms ease-out;
+  }
+  @keyframes stream-tail-in {
+    from {
+      opacity: 0.25;
+    }
+  }
+
+  /* The designed caret: a rounded accent filament with the Laser bloom.
+     inline-block is safe here (a terminal 2px element wraps as a unit); the
+     base state is the solid caret, which is what the reduced-motion collapse
+     leaves standing. --accent-ink, not raw --laser: the caret is a thin
+     stroke, the contrast-law failure class on light (§6). */
+  .stream-caret {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    margin-left: 2px;
+    vertical-align: -0.15em;
+    border-radius: 9999px;
+    background: var(--accent-ink);
+    box-shadow: 0 0 8px var(--laser-glow);
+    animation: caret-blink 1.1s ease-in-out infinite;
+  }
+  @keyframes caret-blink {
+    50% {
+      opacity: 0.15;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .stream-progress-sweep {
+    .stream-progress-sweep,
+    .stream-live::after {
       /* !important on purpose (A11Y-010): the base-layer reduced-motion
          collapse clamps every animation to 0.01ms with !important, which
          made this documented "slow opacity pulse" dead code — it played one
@@ -1108,7 +1221,8 @@
          more specific selector wins, so the pulse actually runs. A slow
          opacity fade is exactly the kind of motion reduced-motion permits;
          users who need NONE still get the static segment via
-         (prefers-reduced-motion: reduce) and (update: slow) UAs. */
+         (prefers-reduced-motion: reduce) and (update: slow) UAs. The card's
+         top-edge light shares the treatment — same sweep, same substitute. */
       animation: stream-pulse 2.4s ease-in-out infinite !important;
       background-position-x: 30%;
     }

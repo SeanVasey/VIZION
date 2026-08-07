@@ -680,19 +680,32 @@ function AttachmentTrayImpl({
             </span>
           </button>
         </div>
-        {/* The storage dial stays a real toggle but gets quieter: it reports a
-            standing preference and must not compete with the action beside it.
-            Sentence case, NOT the rails' micro-caps — that register belongs to
-            the captions (TARGET · THINKING), and borrowing it here would make a
-            control read as a label. */}
+        {/* The storage dial is a real chip again — reversing the 2026-07
+            "smaller and quieter" ruling: on-device feedback read the bare 10px
+            text as a caption, not a control. It borrows the app chip recipe
+            (LibraryFilterSheet/DraftsToolbar's quiet arm) but deliberately
+            NEVER the bg-laser active fill — it reports a standing preference
+            and must not compete with Attach or ENHANCE beside it. State is
+            carried by the word plus an 8px dot, pulse-filled when originals
+            are stored and hollow when not kept (never color alone). Sentence
+            case, NOT the rails' micro-caps, for the same register reason as
+            before: micro-caps belong to the captions (TARGET · THINKING). */}
         <button
           type="button"
           onClick={() => setMediaStoreByDefault(!mediaStoreByDefault)}
           aria-pressed={mediaStoreByDefault}
-          className="tap-44 font-body shrink-0 text-[0.625rem] text-silver transition-colors hover:text-chalk"
+          className="tap-44 font-body glass inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-silver transition-colors hover:text-chalk"
         >
-          Originals{" "}
-          <span className="text-text">{mediaStoreByDefault ? "stored" : "not kept"}</span>
+          <span
+            aria-hidden="true"
+            className={`h-2 w-2 shrink-0 rounded-full ${
+              mediaStoreByDefault ? "bg-pulse" : "border border-hair"
+            }`}
+          />
+          <span>Originals</span>
+          <span className="text-text">
+            {mediaStoreByDefault ? "stored" : "not kept"}
+          </span>
         </button>
       </div>
       {helpOpen && (
