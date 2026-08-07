@@ -6,6 +6,31 @@ All notable changes to VIZ(IO)N are documented here. The format follows
 
 ## [Unreleased]
 
+### Streaming output is a live console card
+
+On-device report: the token stream read as bland and hard to interpret —
+a bare glass card with a floating progress bar above it and a stock
+pulsing `▍`. The in-flight surface is now one cohesive card: a breathing
+beacon beside a STREAMING caption (the finished card's exact header
+geometry, so it morphs into "Enhanced" in place), the token ticker on
+the right, the slim sweep track and aria-live step line under the
+header, newly-arrived text materializing through a keyed opacity fade, a
+designed 2px accent caret, a travelling top-edge light while tokens
+arrive, and a skeleton wait-state before the first token. Wrapper and
+mono body classes stay byte-identical to TransformationDiff's, so the
+handoff never reflows. Closes ledger UX-03 — the card scrolls itself
+into view on run start (smooth, or instant under reduced motion) with a
+scroll margin clearing the sticky header; the growing tail is
+deliberately not followed — and PRI-013 — the `⌁`/`→` usage glyphs are
+decorative in both StreamProgress and the new ticker, numbers still
+announced. Reduced motion collapses every new animation to its static
+base and swaps the edge light to the sweep's sanctioned slow pulse;
+Reduced effects removes the edge light entirely (gate test extended).
+Horizon's reserved in-flight `data-state` hook stays deliberately unlit:
+stream state lives client-side under a server-rendered Horizon, and the
+reduced-effects gate's specificity dance would have to grow in lockstep
+— deferred rather than half-shipped.
+
 ### Thinking depth rows carry a filled meter, violet above High
 
 On-device request: in the Thinking depth sheet only Auto carried the

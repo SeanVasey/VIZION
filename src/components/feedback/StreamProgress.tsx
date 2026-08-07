@@ -40,8 +40,13 @@ export function StreamProgress({
           {step}
         </span>
         {showUsage && (
+          // Numbers announced, glyphs decorative (PRI-013 — the same split
+          // EnhanceComposer's ⌁ readout already makes).
           <span className="font-body shrink-0 text-xs tabular-nums text-silver">
-            ⌁ {tokenIn}→{tokenOut} tok
+            <span aria-hidden="true">⌁ </span>
+            {tokenIn}
+            <span aria-hidden="true">→</span>
+            {tokenOut} tok
             {typeof costUsd === "number" && costUsd > 0 && ` · $${costUsd.toFixed(4)}`}
           </span>
         )}

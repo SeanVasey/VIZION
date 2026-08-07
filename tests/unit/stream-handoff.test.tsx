@@ -44,7 +44,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockMutation.isPending = false;
   mockMutation.stream.active = false;
+  // Module-shared mock: the wait-state test empties this, so restore it.
+  mockMutation.stream.partialOutput = "half a prompt";
   useUIStore.setState({ editorDraft: "" });
+  // jsdom implements neither — StreamingResult touches both on mount (the
+  // UX-03 scroll-into-view), same stub composer-error.test.tsx carries.
+  window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as never;
+  HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
 describe("streaming → result handoff", () => {
@@ -68,6 +74,32 @@ describe("streaming → result handoff", () => {
     renderComposer();
     expect(screen.queryByLabelText("Enhancement in progress")).toBeNull();
     expect(screen.queryByTestId("result-view")).toBeNull();
+  });
+
+  it("shows a waiting skeleton before the first token, then the mono body", () => {
+    mockMutation.stream.active = true;
+    mockMutation.isPending = true;
+    mockMutation.stream.partialOutput = "";
+    renderComposer();
+    const card = screen.getByLabelText("Enhancement in progress");
+    expect(card.querySelector(".skeleton")).not.toBeNull();
+    expect(card.querySelector(".mono")).toBeNull();
+  });
+
+  it("keeps the ⌁ ticker glyphs decorative while numbers stay announced (PRI-013)", () => {
+    mockMutation.stream.active = true;
+    mockMutation.isPending = true;
+    renderComposer();
+    const card = screen.getByLabelText("Enhancement in progress");
+    for (const glyph of card.querySelectorAll("span")) {
+      const text = glyph.textContent ?? "";
+      if (/[⌁→]/.test(text) && !/\d/.test(text)) {
+        expect(glyph).toHaveAttribute("aria-hidden", "true");
+      }
+    }
+    // The mock's tokenIn/tokenOut — the readable half of the ticker.
+    expect(card.textContent).toContain("5");
+    expect(card.textContent).toContain("9");
   });
 });
 

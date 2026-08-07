@@ -66,6 +66,10 @@ beforeEach(() => {
     },
   );
   useUIStore.setState({ editorDraft: "" });
+  // jsdom implements neither — StreamingResult touches both on mount (the
+  // UX-03 scroll-into-view), and the in-flight Clear test mounts it.
+  window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as never;
+  HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
 describe("composer Clear (was RESET)", () => {
