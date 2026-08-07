@@ -86,6 +86,9 @@ describe("useEnhanceViewStore", () => {
       { ...VALID_VIEW, result: { ...VALID_VIEW.result, output: 42 } },
       { ...VALID_VIEW, submitted: { ...VALID_VIEW.submitted, mode: "bogus" } },
       { ...VALID_VIEW, submitted: { ...VALID_VIEW.submitted, format: "bogus" } },
+      { ...VALID_VIEW, rejected: ["0"] }, // strings would poison the Set
+      { ...VALID_VIEW, rejected: [-1] },
+      { ...VALID_VIEW, rejected: [0.5] },
     ]) {
       // Order matters: setState writes through persist, so seed AFTER it.
       useEnhanceViewStore.setState({ view: VALID_VIEW });
@@ -106,6 +109,7 @@ describe("useEnhanceViewStore", () => {
         salvaged: true,
       },
       refined: true,
+      rejected: [0, 2],
     };
     seedStorage(rich);
     void useEnhanceViewStore.persist.rehydrate();

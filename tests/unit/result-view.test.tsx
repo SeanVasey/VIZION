@@ -284,4 +284,40 @@ describe("Polish per-change accept/reject", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     expect(clipboardWrite).toHaveBeenLastCalledWith(output);
   });
+
+  it("initialRejected seeds the revert set on mount (a navigation remount)", () => {
+    // The Codex P1 on PR #85: the view survives navigation but the revert
+    // decisions were component state — a remount silently shipped the
+    // model's fully-accepted output. The seed must survive the reset effect's
+    // first run AND drive every export payload.
+    renderView({
+      mode: "polish",
+      input: INPUT,
+      result: makeResult(INPUT, OUTPUT),
+      initialRejected: [0],
+    });
+    expect(screen.getByText("0/1 changes kept")).toBeTruthy();
+    // The reverted hunk offers Keep (aria-pressed=false), not Revert.
+    expect(screen.getByRole("button", { name: "Keep" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    expect(clipboardWrite).toHaveBeenCalledWith(INPUT);
+  });
+
+  it("reports every revert-set change through onRejectedChange", () => {
+    const onRejectedChange = vi.fn();
+    const input = "alpha one beta two gamma";
+    const output = "alpha ONE beta TWO gamma";
+    renderView({
+      mode: "polish",
+      input,
+      result: makeResult(input, output),
+      onRejectedChange,
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Revert" })[0]!);
+    expect(onRejectedChange).toHaveBeenLastCalledWith(new Set([0]));
+    fireEvent.click(screen.getByRole("button", { name: "Revert all" }));
+    expect(onRejectedChange).toHaveBeenLastCalledWith(new Set([0, 1]));
+    fireEvent.click(screen.getByRole("button", { name: "Keep all" }));
+    expect(onRejectedChange).toHaveBeenLastCalledWith(new Set());
+  });
 });

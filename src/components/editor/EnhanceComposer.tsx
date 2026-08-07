@@ -330,6 +330,23 @@ export function EnhanceComposer() {
     [targetModel, setThinkingLevel],
   );
 
+  // Persist Polish's revert decisions with the result they belong to — as
+  // component state in the diff they died on navigation while the result now
+  // survives, silently shipping the model's fully-accepted output (Codex
+  // review, PR #85). Reads the store imperatively so the identity stays
+  // stable and the memoized diff holds (the handleUse pattern, PERF-003).
+  const handleRejectedChange = useCallback((next: ReadonlySet<number>) => {
+    const store = useEnhanceViewStore.getState();
+    const current = store.view;
+    if (!current) return;
+    store.setView({
+      ...current,
+      // `undefined` (not a dropped key) when empty — JSON serialization
+      // erases it, so the persisted envelope stays clean either way.
+      rejected: next.size > 0 ? [...next].sort((a, b) => a - b) : undefined,
+    });
+  }, []);
+
   return (
     <section className="flex flex-col gap-5">
       {/* An incoming shared prompt that would have overwritten real work.
@@ -702,6 +719,8 @@ export function EnhanceComposer() {
           onUse={handleUse}
           onRefine={handleRefine}
           onAnswer={handleAnswer}
+          initialRejected={view.rejected}
+          onRejectedChange={handleRejectedChange}
         />
       )}
 

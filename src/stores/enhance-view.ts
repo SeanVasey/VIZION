@@ -34,6 +34,13 @@ export interface EnhanceView {
   /** True once a refinement pass replaced the result — the diff's input
    *  side is then the previous result, not the author's original. */
   refined?: boolean;
+  /** Polish's per-change review: hunk indices the user REVERTED. Part of the
+   *  view because the decisions are meaningless apart from this result's
+   *  diff — a new run replaces the whole object and the set resets with it.
+   *  Absent = nothing reverted. Copy/Use/Save/Share/export all read the
+   *  output WITH these applied, so losing them would silently ship the
+   *  model's fully-accepted version (Codex review, PR #85). */
+  rejected?: readonly number[];
 }
 
 interface EnhanceViewState {
@@ -113,7 +120,17 @@ function isPersistableView(v: unknown): v is EnhanceView {
     typeof r.usage === "object" &&
     r.usage !== null &&
     (r.resolvedTarget === undefined ||
-      (typeof r.resolvedTarget === "string" && VALID_TARGETS.has(r.resolvedTarget)))
+      (typeof r.resolvedTarget === "string" && VALID_TARGETS.has(r.resolvedTarget))) &&
+    (() => {
+      // Rejected hunk indices, if present: non-negative integers. An index
+      // beyond this diff's hunk count is harmless (applyDecisions matches
+      // nothing), but a non-number would poison the Set downstream.
+      const rejected = (v as { rejected?: unknown }).rejected;
+      return (
+        rejected === undefined ||
+        (Array.isArray(rejected) && rejected.every((n) => Number.isInteger(n) && n >= 0))
+      );
+    })()
   );
 }
 

@@ -30,6 +30,15 @@ before it can ever render, the `editorDraft` rule extended. A run still
 in flight during navigation is out of scope here: the stream aborts on
 unmount as designed, and keeping it alive is its own piece of work.
 
+Polish's per-change revert decisions ride along (a Codex review catch on
+the PR): they were component state inside the diff, so with the result
+now surviving navigation a remount would have silently forgotten which
+edits were reverted and shipped the model's fully-accepted output to
+Copy/Use/Save/Share/export. The revert set persists inside the view
+object — it is meaningless apart from this result's diff, and a new run
+replaces both together — seeded back into the diff on mount and
+reported out on every change.
+
 ### The tray's Originals dial is a pill again
 
 On-device feedback: the bare 10px "Originals stored" text read as a
