@@ -298,7 +298,7 @@ fallback; a11y pass (Lighthouse to be run against a deployed preview).
   and `AuthHero` keep working with zero ref churn — one `npm run generate:icons`
   re-derives all 32 outputs. The root-level uploads were just the delivery vehicle;
   delete them so the single source of truth stays in `public/brand/`.
-- **A non-square glyph breaks fixed square sizing.** The new glyph is 1872×1084, not
+- **A non-square glyph breaks fixed square sizing.** The new glyph is 1560×987, not
   the old 1024² square. `next/image` with `width={150} height={150}` would distort
   it — size by one axis (`w-[260px] h-auto`) to preserve aspect. The generator's
   `fit: "contain"` already handles the square PNG matrix (it letterboxes), so only
@@ -2582,3 +2582,25 @@ render identical; account change wipes storage before rehydrating (the
   re-writing its state afterwards. Every persisted envelope that can
   carry private content needs an owner stamp checked on every load, not
   only at the wipe.
+
+## I›O mark swap — the maskable factor and the palette are both derived, not free
+
+- **The maskable safe-zone factor is coupled to the glyph's aspect ratio.** With
+  `fit: "contain"`, a wide glyph in a square bounding box renders at the box's
+  full width, so its corners land at `0.5 × factor × √(1 + 1/aspect²) × size`
+  from centre. The old `0.78` factor was sized for the 1.727:1 art; the new
+  1.581:1 mark at `0.78` puts corners at ≈0.46 × size — outside Android's
+  0.40 × size maskable safe circle — so the ring would be clipped on masked
+  launchers. `0.68` brings the corners back to ≈0.40 × size. Lesson: any time
+  the mark's viewBox aspect changes, re-derive the maskable factor from the
+  geometry; it is not a taste knob.
+- **The tile is a token consumer, not an independent palette.** The previous
+  icon art was authored outside `src/styles/tokens.css` and drifted a full hue
+  band from the brand accent: hue 64–74° greens (`#eaf72b`/`#aace04`/`#84ac00`)
+  against `--laser: #b7ff3c` at hue 82°. Nothing caught it because the SVGs
+  never reference the token file. The re-cut anchors every green on `--laser`
+  (gradient `#ceff7a → #b7ff3c → #81cc00`) and the neutrals on the
+  `--onyx`/`--lift`/`--void-2` ramp. Lesson: when authoring brand artwork,
+  start from the token hexes and diff the art's palette against `tokens.css`
+  before committing — the icon must re-derive from the tokens, never
+  approximate them.

@@ -5,14 +5,13 @@
 // SVGs using sharp. Run with: node scripts/generate-icons.mjs
 //
 // Sources (master, hand-authored artwork — see public/brand/):
-//   • vizion-icon-token.svg — the full app icon: a glossy black squircle with a
-//     lime-green glowing border framing the aperture glyph (neon bar, chevron and
-//     split ring between two chrome parentheses). Used for opaque surfaces:
-//     apple-touch-icon, favicons, and the App Router icon/apple-icon.
-//   • vizion-mark-token.svg — the aperture glyph ALONE (chrome parentheses, neon
-//     bar/chevron/split-ring, dot accents and lens flares) on a transparent
-//     ground. Used for the transparent "any" PWA matrix, the maskable safe zone,
-//     and the iOS splash glyph.
+//   • vizion-icon-token.svg — the full app icon: a glossy near-black squircle
+//     with a laser-green glowing border framing the I›O mark (bar, chevron and
+//     split ring). Used for opaque surfaces: apple-touch-icon, favicons, and
+//     the App Router icon/apple-icon.
+//   • vizion-mark-token.svg — the I›O mark ALONE (laser-green bar, chevron and
+//     split ring) on a transparent ground. Used for the transparent "any" PWA
+//     matrix, the maskable safe zone, and the iOS splash glyph.
 //
 // Idempotent: every output is overwritten on each run.
 
@@ -144,12 +143,15 @@ async function main() {
     await renderSquarePng(markSvg, size, out);
   }
 
-  // 2. Maskable set: mark inside the inner ~78% safe zone on a full-bleed Void
-  //    canvas, so the OS maskable crop never clips the aperture.
+  // 2. Maskable set: mark centered on a full-bleed Void canvas, sized so the
+  //    art's corners stay inside the Android maskable safe circle — the
+  //    rendered corner radius must stay ≤ 0.40 × size. With fit: "contain" and
+  //    the 1560×987 (1.581:1) mark, a 0.68 bounding box puts the corners at
+  //    ≈0.40 × size from centre; anything larger gets clipped by the mask.
   console.log("Rendering maskable icons...");
   for (const size of [192, 512]) {
     const out = path.join(ICONS_DIR, `maskable-${size}.png`);
-    await renderMarkOnVoid(markSvg, size, size, Math.round(size * 0.78), out);
+    await renderMarkOnVoid(markSvg, size, size, Math.round(size * 0.68), out);
   }
 
   // 3. apple-touch-icon (opaque branded tile — iOS ignores transparency).
