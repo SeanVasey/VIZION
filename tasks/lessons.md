@@ -2634,6 +2634,74 @@ render identical; account change wipes storage before rehydrating (the
   rule: every light value is written twice (explicit + system-light), and
   forgetting the media block hands system-light users the dark values.
 
+## NEBULA+ on a phone — the unit was right on the machine it was designed on
+
+- **`vmax` silently changes which axis it means when the device rotates.**
+  The blooms were authored in `vmax` against a 1280×800 landscape
+  reference, where width is the larger axis and `vmax` is therefore
+  indistinguishable from `vw`. On a portrait phone the same numbers pin to
+  the HEIGHT axis instead, and an 80`vmax` bloom renders at 173% of the
+  screen's width. Nothing was wrong with the values; the unit meant
+  something different on the target device than it did on the design
+  surface. Treat `vmax`/`vmin` as orientation-dependent and check any
+  viewport unit against both orientations before shipping it — and note
+  that a bare `vmax`→`vw` swap only fixes portrait, because on a short
+  landscape screen `vmax` already WAS `vw`. The per-axis
+  `min(Nvw, Mvh)` clamp is what covers both.
+- **`getBoundingClientRect()` is the wrong instrument for verifying declared
+  geometry on an animated element.** It returns the post-transform box, so
+  three of the four blooms — whose keyframes start at a non-identity
+  `scale()` — never measure their declared size at any moment past t=0, and
+  the first verification run "failed" on correct CSS. `getComputedStyle`
+  resolves `calc()`/`min()`/`vw`/`vh` to pixels without the transform, and
+  is what a geometry assertion wants.
+- **A stale dev server outlives the build it was serving.** A `next start`
+  from an earlier check kept running after a clean rebuild, serving a
+  manifest whose hashed CSS filenames no longer existed — every stylesheet
+  404'd, so the page rendered unstyled and every geometry number came back
+  identical and wrong. `lsof`-based kills missed it; it needed killing by
+  PID. When measurements look uniformly impossible, verify the harness
+  before debugging the code, and confirm the asset actually loaded.
+- **An authed page ignores `emulateMedia({colorScheme})`.** `ProfileHydrator`
+  stamps `data-theme` from the signed-in profile, so a "light theme" check
+  that only emulates the media query silently measures the dark tokens —
+  and comparing dark text against a light-composited wall produces a
+  confident, meaningless failure. Drive the app's own theme control instead,
+  and assert the tokens actually swapped before trusting the numbers.
+- **`getComputedStyle` verifies the box, not the keyframes — so a unit change
+  inside `@keyframes` passes a "geometry unchanged" check.** The same commit
+  that fixed the `vmax` bug converted bloom C's drift to bare `vw`/`vh`
+  instead of the diameter-ratio form the other three got, and the
+  verification script — which reads declared width/height/offsets — never
+  evaluates an animation's transform, so the one value that moved was outside
+  the instrument's field of view. At the 1280×800 reference `3vmax` is 38.4px
+  but `3vh` is 24px: a silent 37.5% loss of vertical travel at the very
+  viewport the motion was tuned against, plus a 3.47× disproportion on a
+  portrait phone. Assert keyframe values directly; do not infer them from the
+  element's box. `tests/unit/ambient-geometry.test.ts` now greps for exactly
+  this.
+- **Verify a comment's claim about the PRIOR code against `git show
+  <base>:<path>`, not against the code in front of you.** The comment shipped
+  alongside that change asserted bloom C's drift "was already axis-correct —
+  not vmax". It was reconstructed from the post-change code and was false —
+  the base commit reads `translate(-4vmax, 3vmax)`. Source comments are
+  living canon here (`docs/decisions/0005-living-canon.md`), so a comment
+  that misdescribes history is a defect in the canon, and it strands the next
+  maintainer with a false premise for an exemption that no longer exists.
+- **Mixing `vw`/`vh` drift with a `min(Nvw, Mvh)` diameter decouples them.**
+  Which branch of the `min()` wins varies by viewport, so only the ratio form
+  (`calc(var(--bloom-size) * N / 46)`) stays proportional on both branches —
+  a bare `vw` drift also comes apart at short-landscape sizes like 1280×500,
+  where the diameter takes the vh branch while the drift does not.
+- **A legibility fix that changes an element's visual weight is a design
+  change, and needs to be looked at.** Adding `.glass` to the mode caption
+  fixed the contrast margin and turned a one-line secondary caption into a
+  third bordered card stacked under two other cards — contradicting the
+  comment directly above it, which said "not a card". The right instrument
+  was a fill with no hairline, sheen or blur (`.ambient-scrim`, on the
+  existing DSN-010 `--scrim-panel` wash). Render the screen and look at it;
+  a contrast ratio alone cannot tell you the fix is wrong.
+
 ## Maroon · Qwen3.8 · one stream light · the 55s cutoff
 
 - **An SDK `timeout` is a whole-request deadline, not a connect timeout.** The

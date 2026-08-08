@@ -58,6 +58,16 @@ export function AmbientNebula() {
     const WRAP = 40; // wrap margin, px — particles re-enter on the far side.
     const ACCENT_COUNT = 9;
     const LASER_RGB = "183, 255, 60";
+    // Owner tune: core dots read too faint at the NEBULA+ table alphas.
+    // Applied before the light-theme multiplier, so its clamps still bound.
+    // On LIGHT the boost is therefore mostly notional: light already
+    // multiplies by 2.2, so the near tier's accent cores were clipping at the
+    // 0.85 ceiling for the brighter half of their pulse before this, and now
+    // sit at the ceiling for effectively all of it — those cores read steady
+    // rather than breathing. That is the contrast clamp doing its job (§6),
+    // not a bug: the alternative is a brighter accent on a light surface.
+    // Dark has no such ceiling and takes the full 20%.
+    const CORE_BOOST = 1.2;
 
     // Parallax tiers, far → mid → near: [rMin, rMax, speed, brightness].
     // A particle's tier is its index mod 3, so the tiers stay interleaved
@@ -92,8 +102,7 @@ export function AmbientNebula() {
       const c = cssColor.trim();
       const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c)?.[1];
       if (hex) {
-        const full =
-          hex.length === 3 ? hex.replace(/./g, (ch) => ch + ch) : hex;
+        const full = hex.length === 3 ? hex.replace(/./g, (ch) => ch + ch) : hex;
         const n = parseInt(full, 16);
         return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
       }
@@ -102,9 +111,7 @@ export function AmbientNebula() {
       // parse — a strict comma regex would fail on `rgb(185 188 197)` and
       // silently fall back to the dark defaults on a light canvas.
       const nums = c.match(/\d+/g);
-      return nums && nums.length >= 3
-        ? `${nums[0]}, ${nums[1]}, ${nums[2]}`
-        : null;
+      return nums && nums.length >= 3 ? `${nums[0]}, ${nums[1]}, ${nums[2]}` : null;
     }
 
     function resolvePalette() {
@@ -136,9 +143,7 @@ export function AmbientNebula() {
     }
 
     function seed() {
-      particles = Array.from({ length: targetCount() }, (_, i) =>
-        makeParticle(i),
-      );
+      particles = Array.from({ length: targetCount() }, (_, i) => makeParticle(i));
     }
 
     function targetCount() {
@@ -203,7 +208,7 @@ export function AmbientNebula() {
           const rgb = accent ? accentRgb : silverRgb;
           let haloA = (accent ? 0.2 : 0.13) * glow * brightness;
           let coreA =
-            (accent ? 0.32 + 0.28 * glow : 0.24 + 0.2 * glow) * brightness;
+            (accent ? 0.32 + 0.28 * glow : 0.24 + 0.2 * glow) * brightness * CORE_BOOST;
           if (isLight) {
             haloA = Math.min(haloA * 2.2, 0.45);
             coreA = Math.min(coreA * 2.2, accent ? 0.85 : 0.8);
@@ -325,7 +330,10 @@ export function AmbientNebula() {
   }, []);
 
   return (
-    <div aria-hidden="true" className="bg-nebula pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div
+      aria-hidden="true"
+      className="bg-nebula pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+    >
       {/* Static vignette ground — always present; under reduced-motion the
           blooms and canvas are display:none and this is the whole bg. */}
       <div className="bg-nebula-ground absolute inset-0" />

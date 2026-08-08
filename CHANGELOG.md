@@ -106,6 +106,48 @@ model…"), which the edge light did not. Reduced-effects users already ran
 bar-only, so this converges the two rendering paths rather than adding a third.
 The static `.result-shimmer::before` hairline underneath is untouched.
 
+### The ambient blooms stop overrunning a phone screen
+
+The four NEBULA+ blooms were sized, positioned and animated in
+`vmax`, which resolves to the larger of viewport width or height. On
+the 1280×800 landscape reference that behaves exactly like `vw`, so
+the design read correctly there and only there: on a portrait phone
+the same numbers pinned to the height axis instead, and bloom B
+rendered at 173% of the viewport width — a wash over the whole screen
+rather than a drifting glow. Each bloom now takes its diameter from
+`min(Nvw, Mvh)` with M = N × 1.6, the reference's own aspect ratio,
+which reproduces the original pixel geometry exactly at 1280×800,
+restores the intended 70/80/46/38% footprint on portrait, and caps
+the inverse case as well — a short landscape phone, where `vmax`
+already equalled `vw` and a plain unit swap would have changed
+nothing. Offsets and keyframe drift ride a per-bloom `--bloom-d`
+custom property at their original ratio to the diameter, so they
+scale with the clamped size instead of drifting out of proportion.
+Bloom C keeps its `30vw`/`36vh` position, which was already
+axis-correct.
+
+The mode-description caption gains `.ambient-scrim`, a new fill-only
+surface. It was the one piece of on-screen text with no tier between
+it and the ambient layer, and a bloom drifting behind light-theme
+`--silver` left it at 4.83:1 — over the AA bar, but with little room
+for a second overlapping bloom or a passing mote. The scrim is the
+DSN-010 `--scrim-panel` wash and nothing else: no hairline, no sheen,
+no grain, no blur, because the glass tiers would have made a one-line
+caption read as a third stacked card beneath the mode rail. It
+measures 5.51:1 light and 9.22:1 dark, and being `--void`-based it
+inverts with the theme without a tri-block.
+
+### The NEBULA+ glow steps down and the particles step up
+
+Owner tune after seeing the composite in production: the top/bottom
+glow read ~30% too strong, and the drifting motes too faint. The four
+bloom peak alphas drop ×0.7 in both themes (dark A/B/C/D now 11.2% ·
+9.8% · 0.077 · 6.3%; light 15.4% · 0.119 · 0.098 · 9.1%), and the
+particle core dots gain a ×1.2 boost applied before the light-theme
+multiplier so its clamps still bound. Halos, the ground vignette, and
+every behavioural invariant (30fps gate, pause, theme reactivity, no
+raw Laser on light) are untouched.
+
 ### The I›O mark is re-cut with solid chevron and ring wedges
 
 Corrected masters replace the first I›O cut: the chevron and the two

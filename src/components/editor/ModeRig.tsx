@@ -19,9 +19,15 @@ import { MODE_BLURB } from "@/lib/enhance/modes";
  * secondary text showing one mode description — the hovered/focused cell,
  * falling back to the active mode. (The 2026-07 UX audit demoted the old
  * onyx card + caret: the explanation is guidance, not a surface, and must
- * not cost a full card of vertical space.)  All six blurbs stay stacked in
- * one grid cell, so the line is sized by the longest description and never
- * shifts layout as the described mode changes.
+ * not cost a full card of vertical space.)  That ruling still stands and is
+ * why the helper carries `.ambient-scrim` rather than a glass tier: the
+ * scrim is a FILL only — no hairline, no sheen, no blur — added because
+ * this is the one caption with nothing between it and the ambient layer,
+ * where a drifting bloom spends most of the light-theme Silver contrast
+ * margin. A glass tier here would have re-created exactly the card the
+ * audit removed; a wash costs no card and no caret.  All six blurbs stay
+ * stacked in one grid cell, so the line is sized by the longest description
+ * and never shifts layout as the described mode changes.
  */
 export const ModeRig = memo(function ModeRig({
   activeMode,
@@ -126,12 +132,23 @@ export const ModeRig = memo(function ModeRig({
         })}
       </div>
 
-      {/* Mode helper — concise secondary text, not a card. The stacked blurbs
-          share one grid cell: the tallest reserves the height, the shown one
-          cross-fades in, so switching modes never shifts layout. No aria-live:
+      {/* Mode helper — concise secondary text, still not a card, but scrimmed:
+          this is the one on-screen caption sitting directly on the ambient
+          layer, and a bloom passing behind --silver text spends most of that
+          pair's contrast headroom, thin enough that an overlapping bloom or
+          the particle canvas's glow could take it below AA. `.ambient-scrim`
+          is a fill and nothing else — a glass tier here would give a one-line
+          caption a hairline and a sheen and make it read heavier than the
+          mode rail it describes. The stacked blurbs share one grid cell: the
+          tallest reserves the height (the scrim's padding is constant
+          regardless of which mode is shown, so it doesn't reintroduce a
+          layout shift on switch), the shown one cross-fades in. No aria-live:
           hover-driven changes would chatter; aria-describedby on the shown
           cell carries the association instead. */}
-      <div id="mode-help-strip" className="grid items-start px-1 text-center">
+      <div
+        id="mode-help-strip"
+        className="ambient-scrim grid items-start rounded-xl px-3 py-1.5 text-center"
+      >
         {MODES.map((mode) => {
           const shown = mode.id === shownMode;
           return (
