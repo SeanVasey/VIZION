@@ -1,13 +1,13 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { PROVIDER_MAX_RETRIES, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
+import { PROVIDER_MAX_RETRIES } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /** The SDK's stream params, widened with `output_config.effort` — the GA
  *  reasoning-depth control on the Claude 5 family. This SDK version's types
@@ -58,13 +58,13 @@ export async function* streamAnthropic(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("anthropic");
 
-  // ONE wall for the whole call. The ROUTE takes it at entry so its preflight
-  // (auth, settings, reserveSpend) counts too; a fresh one here is the
-  // fallback for direct adapter use and tests.
-  const deadline = opts.deadline ?? providerDeadline();
+  // ONE wall for the whole call, and every timer below is cut from what it has
+  // LEFT — never from the full constant. The SDK `timeout` covers the
+  // connect-and-headers wait, which is time this same wall already counts.
+  const { deadline, timeoutMs } = providerBudget("anthropic", opts.deadline);
   const client = new Anthropic({
     apiKey,
-    timeout: PROVIDER_TOTAL_MS,
+    timeout: timeoutMs,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
   let tokenIn = 0;

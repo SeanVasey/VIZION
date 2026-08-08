@@ -1,13 +1,13 @@
 import "server-only";
 import OpenAI from "openai";
-import { PROVIDER_MAX_RETRIES, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
+import { PROVIDER_MAX_RETRIES } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /** Mistral's chat API is OpenAI-compatible (incl. json_object + streaming),
  *  so the adapter is the OpenAI SDK pointed at api.mistral.ai — no extra
@@ -32,14 +32,14 @@ export async function* streamMistral(
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("mistral");
 
-  // ONE wall for the whole call. The ROUTE takes it at entry so its preflight
-  // (auth, settings, reserveSpend) counts too; a fresh one here is the
-  // fallback for direct adapter use and tests.
-  const deadline = opts.deadline ?? providerDeadline();
+  // ONE wall for the whole call, and every timer below is cut from what it has
+  // LEFT — never from the full constant. The SDK `timeout` covers the
+  // connect-and-headers wait, which is time this same wall already counts.
+  const { deadline, timeoutMs } = providerBudget("mistral", opts.deadline);
   const client = new OpenAI({
     apiKey,
     baseURL: MISTRAL_BASE_URL,
-    timeout: PROVIDER_TOTAL_MS,
+    timeout: timeoutMs,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
 

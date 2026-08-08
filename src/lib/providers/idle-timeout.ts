@@ -95,9 +95,71 @@ export interface IdleTimeoutOptions {
 }
 
 /** One absolute wall for a provider call. Take it BEFORE issuing the request,
- *  so header latency is inside the budget rather than beside it. */
+ *  so header latency is inside the budget rather than beside it.
+ *
+ *  This is the ONLY place `PROVIDER_TOTAL_MS` may be read as a duration, and
+ *  `tests/unit/provider-policy.test.ts` enforces that repo-wide. See
+ *  `providerBudget` below for why. */
 export function providerDeadline(totalMs: number = PROVIDER_TOTAL_MS): number {
   return Date.now() + totalMs;
+}
+
+/** What is LEFT of a wall, clamped at zero — the only sanctioned way to turn
+ *  the deadline back into a duration for a timer that needs one. */
+export function remainingMs(deadline: number): number {
+  return Math.max(0, deadline - Date.now());
+}
+
+/**
+ * Below this there is no point issuing the request at all.
+ *
+ * Not defensive rounding: a call we start and must immediately abort can still
+ * be BILLED upstream once the provider begins generating, so spending the
+ * user's cap on a request that cannot produce a result is strictly worse than
+ * failing before it. One second is far under any real generation and far over
+ * any clock skew.
+ */
+const MIN_VIABLE_BUDGET_MS = 1_000;
+
+/**
+ * Resolve the one wall for a provider call, and hand back every duration that
+ * must be cut from it.
+ *
+ * WHY THIS EXISTS AS A FUNCTION — the shape of a bug that recurred six times
+ * ------------------------------------------------------------------------
+ * The budget is a single wall spanning the whole invocation: route preflight,
+ * connect, headers, and the streamed body. It was previously expressed as a
+ * DURATION constant (`PROVIDER_TOTAL_MS`) applied independently at each layer,
+ * and every layer that starts its own 285s timer is a place where two budgets
+ * run in SERIES instead of sharing one. Six review rounds each moved the timer
+ * one layer outward and left the layer below still arming a fresh full-length
+ * one from the constant — route preflight, then header wait, then stream, then
+ * the SDK client's own `timeout`.
+ *
+ * Moving the timer never ended it, because the constant stayed importable and
+ * `timeout: PROVIDER_TOTAL_MS` still type-checked and still read plausibly. So
+ * the fix is not another relocation: it is that below the route there is no
+ * duration to relocate. Adapters receive a wall, ask it what remains, and that
+ * remainder is what every downstream timer gets.
+ */
+export function providerBudget(
+  provider: Provider,
+  deadline?: number,
+): { deadline: number; timeoutMs: number } {
+  // The caller's wall when offered — the route takes it at entry so its own
+  // auth/settings/parse/reserveSpend preflight counts against the same
+  // maxDuration the platform is already measuring. A fresh one is the fallback
+  // for direct adapter use and tests, and is still taken BEFORE the request.
+  const wall = deadline ?? providerDeadline();
+  const timeoutMs = remainingMs(wall);
+  if (timeoutMs < MIN_VIABLE_BUDGET_MS) {
+    throw new ProviderError(
+      provider,
+      `The ${provider} request had no time budget left when it reached the provider and was not sent.`,
+      504,
+    );
+  }
+  return { deadline: wall, timeoutMs };
 }
 
 export async function* withIdleTimeout<T>(

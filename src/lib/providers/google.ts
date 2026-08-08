@@ -1,11 +1,12 @@
 import "server-only";
-import { PROVIDER_IDLE_MS, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
+import { PROVIDER_IDLE_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
+import { providerBudget, remainingMs } from "@/lib/providers/idle-timeout";
 
 interface GeminiResponse {
   candidates?: {
@@ -96,17 +97,30 @@ export async function* streamGoogle(
   // The raw fetch has no SDK to bound it — without this a hung Gemini
   // connection outlives maxDuration and strands the spend hold (PRV-002).
   //
-  // Two clocks, and the idle one is the important half. `AbortSignal.timeout`
-  // covers the WHOLE request including the body read, so on its own it cut
-  // healthy long generations at the same instant it cut hung ones. The idle
-  // timer below is reset on every chunk that arrives, so only actual silence
-  // aborts; the total remains as a backstop under the route's maxDuration.
+  // Two clocks, and the idle one is the important half. A single whole-request
+  // timeout cut healthy long generations at the same instant it cut hung ones,
+  // so the idle timer below is re-armed on every chunk that arrives and only
+  // actual silence aborts; the total stays as the backstop.
+  //
+  // The total is the CALLER'S wall, not a fresh full-length one. Being a
+  // hand-rolled fetch rather than an SDK call is why this adapter was the last
+  // to keep its own 285s timer: it looked like a different kind of code, so
+  // the deadline was threaded to it and then never read. The budget is the
+  // same budget — one wall for the invocation, this timer cut from what
+  // remains of it.
+  const { deadline, timeoutMs } = providerBudget("google", opts.deadline);
   const controller = new AbortController();
-  const abortTotal = setTimeout(() => controller.abort(), PROVIDER_TOTAL_MS);
+  const abortTotal = setTimeout(() => controller.abort(), timeoutMs);
   let abortIdle: ReturnType<typeof setTimeout> | undefined;
   const armIdle = () => {
     clearTimeout(abortIdle);
-    abortIdle = setTimeout(() => controller.abort(), PROVIDER_IDLE_MS);
+    // Never past the wall: whichever comes first wins, and the wall owns the
+    // outer boundary. A silence budget that could outlast the total would put
+    // the abort after the platform's own kill.
+    abortIdle = setTimeout(
+      () => controller.abort(),
+      Math.min(PROVIDER_IDLE_MS, remainingMs(deadline)),
+    );
   };
   armIdle();
 
@@ -191,7 +205,7 @@ export async function* streamGoogle(
     if (controller.signal.aborted) {
       throw new ProviderError(
         "google",
-        `The Gemini stream went quiet for ${Math.round(PROVIDER_IDLE_MS / 1000)}s (or exceeded the ${Math.round(PROVIDER_TOTAL_MS / 1000)}s request budget) and was stopped.`,
+        `The Gemini stream went quiet for ${Math.round(PROVIDER_IDLE_MS / 1000)}s (or exhausted the ${Math.round(timeoutMs / 1000)}s left in its request budget) and was stopped.`,
         504,
       );
     }

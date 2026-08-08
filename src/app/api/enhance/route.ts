@@ -56,7 +56,8 @@ const REFINE_KIND_IDS = new Set<string>(REFINE_KINDS);
  * finally-block below.
  *
  * The adapters now bound themselves on SILENCE (PROVIDER_IDLE_MS) with a total
- * backstop (PROVIDER_TOTAL_MS = 285s) that stays under this window, so the
+ * backstop (285s, taken as ONE absolute wall at entry below) under this window,
+ * from which every adapter and SDK timer is cut, so the
  * finally-block always runs and the spend hold is never stranded. Raising this
  * requires a Vercel plan whose Node-runtime limit allows it; the project is on
  * a Team account, where 300 is available.
