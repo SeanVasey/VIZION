@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
         typedMode,
         input.length,
         Array.isArray(mediaContext) && mediaContext.length > 0,
-      )
+      ).target
     : (target as TargetModelId);
 
   // Optional per-request reasoning depth — only the exact values the target's
