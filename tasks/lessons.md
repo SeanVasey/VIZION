@@ -2814,3 +2814,21 @@ render identical; account change wipes storage before rehydrating (the
   before the connection when the wall is already spent, rather than opening a
   request it knows it must kill. The money leaves at connect time; the guard
   belongs before it, not after.
+- **Ask the API to do the thing; the refusal names the cause.** `ci-enablement.md`
+  had spent two measurement rounds inferring *why* Actions never ran, from the
+  shape of what was missing — repo policy for "no record created", billing for
+  "records stuck queued", two hypotheses for two symptoms. One dispatch attempt
+  returned `422 Actions has been disabled for this user`, which is a single
+  ACCOUNT-level cause for both, and points at a settings page the checklist did
+  not mention. The old step 1 (repo Settings → Actions) would have read as
+  "already correct" and sent the next attempt round the loop again. When a
+  runbook is reasoning backwards from absence, try the operation and read the
+  error before theorising about it.
+- **`playwright install` is not `playwright install-deps`.** The existing lesson
+  said browsers are unprovisioned in a fresh session; the sharper form is that
+  the *system libraries* are too, and they fail differently. Missing browsers
+  fail in global-setup; missing WebKitGTK libs fail per-test at
+  `browserType.launch` with 30 red tests that read exactly like a code
+  regression. `install-deps` shells out to apt and needs root. On a repo where
+  the local gate is the only gate, "e2e green" is only a claim if WebKit
+  actually launched.
