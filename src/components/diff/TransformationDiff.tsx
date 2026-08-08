@@ -35,6 +35,16 @@ import { CheckMark } from "@/components/ui/glyphs";
 import { InputSegments, OutputSegments, REMOVED_CLASS } from "@/components/diff/segments";
 import { CompareSheet } from "@/components/diff/CompareSheet";
 
+/** Result-meta copy for Auto's routing reason. Keyed by the wire value; an
+ *  unknown value (older/newer server) looks up to undefined and renders as
+ *  nothing — the reason is garnish, never load-bearing. */
+const AUTO_REASON_LABEL: Record<string, string> = {
+  "light-task": "quick task",
+  "heavy-mode": "structural task",
+  "long-input": "long input",
+  "media-context": "visual context",
+};
+
 /** The original always starts collapsed (2026-07 product review): the improved
  *  prompt is the primary object, and on a phone even a short original pushes
  *  the rationale and actions down a screen. One tap reveals it. */
@@ -695,11 +705,17 @@ function TransformationDiffImpl({
             developer={TARGET_DEVELOPER[effectiveTarget]}
             className="h-3.5 w-3.5 shrink-0 text-accent"
           />
-          {/* Routing provenance: an auto-routed run says which model it chose,
-              because "Auto" alone tells the user nothing about what they just
-              paid for. */}
+          {/* Routing provenance: an auto-routed run says which model it chose
+              — and, when the server explains itself, why — because "Auto"
+              alone tells the user nothing about what they just paid for. */}
           {result.resolvedTarget && (
-            <span>Auto → {TARGET_LABEL[result.resolvedTarget]} · </span>
+            <span>
+              Auto → {TARGET_LABEL[result.resolvedTarget]}
+              {result.resolvedReason && AUTO_REASON_LABEL[result.resolvedReason]
+                ? ` (${AUTO_REASON_LABEL[result.resolvedReason]})`
+                : ""}{" "}
+              ·{" "}
+            </span>
           )}
           {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok ·{" "}
           {result.usageEstimated ? "≈" : ""}${result.costUsd.toFixed(4)}

@@ -7,6 +7,7 @@ import {
   TARGET_MODELS,
   TARGET_THINKING_LEVELS,
   UI_STORE_KEY,
+  type AutoPreference,
   type ModeId,
   type TargetModelId,
   type Theme,
@@ -103,6 +104,11 @@ interface UIState {
    *  user last chose and rides along as the fallback — turning Auto off must
    *  return them to their own pick, not to a default. */
   autoTarget: boolean;
+  /** How Auto weighs strength against price (quality / balanced / budget).
+   *  Device-local like reducedEffects — a tuning knob, not identity — and
+   *  meaningful only while `autoTarget` is on; it rides the request beside
+   *  `auto: true` and the server owns what each preset means. */
+  autoPreference: AutoPreference;
   /** Reformat's chosen output shape. `null` = "whichever fits", the behaviour
    *  before the rail existed. */
   reformatFormat: FormatId | null;
@@ -121,6 +127,7 @@ interface UIState {
   setMediaStoreByDefault: (v: boolean) => void;
   setReducedEffects: (v: boolean) => void;
   setAutoTarget: (v: boolean) => void;
+  setAutoPreference: (v: AutoPreference) => void;
   setReformatFormat: (v: FormatId | null) => void;
   /** `null` clears back to the mode's own default. */
   setLengthForMode: (mode: ModeId, length: LengthId | null) => void;
@@ -143,6 +150,7 @@ export const useUIStore = create<UIState>()(
       mediaStoreByDefault: true,
       reducedEffects: false,
       autoTarget: false,
+      autoPreference: "balanced",
       reformatFormat: null,
       lengthByMode: {},
 
@@ -162,6 +170,7 @@ export const useUIStore = create<UIState>()(
       setMediaStoreByDefault: (mediaStoreByDefault) => set({ mediaStoreByDefault }),
       setReducedEffects: (reducedEffects) => set({ reducedEffects }),
       setAutoTarget: (autoTarget) => set({ autoTarget }),
+      setAutoPreference: (autoPreference) => set({ autoPreference }),
       setReformatFormat: (reformatFormat) => set({ reformatFormat }),
       setLengthForMode: (mode, length) =>
         set((s) => {
@@ -235,6 +244,10 @@ export const useUIStore = create<UIState>()(
         // without the key falls back to the initial `false`, so no version
         // bump. Off by default — routing is opt-in, never a surprise.
         autoTarget: state.autoTarget,
+        // Same shallow-merge story: absent key -> initial "balanced". A stale
+        // persisted value is harmless — the server validates the wire value
+        // and treats anything unknown as a 400, never a silent reroute.
+        autoPreference: state.autoPreference,
         // Same shallow-merge story as autoTarget: absent key -> initial null.
         reformatFormat: state.reformatFormat,
         // Absent key -> initial {} under the shallow merge, same as above.

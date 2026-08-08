@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
+import type {
+  AutoPreference,
+  ModeId,
+  TargetModelId,
+  ThinkingLevel,
+} from "@/lib/constants";
 import type { EnhanceRefine } from "@/lib/providers/formatters";
 import type { FormatId } from "@/lib/enhance/formats";
 import type { LengthId } from "@/lib/enhance/lengths";
@@ -20,6 +25,10 @@ export interface EnhanceRequest {
   /** Let the server pick the model. Never a target id in its own right:
    *  `model_target` is a Postgres enum, so "auto" has nowhere to be stored. */
   auto?: true;
+  /** How Auto should weigh strength against price. Meaningful only beside
+   *  `auto: true` — sent without it the server treats it as inert, the same
+   *  legality-only stance as `format`/`length`. Absent under auto = balanced. */
+  autoPreference?: AutoPreference;
   /** Reformat's explicit output shape. Inert in any other mode — the system
    *  prompt builder gates it, so the route validates legality only. */
   format?: FormatId;
