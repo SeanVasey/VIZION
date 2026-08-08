@@ -3,13 +3,17 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
+import { Segmented } from "@/components/ui/Segmented";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import {
+  AUTO_PREFERENCES,
+  AUTO_PREFERENCE_LABEL,
   DEVELOPER_LABEL,
   DEVELOPER_ORDER,
   TARGET_DEVELOPER,
   TARGET_MODELS,
+  type AutoPreference,
   type Developer,
   type TargetModelId,
 } from "@/lib/constants";
@@ -46,6 +50,14 @@ const GROUPS: { developer: Developer; models: TargetModel[] }[] = DEVELOPER_ORDE
 
 const LABEL_BY_ID = new Map(TARGET_MODELS.map((m) => [m.id, m.label]));
 
+/** Auto's preference segments — a Segmented (toggle buttons), NOT more radios:
+ *  nesting a second radiogroup inside the sheet's would break the roving
+ *  contract A11Y-002 pins, and aria-pressed is what these actually do. */
+const PREFERENCE_OPTIONS = AUTO_PREFERENCES.map((p) => ({
+  id: p,
+  label: AUTO_PREFERENCE_LABEL[p],
+}));
+
 /** Display label for a target id — falls back to the raw id so a legacy or
  *  unknown persisted value still renders as *something* rather than blank. */
 function targetLabel(id: TargetModelId): string {
@@ -66,6 +78,8 @@ function TargetPickerImpl({
   disabled,
   auto,
   onAutoChange,
+  autoPreference,
+  onAutoPreferenceChange,
 }: {
   value: TargetModelId;
   onChange: (next: TargetModelId) => void;
@@ -80,6 +94,13 @@ function TargetPickerImpl({
    */
   auto?: boolean;
   onAutoChange?: (next: boolean) => void;
+  /**
+   * Auto's routing preference (quality / balanced / budget). Pass both to
+   * offer the segments under the Auto row — same wiring contract as the Auto
+   * pair, so Settings (which offers neither) stays clean automatically.
+   */
+  autoPreference?: AutoPreference;
+  onAutoPreferenceChange?: (next: AutoPreference) => void;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -141,6 +162,18 @@ function TargetPickerImpl({
             setOpen(false);
           })
         }
+        autoPreference={autoPreference}
+        onPickPreference={
+          onAutoChange &&
+          onAutoPreferenceChange &&
+          ((next: AutoPreference) => {
+            // Choosing HOW Auto should route is choosing Auto: the segment
+            // both stores the preference and turns routing on, one tap.
+            onAutoPreferenceChange(next);
+            onAutoChange(true);
+            setOpen(false);
+          })
+        }
         onPick={(next) => {
           // Picking a model explicitly is also how you leave Auto — there is
           // no separate "turn it off", because choosing one IS turning it off.
@@ -161,6 +194,8 @@ function TargetPickerSheet({
   onPick,
   auto,
   onPickAuto,
+  autoPreference,
+  onPickPreference,
 }: {
   open: boolean;
   onClose: () => void;
@@ -169,6 +204,8 @@ function TargetPickerSheet({
   onPick: (next: TargetModelId) => void;
   auto?: boolean;
   onPickAuto?: () => void;
+  autoPreference?: AutoPreference;
+  onPickPreference?: (next: AutoPreference) => void;
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null);
   // Open on the current pick rather than the top of a sixteen-row list.
@@ -225,12 +262,24 @@ function TargetPickerSheet({
                 <span className="grow">
                   Auto
                   <span className="block text-xs text-silver">
-                    Picks a model to suit the mode and length
+                    Picks a model to suit the mode, length, and attachments
                   </span>
                 </span>
                 {auto && <CheckGlyph />}
               </button>
             </div>
+            {onPickPreference && autoPreference && (
+              // The active segment IS the answer to "routing how?" — no prose
+              // restatement needed. Tapping any segment (the current one
+              // included) turns Auto on, so the row doubles as a shortcut.
+              <Segmented
+                fill
+                label="Auto routing preference"
+                options={PREFERENCE_OPTIONS}
+                value={autoPreference}
+                onChange={onPickPreference}
+              />
+            )}
           </section>
         )}
         {GROUPS.map((group) => (

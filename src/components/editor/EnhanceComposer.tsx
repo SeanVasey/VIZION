@@ -54,6 +54,7 @@ export function EnhanceComposer() {
   const targetModel = useUIStore((s) => s.targetModel);
   const autoTarget = useUIStore((s) => s.autoTarget);
   const autoPreference = useUIStore((s) => s.autoPreference);
+  const setAutoPreference = useUIStore((s) => s.setAutoPreference);
   const reformatFormat = useUIStore((s) => s.reformatFormat);
   const setReformatFormat = useUIStore((s) => s.setReformatFormat);
   const lengthByMode = useUIStore((s) => s.lengthByMode);
@@ -457,6 +458,8 @@ export function EnhanceComposer() {
             onChange={setTargetModel}
             auto={autoTarget}
             onAutoChange={setAutoTarget}
+            autoPreference={autoPreference}
+            onAutoPreferenceChange={setAutoPreference}
             triggerClassName={RAIL_TRIGGER_CLASS}
           />
         </div>

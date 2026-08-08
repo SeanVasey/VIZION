@@ -195,3 +195,77 @@ describe("TargetPicker — Auto routing", () => {
     expect(trigger.textContent).not.toContain("Sonnet 5");
   });
 });
+
+describe("TargetPicker — Auto routing preference", () => {
+  function openWithPreference(auto = false, autoPreference = "balanced" as const) {
+    const onChange = vi.fn();
+    const onAutoChange = vi.fn();
+    const onAutoPreferenceChange = vi.fn();
+    render(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={onChange}
+        auto={auto}
+        onAutoChange={onAutoChange}
+        autoPreference={autoPreference}
+        onAutoPreferenceChange={onAutoPreferenceChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /target model/i }));
+    return { onChange, onAutoChange, onAutoPreferenceChange };
+  }
+
+  it("is not offered unless the caller wires it — even with Auto wired", () => {
+    // Settings wires neither pair; the composer wires both. A caller that
+    // offers Auto without a preference (an older surface) gets the plain row.
+    const onAutoChange = vi.fn();
+    render(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={vi.fn()}
+        auto={false}
+        onAutoChange={onAutoChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /target model/i }));
+    expect(screen.queryByRole("group", { name: /auto routing preference/i })).toBeNull();
+  });
+
+  it("renders the three presets as toggle buttons, not more radios", () => {
+    // A second radiogroup nested in the sheet's would break the roving
+    // contract (A11Y-002); Segmented's aria-pressed is what these really do.
+    openWithPreference();
+    const group = screen.getByRole("group", { name: /auto routing preference/i });
+    const segments = within(group).getAllByRole("button");
+    expect(segments.map((s) => s.textContent)).toEqual([
+      "Quality",
+      "Balanced",
+      "Budget",
+    ]);
+    expect(within(group).queryAllByRole("radio")).toHaveLength(0);
+    const pressed = segments.filter((s) => s.getAttribute("aria-pressed") === "true");
+    expect(pressed).toHaveLength(1);
+    expect(pressed[0]!.textContent).toBe("Balanced");
+  });
+
+  it("keeps the sheet's model radios untouched by the segments", () => {
+    // The roving radiogroup's count is a pinned contract — the segments must
+    // not leak into it.
+    openWithPreference();
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(TARGET_MODELS.length + 1); // models + Auto row
+  });
+
+  it("picking a preset stores it AND turns Auto on", () => {
+    // Choosing how Auto should route IS choosing Auto — one tap, no separate
+    // enable step to forget.
+    const { onAutoChange, onAutoPreferenceChange, onChange } = openWithPreference();
+    fireEvent.click(screen.getByRole("button", { name: "Budget" }));
+    expect(onAutoPreferenceChange).toHaveBeenCalledWith("budget");
+    expect(onAutoChange).toHaveBeenCalledWith(true);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
