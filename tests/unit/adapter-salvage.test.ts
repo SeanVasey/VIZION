@@ -57,11 +57,34 @@ describe("enhanceStream salvage + stop reasons", () => {
     expect(done.result.salvaged).toBeUndefined();
   });
 
-  it("reports the length limit when the output never completed and the provider said so", async () => {
+  it("KEEPS the partial when the provider hit its length limit — it was paid for", async () => {
+    // This used to throw, discarding every token that had streamed. The run
+    // is billed either way (the route's finally-block settles from
+    // streamedChars), so throwing charged the user for a result they could
+    // not keep. The partial rides out flagged `truncated` — which is NOT
+    // `salvaged`: salvage promises a complete output, truncation cannot, and
+    // the two carry different copy in the result view.
     feed(
       { text: '{"output":"cut off mid-sente' },
       { stopReason: "max_tokens" },
     );
+    const events = await drain();
+    const done = events.at(-1);
+    if (done?.type !== "done") throw new Error("expected a done event");
+    expect(done.result.output).toBe("cut off mid-sente");
+    expect(done.result.truncated).toBe(true);
+    expect(done.result.rationale).toBe("");
+    // Mutually exclusive, and this is the assertion that matters: the salvage
+    // branch's copy reads "the prompt above is complete", so a run flagged
+    // both would render that immediately above "the prompt above is
+    // incomplete" and tell the user two opposite things about one result.
+    expect(done.result.salvaged).toBeUndefined();
+  });
+
+  it("still throws on a length stop when nothing usable streamed", async () => {
+    // No partial to keep, so the error is still the honest answer — a `done`
+    // carrying an empty output would render as a successful empty prompt.
+    feed({ text: '{"output":"' }, { stopReason: "max_tokens" });
     const { enhanceStream } = await import("@/lib/providers/adapter");
     const run = async () => {
       for await (const e of enhanceStream(ARGS)) void e;

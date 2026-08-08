@@ -1,12 +1,13 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { PROVIDER_MAX_RETRIES, PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
+import { PROVIDER_MAX_RETRIES, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
+import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /** The SDK's stream params, widened with `output_config.effort` — the GA
  *  reasoning-depth control on the Claude 5 family. This SDK version's types
@@ -57,9 +58,13 @@ export async function* streamAnthropic(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("anthropic");
 
+  // ONE wall for the whole call. The ROUTE takes it at entry so its preflight
+  // (auth, settings, reserveSpend) counts too; a fresh one here is the
+  // fallback for direct adapter use and tests.
+  const deadline = opts.deadline ?? providerDeadline();
   const client = new Anthropic({
     apiKey,
-    timeout: PROVIDER_TIMEOUT_MS,
+    timeout: PROVIDER_TOTAL_MS,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
   let tokenIn = 0;
@@ -67,10 +72,24 @@ export async function* streamAnthropic(
 
   try {
     const stream = client.messages.stream(buildAnthropicParams(model, system, input, effort));
-    for await (const event of stream) {
+    // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()
+    // settles at the response headers, so it bounds nothing once the body
+    // streams. Idle wall + absolute deadline both live in idle-timeout.ts.
+    for await (const event of withIdleTimeout(stream, "anthropic", {
+      deadline,
+      // MessageStream.abort() -> controller.abort(); without it the queued
+      // iterator.return() cannot run while a read is pending.
+      cancel: () => stream.abort(),
+    })) {
       if (event.type === "message_start") {
         tokenIn = event.message.usage.input_tokens;
-        yield { usage: { tokenIn, tokenOut: event.message.usage.output_tokens } };
+        // `input_tokens` here is real; `output_tokens` is a 1-4 placeholder
+        // sent before generation starts. Flagged so consumers can floor it
+        // with a live estimate instead of displaying it as measured.
+        yield {
+          usage: { tokenIn, tokenOut: event.message.usage.output_tokens },
+          usageSnapshot: true,
+        };
       } else if (
         event.type === "content_block_delta" &&
         event.delta.type === "text_delta"
@@ -85,6 +104,9 @@ export async function* streamAnthropic(
     }
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
+    // Already shaped (e.g. the idle-timeout 504) — re-wrapping would drop its
+    // status and bury the reason inside a generic message.
+    if (error instanceof ProviderError) throw error;
     if (error instanceof Anthropic.APIError) {
       // "Anthropic", not "Opus": this one stream serves Opus 5, Sonnet 5,
       // and Fable 5 — naming one model mislabels the other two's failures.

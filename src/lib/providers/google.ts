@@ -1,5 +1,5 @@
 import "server-only";
-import { PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
+import { PROVIDER_IDLE_MS, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -93,14 +93,27 @@ export async function* streamGoogle(
     model,
   )}:streamGenerateContent?alt=sse`;
 
+  // The raw fetch has no SDK to bound it — without this a hung Gemini
+  // connection outlives maxDuration and strands the spend hold (PRV-002).
+  //
+  // Two clocks, and the idle one is the important half. `AbortSignal.timeout`
+  // covers the WHOLE request including the body read, so on its own it cut
+  // healthy long generations at the same instant it cut hung ones. The idle
+  // timer below is reset on every chunk that arrives, so only actual silence
+  // aborts; the total remains as a backstop under the route's maxDuration.
+  const controller = new AbortController();
+  const abortTotal = setTimeout(() => controller.abort(), PROVIDER_TOTAL_MS);
+  let abortIdle: ReturnType<typeof setTimeout> | undefined;
+  const armIdle = () => {
+    clearTimeout(abortIdle);
+    abortIdle = setTimeout(() => controller.abort(), PROVIDER_IDLE_MS);
+  };
+  armIdle();
+
   try {
     const res = await fetch(url, {
       method: "POST",
-      // The raw fetch has no SDK to bound it — without this a hung Gemini
-      // connection outlives maxDuration and strands the spend hold (PRV-002).
-      // The signal covers the whole request including the body read; a
-      // healthy stream past 55s was already doomed at the platform's 60.
-      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      signal: controller.signal,
       headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
@@ -148,6 +161,9 @@ export async function* streamGoogle(
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
+        // Progress: restart the silence clock. A stream that keeps producing
+        // is never interrupted, however long it runs.
+        armIdle();
         buf += decoder.decode(value, { stream: true });
         for (;;) {
           const brk = FRAME_BREAK.exec(buf);
@@ -169,9 +185,22 @@ export async function* streamGoogle(
     if (error instanceof ProviderError || error instanceof ProviderNotConfiguredError) {
       throw error;
     }
+    // A fetch killed by our own controller surfaces as a bare AbortError
+    // ("This operation was aborted"), which tells nobody which clock fired or
+    // that the run was ours to stop. Name it.
+    if (controller.signal.aborted) {
+      throw new ProviderError(
+        "google",
+        `The Gemini stream went quiet for ${Math.round(PROVIDER_IDLE_MS / 1000)}s (or exceeded the ${Math.round(PROVIDER_TOTAL_MS / 1000)}s request budget) and was stopped.`,
+        504,
+      );
+    }
     throw new ProviderError(
       "google",
       error instanceof Error ? error.message : "Unknown Gemini error.",
     );
+  } finally {
+    clearTimeout(abortTotal);
+    clearTimeout(abortIdle);
   }
 }

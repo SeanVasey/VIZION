@@ -1,7 +1,10 @@
 # 10. Google takes green; OpenAI is assigned a hue
 
 Date: 2026-08-07
-Status: accepted (amends [0003](./0003-developer-accents.md))
+Status: accepted (amends [0003](./0003-developer-accents.md)) — the
+`--dev-openai` half is superseded by [0011](./0011-openai-maroon.md)
+(2026-08-08), which replaces the h336 magenta with an owner-directed maroon.
+The `--dev-google` decision below stands.
 
 ## Context
 

@@ -2701,3 +2701,73 @@ render identical; account change wipes storage before rehydrating (the
   was a fill with no hairline, sheen or blur (`.ambient-scrim`, on the
   existing DSN-010 `--scrim-panel` wash). Render the screen and look at it;
   a contrast ratio alone cannot tell you the fix is wrong.
+
+## Maroon · Qwen3.8 · one stream light · the 55s cutoff
+
+- **"Bounded on what?" — and then go read the library.** The original diagnosis
+  here was that the SDKs' `timeout` is a whole-request deadline covering the
+  streamed body read, which made `PROVIDER_TIMEOUT_MS = 55_000` the silent
+  output ceiling. It was a confident, plausible, well-argued answer, it got
+  written into the constant's comment, a runbook, a changelog entry and a PR
+  description — and it was **wrong**. Both vendored SDKs arm the timer around
+  `fetch()` and clear it when that promise settles (`openai/src/core.ts:597-602`,
+  `@anthropic-ai/sdk/src/client.ts:729-733`), and a streaming `fetch()` resolves
+  at the response HEADERS. It bounds connect-and-headers; the body read is
+  unbounded. The actual truncator was `maxDuration = 60` — the platform killing
+  the function. A reviewer caught it. The lesson is not "ask which clock" (I did
+  ask, and answered wrongly from memory of how such options usually behave); it
+  is that for a third-party behaviour the whole fix rests on, **open
+  `node_modules` and read the four lines**. It costs a minute and it is the
+  difference between a fix and a fiction.
+- **A timer you cannot see fire is not a backstop.** Following from the above:
+  because that timer is already cleared once the body streams, passing the
+  "total" budget as the SDK `timeout` bounded nothing during the stream. A
+  continuously productive run had NO limit and would be killed by the platform
+  instead — skipping the finally block and stranding the spend hold, i.e. the
+  exact leak the policy existed to prevent. An absolute wall has to be enforced
+  where the reading happens, and it must not reset on a chunk; an idle timer and
+  a total timer look similar and do opposite jobs.
+- **A truncation that is still billed is worse than an error.** The route's
+  `finally` block correctly settles the ledger from `streamedChars` — those
+  tokens really were spent upstream. So the adapter throwing away the partial on
+  a length stop meant the user paid for output that was deliberately discarded.
+  When a failure path runs *after* money is committed, the question is not "did
+  it succeed" but "what did the spend buy, and are we keeping it".
+- **Never let a degraded-result flag borrow another's copy.** `salvaged` means
+  "complete output, lost rationale" and its UI string promises "the prompt above
+  is complete". Reusing it for a truncated run would have asserted exactly the
+  false thing, to the one user who most needs the truth. New failure mode, new
+  flag, new sentence — even when the rendering branch looks identical.
+- **A monotonic floor beats an "authoritative" latch.** The token readout froze
+  at `1213→1 tok` because Anthropic's `message_start` snapshot (output_tokens:
+  1-4) set `usageAuthoritative`, which disabled the char estimator for the rest
+  of the run. Taking `Math.max(incoming, current)` everywhere makes the counter
+  correct-by-construction and deletes the flag entirely: an estimator that can
+  only raise can never walk a real measurement backwards, so nothing needs to
+  know which number is "real".
+- **A corridor with a lower bound is a visibility constraint, not a rulebook.**
+  "Make OpenAI maroon" is unsatisfiable on a dark card and no amount of
+  ΔE tuning changes it: `#800000` is 1.15:1 on `#2E352D`. The accent must be
+  *lighter* than the surface to exist at all. Worth computing and stating the
+  measured number before proposing a compromise — the constraint that binds was
+  the corridor, while the one that *looked* binding (the `--flare` clearance)
+  turned out to pass at 21.0/18.1 without amendment.
+- **An invariant asserted for one instance is not asserted.** The accent
+  corridor was only ever checked against `xai`, so an out-of-corridor value for
+  any of the other eleven would have shipped green. Granting a deliberate
+  exception was the moment to notice — the new test now pins that exactly one
+  accent is below the floor and names it, so the exception stays singular. When
+  you find yourself allowed to break a documented rule silently, the rule needed
+  a test more than the exception needed an ADR.
+- **Two identical animations read as two indicators.** `.stream-live::after` and
+  `.stream-progress-sweep` shared one keyframe, duration, gradient and glow —
+  the CSS even said "one keyframe, two consumers" approvingly. Deduplicating a
+  *definition* is not the same as deduplicating a *signal*. When choosing which
+  to cut, the tiebreak was accessibility: the bar carried the `aria-live` step
+  label and the edge light carried nothing.
+- **Playwright browsers are not provisioned in a fresh session.** `npm run
+  test:e2e` hard-fails in global-setup until
+  `npx playwright install --with-deps webkit chromium` has run (and
+  `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` must be overridden for it). Budget for it
+  before claiming the gate is green — and note that a `... | tail` pipeline
+  returns *tail's* exit code, so a failed run can look like exit 0.

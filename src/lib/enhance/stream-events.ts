@@ -47,6 +47,10 @@ export interface EnhanceResult {
   /** The output was recovered from a malformed envelope tail — complete,
    *  but the model's explanation was lost (rationale is empty). */
   salvaged?: boolean;
+  /** The model hit its output ceiling: the text below is what was paid for and
+   *  is kept, but it is INCOMPLETE. Never conflate with `salvaged` — that one
+   *  promises a complete prompt. */
+  truncated?: boolean;
   /** Token counts/cost are the ~4 chars/token fallback, not provider-reported
    *  usage — rendered with an approximation marker (INV-04 cost truth). */
   usageEstimated?: boolean;
@@ -64,8 +68,22 @@ export type EnhanceStreamEvent =
   | { type: "thinking"; text: string }
   /** Decoded characters of the output field, in order. */
   | { type: "delta"; text: string }
-  /** Cumulative token counts + running cost (authoritative when emitted). */
-  | { type: "usage"; tokenIn: number; tokenOut: number; costUsd: number }
+  /** Cumulative token counts + running cost.
+   *  `snapshot` marks a frame whose `tokenOut` is a provider PLACEHOLDER sent
+   *  before generation (Anthropic's message_start reports 1-4), already
+   *  floored server-side by what has streamed. Its absence means the numbers
+   *  are a real measurement, and the client must not raise them with its own
+   *  char estimate — that would swap a measurement for a heuristic. */
+  | {
+      type: "usage";
+      tokenIn: number;
+      tokenOut: number;
+      /** Absent on a `snapshot` frame: at that point nothing has streamed, so
+       *  any figure would be priced from the provider's placeholder and would
+       *  then sit frozen while the client's token estimate climbs past it. */
+      costUsd?: number;
+      snapshot?: boolean;
+    }
   | { type: "done"; result: EnhanceResult }
   | {
       type: "error";

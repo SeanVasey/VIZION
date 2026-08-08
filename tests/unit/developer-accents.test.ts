@@ -23,6 +23,32 @@ const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 const ACCENTS_CSS = strip(RAW_ACCENTS);
 const GLOBALS = strip(RAW_GLOBALS);
 
+const ACCENT_HEX = new Map(
+  [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-f]{6})/g)].map(
+    (m) => [m[1]!, m[2]!] as const,
+  ),
+);
+
+/** How far apart an accent's RGB channels sit. 0 is a perfect grey. */
+function chromaSpread(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return Math.max(r!, g!, b!) - Math.min(r!, g!, b!);
+}
+
+/** WCAG relative luminance. */
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
+}
+
+/** 3:1 on the aurora-lit dark card / on the light card. See 0003. */
+const CORRIDOR_FLOOR = 0.1995;
+const CORRIDOR_CEILING = 0.2922;
+
 describe("the accent layer tracks the developer roster", () => {
   it("defines an accent for every developer, and none for anything else", () => {
     const declared = [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*#/g)].map((m) => m[1]!);
@@ -44,18 +70,6 @@ describe("the accent layer tracks the developer roster", () => {
 });
 
 describe("xAI is neutral on purpose", () => {
-  /** How far apart an accent's RGB channels sit. 0 is a perfect grey. */
-  function chromaSpread(hex: string): number {
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    return Math.max(r!, g!, b!) - Math.min(r!, g!, b!);
-  }
-
-  const ACCENT_HEX = new Map(
-    [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-f]{6})/g)].map(
-      (m) => [m[1]!, m[2]!] as const,
-    ),
-  );
-
   it("renders xAI without a hue, because xAI publishes none", () => {
     // Grok's production CSS declares oklch(11.57% 0 none) — chroma literally
     // zero. Any hue here would be invented, and inventing one made the only
@@ -72,18 +86,44 @@ describe("xAI is neutral on purpose", () => {
 
   it("stays a FULL-contrast neutral, not a muted one", () => {
     // The risk with a lone grey among colours is that it reads as a state.
-    // It must sit in the same luminance corridor as every other accent —
-    // a dimmer value would look disabled rather than deliberately colourless.
-    const [r, g, b] = [1, 3, 5].map((i) =>
-      parseInt(ACCENT_HEX.get("xai")!.slice(i, i + 2), 16),
-    );
-    const lin = (c: number) => {
-      const s = c / 255;
-      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-    };
-    const luminance = 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
-    expect(luminance).toBeGreaterThan(0.1995); // 3:1 on the aurora-lit dark card
-    expect(luminance).toBeLessThan(0.2922); //    3:1 on the light card
+    // A dimmer value would look disabled rather than deliberately colourless,
+    // so xAI is held to the full corridor even though 0011 lets ONE accent
+    // (openai, which is chromatic and labelled) sit below it.
+    const y = luminance(ACCENT_HEX.get("xai")!);
+    expect(y).toBeGreaterThan(CORRIDOR_FLOOR); // 3:1 on the aurora-lit dark card
+    expect(y).toBeLessThan(CORRIDOR_CEILING); //  3:1 on the light card
+  });
+});
+
+describe("the luminance corridor, and its one sanctioned exception (0011)", () => {
+  // 0003 derived the palette so ONE hex per developer clears 3:1 against both
+  // composited card fills. 0011 grants a single exception on the lower bound —
+  // the owner-directed openai maroon — justified by the mark being redundant
+  // (the model name is text beside it), so WCAG 1.4.11 does not bind it.
+  //
+  // Before 0011 the corridor was only ever asserted for xai, which meant an
+  // out-of-corridor accent could ship unnoticed. That is what this pins: the
+  // exception has to stay deliberate and singular.
+  const below = [...ACCENT_HEX].filter(([, hex]) => luminance(hex) < CORRIDOR_FLOOR);
+  const above = [...ACCENT_HEX].filter(([, hex]) => luminance(hex) > CORRIDOR_CEILING);
+
+  it("lets exactly one accent sit below the floor, and it is openai", () => {
+    expect(below.map(([dev]) => dev)).toEqual(["openai"]);
+  });
+
+  it("keeps that exception on the DARK side only — nothing may breach the ceiling", () => {
+    // Breaching the ceiling costs contrast on the LIGHT card, where the mark
+    // has no dark-theme sibling to fall back on and the redundancy argument
+    // was never made. No accent may do it.
+    expect(above.map(([dev]) => dev)).toEqual([]);
+  });
+
+  it("holds openai to the value 0011 actually measured", () => {
+    // Not a taste pin: 0011's whole justification rests on the measured 2.41:1
+    // and on every dE2000 floor still passing at THIS value. Drifting the hex
+    // without redoing that work would leave the ADR asserting numbers the
+    // stylesheet no longer produces.
+    expect(ACCENT_HEX.get("openai")).toBe("#9c595d");
   });
 });
 

@@ -134,12 +134,14 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_SONAR_IN", 3),
     priceOut: numEnv("PRICE_SONAR_OUT", 15),
   },
-  qwen3_7_max: {
+  qwen3_8_max: {
     provider: "qwen",
-    // Pinned to the exact release id (PRV-007) — Model Studio lists
-    // `qwen3.7-max` verbatim (alibabacloud.com/help/en/model-studio/models,
-    // 2026-08-01), so the roster label and the wire string finally agree.
-    model: process.env.MODEL_QWEN ?? "qwen3.7-max",
+    // Pinned to the exact release id (PRV-007) — Model Studio lists the release
+    // verbatim (alibabacloud.com/help/en/model-studio/models), so the roster
+    // label and the wire string agree. Never a floating alias: `qwen-max`
+    // silently follows whatever Alibaba promotes, which is how a pinned build
+    // starts billing a different model without a diff.
+    model: process.env.MODEL_QWEN ?? "qwen3.8-max",
     priceIn: numEnv("PRICE_QWEN_IN", 1.25),
     priceOut: numEnv("PRICE_QWEN_OUT", 3.75),
   },
@@ -160,7 +162,7 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
   },
 };
 
-function numEnv(name: string, fallback: number): number {
+export function numEnv(name: string, fallback: number): number {
   const v = process.env[name];
   const n = v ? Number(v) : NaN;
   return Number.isFinite(n) ? n : fallback;
@@ -179,15 +181,56 @@ export function computeCost(
 }
 
 /**
- * Uniform provider connection policy (PRV-002). Both model routes declare
- * maxDuration=60; a provider connection that hangs past that is killed by the
- * platform, which skips the finally-block that settles/releases the spend
- * hold. Every adapter therefore bounds its own request UNDER the window:
- * 55s per attempt, zero SDK retries — an invisible retry both risks running
- * past the window and can double-bill upstream without a ledger row.
+ * Uniform provider connection policy (PRV-002). A provider connection that
+ * outlives the route's maxDuration is killed by the platform, which skips the
+ * finally-block that settles/releases the spend hold. Every adapter therefore
+ * bounds its own request UNDER the window, and zero SDK retries — an invisible
+ * retry both risks running past the window and can double-bill upstream
+ * without a ledger row.
+ *
+ * WHAT THE SDK `timeout` COVERS, measured rather than assumed. In both
+ * vendored SDKs the timer is armed around `fetch()` and cleared as soon as
+ * that promise settles (openai/src/core.ts:597-602;
+ * @anthropic-ai/sdk/src/client.ts:729-733). A streaming `fetch()` resolves at
+ * the RESPONSE HEADERS, so `timeout` bounds connect-and-headers and nothing
+ * after. Once the first byte lands, the SDK stops bounding the stream.
+ *
+ * That corrects an earlier claim in this file that `timeout` was a
+ * whole-request deadline covering the body read. It never was — which means
+ * the old `PROVIDER_TIMEOUT_MS = 55_000` was NOT what truncated long runs
+ * mid-stream. The route's `maxDuration = 60` was: the platform killed the
+ * whole function. Hence the raised window is the primary fix, not a secondary
+ * one, and the two budgets below cover what the SDK does not:
+ *
+ *   IDLE  — time since the last token, enforced by withIdleTimeout. A hung
+ *           connection dies fast; a stream that keeps producing is never
+ *           interrupted. This is the one that should fire in anger.
+ *   TOTAL — an ABSOLUTE wall across the stream's lifetime, also enforced by
+ *           withIdleTimeout (and by hand in google.ts). It cannot live on the
+ *           SDK client, because that timer is already gone by the time the
+ *           body streams; a continuously productive stream would otherwise
+ *           outlive it and be killed by the platform instead, skipping the
+ *           route's finally block and stranding the spend hold.
+ *
+ * TOTAL is still passed as the SDK `timeout` as well, where it usefully bounds
+ * a hang BEFORE headers. Sized under the route's maxDuration (300s).
  */
-export const PROVIDER_TIMEOUT_MS = 55_000;
+export const PROVIDER_IDLE_MS = numEnv("PROVIDER_IDLE_MS", 60_000);
+export const PROVIDER_TOTAL_MS = numEnv("PROVIDER_TOTAL_MS", 285_000);
 export const PROVIDER_MAX_RETRIES = 0;
+
+/**
+ * The MEDIA path keeps a single whole-request deadline, and should.
+ *
+ * /api/media is a bounded one-shot analysis (max_tokens 1024-4096) whose route
+ * still declares maxDuration=60, and nothing about it streams to the user. The
+ * failure the split above fixes — a healthy long generation cut mid-flight —
+ * cannot occur here, so a flat deadline under the platform window is the
+ * simpler correct policy. Deliberately a separate constant: sharing one with
+ * the enhance path is what let a value sized for bounded calls govern
+ * unbounded streaming ones.
+ */
+export const MEDIA_TIMEOUT_MS = numEnv("MEDIA_TIMEOUT_MS", 55_000);
 
 /** Per-user limits (env-overridable). Enforced on every model route. */
 export const RATE_LIMIT_PER_MIN = numEnv("RATE_LIMIT_PER_MIN", 20);

@@ -6,7 +6,7 @@ import {
   TARGETS,
   PROVIDER_KEY_ENV,
   PROVIDER_MAX_RETRIES,
-  PROVIDER_TIMEOUT_MS,
+  MEDIA_TIMEOUT_MS,
   type Provider,
 } from "@/lib/providers/config";
 import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
@@ -70,7 +70,7 @@ async function describeAnthropic(
 
   const client = new Anthropic({
     apiKey,
-    timeout: PROVIDER_TIMEOUT_MS,
+    timeout: MEDIA_TIMEOUT_MS,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
   const response = await client.messages.create({
@@ -126,7 +126,7 @@ async function describeOpenAICompatible(
   const client = new OpenAI({
     apiKey,
     baseURL,
-    timeout: PROVIDER_TIMEOUT_MS,
+    timeout: MEDIA_TIMEOUT_MS,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
   const response = await client.chat.completions.create({
@@ -181,7 +181,7 @@ async function describeGoogle(
   const res = await fetch(url, {
     method: "POST",
     // Raw fetch — bounded like the SDK clients (PRV-002).
-    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+    signal: AbortSignal.timeout(MEDIA_TIMEOUT_MS),
     headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: spec.system }] },

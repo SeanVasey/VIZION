@@ -21,7 +21,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 > _transforms_ it — across sixteen target models from twelve developers
 > (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol/Luna/Terra · DeepSeek V4 ·
 > Gemini 3.6 Flash · Muse Spark 1.1 · MiniMax M3 · Mistral Large 3 · Kimi K3 ·
-> Sonar Pro · Qwen3.7 Max · Grok 4.5 · GLM-5.2), a per-model thinking-depth
+> Sonar Pro · Qwen3.8 Max · Grok 4.5 · GLM-5.2), a per-model thinking-depth
 > selector, six enhancement modes, and media-aware
 > prompt construction, with accounts and a versioned prompt library.
 
@@ -49,7 +49,7 @@ Next Route Handlers (Node) ── Provider Adapter ──┬─ Anthropic  (fabl
                                                   └─ OpenAI-compatible proxy:
                                                      DeepSeek (deepseek_v4) · Meta (muse_spark_1_1)
                                                      MiniMax (minimax_m3) · Moonshot (kimi_k3)
-                                                     Perplexity (sonar_pro) · Qwen (qwen3_7_max)
+                                                     Perplexity (sonar_pro) · Qwen (qwen3_8_max)
                                                      Z.ai (glm_5_2)
         │
         ▼

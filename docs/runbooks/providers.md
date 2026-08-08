@@ -16,7 +16,7 @@ META_API_KEY=        # Muse Spark 1.1 (Meta Model API) — replaces LLAMA_API_KE
 MINIMAX_API_KEY=     # MiniMax M3
 MOONSHOT_API_KEY=    # Kimi K3 (Moonshot AI)
 PERPLEXITY_API_KEY=  # Sonar Pro
-DASHSCOPE_API_KEY=   # Qwen3.7 Max (Alibaba Cloud Model Studio)
+DASHSCOPE_API_KEY=   # Qwen3.8 Max (Alibaba Cloud Model Studio)
 ZAI_API_KEY=         # GLM-5.2 (Z.ai open platform)
 ```
 
@@ -113,7 +113,7 @@ MODEL_MINIMAX=MiniMax-M3                              # default
 MODEL_MISTRAL=mistral-large-latest                    # default — STILL FLOATING; see the pinning note below
 MODEL_KIMI=kimi-k3                                    # default
 MODEL_SONAR=sonar-pro                                 # default
-MODEL_QWEN=qwen3.7-max                                # default — pinned exact release id (PRV-007)
+MODEL_QWEN=qwen3.8-max                                # default — pinned exact release id (PRV-007)
 MODEL_GROK=grok-4.5                                   # default — point at your deployed xAI model
 MODEL_GLM=glm-5.2                                     # default — point at a long-context variant string if Z.ai serves one separately
 ```
@@ -124,7 +124,7 @@ refactor.
 
 > **Floating aliases & provisional prices (audit PRV-007 / PRV-008).** Two of
 > the sixteen defaults were repinned to exact ids on 2026-08-01
-> (`deepseek-v4-pro`, `qwen3.7-max` — both taken verbatim from the vendors'
+> (`deepseek-v4-pro`, `qwen3.8-max` — both taken verbatim from the vendors'
 > model-ID pages, with DeepSeek's published cache-miss rates). One alias
 > remains deliberate: **`mistral-large-latest`** — Mistral publishes no exact
 > wire string for the current Large 3 (v25.12), and inferring one from the
@@ -158,7 +158,7 @@ translates it onto the provider's parameter:
 | Fable 5 · Opus 5 · Sonnet 5 | `output_config.effort` | low · medium · high · xhigh · max |
 | GPT-5.6 Sol / Luna / Terra | `reasoning_effort` | low · medium · high |
 | Gemini 3.6 Flash | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high |
-| Qwen3.7 Max | `enable_thinking` + `thinking_budget` (tokens) | low · medium · high · xhigh · max |
+| Qwen3.8 Max | `enable_thinking` + `thinking_budget` (tokens) | low · medium · high · xhigh · max |
 | Grok 4.5 | `reasoning_effort` | low · medium · high |
 
 Notes that keep this working:
@@ -179,7 +179,7 @@ Notes that keep this working:
   length limit" rather than a result. Thinking is only honoured on a streamed
   request (ours always are) and arrives in `delta.reasoning_content`, which the
   adapter never reads, so `content` stays clean JSON.
-- **A model tier is not a thinking level.** "Max" in `Qwen3.7 Max` is Alibaba's
+- **A model tier is not a thinking level.** "Max" in `Qwen3.8 Max` is Alibaba's
   flagship tier (beside Plus and Turbo). Reading it as a reasoning depth is what
   left the target with no selector while its API took a budget all along — the
   same class of mistake as inventing `gemini-3.6-thinking` above, in reverse.
@@ -192,7 +192,7 @@ Note on cost: Fable 5 lists at $10/$50 per 1M tokens (in/out) — noticeably pri
 the other targets, so users reach the daily cost cap sooner on it. At the other end,
 DeepSeek V4 (~$0.45/$0.90), MiniMax M3 (~$0.30/$1.20), and GPT-5.6 Terra
 (~$0.20/$0.80) barely dent the cap.
-Qwen3.7 Max defaults reflect the current 50%-promo rate ($1.25/$3.75, list $2.50/$7.50) —
+Qwen3.8 Max defaults reflect the current 50%-promo rate ($1.25/$3.75, list $2.50/$7.50) —
 override `PRICE_QWEN_*` when the promo lapses. GLM-5.2 list rates were unpublished at
 launch — the defaults ($1.00/$3.20) are the GLM-5 reference rates; override
 `PRICE_GLM_*` when Z.ai publishes 5.2 pricing. Kimi K3 and MiniMax M3 launch
@@ -210,6 +210,75 @@ with `400 InternalError.Algo.InvalidParameter: Range of max_tokens should be
 [1, 8192]` — which failed *every* Qwen run until the provider declared its own
 `maxTokens`. When adding a compat provider, read its `max_tokens` range from the
 API reference rather than inheriting the default and hoping.
+
+Qwen's 8192 is the tightest ceiling in the fleet and the `max` thinking budget
+(4096) consumes half of it, so Qwen truncates sooner than any other target. It
+is now `MAX_TOKENS_QWEN`-overridable: if Alibaba's model page publishes a higher
+range for **Qwen3.8 Max**, set the env var to that number rather than editing
+the adapter. Do not raise it on a guess — every value outside the published
+range 400s on *every* call, which trades an occasional truncation for total
+failure.
+
+## Connection policy: idle, not elapsed
+
+Every streaming adapter bounds itself on **silence**, not on total time.
+
+| constant | default | what it means |
+| --- | --- | --- |
+| `PROVIDER_IDLE_MS` | 60s | Time since the last token. The one that should ever fire. |
+| `PROVIDER_TOTAL_MS` | 285s | Absolute wall across the stream's lifetime. **Must stay under** the enhance route's `maxDuration` (300s). |
+| `MEDIA_TIMEOUT_MS` | 55s | `/api/media` only — a bounded one-shot under a `maxDuration=60` route. |
+
+### What the SDK `timeout` option actually covers
+
+Read this before reasoning about any of the above, because the obvious
+assumption is wrong and this repo shipped it once.
+
+In both vendored SDKs the timeout timer is armed around `fetch()` and cleared
+the moment that promise settles — `openai/src/core.ts:597-602`
+(`.finally(() => clearTimeout(timeout))`) and
+`@anthropic-ai/sdk/src/client.ts:729-733`. **A streaming `fetch()` resolves at
+the response headers**, and the body is consumed afterwards, so `timeout` bounds
+connect-and-headers and nothing after it. Once the first byte lands, the SDK
+stops bounding the stream entirely.
+
+Two things follow:
+
+- The retired `PROVIDER_TIMEOUT_MS = 55_000` was **not** what truncated long
+  runs mid-stream — it could not have been. The route's `maxDuration = 60` was:
+  the platform killed the whole function. The raised window is therefore the
+  primary fix, not a supporting one.
+- A total budget **cannot** be expressed as the SDK `timeout`. That timer is
+  already gone by the time the body streams, so a continuously productive
+  stream would outlive it and be killed by the platform instead — skipping the
+  route's `finally` block and stranding the spend hold, the exact PRV-002 leak.
+
+So both budgets are enforced in application code. `withIdleTimeout`
+(`src/lib/providers/idle-timeout.ts`) wraps the stream loop in the five SDK
+adapters and holds the idle timer **and** an absolute deadline taken at the
+first call; the total does not reset on a chunk, which is the entire point.
+`google.ts` is a raw fetch and carries the same policy by hand: one
+`AbortController`, a total timer that stays armed for the whole body read, and
+an idle timer re-armed inside the read loop.
+
+`PROVIDER_TOTAL_MS` is still passed as the SDK `timeout` as well, where it does
+usefully bound a hang before headers.
+
+Cancellation is not optional and not cosmetic. Both SDKs implement
+`[Symbol.asyncIterator]` as an **async generator**, and that protocol queues a
+`return()` behind an already-pending `next()` — and at idle-out there is always
+a `next()` in flight. So each adapter passes `withIdleTimeout` the SDK's own
+abort handle (`stream.controller.abort()`, `MessageStream.abort()`), which is
+called first: it aborts the HTTP request, settles the pending read, and lets the
+queued `return()` run. Without it the error cannot even propagate, and the
+connection keeps streaming tokens nobody reads — and keeps billing for them.
+
+**`maxDuration` and `PROVIDER_TOTAL_MS` are a pair.** If the route window ever
+drops below the total backstop, the platform kills the function first and skips
+the `finally` block that settles the spend hold — the exact leak PRV-002 exists
+to prevent. `tests/unit/provider-policy.test.ts` pins the inequality. Raising
+`maxDuration` past 300 requires a Vercel plan whose Node-runtime limit allows
+it.
 
 ## Cost cap & rate limit
 

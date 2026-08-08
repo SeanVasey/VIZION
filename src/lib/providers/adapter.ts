@@ -43,6 +43,9 @@ export interface EnhanceArgs {
   format?: FormatId;
   /** Condense/Expand depth (validated by the route). Inert elsewhere. */
   length?: LengthId;
+  /** Absolute epoch-ms wall for the provider call, taken at route entry so the
+   *  preflight counts against it. See ProviderRequestOptions.deadline. */
+  deadline?: number;
 }
 
 export interface EnhanceOutput {
@@ -62,6 +65,12 @@ export interface EnhanceOutput {
    *  completed — the result was recovered from the stream (rationale is
    *  empty). Rides to the client so the result view can say so. */
   salvaged?: boolean;
+  /** The model hit its output ceiling mid-envelope: what streamed IS kept (it
+   *  was paid for) but the prompt is genuinely INCOMPLETE. Strictly stronger
+   *  than `salvaged`, which means "complete output, lost rationale" — the two
+   *  must never share a message, because telling someone a truncated prompt is
+   *  complete is worse than showing them an error. */
+  truncated?: boolean;
   /** Token counts (and so the cost) came from the ~4 chars/token fallback
    *  because the provider never reported usage — an estimate, not a
    *  measurement (INV-04 cost truth). Rides to the client and the ledger. */
@@ -73,7 +82,7 @@ export interface EnhanceOutput {
  *  `usage` snapshots are cumulative. `done` always closes a successful run. */
 export type AdapterStreamEvent =
   | { type: "delta"; text: string }
-  | { type: "usage"; tokenIn: number; tokenOut: number }
+  | { type: "usage"; tokenIn: number; tokenOut: number; snapshot?: boolean }
   | { type: "done"; result: EnhanceOutput };
 
 /** The shape every provider adapter satisfies. `opts` is optional, so the
@@ -102,6 +111,7 @@ export async function* enhanceStream({
   refine,
   format,
   length,
+  deadline,
 }: EnhanceArgs): AsyncGenerator<AdapterStreamEvent> {
   const cfg = TARGETS[target];
   const system = buildSystemPrompt({ mode, target, refine, format, length });
@@ -137,6 +147,7 @@ export async function* enhanceStream({
 
   for await (const chunk of streams[cfg.provider](system, userInput, cfg.model, {
     thinkingLevel,
+    deadline,
   })) {
     if (chunk.text) {
       raw += chunk.text;
@@ -148,7 +159,12 @@ export async function* enhanceStream({
     }
     if (chunk.usage) {
       ({ tokenIn, tokenOut } = chunk.usage);
-      yield { type: "usage", tokenIn, tokenOut };
+      yield {
+        type: "usage",
+        tokenIn,
+        tokenOut,
+        ...(chunk.usageSnapshot ? { snapshot: true } : {}),
+      };
     }
     if (chunk.stopReason) stopReason = chunk.stopReason;
     if (chunk.estReasoningTokens) reasoningFloor += chunk.estReasoningTokens;
@@ -169,6 +185,7 @@ export async function* enhanceStream({
 
   let payload;
   let salvaged = false;
+  let truncated = false;
   try {
     payload = parseEnhancePayload(raw);
   } catch (e) {
@@ -178,7 +195,27 @@ export async function* enhanceStream({
       // result. Recover it; the rationale is honestly empty.
       payload = { output: decoded.trim(), rationale: "" };
       salvaged = true;
+    } else if (
+      stopReason !== undefined &&
+      LENGTH_STOPS.has(stopReason) &&
+      decoded.trim() !== ""
+    ) {
+      // The envelope is unfinished because the model ran out of budget, not
+      // because it misbehaved — and every token that DID arrive was paid for
+      // (the route settles the ledger from streamedChars either way). Throwing
+      // discarded the lot, billing the user for a result they could not keep.
+      //
+      // `truncated`, and deliberately NOT `salvaged`: salvage means the output
+      // string demonstrably COMPLETED and only the rationale was lost, and its
+      // copy in the result view says "the prompt above is complete". Setting
+      // both would render that sentence directly above "the prompt above is
+      // incomplete". Different failure, different flag, different sentence.
+      payload = { output: decoded.trim(), rationale: "" };
+      truncated = true;
     } else if (stopReason !== undefined && LENGTH_STOPS.has(stopReason)) {
+      // Length stop with nothing usable decoded: there is no partial to keep,
+      // and a `done` carrying an empty output would render as a successful
+      // empty prompt. The error is still the honest answer.
       throw new Error(
         "The model hit its length limit before finishing. Try a lower thinking level or a shorter prompt.",
       );
@@ -195,6 +232,7 @@ export async function* enhanceStream({
       modelUsed: cfg.model,
       costUsd: computeCost(target, tokenIn, tokenOut),
       ...(salvaged ? { salvaged: true } : {}),
+      ...(truncated ? { truncated: true } : {}),
       ...(usageEstimated ? { usageEstimated: true } : {}),
     },
   };

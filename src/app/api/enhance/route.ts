@@ -10,6 +10,7 @@ import {
   type ThinkingLevel,
 } from "@/lib/constants";
 import { enhanceStream, type EnhanceOutput } from "@/lib/providers/adapter";
+import { providerDeadline } from "@/lib/providers/idle-timeout";
 import {
   TARGETS,
   computeCost,
@@ -44,8 +45,23 @@ const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 const REFINE_KIND_IDS = new Set<string>(REFINE_KINDS);
 
-/** Streaming can outlive the default function window on long enhancements. */
-export const maxDuration = 60;
+/**
+ * Streaming can outlive the default function window on long enhancements.
+ *
+ * 300, not 60. At 60 the platform killed the function while the model was
+ * still producing — and because the adapters' own deadline sat just under it
+ * at 55s, a healthy generation was capped at roughly 2,000-4,000 output tokens
+ * against the 16,000-64,000 `max_tokens` they request. The clock, not the token
+ * ceiling, was the real limit, and the truncated run was still billed by the
+ * finally-block below.
+ *
+ * The adapters now bound themselves on SILENCE (PROVIDER_IDLE_MS) with a total
+ * backstop (PROVIDER_TOTAL_MS = 285s) that stays under this window, so the
+ * finally-block always runs and the spend hold is never stranded. Raising this
+ * requires a Vercel plan whose Node-runtime limit allows it; the project is on
+ * a Team account, where 300 is available.
+ */
+export const maxDuration = 300;
 
 function err(status: number, error: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
@@ -62,6 +78,15 @@ function err(status: number, error: string, extra?: Record<string, unknown>) {
  * failures after headers are sent).
  */
 export async function POST(request: NextRequest) {
+  // FIRST STATEMENT, and it has to be. maxDuration starts counting when the
+  // platform invokes this handler, not when the provider call begins — so
+  // auth, the settings read, JSON parsing and reserveSpend below are all
+  // already spending it. A deadline taken later (in the adapter, or even just
+  // before the fetch) silently excludes that preflight, and a slow one plus a
+  // full-length stream can still overrun the window and skip the finally block
+  // that settles the spend hold. One wall, from the only moment that matches
+  // what the platform is measuring. (Codex review, PR #91.)
+  const deadline = providerDeadline();
   const supabase = await createClient();
   const {
     data: { user },
@@ -295,6 +320,7 @@ export async function POST(request: NextRequest) {
           refine: typedRefine,
           format: format as FormatId | undefined,
           length: length as LengthId | undefined,
+          deadline,
         })) {
           if (event.type === "delta") {
             if (!generating) {
@@ -305,11 +331,53 @@ export async function POST(request: NextRequest) {
             send({ type: "delta", text: event.text });
           } else if (event.type === "usage") {
             usage = { tokenIn: event.tokenIn, tokenOut: event.tokenOut };
+            // Floor a SNAPSHOT — and only a snapshot — with what has
+            // demonstrably streamed, pricing the frame from that same number
+            // so the two always agree.
+            //
+            // Anthropic reports output_tokens at message_start as a header
+            // placeholder (literally 1-4) and sends the real cumulative count
+            // only at the end, so the un-floored frame read "1213→1 tok ·
+            // $0.0037" for an entire run — the counter frozen and the cost
+            // understated by roughly the output/input ratio, which is how an
+            // expensive run managed not to look expensive while it ran.
+            //
+            // The `snapshot` gate is load-bearing, not defensive. Flooring
+            // unconditionally would be just as wrong in the other direction:
+            // chars-per-token varies with content, so for a provider that
+            // reports an accurate cumulative count mid-stream (Gemini sends
+            // usageMetadata on every frame) `ceil(chars/4)` can exceed the
+            // measurement — and the client's own Math.max would then hold that
+            // inflated figure for the rest of the run. Replacing a measurement
+            // with a heuristic and pricing it as exact is the same class of
+            // error as the freeze this fixes. Only the adapter knows which
+            // kind of report it is, so only the adapter says so.
+            const shownOut = event.snapshot
+              ? Math.max(event.tokenOut, Math.ceil(streamedChars / 4))
+              : event.tokenOut;
+            // A snapshot carries NO cost, and that is the honest answer.
+            //
+            // Anthropic's only snapshot arrives at message_start, before a
+            // single delta — so `streamedChars` is 0, the floor above returns
+            // the 1-4 placeholder unchanged, and any cost priced from it is
+            // the understated "$0.0037" this whole change exists to kill. The
+            // client then raises its token estimate as deltas land but cannot
+            // reprice (the price table is server-side, deliberately), so a
+            // cost sent here would sit frozen and wrong beside a climbing
+            // token count — the two disagreeing, which is exactly what the
+            // floor was meant to prevent.
+            //
+            // Omitting it means the ticker shows tokens moving and no dollar
+            // figure until a real measurement lands. Less information, all of
+            // it true; a wrong number is not a cheaper version of the right
+            // one. (Codex review, PR #91.)
             send({
               type: "usage",
               tokenIn: event.tokenIn,
-              tokenOut: event.tokenOut,
-              costUsd: computeCost(typedTarget, event.tokenIn, event.tokenOut),
+              tokenOut: shownOut,
+              ...(event.snapshot
+                ? { snapshot: true }
+                : { costUsd: computeCost(typedTarget, event.tokenIn, shownOut) }),
             });
           } else {
             result = event.result;
@@ -348,6 +416,7 @@ export async function POST(request: NextRequest) {
             ...(result.title ? { title: result.title } : {}),
             ...(result.questions ? { questions: result.questions } : {}),
             ...(result.salvaged ? { salvaged: true } : {}),
+            ...(result.truncated ? { truncated: true } : {}),
             ...(result.usageEstimated ? { usageEstimated: true } : {}),
             // Routing provenance — only on an auto-routed run, so its presence
             // is the signal. The client shouldn't have to diff the result

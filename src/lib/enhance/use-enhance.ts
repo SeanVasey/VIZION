@@ -52,12 +52,23 @@ export interface EnhanceStreamState {
   step: string;
   /** Output text decoded so far. */
   partialOutput: string;
+  /** Live counters, monotonic by construction: every writer takes the MAX of
+   *  what it knows and what is already here, so a provider's early low-ball
+   *  snapshot cannot pin the ticker and a late frame cannot walk it backwards. */
   tokenIn: number;
   tokenOut: number;
-  /** True once an authoritative provider usage snapshot arrived (before
-   *  that, tokenOut is a ~4 chars/token estimate and cost is unknown). */
-  usageAuthoritative: boolean;
   costUsd: number;
+  /** True once a usage frame arrived that was NOT a pre-generation snapshot —
+   *  i.e. a real cumulative measurement. The char estimator stands down at
+   *  that point, because chars-per-token varies with content and raising a
+   *  measurement with a heuristic overstates the spend just as surely as the
+   *  old freeze understated it.
+   *
+   *  The predecessor flag latched on ANY usage frame, including Anthropic's
+   *  `message_start` placeholder (output_tokens: 1) — which is precisely what
+   *  pinned the readout at "1213→1 tok" for whole runs. The fix was never to
+   *  delete the gate; it was to stop a placeholder satisfying it. */
+  usageMeasured: boolean;
 }
 
 const IDLE: EnhanceStreamState = {
@@ -66,8 +77,8 @@ const IDLE: EnhanceStreamState = {
   partialOutput: "",
   tokenIn: 0,
   tokenOut: 0,
-  usageAuthoritative: false,
   costUsd: 0,
+  usageMeasured: false,
 };
 
 /**
@@ -95,7 +106,10 @@ export function useEnhance() {
       return {
         ...s,
         partialOutput,
-        tokenOut: s.usageAuthoritative
+        // Stands down once a real measurement lands: chars-per-token varies
+        // with content, so raising a measured count with this heuristic would
+        // overstate the spend. Until then it is the only thing moving.
+        tokenOut: s.usageMeasured
           ? s.tokenOut
           : Math.max(s.tokenOut, Math.ceil(partialOutput.length / 4)),
       };
@@ -170,13 +184,42 @@ export function useEnhance() {
               scheduleFlush();
               break;
             case "usage":
-              setStream((s) => ({
-                ...s,
-                tokenIn: event.tokenIn,
-                tokenOut: event.tokenOut,
-                costUsd: event.costUsd,
-                usageAuthoritative: true,
-              }));
+              // A mid-stream usage frame is a FLOOR, never a freeze.
+              //
+              // Anthropic reports `output_tokens` at `message_start` as a
+              // header snapshot — literally 1-4 — and only sends the real
+              // cumulative count in the terminal `message_delta`. Latching
+              // that first frame as authoritative pinned the readout at
+              // "1213→1 tok · $0.0037" for the whole visible run and disabled
+              // the char-based estimator that would otherwise have tracked it,
+              // so an expensive run never looked expensive while it ran.
+              //
+              // The route now floors tokenOut with what has demonstrably
+              // streamed and prices the frame from that same number, so the
+              // pair arrives self-consistent; the maxima here only guard
+              // against out-of-order frames. Cost is never recomputed
+              // client-side — the price table is server-side, and duplicating
+              // it is exactly how the two figures drift apart.
+              setStream((s) => {
+                // A real measurement REPLACES; a snapshot may only raise.
+                const measured = !event.snapshot;
+                return {
+                  ...s,
+                  tokenIn: Math.max(event.tokenIn, s.tokenIn),
+                  tokenOut: measured
+                    ? event.tokenOut
+                    : Math.max(event.tokenOut, s.tokenOut),
+                  // A snapshot sends none; keep whatever we had (0 until a
+                  // measurement lands, which the UI renders as no figure).
+                  costUsd:
+                    event.costUsd === undefined
+                      ? s.costUsd
+                      : measured
+                        ? event.costUsd
+                        : Math.max(event.costUsd, s.costUsd),
+                  usageMeasured: s.usageMeasured || measured,
+                };
+              });
               break;
             case "done":
               done = event.result;

@@ -34,6 +34,14 @@ export class ProviderError extends Error {
 export interface ProviderStreamChunk {
   text?: string;
   usage?: { tokenIn: number; tokenOut: number };
+  /** This `usage` is a HEADER SNAPSHOT, not a cumulative measurement — its
+   *  `tokenOut` is a placeholder the provider sends before generating (
+   *  Anthropic's `message_start` reports 1-4). Only the emitting adapter can
+   *  know this, so it says so rather than leaving downstream code to guess
+   *  from the value. Consumers may floor a snapshot with their own estimate;
+   *  they must NOT do that to a real cumulative count, which would replace a
+   *  measurement with a heuristic. */
+  usageSnapshot?: boolean;
   /** Provider-reported stop/finish reason, raw wire value ("max_tokens",
    *  "length", "MAX_TOKENS", …). Lets the adapter tell "hit the output
    *  ceiling" apart from "returned a malformed envelope". */
@@ -51,6 +59,15 @@ export interface ProviderStreamChunk {
  *  its provider's parameter without re-checking. Absent = provider default. */
 export interface ProviderRequestOptions {
   thinkingLevel?: ThinkingLevel;
+  /** Absolute epoch-ms wall for the whole call, taken by the ROUTE at entry.
+   *  The budget has to start there, not in the adapter: auth, settings, JSON
+   *  parsing and reserveSpend all run first, and time spent in them is time
+   *  the platform's maxDuration is already counting. An adapter-local
+   *  deadline silently excludes it, which is how a slow preflight plus a
+   *  full-length stream can still outrun the window and skip the route's
+   *  spend-settling finally. Absent (tests, direct adapter use) = take a
+   *  fresh one. */
+  deadline?: number;
 }
 
 /** Narrow the app-wide level onto the values the OpenAI SDK types accept —
