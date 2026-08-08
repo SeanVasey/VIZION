@@ -2668,6 +2668,31 @@ render identical; account change wipes storage before rehydrating (the
   and comparing dark text against a light-composited wall produces a
   confident, meaningless failure. Drive the app's own theme control instead,
   and assert the tokens actually swapped before trusting the numbers.
+- **`getComputedStyle` verifies the box, not the keyframes — so a unit change
+  inside `@keyframes` passes a "geometry unchanged" check.** The same commit
+  that fixed the `vmax` bug converted bloom C's drift to bare `vw`/`vh`
+  instead of the diameter-ratio form the other three got, and the
+  verification script — which reads declared width/height/offsets — never
+  evaluates an animation's transform, so the one value that moved was outside
+  the instrument's field of view. At the 1280×800 reference `3vmax` is 38.4px
+  but `3vh` is 24px: a silent 37.5% loss of vertical travel at the very
+  viewport the motion was tuned against, plus a 3.47× disproportion on a
+  portrait phone. Assert keyframe values directly; do not infer them from the
+  element's box. `tests/unit/ambient-geometry.test.ts` now greps for exactly
+  this.
+- **Verify a comment's claim about the PRIOR code against `git show
+  <base>:<path>`, not against the code in front of you.** The comment shipped
+  alongside that change asserted bloom C's drift "was already axis-correct —
+  not vmax". It was reconstructed from the post-change code and was false —
+  the base commit reads `translate(-4vmax, 3vmax)`. Source comments are
+  living canon here (`docs/decisions/0005-living-canon.md`), so a comment
+  that misdescribes history is a defect in the canon, and it strands the next
+  maintainer with a false premise for an exemption that no longer exists.
+- **Mixing `vw`/`vh` drift with a `min(Nvw, Mvh)` diameter decouples them.**
+  Which branch of the `min()` wins varies by viewport, so only the ratio form
+  (`calc(var(--bloom-size) * N / 46)`) stays proportional on both branches —
+  a bare `vw` drift also comes apart at short-landscape sizes like 1280×500,
+  where the diameter takes the vh branch while the drift does not.
 - **A legibility fix that changes an element's visual weight is a design
   change, and needs to be looked at.** Adding `.glass` to the mode caption
   fixed the contrast margin and turned a one-line secondary caption into a

@@ -19,9 +19,15 @@ import { MODE_BLURB } from "@/lib/enhance/modes";
  * secondary text showing one mode description — the hovered/focused cell,
  * falling back to the active mode. (The 2026-07 UX audit demoted the old
  * onyx card + caret: the explanation is guidance, not a surface, and must
- * not cost a full card of vertical space.)  All six blurbs stay stacked in
- * one grid cell, so the line is sized by the longest description and never
- * shifts layout as the described mode changes.
+ * not cost a full card of vertical space.)  That ruling still stands and is
+ * why the helper carries `.ambient-scrim` rather than a glass tier: the
+ * scrim is a FILL only — no hairline, no sheen, no blur — added because
+ * this is the one caption with nothing between it and the ambient layer,
+ * where a drifting bloom spends most of the light-theme Silver contrast
+ * margin. A glass tier here would have re-created exactly the card the
+ * audit removed; a wash costs no card and no caret.  All six blurbs stay
+ * stacked in one grid cell, so the line is sized by the longest description
+ * and never shifts layout as the described mode changes.
  */
 export const ModeRig = memo(function ModeRig({
   activeMode,

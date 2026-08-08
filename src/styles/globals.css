@@ -825,7 +825,11 @@
   .bg-nebula-ground {
     background:
       radial-gradient(120% 80% at 50% -10%, var(--nebula-ground-top) 0%, transparent 60%),
-      radial-gradient(120% 80% at 50% 110%, var(--nebula-ground-bottom) 0%, transparent 60%);
+      radial-gradient(
+        120% 80% at 50% 110%,
+        var(--nebula-ground-bottom) 0%,
+        transparent 60%
+      );
   }
 
   /* Blurred colour blooms — CSS keyframes only, no JS; GPU-composited
@@ -850,11 +854,19 @@
      a bare unit swap alone would still overflow vertically). Position
      offsets and keyframe drift are expressed as the *same ratio to the
      diameter* the original vmax numbers had against their own vmax size,
-     via a per-bloom `--bloom-d` custom property, so they scale in lock-step
-     with the (now-clamped) diameter at every viewport instead of drifting
-     out of proportion. Bloom C is the one exception: its position
-     (`left: 30vw; top: 36vh`) and drift were already independently
-     axis-correct — not vmax — so only its diameter needed the clamp. */
+     via a per-bloom `--bloom-size` custom property, so they scale in
+     lock-step with the (now-clamped) diameter at every viewport instead of
+     drifting out of proportion — including bloom C's drift, which was
+     `vmax` like the rest and so gets the same ratio treatment. Bloom C's
+     POSITION is the one thing left alone: `left: 30vw; top: 36vh` was
+     already per-axis before this fix, and is the anchor the drift swings
+     around rather than a size.
+
+     One value is deliberately NOT scaled: the 80px blur on the shared rule
+     below. It is an absolute softness, not geometry, so on a small screen
+     the (smaller) blooms read softer relative to their own diameter. That
+     is a look decision, not an oversight — revisit it with the owner rather
+     than "fixing" it to a ratio. */
   .bg-nebula-bloom {
     position: absolute;
     border-radius: 50%;
@@ -862,38 +874,38 @@
     will-change: transform;
   }
   .bg-nebula-bloom-a {
-    --bloom-d: min(70vw, 112vh);
-    width: var(--bloom-d);
-    height: var(--bloom-d);
-    left: calc(var(--bloom-d) * -20 / 70);
-    top: calc(var(--bloom-d) * -26 / 70);
+    --bloom-size: min(70vw, 112vh);
+    width: var(--bloom-size);
+    height: var(--bloom-size);
+    left: calc(var(--bloom-size) * -20 / 70);
+    top: calc(var(--bloom-size) * -26 / 70);
     background: radial-gradient(closest-side, var(--nebula-bloom-a), transparent 64%);
     animation: nebula-bloom-a 42s ease-in-out infinite alternate;
   }
   .bg-nebula-bloom-b {
-    --bloom-d: min(80vw, 128vh);
-    width: var(--bloom-d);
-    height: var(--bloom-d);
-    right: calc(var(--bloom-d) * -28 / 80);
-    bottom: calc(var(--bloom-d) * -32 / 80);
+    --bloom-size: min(80vw, 128vh);
+    width: var(--bloom-size);
+    height: var(--bloom-size);
+    right: calc(var(--bloom-size) * -28 / 80);
+    bottom: calc(var(--bloom-size) * -32 / 80);
     background: radial-gradient(closest-side, var(--nebula-bloom-b), transparent 62%);
     animation: nebula-bloom-b 54s ease-in-out infinite alternate;
   }
   .bg-nebula-bloom-c {
-    --bloom-d: min(46vw, 73.6vh);
-    width: var(--bloom-d);
-    height: var(--bloom-d);
+    --bloom-size: min(46vw, 73.6vh);
+    width: var(--bloom-size);
+    height: var(--bloom-size);
     left: 30vw;
     top: 36vh;
     background: radial-gradient(closest-side, var(--nebula-bloom-c), transparent 62%);
     animation: nebula-bloom-c 66s ease-in-out infinite alternate;
   }
   .bg-nebula-bloom-d {
-    --bloom-d: min(38vw, 60.8vh);
-    width: var(--bloom-d);
-    height: var(--bloom-d);
-    left: calc(var(--bloom-d) * -8 / 38);
-    bottom: calc(var(--bloom-d) * -4 / 38);
+    --bloom-size: min(38vw, 60.8vh);
+    width: var(--bloom-size);
+    height: var(--bloom-size);
+    left: calc(var(--bloom-size) * -8 / 38);
+    bottom: calc(var(--bloom-size) * -4 / 38);
     background: radial-gradient(closest-side, var(--nebula-bloom-d), transparent 60%);
     animation: nebula-bloom-d 34s ease-in-out infinite alternate;
   }
@@ -903,7 +915,11 @@
       transform: translate(0, 0) scale(1);
     }
     to {
-      transform: translate(calc(var(--bloom-d) * 10 / 70), calc(var(--bloom-d) * 8 / 70)) scale(1.14);
+      transform: translate(
+          calc(var(--bloom-size) * 10 / 70),
+          calc(var(--bloom-size) * 8 / 70)
+        )
+        scale(1.14);
     }
   }
   @keyframes nebula-bloom-b {
@@ -911,23 +927,39 @@
       transform: translate(0, 0) scale(1.1);
     }
     to {
-      transform: translate(calc(var(--bloom-d) * -9 / 80), calc(var(--bloom-d) * -7 / 80)) scale(0.94);
+      transform: translate(
+          calc(var(--bloom-size) * -9 / 80),
+          calc(var(--bloom-size) * -7 / 80)
+        )
+        scale(0.94);
     }
   }
   @keyframes nebula-bloom-c {
     from {
-      transform: translate(-4vw, 3vh) scale(0.9);
+      transform: translate(
+          calc(var(--bloom-size) * -4 / 46),
+          calc(var(--bloom-size) * 3 / 46)
+        )
+        scale(0.9);
     }
     to {
-      transform: translate(5vw, -4vh) scale(1.1);
+      transform: translate(
+          calc(var(--bloom-size) * 5 / 46),
+          calc(var(--bloom-size) * -4 / 46)
+        )
+        scale(1.1);
     }
   }
   @keyframes nebula-bloom-d {
     from {
-      transform: translate(0, calc(var(--bloom-d) * 2 / 38)) scale(0.92);
+      transform: translate(0, calc(var(--bloom-size) * 2 / 38)) scale(0.92);
     }
     to {
-      transform: translate(calc(var(--bloom-d) * 6 / 38), calc(var(--bloom-d) * -5 / 38)) scale(1.12);
+      transform: translate(
+          calc(var(--bloom-size) * 6 / 38),
+          calc(var(--bloom-size) * -5 / 38)
+        )
+        scale(1.12);
     }
   }
 
