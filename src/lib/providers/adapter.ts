@@ -43,6 +43,9 @@ export interface EnhanceArgs {
   format?: FormatId;
   /** Condense/Expand depth (validated by the route). Inert elsewhere. */
   length?: LengthId;
+  /** Absolute epoch-ms wall for the provider call, taken at route entry so the
+   *  preflight counts against it. See ProviderRequestOptions.deadline. */
+  deadline?: number;
 }
 
 export interface EnhanceOutput {
@@ -108,6 +111,7 @@ export async function* enhanceStream({
   refine,
   format,
   length,
+  deadline,
 }: EnhanceArgs): AsyncGenerator<AdapterStreamEvent> {
   const cfg = TARGETS[target];
   const system = buildSystemPrompt({ mode, target, refine, format, length });
@@ -143,6 +147,7 @@ export async function* enhanceStream({
 
   for await (const chunk of streams[cfg.provider](system, userInput, cfg.model, {
     thinkingLevel,
+    deadline,
   })) {
     if (chunk.text) {
       raw += chunk.text;

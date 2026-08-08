@@ -30,9 +30,10 @@ export async function* streamXAI(
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("xai");
 
-  // ONE wall for the whole call, taken before the request is issued so the
-  // header wait is inside the budget rather than beside it.
-  const deadline = providerDeadline();
+  // ONE wall for the whole call. The ROUTE takes it at entry so its preflight
+  // (auth, settings, reserveSpend) counts too; a fresh one here is the
+  // fallback for direct adapter use and tests.
+  const deadline = opts.deadline ?? providerDeadline();
   const client = new OpenAI({
     apiKey,
     baseURL: XAI_BASE_URL,

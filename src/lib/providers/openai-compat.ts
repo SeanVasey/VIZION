@@ -112,9 +112,10 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
     const apiKey = process.env[opts.keyEnv];
     if (!apiKey) throw new ProviderNotConfiguredError(opts.provider);
 
-    // ONE wall for the whole call, taken before the request is issued so the
-    // header wait is inside the budget rather than beside it.
-    const deadline = providerDeadline();
+    // ONE wall for the whole call. The ROUTE takes it at entry so its preflight
+    // (auth, settings, reserveSpend) counts too; a fresh one here is the
+    // fallback for direct adapter use and tests.
+    const deadline = req.deadline ?? providerDeadline();
     const client = new OpenAI({
       apiKey,
       baseURL: opts.baseURL,

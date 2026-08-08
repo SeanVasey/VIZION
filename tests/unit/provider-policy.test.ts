@@ -95,21 +95,43 @@ describe("uniform connection policy (PRV-002)", () => {
       expect(src).toMatch(/cancel:\s*\(\)\s*=>\s*\w+\.(controller\.)?abort\(\)/);
     });
 
-    it(`${file} takes its total deadline BEFORE issuing the request`, () => {
-      // Most adapters await create(), which resolves at the response HEADERS.
-      // A budget started after that gives header latency and stream time two
-      // independent windows that can sum past the route's maxDuration and skip
-      // its spend-settling finally block. One absolute wall, taken first.
+    it(`${file} prefers the CALLER's wall, and takes one before the request`, () => {
+      // Two properties in one, because they were two separate bugs.
+      //
+      // (a) The wall must come from the caller when offered. The route takes
+      //     it at entry so its own preflight -- auth, settings, JSON parse,
+      //     reserveSpend -- counts against the same maxDuration the platform
+      //     is already measuring. An adapter-local deadline excludes all of
+      //     that.
+      // (b) The fallback must still be taken BEFORE the request, since most
+      //     adapters await create(), which resolves at the response HEADERS.
+      //     Otherwise header latency and stream time get separate windows.
       const src = read("src", "lib", "providers", file);
-      expect(src).toContain("providerDeadline()");
+      expect(src).toMatch(/(opts|req)\.deadline \?\? providerDeadline\(\)/);
       expect(src).toMatch(/deadline,/);
-      // Ordering is the whole point, so assert it rather than mere presence.
+      // Ordering is the property, so assert it rather than mere presence.
       const taken = src.indexOf("providerDeadline()");
       const used = src.indexOf("withIdleTimeout(");
       expect(taken).toBeGreaterThan(-1);
       expect(taken).toBeLessThan(used);
     });
   }
+
+  it("the enhance route takes the wall at entry, before any preflight", () => {
+    // maxDuration starts when the platform invokes the handler, so the budget
+    // has to start there too. A slow preflight plus a full-length stream can
+    // otherwise overrun the window and skip the spend-settling finally.
+    const src = read("src", "app", "api", "enhance", "route.ts");
+    const taken = src.indexOf("providerDeadline()");
+    expect(taken).toBeGreaterThan(-1);
+    // Before the first await of any preflight work, and before the stream.
+    for (const later of ["createClient(", "reserveSpend(", "enhanceStream("]) {
+      expect(taken, `providerDeadline() must precede ${later}`).toBeLessThan(
+        src.indexOf(later),
+      );
+    }
+    expect(src).toMatch(/deadline,/);
+  });
 
   it("google.ts resets its abort clock on every chunk", () => {
     // Gemini is a raw fetch with no SDK to wrap, so it carries the same

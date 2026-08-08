@@ -59,6 +59,15 @@ export interface ProviderStreamChunk {
  *  its provider's parameter without re-checking. Absent = provider default. */
 export interface ProviderRequestOptions {
   thinkingLevel?: ThinkingLevel;
+  /** Absolute epoch-ms wall for the whole call, taken by the ROUTE at entry.
+   *  The budget has to start there, not in the adapter: auth, settings, JSON
+   *  parsing and reserveSpend all run first, and time spent in them is time
+   *  the platform's maxDuration is already counting. An adapter-local
+   *  deadline silently excludes it, which is how a slow preflight plus a
+   *  full-length stream can still outrun the window and skip the route's
+   *  spend-settling finally. Absent (tests, direct adapter use) = take a
+   *  fresh one. */
+  deadline?: number;
 }
 
 /** Narrow the app-wide level onto the values the OpenAI SDK types accept —

@@ -10,6 +10,7 @@ import {
   type ThinkingLevel,
 } from "@/lib/constants";
 import { enhanceStream, type EnhanceOutput } from "@/lib/providers/adapter";
+import { providerDeadline } from "@/lib/providers/idle-timeout";
 import {
   TARGETS,
   computeCost,
@@ -77,6 +78,15 @@ function err(status: number, error: string, extra?: Record<string, unknown>) {
  * failures after headers are sent).
  */
 export async function POST(request: NextRequest) {
+  // FIRST STATEMENT, and it has to be. maxDuration starts counting when the
+  // platform invokes this handler, not when the provider call begins — so
+  // auth, the settings read, JSON parsing and reserveSpend below are all
+  // already spending it. A deadline taken later (in the adapter, or even just
+  // before the fetch) silently excludes that preflight, and a slow one plus a
+  // full-length stream can still overrun the window and skip the finally block
+  // that settles the spend hold. One wall, from the only moment that matches
+  // what the platform is measuring. (Codex review, PR #91.)
+  const deadline = providerDeadline();
   const supabase = await createClient();
   const {
     data: { user },
@@ -310,6 +320,7 @@ export async function POST(request: NextRequest) {
           refine: typedRefine,
           format: format as FormatId | undefined,
           length: length as LengthId | undefined,
+          deadline,
         })) {
           if (event.type === "delta") {
             if (!generating) {

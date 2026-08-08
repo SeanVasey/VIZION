@@ -4,6 +4,7 @@ import { PROVIDER_MAX_RETRIES, PROVIDER_TOTAL_MS } from "@/lib/providers/config"
 import {
   ProviderError,
   ProviderNotConfiguredError,
+  type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
@@ -23,13 +24,18 @@ export async function* streamMistral(
   system: string,
   input: string,
   model: string,
+  // Mistral exposes no per-request reasoning knob, so this adapter took three
+  // parameters. It still needs `deadline` — the wall belongs to the request,
+  // not to the tuning — so the options object arrives here too.
+  opts: ProviderRequestOptions = {},
 ): AsyncGenerator<ProviderStreamChunk> {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("mistral");
 
-  // ONE wall for the whole call, taken before the request is issued so the
-  // header wait is inside the budget rather than beside it.
-  const deadline = providerDeadline();
+  // ONE wall for the whole call. The ROUTE takes it at entry so its preflight
+  // (auth, settings, reserveSpend) counts too; a fresh one here is the
+  // fallback for direct adapter use and tests.
+  const deadline = opts.deadline ?? providerDeadline();
   const client = new OpenAI({
     apiKey,
     baseURL: MISTRAL_BASE_URL,
