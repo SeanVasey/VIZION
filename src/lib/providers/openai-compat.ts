@@ -1,19 +1,14 @@
 import "server-only";
 import OpenAI from "openai";
 import type { ThinkingLevel } from "@/lib/constants";
-import {
-  PROVIDER_MAX_RETRIES,
-  PROVIDER_TOTAL_MS,
-  numEnv,
-  type Provider,
-} from "@/lib/providers/config";
+import { PROVIDER_MAX_RETRIES, numEnv, type Provider } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /**
  * Shared streaming adapter for OpenAI-compatible chat APIs. The 2026-07 roster
@@ -112,14 +107,14 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
     const apiKey = process.env[opts.keyEnv];
     if (!apiKey) throw new ProviderNotConfiguredError(opts.provider);
 
-    // ONE wall for the whole call. The ROUTE takes it at entry so its preflight
-    // (auth, settings, reserveSpend) counts too; a fresh one here is the
-    // fallback for direct adapter use and tests.
-    const deadline = req.deadline ?? providerDeadline();
+    // ONE wall for the whole call, and every timer below is cut from what it
+    // has LEFT — never from the full constant. The SDK `timeout` covers the
+    // connect-and-headers wait, which is time this same wall already counts.
+    const { deadline, timeoutMs } = providerBudget(opts.provider, req.deadline);
     const client = new OpenAI({
       apiKey,
       baseURL: opts.baseURL,
-      timeout: PROVIDER_TOTAL_MS,
+      timeout: timeoutMs,
       maxRetries: PROVIDER_MAX_RETRIES,
     });
     const filter = opts.stripThink ? createThinkFilter() : null;

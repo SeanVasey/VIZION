@@ -154,6 +154,80 @@ describe("streamGoogle upstream refusals", () => {
   });
 });
 
+describe("streamGoogle honours the caller's wall", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("aborts on the ROUTE's deadline, not a fresh full-length one", async () => {
+    // Codex's eighth finding (PR #91). Gemini is a hand-rolled fetch rather
+    // than an SDK call, so when the route began passing an absolute deadline
+    // this adapter received it and never read it — it went on arming its own
+    // 285s total. A slow preflight plus a full-length Gemini stream could then
+    // outrun maxDuration and skip the route's spend-settling finally.
+    //
+    // Proven behaviourally: a body that never completes, under a wall ~1.5s
+    // out. Honouring it aborts on time; ignoring it would sit on the 60s idle
+    // timer and blow this test's own timeout.
+    vi.stubEnv("GOOGLE_API_KEY", "g-test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((_url: string, init: { signal: AbortSignal }) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          // Opens, emits nothing, never closes — and, like a real fetch body,
+          // ERRORS when the request is aborted. Wiring the signal through is
+          // the whole point: a mock that ignores it cannot tell an adapter
+          // that honours the wall from one that doesn't, since both would
+          // simply hang.
+          body: new ReadableStream<Uint8Array>({
+            start(controller) {
+              init.signal.addEventListener(
+                "abort",
+                () => controller.error(new Error("This operation was aborted")),
+                { once: true },
+              );
+            },
+          }),
+        }),
+      ),
+    );
+
+    const started = Date.now();
+    await expect(
+      (async () => {
+        for await (const chunk of streamGoogle("sys", "in", "gemini-3.6-flash", {
+          deadline: Date.now() + 1_500,
+        })) {
+          void chunk;
+        }
+      })(),
+    ).rejects.toMatchObject({ name: "ProviderError", status: 504 });
+    expect(Date.now() - started).toBeLessThan(6_000);
+  }, 15_000);
+
+  it("never opens a connection when the budget is already spent", async () => {
+    // An aborted call can still be billed once generation starts, so a wall
+    // that expired during preflight must fail before fetch(), not after.
+    const fetchMock = vi.fn();
+    vi.stubEnv("GOOGLE_API_KEY", "g-test");
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      (async () => {
+        for await (const chunk of streamGoogle("sys", "in", "gemini-3.6-flash", {
+          deadline: Date.now() - 1,
+        })) {
+          void chunk;
+        }
+      })(),
+    ).rejects.toMatchObject({ name: "ProviderError", status: 504 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 /** Body from raw pre-encoded SSE text, so tests control the frame separators
  *  byte-for-byte. */
 function rawBody(text: string): ReadableStream<Uint8Array> {

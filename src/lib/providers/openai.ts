@@ -1,6 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
-import { PROVIDER_MAX_RETRIES, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
+import { PROVIDER_MAX_RETRIES } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -8,7 +8,7 @@ import {
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /**
  * Streaming OpenAI (GPT) call: yields raw response-text deltas, then one
@@ -28,13 +28,15 @@ export async function* streamOpenAI(
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("openai");
 
-  // ONE wall for the whole call. The ROUTE takes it at entry so its preflight
-  // (auth, settings, reserveSpend) counts too; a fresh one here is the
-  // fallback for direct adapter use and tests.
-  const deadline = opts.deadline ?? providerDeadline();
+  // ONE wall for the whole call, and every timer below is cut from what it has
+  // LEFT — never from the full constant. The SDK `timeout` covers the
+  // connect-and-headers wait (it is cleared the moment fetch() settles), which
+  // is time this same wall is already counting; handing it the constant gave
+  // that wait its own full-length budget beside the stream's.
+  const { deadline, timeoutMs } = providerBudget("openai", opts.deadline);
   const client = new OpenAI({
     apiKey,
-    timeout: PROVIDER_TOTAL_MS,
+    timeout: timeoutMs,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
   const reasoningEffort = toReasoningEffort(opts.thinkingLevel);

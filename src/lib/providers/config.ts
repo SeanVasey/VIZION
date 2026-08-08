@@ -205,15 +205,24 @@ export function computeCost(
  *   IDLE  — time since the last token, enforced by withIdleTimeout. A hung
  *           connection dies fast; a stream that keeps producing is never
  *           interrupted. This is the one that should fire in anger.
- *   TOTAL — an ABSOLUTE wall across the stream's lifetime, also enforced by
- *           withIdleTimeout (and by hand in google.ts). It cannot live on the
- *           SDK client, because that timer is already gone by the time the
- *           body streams; a continuously productive stream would otherwise
- *           outlive it and be killed by the platform instead, skipping the
- *           route's finally block and stranding the spend hold.
+ *   TOTAL — an ABSOLUTE wall across the whole invocation, taken ONCE by the
+ *           route at entry (so its own preflight counts) and enforced by
+ *           withIdleTimeout, by hand in google.ts, and as the SDK clients'
+ *           connect-and-headers `timeout`. It cannot live on the SDK client
+ *           alone, because that timer is already gone by the time the body
+ *           streams; a continuously productive stream would otherwise outlive
+ *           it and be killed by the platform instead, skipping the route's
+ *           finally block and stranding the spend hold.
  *
- * TOTAL is still passed as the SDK `timeout` as well, where it usefully bounds
- * a hang BEFORE headers. Sized under the route's maxDuration (300s).
+ * TOTAL IS A WALL, NOT A DURATION TO RE-USE — and that distinction is the
+ * whole lesson of PR #91, where six review rounds each moved the timer one
+ * layer outward while the layer below went on arming a fresh full-length one
+ * from this constant. Two budgets that each read 285_000 do not add up to 285
+ * seconds; they add up to 570. So this value is converted to an absolute
+ * deadline in exactly one place — `providerDeadline()` — and every timer below
+ * that is cut from `remainingMs(deadline)`. Nothing else may read it as a
+ * duration, and `tests/unit/provider-policy.test.ts` fails the build if
+ * anything does. Sized under the route's maxDuration (300s).
  */
 export const PROVIDER_IDLE_MS = numEnv("PROVIDER_IDLE_MS", 60_000);
 export const PROVIDER_TOTAL_MS = numEnv("PROVIDER_TOTAL_MS", 285_000);

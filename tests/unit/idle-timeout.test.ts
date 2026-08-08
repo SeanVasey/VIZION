@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ProviderError } from "@/lib/providers/errors";
-import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
+import {
+  providerBudget,
+  providerDeadline,
+  remainingMs,
+  withIdleTimeout,
+} from "@/lib/providers/idle-timeout";
 
 /**
  * What this module has to get right, stated once.
@@ -229,5 +234,57 @@ describe("withIdleTimeout", () => {
       for await (const v of withIdleTimeout(broken(), "mistral", { idleMs: 500 })) void v;
     };
     await expect(run()).rejects.toThrow("upstream exploded");
+  });
+});
+
+/**
+ * The budget helper — what actually ends the PR #91 loop.
+ *
+ * Six review rounds each RELOCATED the total timer (route preflight, header
+ * wait, stream body, SDK client) while the layer below went on arming a fresh
+ * full-length one from `PROVIDER_TOTAL_MS`. Two budgets that each read 285s do
+ * not sum to 285s. The cure is that below the route there is no duration left
+ * to relocate: adapters get a wall and ask it what remains.
+ */
+describe("providerBudget", () => {
+  it("keeps the caller's wall and derives the timeout from what REMAINS", async () => {
+    // The property, stated directly: the SDK timeout shrinks as the wall is
+    // consumed. A constant would return the same number both times, which is
+    // exactly how the header wait got a full-length budget beside the stream's.
+    const wall = providerDeadline(5_000);
+    const first = providerBudget("openai", wall);
+    expect(first.deadline).toBe(wall);
+    expect(first.timeoutMs).toBeLessThanOrEqual(5_000);
+    expect(first.timeoutMs).toBeGreaterThan(4_000);
+
+    await sleep(1_200);
+    const second = providerBudget("openai", wall);
+    expect(second.deadline).toBe(wall);
+    // Same wall, strictly smaller budget — series, not parallel.
+    expect(second.timeoutMs).toBeLessThan(first.timeoutMs - 1_000);
+  });
+
+  it("refuses to issue a request whose budget is already spent", () => {
+    // Not defensive rounding. A call we start and must instantly abort can
+    // still be BILLED once the provider begins generating, so a preflight that
+    // ate the whole window must fail BEFORE the connection, not after it.
+    expect(() => providerBudget("anthropic", Date.now() - 1)).toThrow(ProviderError);
+    try {
+      providerBudget("anthropic", Date.now() - 1);
+    } catch (e) {
+      expect(e).toMatchObject({ provider: "anthropic", status: 504 });
+      expect((e as Error).message).toMatch(/no time budget left/);
+    }
+  });
+
+  it("takes a fresh wall when the caller offers none, for direct/adapter use", () => {
+    const { deadline, timeoutMs } = providerBudget("zai");
+    expect(deadline).toBeGreaterThan(Date.now());
+    expect(timeoutMs).toBeGreaterThan(0);
+  });
+
+  it("clamps a spent wall at zero rather than reporting negative time", () => {
+    expect(remainingMs(Date.now() - 10_000)).toBe(0);
+    expect(remainingMs(Date.now() + 5_000)).toBeGreaterThan(4_000);
   });
 });

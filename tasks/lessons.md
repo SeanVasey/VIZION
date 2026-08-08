@@ -2771,3 +2771,46 @@ render identical; account change wipes storage before rehydrating (the
   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` must be overridden for it). Budget for it
   before claiming the gate is green — and note that a `... | tail` pipeline
   returns *tail's* exit code, so a failed run can look like exit 0.
+- **A budget expressed as a duration will be re-armed at every layer.** PR #91
+  took six review rounds to bound one provider call, and each round found the
+  *same* defect one layer further out: route preflight, then the header wait,
+  then the stream body, then the SDK client's own `timeout`. Every fix
+  RELOCATED the timer; none removed the ability to start a new one, because
+  `PROVIDER_TOTAL_MS` stayed importable and `timeout: PROVIDER_TOTAL_MS` went
+  on type-checking and reading plausibly wherever it appeared. **Two budgets
+  that each read 285s do not sum to 285s — they sum to 570.** The cure is
+  representational, not positional: convert the constant to an absolute wall in
+  exactly one place, and give every layer below it only `remainingMs(deadline)`.
+  When a reviewer keeps finding the same bug in a new location, stop fixing the
+  location — the next round is already written.
+- **A guard test that asserts a literal can pin the defect in place.**
+  `provider-policy.test.ts` asserted `timeout: PROVIDER_TOTAL_MS` — the exact
+  line Codex was filing as a P1. So the invariant the suite defended was the
+  bug, and each attempted fix had to fight its own test suite. Assert the
+  PROPERTY (`timeout` is derived from the remaining wall), never the token that
+  happened to implement it on the day it was written. A source-contract test is
+  a specification; write it as one.
+- **"Every X except the one shaped differently" is how an invariant dies.**
+  `google.ts` was the last adapter still arming its own 285s total, and it
+  survived five rounds for one reason: it is a hand-rolled `fetch`, not an SDK
+  call, so it did not pattern-match as an adapter. The route threaded it a
+  deadline and it never read the field. When a rule is rolled out by analogy to
+  a shape, the member that does not share the shape is not an edge case — it is
+  the one that will fail in production.
+- **Prove a guard bites by breaking the code on purpose.** Both new guards were
+  mutation-tested: re-introducing `timeout: PROVIDER_TOTAL_MS` and re-blinding
+  `google.ts` to `opts.deadline` each turned the suite red, on the behavioural
+  tests as well as the source scan. A guard never observed failing is a guard
+  you are trusting on faith — and this repo has now shipped one that asserted
+  the opposite of what it meant.
+- **Mock the signal, not just the shape.** The first Gemini deadline test hung
+  for its full 15s timeout: the `fetch` mock returned a `ReadableStream` that
+  ignored `init.signal`, so aborting the controller did nothing and an adapter
+  that honoured the wall was indistinguishable from one that ignored it. A real
+  `fetch` errors the body stream on abort. When the behaviour under test IS
+  cancellation, the mock has to implement cancellation.
+- **Refusing to start is cheaper than aborting.** An aborted provider call can
+  still be billed once generation begins, so `providerBudget()` throws a 504
+  before the connection when the wall is already spent, rather than opening a
+  request it knows it must kill. The money leaves at connect time; the guard
+  belongs before it, not after.

@@ -6,6 +6,50 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The provider time budget becomes one wall, and stops being re-armed per layer
+
+Closing the last three review findings on the streaming work below, and — more
+importantly — the reason there were six rounds of them.
+
+The budget is a single wall spanning the whole invocation: route preflight,
+connect, headers, and the streamed body, sized under `maxDuration` so the
+route's spend-settling `finally` always runs. It was written as a **duration**
+(`PROVIDER_TOTAL_MS`) applied independently wherever a timer was needed, and
+every layer that armed its own full-length one put two budgets in **series**.
+Each review round moved the timer one layer outward — preflight, then the
+header wait, then the stream body, then the SDK client's `timeout` — and each
+time the layer below went on arming a fresh 285s, because the constant stayed
+importable and `timeout: PROVIDER_TOTAL_MS` still type-checked and still read
+plausibly. Two budgets that each read 285s do not sum to 285s.
+
+So the fix is not another relocation. Below the route there is no duration left
+to relocate: `providerDeadline()` converts the constant to an absolute wall in
+exactly one place, and `providerBudget(provider, opts.deadline)` hands each
+adapter that wall plus `remainingMs()` of it. Every downstream timer — the SDK
+clients' connect-and-headers `timeout`, the idle wall, the total wall, Gemini's
+`AbortController` — is now cut from the remainder.
+
+- **The SDK `timeout` no longer gets its own window.** It bounds the header
+  wait, which is time the same wall already counts; it is now `timeoutMs`, not
+  the constant.
+- **`google.ts` reads the deadline it was handed.** The one hand-rolled `fetch`
+  adapter had been threaded `opts.deadline` and never read it, so Gemini kept
+  arming a fresh 285s regardless of how long preflight took. It was the last
+  holdout for exactly the reason it was easy to miss: it is not shaped like the
+  SDK adapters, so the rollout-by-analogy skipped it.
+- **A spent budget refuses the request instead of aborting it.** An aborted call
+  can still be billed once the provider starts generating, so a wall exhausted
+  during preflight now fails with a 504 *before* the connection opens.
+- **The guard test no longer pins the defect.** `provider-policy.test.ts`
+  asserted `timeout: PROVIDER_TOTAL_MS` — the exact line under review — so the
+  suite was defending the bug and every fix had to fight it. It now asserts the
+  property, and a repo-wide test fails the build if any file outside
+  `config.ts`/`idle-timeout.ts` imports the constant at all. Both guards were
+  mutation-tested by re-introducing each defect.
+
+The changelog's migration reference is corrected to `20260808021953`, the
+version that actually shipped.
+
 ### Long streams are no longer cut off at ~55s, and a truncated run keeps its output
 
 A healthy long generation was being killed mid-stream and billed anyway.
@@ -32,8 +76,9 @@ truncated a body mid-read, and a total budget cannot be expressed as an SDK
 Both budgets are therefore enforced in application code. `PROVIDER_IDLE_MS`
 (60s) measures time since the **last token**, so a stream that keeps producing
 is never interrupted however long it runs, while genuine silence dies fast.
-`PROVIDER_TOTAL_MS` (285s) is an **absolute wall** taken at the first read that
-deliberately does not reset on a chunk — without it a continuously productive
+`PROVIDER_TOTAL_MS` (285s) is an **absolute wall** taken once at route entry
+(see the section above) that deliberately does not reset on a chunk — without
+it a continuously productive
 stream had no bound at all and would be killed by the platform, skipping the
 `finally` block and stranding the spend hold (PRV-002). Both are
 env-overridable, and a test pins `PROVIDER_TOTAL_MS < maxDuration` because they
@@ -100,7 +145,7 @@ one would have shipped unnoticed.
 ### Qwen moves to Qwen3.8 Max
 
 `qwen3_7_max` → `qwen3_8_max`, wire id `qwen3.8-max`, with the
-`model_target` enum renamed in migration `20260808120000` (existing rows migrate
+`model_target` enum renamed in migration `20260808021953` (existing rows migrate
 by OID) and a `LEGACY_TARGET_IDS` entry so a stale persisted selection resolves
 instead of 400ing. The thinking ladder is unchanged — "Max" is Alibaba's model
 tier, not a reasoning depth.
