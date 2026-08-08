@@ -7,7 +7,7 @@ import {
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /** The SDK's stream params, widened with `output_config.effort` — the GA
  *  reasoning-depth control on the Claude 5 family. This SDK version's types
@@ -58,6 +58,9 @@ export async function* streamAnthropic(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("anthropic");
 
+  // ONE wall for the whole call, taken before the request is issued so the
+  // header wait is inside the budget rather than beside it.
+  const deadline = providerDeadline();
   const client = new Anthropic({
     apiKey,
     timeout: PROVIDER_TOTAL_MS,
@@ -68,10 +71,11 @@ export async function* streamAnthropic(
 
   try {
     const stream = client.messages.stream(buildAnthropicParams(model, system, input, effort));
-    // Idle-bounded, not wall-clock bounded: the SDK `timeout` above covers the
-    // whole request including the body read, so on its own it would kill a
-    // healthy long generation. See idle-timeout.ts.
+    // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()
+    // settles at the response headers, so it bounds nothing once the body
+    // streams. Idle wall + absolute deadline both live in idle-timeout.ts.
     for await (const event of withIdleTimeout(stream, "anthropic", {
+      deadline,
       // MessageStream.abort() -> controller.abort(); without it the queued
       // iterator.return() cannot run while a read is pending.
       cancel: () => stream.abort(),

@@ -6,7 +6,7 @@ import {
   ProviderNotConfiguredError,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /** Mistral's chat API is OpenAI-compatible (incl. json_object + streaming),
  *  so the adapter is the OpenAI SDK pointed at api.mistral.ai — no extra
@@ -27,6 +27,9 @@ export async function* streamMistral(
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("mistral");
 
+  // ONE wall for the whole call, taken before the request is issued so the
+  // header wait is inside the budget rather than beside it.
+  const deadline = providerDeadline();
   const client = new OpenAI({
     apiKey,
     baseURL: MISTRAL_BASE_URL,
@@ -47,9 +50,11 @@ export async function* streamMistral(
       response_format: { type: "json_object" },
       stream: true,
     });
-    // Idle-bounded, not wall-clock bounded — the SDK `timeout` above covers
-    // the streamed body read, so alone it would kill healthy long runs.
+    // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()
+    // settles at the response headers, so it bounds nothing once the body
+    // streams. Idle wall + absolute deadline both live in idle-timeout.ts.
     for await (const chunk of withIdleTimeout(stream, "mistral", {
+      deadline,
       cancel: () => stream.controller.abort(),
     })) {
       const text = chunk.choices[0]?.delta?.content;

@@ -76,9 +76,28 @@ export interface IdleTimeoutOptions {
   cancel?: () => void;
   /** Silence budget. Defaults to PROVIDER_IDLE_MS. */
   idleMs?: number;
-  /** Whole-stream wall, measured from the first call. Defaults to
-   *  PROVIDER_TOTAL_MS, which must stay under the route's `maxDuration`. */
+  /**
+   * ABSOLUTE epoch-ms wall for the whole call, which callers must take with
+   * `providerDeadline()` BEFORE issuing the request.
+   *
+   * Not a duration, and the distinction is the bug it fixes. Most adapters
+   * `await client.chat.completions.create(...)` — which resolves at the
+   * response HEADERS — and only then start iterating. A duration measured from
+   * the wrapper's first call therefore excludes header latency, giving the
+   * request two independent budgets (headers, then stream) that can sum to
+   * well past the route's `maxDuration`. One wall, taken before the request,
+   * cannot be split that way.
+   */
+  deadline?: number;
+  /** Relative budget, for callers with nothing to await first (and tests).
+   *  Ignored when `deadline` is given. */
   totalMs?: number;
+}
+
+/** One absolute wall for a provider call. Take it BEFORE issuing the request,
+ *  so header latency is inside the budget rather than beside it. */
+export function providerDeadline(totalMs: number = PROVIDER_TOTAL_MS): number {
+  return Date.now() + totalMs;
 }
 
 export async function* withIdleTimeout<T>(
@@ -88,10 +107,11 @@ export async function* withIdleTimeout<T>(
     cancel,
     idleMs = PROVIDER_IDLE_MS,
     totalMs = PROVIDER_TOTAL_MS,
+    deadline: absoluteDeadline,
   }: IdleTimeoutOptions = {},
 ): AsyncGenerator<T> {
   const iterator = source[Symbol.asyncIterator]();
-  const deadline = Date.now() + totalMs;
+  const deadline = absoluteDeadline ?? Date.now() + totalMs;
   try {
     for (;;) {
       // One timer per iteration, set to whichever wall comes first. The total
@@ -115,7 +135,7 @@ export async function* withIdleTimeout<T>(
               new ProviderError(
                 provider,
                 expiringTotal
-                  ? `The ${provider} stream exceeded its ${Math.round(totalMs / 1000)}s request budget and was stopped.`
+                  ? `The ${provider} request exceeded its total time budget and was stopped.`
                   : `The ${provider} stream went quiet for ${Math.round(idleMs / 1000)}s and was stopped.`,
                 504,
               ),

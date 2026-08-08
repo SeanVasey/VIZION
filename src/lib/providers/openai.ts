@@ -8,7 +8,7 @@ import {
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /**
  * Streaming OpenAI (GPT) call: yields raw response-text deltas, then one
@@ -28,6 +28,9 @@ export async function* streamOpenAI(
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("openai");
 
+  // ONE wall for the whole call, taken before the request is issued so the
+  // header wait is inside the budget rather than beside it.
+  const deadline = providerDeadline();
   const client = new OpenAI({
     apiKey,
     timeout: PROVIDER_TOTAL_MS,
@@ -52,9 +55,11 @@ export async function* streamOpenAI(
       stream: true,
       stream_options: { include_usage: true },
     });
-    // Idle-bounded, not wall-clock bounded — the SDK `timeout` above covers
-    // the streamed body read, so alone it would kill healthy long runs.
+    // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()
+    // settles at the response headers, so it bounds nothing once the body
+    // streams. Idle wall + absolute deadline both live in idle-timeout.ts.
     for await (const chunk of withIdleTimeout(stream, "openai", {
+      deadline,
       cancel: () => stream.controller.abort(),
     })) {
       const text = chunk.choices[0]?.delta?.content;

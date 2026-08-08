@@ -13,7 +13,7 @@ import {
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
-import { withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /**
  * Shared streaming adapter for OpenAI-compatible chat APIs. The 2026-07 roster
@@ -112,6 +112,9 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
     const apiKey = process.env[opts.keyEnv];
     if (!apiKey) throw new ProviderNotConfiguredError(opts.provider);
 
+    // ONE wall for the whole call, taken before the request is issued so the
+    // header wait is inside the budget rather than beside it.
+    const deadline = providerDeadline();
     const client = new OpenAI({
       apiKey,
       baseURL: opts.baseURL,
@@ -134,9 +137,9 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
       const completion = await client.chat.completions.create(
         buildCompatBody(opts, system, input, model, req),
       );
-      // Idle-bounded, not wall-clock bounded — the SDK `timeout` above covers
-      // the streamed body read, so alone it would kill healthy long runs.
+      // Bounded HERE, not by the SDK: its `timeout` is cleared at the headers.
       for await (const chunk of withIdleTimeout(completion, opts.provider, {
+        deadline,
         cancel: () => completion.controller.abort(),
       })) {
         const delta = chunk.choices[0]?.delta as

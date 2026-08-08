@@ -1,20 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { ProviderError } from "@/lib/providers/errors";
-import { withIdleTimeout } from "@/lib/providers/idle-timeout";
+import { providerDeadline, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /**
- * The regression under test, stated once.
+ * What this module has to get right, stated once.
  *
- * Every adapter used to bound its provider call with a single 55s SDK
- * `timeout`. In the Anthropic and OpenAI Node SDKs that option is a
- * WHOLE-REQUEST deadline covering the streamed body read, so it could not tell
- * a hung connection from a healthy generation that was simply long — and it
- * killed both. The clock, not `max_tokens`, became the real output ceiling
- * (~2,000-4,000 tokens against a requested 16,000-64,000), and the truncated
- * run was still billed.
+ * The SDKs' `timeout` option bounds connect-and-headers only: both vendored
+ * SDKs arm the timer around fetch() and clear it when that promise settles
+ * (openai/src/core.ts:597-602, @anthropic-ai/sdk/src/client.ts:729-733), and a
+ * streaming fetch() resolves at the RESPONSE HEADERS. Once the body streams the
+ * SDK bounds nothing, so BOTH budgets are enforced here:
  *
- * So the property that matters is not "it times out". It is that TOTAL ELAPSED
- * TIME DOES NOT MATTER — only silence does.
+ *   IDLE  — resets on every chunk. A stream that keeps producing is never cut.
+ *   TOTAL — an absolute wall that must NOT reset, taken before the request so
+ *           header latency is inside it rather than beside it.
+ *
+ * They look alike and do opposite jobs, which is why each is pinned separately.
  */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -80,7 +81,7 @@ describe("withIdleTimeout", () => {
           seen.push(v);
         }
       })(),
-    ).rejects.toThrow(/request budget/);
+    ).rejects.toThrow(/total time budget/);
 
     expect(cancelled).toBe(true);
     // It really was producing the whole time — this is not an idle-out wearing
@@ -101,8 +102,33 @@ describe("withIdleTimeout", () => {
           void v;
         }
       })(),
-    ).rejects.toThrow(/request budget/);
+    ).rejects.toThrow(/total time budget/);
     expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
+  it("counts time spent BEFORE iteration against the same wall", async () => {
+    // Codex's fourth finding (PR #91). Adapters `await client.chat.completions
+    // .create(...)` — which resolves at the response HEADERS — and only then
+    // start iterating. A budget measured from the wrapper's first call would
+    // exclude that header wait, handing the request two independent budgets
+    // that can sum past the route's maxDuration and skip its spend-settling
+    // finally block. An absolute deadline taken before the request cannot be
+    // split that way.
+    const deadline = providerDeadline(100);
+    await sleep(120); // the "header wait" alone already exhausts it
+    const started = Date.now();
+    await expect(
+      (async () => {
+        for await (const v of withIdleTimeout(ticker(100, 5), "openai", {
+          idleMs: 5_000,
+          deadline,
+        })) {
+          void v;
+        }
+      })(),
+    ).rejects.toThrow(/total time budget/);
+    // Fires ~immediately: the budget was already spent before we started.
+    expect(Date.now() - started).toBeLessThan(200);
   });
 
   it("aborts a REAL async generator promptly — return() alone would deadlock", async () => {

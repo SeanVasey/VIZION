@@ -57,9 +57,9 @@ describe("provider key env correspondence (PRV-004)", () => {
 });
 
 describe("uniform connection policy (PRV-002)", () => {
-  // The STREAMING enhance adapters. Their SDK `timeout` is a whole-request
-  // deadline that covers the body read, so it is the total backstop only —
-  // the limit that may actually fire on a healthy run is the idle one.
+  // The STREAMING enhance adapters. Their SDK `timeout` bounds only
+  // connect-and-headers (it is cleared when fetch() settles), so both real
+  // budgets — idle and the absolute total — are enforced in application code.
   const streamingSdkFiles = [
     "anthropic.ts",
     "openai.ts",
@@ -75,10 +75,9 @@ describe("uniform connection policy (PRV-002)", () => {
     });
 
     it(`${file} bounds its stream on SILENCE, not elapsed time`, () => {
-      // The regression this pins: a single whole-request deadline killed
-      // healthy long generations at 55s — roughly 2,000-4,000 output tokens
-      // against a 16,000-64,000 max_tokens — and the run was still billed.
-      // Every streaming adapter must route its loop through withIdleTimeout.
+      // Every streaming adapter must route its loop through withIdleTimeout:
+      // once the body streams the SDK bounds nothing, so a stream left
+      // unwrapped has neither an idle limit nor a total one.
       const src = read("src", "lib", "providers", file);
       expect(src).toContain("withIdleTimeout");
       expect(src).toMatch(/for await \([^)]*of withIdleTimeout\(/);
@@ -94,6 +93,21 @@ describe("uniform connection policy (PRV-002)", () => {
       // to settle its spend hold. (Codex review, PR #91.)
       const src = read("src", "lib", "providers", file);
       expect(src).toMatch(/cancel:\s*\(\)\s*=>\s*\w+\.(controller\.)?abort\(\)/);
+    });
+
+    it(`${file} takes its total deadline BEFORE issuing the request`, () => {
+      // Most adapters await create(), which resolves at the response HEADERS.
+      // A budget started after that gives header latency and stream time two
+      // independent windows that can sum past the route's maxDuration and skip
+      // its spend-settling finally block. One absolute wall, taken first.
+      const src = read("src", "lib", "providers", file);
+      expect(src).toContain("providerDeadline()");
+      expect(src).toMatch(/deadline,/);
+      // Ordering is the whole point, so assert it rather than mere presence.
+      const taken = src.indexOf("providerDeadline()");
+      const used = src.indexOf("withIdleTimeout(");
+      expect(taken).toBeGreaterThan(-1);
+      expect(taken).toBeLessThan(used);
     });
   }
 
