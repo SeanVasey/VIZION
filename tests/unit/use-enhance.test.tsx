@@ -175,7 +175,8 @@ describe("useEnhance (streaming)", () => {
       const long = "x".repeat(4_000); // ~1000 tokens at the ~4 chars/token rule
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
         sseResponse([
-          { type: "usage", tokenIn: 1213, tokenOut: 1, costUsd: 0.0037, snapshot: true },
+          // No costUsd: the route omits it on a snapshot (see below).
+          { type: "usage", tokenIn: 1213, tokenOut: 1, snapshot: true },
           { type: "delta", text: long },
           DONE,
         ]),
@@ -187,6 +188,31 @@ describe("useEnhance (streaming)", () => {
 
       expect(result.current.stream.tokenOut).toBeGreaterThan(100);
       expect(result.current.stream.usageMeasured).toBe(false);
+    });
+
+    it("shows NO cost rather than a stale one while only a snapshot has arrived", async () => {
+      // Anthropic's snapshot lands at message_start, before any delta, so
+      // streamedChars is 0 and the server's floor returns the 1-4 placeholder
+      // unchanged. A cost priced from that is the understated "$0.0037" —
+      // and because the price table is server-side the client cannot reprice,
+      // so it would sit frozen beside a token count climbing past it. The
+      // route therefore sends no cost at all, and 0 renders as no figure.
+      const long = "x".repeat(4_000);
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        sseResponse([
+          { type: "usage", tokenIn: 1213, tokenOut: 1, snapshot: true },
+          { type: "delta", text: long },
+          DONE,
+        ]),
+      );
+
+      const { result } = renderHook(() => useEnhance(), { wrapper });
+      act(() => result.current.mutate({ ...REQ }));
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      expect(result.current.stream.costUsd).toBe(0);
+      // The tokens still move — the user is not left with a dead ticker.
+      expect(result.current.stream.tokenOut).toBeGreaterThan(100);
     });
 
     it("does not inflate a REAL measurement with the char estimate", async () => {

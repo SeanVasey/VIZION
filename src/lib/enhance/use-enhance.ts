@@ -209,7 +209,14 @@ export function useEnhance() {
                   tokenOut: measured
                     ? event.tokenOut
                     : Math.max(event.tokenOut, s.tokenOut),
-                  costUsd: measured ? event.costUsd : Math.max(event.costUsd, s.costUsd),
+                  // A snapshot sends none; keep whatever we had (0 until a
+                  // measurement lands, which the UI renders as no figure).
+                  costUsd:
+                    event.costUsd === undefined
+                      ? s.costUsd
+                      : measured
+                        ? event.costUsd
+                        : Math.max(event.costUsd, s.costUsd),
                   usageMeasured: s.usageMeasured || measured,
                 };
               });

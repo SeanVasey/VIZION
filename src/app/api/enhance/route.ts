@@ -344,12 +344,29 @@ export async function POST(request: NextRequest) {
             const shownOut = event.snapshot
               ? Math.max(event.tokenOut, Math.ceil(streamedChars / 4))
               : event.tokenOut;
+            // A snapshot carries NO cost, and that is the honest answer.
+            //
+            // Anthropic's only snapshot arrives at message_start, before a
+            // single delta — so `streamedChars` is 0, the floor above returns
+            // the 1-4 placeholder unchanged, and any cost priced from it is
+            // the understated "$0.0037" this whole change exists to kill. The
+            // client then raises its token estimate as deltas land but cannot
+            // reprice (the price table is server-side, deliberately), so a
+            // cost sent here would sit frozen and wrong beside a climbing
+            // token count — the two disagreeing, which is exactly what the
+            // floor was meant to prevent.
+            //
+            // Omitting it means the ticker shows tokens moving and no dollar
+            // figure until a real measurement lands. Less information, all of
+            // it true; a wrong number is not a cheaper version of the right
+            // one. (Codex review, PR #91.)
             send({
               type: "usage",
               tokenIn: event.tokenIn,
               tokenOut: shownOut,
-              costUsd: computeCost(typedTarget, event.tokenIn, shownOut),
-              ...(event.snapshot ? { snapshot: true } : {}),
+              ...(event.snapshot
+                ? { snapshot: true }
+                : { costUsd: computeCost(typedTarget, event.tokenIn, shownOut) }),
             });
           } else {
             result = event.result;

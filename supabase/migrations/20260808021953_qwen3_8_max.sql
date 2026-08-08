@@ -6,12 +6,19 @@
 -- five-step ladder carries over unchanged.
 --
 -- The RENAME updates EXISTING rows automatically (enum values are stored by
--- OID), so prompts.target_model / prompt_versions.target_model /
--- usage_events.target / profiles.default_model written under 'qwen3_7_max'
--- come back as 'qwen3_8_max' — no data backfill needed. LEGACY_TARGET_IDS
--- gains `qwen3_7_max: "qwen3_8_max"` so a stale persisted selection in a
--- client's localStorage resolves instead of 400ing on /api/enhance;
--- tests/unit/model-target-enum.test.ts pins that correspondence.
+-- OID), so every model_target column comes back renamed with no backfill.
+-- The columns, read from information_schema rather than recalled:
+-- prompts.target_model, drafts.target_model, profiles.default_model and
+-- usage_events.target. NOT prompt_versions — an earlier draft of this header
+-- listed it, but that table has no model_target column at all.
+--
+-- APPLIED to the hosted project 2026-08-08 as version 20260808021953. One
+-- prompts row and four usage_events rows carried over; zero drafts, zero
+-- profile defaults.
+--
+-- LEGACY_TARGET_IDS gains `qwen3_7_max: "qwen3_8_max"` so a stale persisted
+-- selection in a client's localStorage resolves instead of 400ing on
+-- /api/enhance; tests/unit/model-target-enum.test.ts pins that correspondence.
 --
 -- Deploy order: the RENAME is the tight direction — old code writes
 -- 'qwen3_7_max', which stops existing the moment it runs, and new code writes

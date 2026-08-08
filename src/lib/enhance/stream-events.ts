@@ -78,7 +78,10 @@ export type EnhanceStreamEvent =
       type: "usage";
       tokenIn: number;
       tokenOut: number;
-      costUsd: number;
+      /** Absent on a `snapshot` frame: at that point nothing has streamed, so
+       *  any figure would be priced from the provider's placeholder and would
+       *  then sit frozen while the client's token estimate climbs past it. */
+      costUsd?: number;
       snapshot?: boolean;
     }
   | { type: "done"; result: EnhanceResult }
