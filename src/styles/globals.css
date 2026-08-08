@@ -300,6 +300,26 @@
     box-shadow: var(--focus-ring), var(--glass-sheen);
   }
 
+  /* Ambient scrim — a FILL, deliberately NOT a member of the glass family.
+     Secondary copy that sits directly on the ambient background, with no glass
+     tier anywhere beneath it, still needs the NEBULA+ bloom and mote tint
+     diluted under the words: unshielded, a bloom drifting behind light-theme
+     --silver text spends most of that pair's contrast headroom, and the
+     particle canvas can add a local glow on top of it. But the glass tiers
+     are the wrong instrument here — their hairline, sheen and blur turn a
+     one-line caption into a panel, and a caption that reads as heavy as the
+     control it describes is a worse answer than the contrast problem.
+     So: fill only. No border, no sheen, no grain, no backdrop-filter.
+     The fill is the DSN-010 scrim wash, which is --void-based and therefore
+     inverts with the theme on its own (no tri-block needed — unlike
+     --glass-still above, its percentage does not vary by theme). Over plain
+     ground it is all but invisible; it only asserts itself where a bloom or a
+     mote actually drifts behind the text, which is exactly when it is needed.
+     Callers bring their own radius and padding, as they do for .glass. */
+  .ambient-scrim {
+    background-color: var(--scrim-panel);
+  }
+
   /* Translucent chrome — the top header and bottom nav. Thinner fill + a touch
      of saturation so the ambient aurora glow blooms through the bar (the glass
      panels stay on the denser --glass tier).  No hard hairline edge; a gentle
@@ -769,31 +789,33 @@
      top wash ride --accent-ink, which IS Laser on dark and the deep-green
      ink on light, so no layer can paint raw Laser on a light surface
      (contrast law §6). Bloom C's cool slate and bloom B's light charcoal
-     are locked NEBULA+ literals — no matching token exists. */
+     are locked NEBULA+ literals — no matching token exists. Bloom peaks sit
+     at ×0.7 of the original NEBULA+ table in both themes (owner tune: the
+     top/bottom glow read ~30% too strong in production). */
   .bg-nebula {
     --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 5%, transparent);
     --nebula-ground-bottom: color-mix(in srgb, var(--silver) 6%, transparent);
-    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 16%, transparent);
-    --nebula-bloom-b: color-mix(in srgb, var(--silver) 14%, transparent);
-    --nebula-bloom-c: rgba(75, 120, 150, 0.11);
-    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 9%, transparent);
+    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 11.2%, transparent);
+    --nebula-bloom-b: color-mix(in srgb, var(--silver) 9.8%, transparent);
+    --nebula-bloom-c: rgba(75, 120, 150, 0.077);
+    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 6.3%, transparent);
   }
   :root[data-theme="light"] .bg-nebula {
     --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 7%, transparent);
     --nebula-ground-bottom: color-mix(in srgb, var(--silver) 7%, transparent);
-    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 22%, transparent);
-    --nebula-bloom-b: rgba(43, 45, 51, 0.17);
-    --nebula-bloom-c: rgba(40, 70, 95, 0.14);
-    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 13%, transparent);
+    --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 15.4%, transparent);
+    --nebula-bloom-b: rgba(43, 45, 51, 0.119);
+    --nebula-bloom-c: rgba(40, 70, 95, 0.098);
+    --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 9.1%, transparent);
   }
   @media (prefers-color-scheme: light) {
     :root[data-theme="system"] .bg-nebula {
       --nebula-ground-top: color-mix(in srgb, var(--accent-ink) 7%, transparent);
       --nebula-ground-bottom: color-mix(in srgb, var(--silver) 7%, transparent);
-      --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 22%, transparent);
-      --nebula-bloom-b: rgba(43, 45, 51, 0.17);
-      --nebula-bloom-c: rgba(40, 70, 95, 0.14);
-      --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 13%, transparent);
+      --nebula-bloom-a: color-mix(in srgb, var(--accent-ink) 15.4%, transparent);
+      --nebula-bloom-b: rgba(43, 45, 51, 0.119);
+      --nebula-bloom-c: rgba(40, 70, 95, 0.098);
+      --nebula-bloom-d: color-mix(in srgb, var(--accent-ink) 9.1%, transparent);
     }
   }
 
@@ -803,11 +825,54 @@
   .bg-nebula-ground {
     background:
       radial-gradient(120% 80% at 50% -10%, var(--nebula-ground-top) 0%, transparent 60%),
-      radial-gradient(120% 80% at 50% 110%, var(--nebula-ground-bottom) 0%, transparent 60%);
+      radial-gradient(
+        120% 80% at 50% 110%,
+        var(--nebula-ground-bottom) 0%,
+        transparent 60%
+      );
   }
 
   /* Blurred colour blooms — CSS keyframes only, no JS; GPU-composited
-     transform drift on an alternate loop. */
+     transform drift on an alternate loop.
+
+     Owner-reported bug: on a portrait phone the blooms rendered enormous —
+     up to 173% of the viewport WIDTH (bloom B) — nearly obscuring the
+     screen. Root cause: every size/offset/drift value below was originally
+     authored in `vmax`, which resolves to the LARGER of viewport width or
+     height. The 1280×800 landscape reference this was tuned against has
+     width as the larger axis, so `vmax` behaved exactly like `vw` there —
+     but on any portrait viewport (height larger) the same numbers silently
+     switch to the HEIGHT axis instead, ballooning the footprint relative to
+     the screen's actual width.
+
+     Fix: each bloom's diameter is now `min(Nvw, Mvh)`, where M = N × 1.6
+     (1280/800, the reference aspect ratio) — so the vw branch reproduces
+     the original px size exactly at the 1280×800 reference (both branches
+     are equal there), the SAME branch shrinks it proportionally on
+     portrait phones, and the vh ceiling additionally guards the inverse
+     case (a short/landscape phone, where `vmax` already equalled `vw` and
+     a bare unit swap alone would still overflow vertically). Be precise
+     about when that ceiling binds: it is not phones-only. It wins on any
+     viewport wider than the 16:10 reference, which includes every ordinary
+     16:9 desktop — at 1920×1080 the vh branch gives each bloom 90% of its
+     nominal vw size. That 10% is the accepted price of never overflowing
+     vertically, and it is uniform across all four blooms, so their relative
+     composition is unchanged. Position
+     offsets and keyframe drift are expressed as the *same ratio to the
+     diameter* the original vmax numbers had against their own vmax size,
+     via a per-bloom `--bloom-size` custom property, so they scale in
+     lock-step with the (now-clamped) diameter at every viewport instead of
+     drifting out of proportion — including bloom C's drift, which was
+     `vmax` like the rest and so gets the same ratio treatment. Bloom C's
+     POSITION is the one thing left alone: `left: 30vw; top: 36vh` was
+     already per-axis before this fix, and is the anchor the drift swings
+     around rather than a size.
+
+     One value is deliberately NOT scaled: the 80px blur on the shared rule
+     below. It is an absolute softness, not geometry, so on a small screen
+     the (smaller) blooms read softer relative to their own diameter. That
+     is a look decision, not an oversight — revisit it with the owner rather
+     than "fixing" it to a ratio. */
   .bg-nebula-bloom {
     position: absolute;
     border-radius: 50%;
@@ -815,34 +880,38 @@
     will-change: transform;
   }
   .bg-nebula-bloom-a {
-    width: 70vmax;
-    height: 70vmax;
-    left: -20vmax;
-    top: -26vmax;
+    --bloom-size: min(70vw, 112vh);
+    width: var(--bloom-size);
+    height: var(--bloom-size);
+    left: calc(var(--bloom-size) * -20 / 70);
+    top: calc(var(--bloom-size) * -26 / 70);
     background: radial-gradient(closest-side, var(--nebula-bloom-a), transparent 64%);
     animation: nebula-bloom-a 42s ease-in-out infinite alternate;
   }
   .bg-nebula-bloom-b {
-    width: 80vmax;
-    height: 80vmax;
-    right: -28vmax;
-    bottom: -32vmax;
+    --bloom-size: min(80vw, 128vh);
+    width: var(--bloom-size);
+    height: var(--bloom-size);
+    right: calc(var(--bloom-size) * -28 / 80);
+    bottom: calc(var(--bloom-size) * -32 / 80);
     background: radial-gradient(closest-side, var(--nebula-bloom-b), transparent 62%);
     animation: nebula-bloom-b 54s ease-in-out infinite alternate;
   }
   .bg-nebula-bloom-c {
-    width: 46vmax;
-    height: 46vmax;
+    --bloom-size: min(46vw, 73.6vh);
+    width: var(--bloom-size);
+    height: var(--bloom-size);
     left: 30vw;
     top: 36vh;
     background: radial-gradient(closest-side, var(--nebula-bloom-c), transparent 62%);
     animation: nebula-bloom-c 66s ease-in-out infinite alternate;
   }
   .bg-nebula-bloom-d {
-    width: 38vmax;
-    height: 38vmax;
-    left: -8vmax;
-    bottom: -4vmax;
+    --bloom-size: min(38vw, 60.8vh);
+    width: var(--bloom-size);
+    height: var(--bloom-size);
+    left: calc(var(--bloom-size) * -8 / 38);
+    bottom: calc(var(--bloom-size) * -4 / 38);
     background: radial-gradient(closest-side, var(--nebula-bloom-d), transparent 60%);
     animation: nebula-bloom-d 34s ease-in-out infinite alternate;
   }
@@ -852,7 +921,11 @@
       transform: translate(0, 0) scale(1);
     }
     to {
-      transform: translate(10vmax, 8vmax) scale(1.14);
+      transform: translate(
+          calc(var(--bloom-size) * 10 / 70),
+          calc(var(--bloom-size) * 8 / 70)
+        )
+        scale(1.14);
     }
   }
   @keyframes nebula-bloom-b {
@@ -860,23 +933,39 @@
       transform: translate(0, 0) scale(1.1);
     }
     to {
-      transform: translate(-9vmax, -7vmax) scale(0.94);
+      transform: translate(
+          calc(var(--bloom-size) * -9 / 80),
+          calc(var(--bloom-size) * -7 / 80)
+        )
+        scale(0.94);
     }
   }
   @keyframes nebula-bloom-c {
     from {
-      transform: translate(-4vmax, 3vmax) scale(0.9);
+      transform: translate(
+          calc(var(--bloom-size) * -4 / 46),
+          calc(var(--bloom-size) * 3 / 46)
+        )
+        scale(0.9);
     }
     to {
-      transform: translate(5vmax, -4vmax) scale(1.1);
+      transform: translate(
+          calc(var(--bloom-size) * 5 / 46),
+          calc(var(--bloom-size) * -4 / 46)
+        )
+        scale(1.1);
     }
   }
   @keyframes nebula-bloom-d {
     from {
-      transform: translate(0, 2vmax) scale(0.92);
+      transform: translate(0, calc(var(--bloom-size) * 2 / 38)) scale(0.92);
     }
     to {
-      transform: translate(6vmax, -5vmax) scale(1.12);
+      transform: translate(
+          calc(var(--bloom-size) * 6 / 38),
+          calc(var(--bloom-size) * -5 / 38)
+        )
+        scale(1.12);
     }
   }
 
