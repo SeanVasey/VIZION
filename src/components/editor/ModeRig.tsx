@@ -198,16 +198,18 @@ function ModeIcon({ id, className }: { id: ModeId; className?: string }) {
           <path d="m13 7 4 4" {...stroke} />
         </svg>
       );
-    case "expand": // arrows out
+    case "expand": // corner brackets, outward
       return (
         <svg {...common}>
           <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" {...stroke} />
         </svg>
       );
-    case "condense": // arrows in
+    case "condense": // corner brackets, inward — must differ from expand by
+      // GEOMETRY (elbows on the inner box, legs reaching the frame): flipping
+      // only a path's draw direction renders an identical glyph.
       return (
         <svg {...common}>
-          <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" {...stroke} />
+          <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" {...stroke} />
         </svg>
       );
     case "reformat": // structured lines
