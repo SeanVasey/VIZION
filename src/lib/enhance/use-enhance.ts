@@ -54,14 +54,21 @@ export interface EnhanceStreamState {
   partialOutput: string;
   /** Live counters, monotonic by construction: every writer takes the MAX of
    *  what it knows and what is already here, so a provider's early low-ball
-   *  snapshot cannot pin the ticker and the char estimator cannot walk a real
-   *  measurement backwards. There is deliberately no "authoritative" flag —
-   *  one existed, and latching it on Anthropic's `message_start` snapshot
-   *  (output_tokens: 1) is exactly what froze the readout mid-run. The
-   *  measured truth arrives with the terminal `done` result. */
+   *  snapshot cannot pin the ticker and a late frame cannot walk it backwards. */
   tokenIn: number;
   tokenOut: number;
   costUsd: number;
+  /** True once a usage frame arrived that was NOT a pre-generation snapshot —
+   *  i.e. a real cumulative measurement. The char estimator stands down at
+   *  that point, because chars-per-token varies with content and raising a
+   *  measurement with a heuristic overstates the spend just as surely as the
+   *  old freeze understated it.
+   *
+   *  The predecessor flag latched on ANY usage frame, including Anthropic's
+   *  `message_start` placeholder (output_tokens: 1) — which is precisely what
+   *  pinned the readout at "1213→1 tok" for whole runs. The fix was never to
+   *  delete the gate; it was to stop a placeholder satisfying it. */
+  usageMeasured: boolean;
 }
 
 const IDLE: EnhanceStreamState = {
@@ -71,6 +78,7 @@ const IDLE: EnhanceStreamState = {
   tokenIn: 0,
   tokenOut: 0,
   costUsd: 0,
+  usageMeasured: false,
 };
 
 /**
@@ -98,9 +106,12 @@ export function useEnhance() {
       return {
         ...s,
         partialOutput,
-        // Max, not assignment: a real provider count that already arrived
-        // stays put; before one does, this is the only thing moving.
-        tokenOut: Math.max(s.tokenOut, Math.ceil(partialOutput.length / 4)),
+        // Stands down once a real measurement lands: chars-per-token varies
+        // with content, so raising a measured count with this heuristic would
+        // overstate the spend. Until then it is the only thing moving.
+        tokenOut: s.usageMeasured
+          ? s.tokenOut
+          : Math.max(s.tokenOut, Math.ceil(partialOutput.length / 4)),
       };
     });
   }, []);
@@ -189,12 +200,19 @@ export function useEnhance() {
               // against out-of-order frames. Cost is never recomputed
               // client-side — the price table is server-side, and duplicating
               // it is exactly how the two figures drift apart.
-              setStream((s) => ({
-                ...s,
-                tokenIn: Math.max(event.tokenIn, s.tokenIn),
-                tokenOut: Math.max(event.tokenOut, s.tokenOut),
-                costUsd: Math.max(event.costUsd, s.costUsd),
-              }));
+              setStream((s) => {
+                // A real measurement REPLACES; a snapshot may only raise.
+                const measured = !event.snapshot;
+                return {
+                  ...s,
+                  tokenIn: Math.max(event.tokenIn, s.tokenIn),
+                  tokenOut: measured
+                    ? event.tokenOut
+                    : Math.max(event.tokenOut, s.tokenOut),
+                  costUsd: measured ? event.costUsd : Math.max(event.costUsd, s.costUsd),
+                  usageMeasured: s.usageMeasured || measured,
+                };
+              });
               break;
             case "done":
               done = event.result;

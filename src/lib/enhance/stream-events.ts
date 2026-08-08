@@ -68,8 +68,19 @@ export type EnhanceStreamEvent =
   | { type: "thinking"; text: string }
   /** Decoded characters of the output field, in order. */
   | { type: "delta"; text: string }
-  /** Cumulative token counts + running cost (authoritative when emitted). */
-  | { type: "usage"; tokenIn: number; tokenOut: number; costUsd: number }
+  /** Cumulative token counts + running cost.
+   *  `snapshot` marks a frame whose `tokenOut` is a provider PLACEHOLDER sent
+   *  before generation (Anthropic's message_start reports 1-4), already
+   *  floored server-side by what has streamed. Its absence means the numbers
+   *  are a real measurement, and the client must not raise them with its own
+   *  char estimate — that would swap a measurement for a heuristic. */
+  | {
+      type: "usage";
+      tokenIn: number;
+      tokenOut: number;
+      costUsd: number;
+      snapshot?: boolean;
+    }
   | { type: "done"; result: EnhanceResult }
   | {
       type: "error";

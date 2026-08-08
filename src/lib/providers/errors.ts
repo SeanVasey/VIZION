@@ -34,6 +34,14 @@ export class ProviderError extends Error {
 export interface ProviderStreamChunk {
   text?: string;
   usage?: { tokenIn: number; tokenOut: number };
+  /** This `usage` is a HEADER SNAPSHOT, not a cumulative measurement — its
+   *  `tokenOut` is a placeholder the provider sends before generating (
+   *  Anthropic's `message_start` reports 1-4). Only the emitting adapter can
+   *  know this, so it says so rather than leaving downstream code to guess
+   *  from the value. Consumers may floor a snapshot with their own estimate;
+   *  they must NOT do that to a real cumulative count, which would replace a
+   *  measurement with a heuristic. */
+  usageSnapshot?: boolean;
   /** Provider-reported stop/finish reason, raw wire value ("max_tokens",
    *  "length", "MAX_TOKENS", …). Lets the adapter tell "hit the output
    *  ceiling" apart from "returned a malformed envelope". */

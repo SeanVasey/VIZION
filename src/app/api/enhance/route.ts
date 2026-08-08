@@ -320,24 +320,36 @@ export async function POST(request: NextRequest) {
             send({ type: "delta", text: event.text });
           } else if (event.type === "usage") {
             usage = { tokenIn: event.tokenIn, tokenOut: event.tokenOut };
-            // Floor the OUTPUT count with what has demonstrably streamed, and
-            // price the frame from that same number so the two always agree.
+            // Floor a SNAPSHOT — and only a snapshot — with what has
+            // demonstrably streamed, pricing the frame from that same number
+            // so the two always agree.
             //
             // Anthropic reports output_tokens at message_start as a header
-            // snapshot (literally 1-4) and sends the real cumulative count
+            // placeholder (literally 1-4) and sends the real cumulative count
             // only at the end, so the un-floored frame read "1213→1 tok ·
             // $0.0037" for an entire run — the counter frozen and the cost
             // understated by roughly the output/input ratio, which is how an
-            // expensive run managed not to look expensive while it ran. The
-            // ledger's abort path already floors the same way (same ~4
-            // chars/token estimator, below); this just stops the LIVE readout
-            // being the one place that doesn't.
-            const shownOut = Math.max(event.tokenOut, Math.ceil(streamedChars / 4));
+            // expensive run managed not to look expensive while it ran.
+            //
+            // The `snapshot` gate is load-bearing, not defensive. Flooring
+            // unconditionally would be just as wrong in the other direction:
+            // chars-per-token varies with content, so for a provider that
+            // reports an accurate cumulative count mid-stream (Gemini sends
+            // usageMetadata on every frame) `ceil(chars/4)` can exceed the
+            // measurement — and the client's own Math.max would then hold that
+            // inflated figure for the rest of the run. Replacing a measurement
+            // with a heuristic and pricing it as exact is the same class of
+            // error as the freeze this fixes. Only the adapter knows which
+            // kind of report it is, so only the adapter says so.
+            const shownOut = event.snapshot
+              ? Math.max(event.tokenOut, Math.ceil(streamedChars / 4))
+              : event.tokenOut;
             send({
               type: "usage",
               tokenIn: event.tokenIn,
               tokenOut: shownOut,
               costUsd: computeCost(typedTarget, event.tokenIn, shownOut),
+              ...(event.snapshot ? { snapshot: true } : {}),
             });
           } else {
             result = event.result;

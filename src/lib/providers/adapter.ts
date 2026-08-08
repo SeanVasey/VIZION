@@ -79,7 +79,7 @@ export interface EnhanceOutput {
  *  `usage` snapshots are cumulative. `done` always closes a successful run. */
 export type AdapterStreamEvent =
   | { type: "delta"; text: string }
-  | { type: "usage"; tokenIn: number; tokenOut: number }
+  | { type: "usage"; tokenIn: number; tokenOut: number; snapshot?: boolean }
   | { type: "done"; result: EnhanceOutput };
 
 /** The shape every provider adapter satisfies. `opts` is optional, so the
@@ -154,7 +154,12 @@ export async function* enhanceStream({
     }
     if (chunk.usage) {
       ({ tokenIn, tokenOut } = chunk.usage);
-      yield { type: "usage", tokenIn, tokenOut };
+      yield {
+        type: "usage",
+        tokenIn,
+        tokenOut,
+        ...(chunk.usageSnapshot ? { snapshot: true } : {}),
+      };
     }
     if (chunk.stopReason) stopReason = chunk.stopReason;
     if (chunk.estReasoningTokens) reasoningFloor += chunk.estReasoningTokens;

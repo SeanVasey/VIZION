@@ -152,17 +152,24 @@ test.describe("authenticated app", () => {
     // `[data-reduced-effects] .horizon-node` (0,2,0) parses fine, reads fine,
     // and loses. The unit test that only greps globals.css for the gate's text
     // stayed green while the toggle did nothing.
+    // Polled, not read once. `toggleAttribute` followed by an immediate
+    // getComputedStyle is a race: under parallel load WebKit had not always
+    // recomputed style by the time the next evaluate ran, which failed this
+    // test in ~2 of 3 full-suite runs while passing 3 of 3 in isolation.
+    // Polling keeps the assertion's meaning exactly — a gate that genuinely
+    // loses on specificity never becomes "none", so it still fails — and only
+    // stops the timing from deciding the outcome.
     const animationName = () =>
       page.evaluate(
         () => getComputedStyle(document.querySelector(".horizon-node")!).animationName,
       );
 
-    expect(await animationName()).toBe("horizon-breathe");
+    await expect.poll(animationName).toBe("horizon-breathe");
 
     await page.evaluate(() =>
       document.documentElement.toggleAttribute("data-reduced-effects", true),
     );
-    expect(await animationName()).toBe("none");
+    await expect.poll(animationName).toBe("none");
   });
 
   test("the Horizon band trims its dead air without shrinking the mark", async ({

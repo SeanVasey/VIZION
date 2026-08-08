@@ -78,7 +78,13 @@ export async function* streamAnthropic(
     })) {
       if (event.type === "message_start") {
         tokenIn = event.message.usage.input_tokens;
-        yield { usage: { tokenIn, tokenOut: event.message.usage.output_tokens } };
+        // `input_tokens` here is real; `output_tokens` is a 1-4 placeholder
+        // sent before generation starts. Flagged so consumers can floor it
+        // with a live estimate instead of displaying it as measured.
+        yield {
+          usage: { tokenIn, tokenOut: event.message.usage.output_tokens },
+          usageSnapshot: true,
+        };
       } else if (
         event.type === "content_block_delta" &&
         event.delta.type === "text_delta"
