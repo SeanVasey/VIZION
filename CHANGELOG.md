@@ -6,6 +6,28 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Condense stops wearing Expand's icon
+
+The two modes have rendered one glyph since mode icons first shipped:
+`ModeRig`'s Condense path was Expand's four outer corner brackets with each
+subpath's draw direction reversed. The intent comments said "arrows out" vs
+"arrows in" — but a stroke has no visible direction, so both cases rasterized
+to the identical maximize mark and the label was the only differentiator.
+Condense now differs in geometry, not draw order: its elbows sit on the inner
+box with legs reaching the frame — the standard minimize counterpart to
+Expand's maximize — legible as "inward" at the rig's 20px render size.
+
+### The axe specs stop racing the footer's entrance
+
+Verifying the above surfaced a latent flake: the a11y specs inject axe as soon
+as the page's heading exists, which can land inside the footer's rise-and-fade
+(0.8s delay + 0.8s ramp, fill `both`). A scan in that window measures the
+mid-fade translucent silver against the canvas — 4.35:1 on a pair that rests
+at 5.99:1 — and fails as a "serious" contrast violation that machine timing
+alone decides. `analyze()` now waits for every finite animation to finish
+before injecting axe; the infinite ambient blooms are exempt, since waiting on
+them would never return. The audit therefore always measures the settled page.
+
 ### The re-cut brand art now reaches returning devices
 
 The header was still painting the pre-re-cut app icon a day after the new

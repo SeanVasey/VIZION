@@ -19,6 +19,18 @@ interface AxeResult {
 }
 
 async function analyze(page: import("@playwright/test").Page): Promise<AxeResult> {
+  // Settle entry animations before auditing: axe reads computed colors at scan
+  // time, so a scan landing inside the footer's rise-and-fade (0.8s delay +
+  // 0.8s ramp, fill `both`) measures translucent text over the canvas and
+  // reports a contrast violation the resting page does not have. Infinite
+  // animations (the ambient blooms) never finish and are exempt; everything
+  // finite must be done before axe looks.
+  await page.waitForFunction(() =>
+    document.getAnimations().every((a) => {
+      const timing = a.effect?.getTiming();
+      return !timing || timing.iterations === Infinity || a.playState === "finished";
+    }),
+  );
   // Evaluate the axe source in the page (CDP Runtime.evaluate is NOT subject
   // to the page's script-src CSP, unlike addScriptTag's inline <script> —
   // which the nonce policy correctly refuses, itself proof SEC-001 landed).

@@ -2849,3 +2849,29 @@ render identical; account change wipes storage before rehydrating (the
   refusal for SVG is gated on `src.split('?', 1)[0].endsWith('.svg')`
   (Next 15.5), so `?v=N` does not push the file into `/_next/image`. Checked
   against the installed source, not assumed.
+
+## Icon pairs — direction is not a visual property
+
+- **Differentiate icons by geometry, not path draw order.** `ModeRig`'s
+  Condense icon was Expand's path with every subpath written backwards —
+  visually identical, because a plain SVG stroke renders the same segments
+  whichever end it starts from; direction exists only for dashes, markers
+  and path animation. The tell was in the comments ("arrows out" /
+  "arrows in") describing a difference the pixels never had, and the pair
+  shipped as one maximize glyph for two months. If two icons must read as
+  opposites, mirror the coordinates — and check the claim by looking at a
+  rendered pair, not the `d` strings.
+
+## Axe audits race entry animations
+
+- **A contrast reading taken mid-animation is not a palette regression.** The
+  sign-in axe spec failed WebKit-only, "serious", 4.35:1 — on a token pair
+  that rests at 5.99:1. The footer's `fadeInUp` (0.8s delay + 0.8s ramp,
+  fill `both`) leaves a window where the text is translucent; a scan landing
+  there measures the blend, and whether a worker lands there is machine
+  timing, so it reads as an intermittent engine-specific failure. Before
+  chasing tokens, ask WHEN the scan ran: the a11y spec now settles every
+  finite animation before injecting axe (infinite ambients exempt — waiting
+  on them never returns). Diagnosis: reproduce on the base tree, compute
+  what alpha turns the resting color into the measured one (~0.855 here),
+  then find the animation that passes through it.
