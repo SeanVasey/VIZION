@@ -71,7 +71,11 @@ export async function* streamAnthropic(
     // Idle-bounded, not wall-clock bounded: the SDK `timeout` above covers the
     // whole request including the body read, so on its own it would kill a
     // healthy long generation. See idle-timeout.ts.
-    for await (const event of withIdleTimeout(stream, "anthropic")) {
+    for await (const event of withIdleTimeout(stream, "anthropic", {
+      // MessageStream.abort() -> controller.abort(); without it the queued
+      // iterator.return() cannot run while a read is pending.
+      cancel: () => stream.abort(),
+    })) {
       if (event.type === "message_start") {
         tokenIn = event.message.usage.input_tokens;
         yield { usage: { tokenIn, tokenOut: event.message.usage.output_tokens } };

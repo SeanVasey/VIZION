@@ -136,7 +136,9 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
       );
       // Idle-bounded, not wall-clock bounded — the SDK `timeout` above covers
       // the streamed body read, so alone it would kill healthy long runs.
-      for await (const chunk of withIdleTimeout(completion, opts.provider)) {
+      for await (const chunk of withIdleTimeout(completion, opts.provider, {
+        cancel: () => completion.controller.abort(),
+      })) {
         const delta = chunk.choices[0]?.delta as
           | { content?: string | null; reasoning_content?: string }
           | undefined;

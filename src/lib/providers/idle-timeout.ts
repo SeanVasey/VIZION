@@ -25,16 +25,43 @@ import { ProviderError } from "@/lib/providers/errors";
  * client (`PROVIDER_TOTAL_MS`), sized under the route's `maxDuration` so the
  * finally-block always runs and the spend hold is never stranded.
  *
- * Cancellation matters as much as the timeout. On idle-out — and on any early
- * exit by the consumer, including `break` and a thrown error — the source
- * iterator's `return()` is called, which is what tells the SDK to abort the
- * underlying HTTP request. Without it the connection would keep draining
- * tokens we are no longer reading, and keep billing for them.
+ * WHY `cancel` IS NOT OPTIONAL IN PRACTICE (the subtle part)
+ * ----------------------------------------------------------
+ * Cancellation cannot go through `iterator.return()` alone. Both SDKs implement
+ * `[Symbol.asyncIterator]` as an **async generator**, and the async-generator
+ * protocol QUEUES a `return()` request behind an already-pending `next()`. At
+ * the moment we idle out there is by definition a `next()` in flight — that is
+ * what the silence is — so `await iterator.return()` would not settle until the
+ * upstream read finally produced something or the 285s SDK deadline fired.
+ *
+ * That would have made the idle timeout decorative: the error could not
+ * propagate, the connection stayed open, and the route could be left with
+ * seconds of its `maxDuration` in which to settle the spend hold. So the
+ * caller passes `cancel` — the SDK's own abort handle (`stream.controller
+ * .abort()` / `MessageStream.abort()`) — which aborts the underlying HTTP
+ * request, settles the pending read, and lets the queued `return()` run.
+ *
+ * The `return()` is still awaited afterwards, so the generator's own `finally`
+ * blocks get to run, but it is raced against a short grace period: a cleanup
+ * path that can block forever is exactly what this function exists to prevent.
  */
+const CLEANUP_GRACE_MS = 2_000;
+
+export interface IdleTimeoutOptions {
+  /**
+   * Abort the underlying request. Required for any SDK-backed stream — see the
+   * async-generator queueing note above. Omit only for a source whose
+   * `return()` can settle independently of a pending `next()`.
+   */
+  cancel?: () => void;
+  /** Silence budget. Defaults to PROVIDER_IDLE_MS. */
+  idleMs?: number;
+}
+
 export async function* withIdleTimeout<T>(
   source: AsyncIterable<T>,
   provider: Provider,
-  idleMs: number = PROVIDER_IDLE_MS,
+  { cancel, idleMs = PROVIDER_IDLE_MS }: IdleTimeoutOptions = {},
 ): AsyncGenerator<T> {
   const iterator = source[Symbol.asyncIterator]();
   try {
@@ -72,12 +99,26 @@ export async function* withIdleTimeout<T>(
     }
   } finally {
     // Reached on normal completion, on idle-out, and on consumer break/throw.
-    // `return()` is optional on the iterator protocol and may itself reject if
-    // the transport is already gone; neither case should mask the real error.
+    // Abort FIRST: on the idle path a read is still pending, and the queued
+    // `return()` cannot run until it settles.
     try {
-      await iterator.return?.();
+      cancel?.();
     } catch {
-      /* the stream is being torn down either way */
+      /* already torn down */
+    }
+    // Then let the source run its own cleanup — but never wait forever for it.
+    if (iterator.return) {
+      let graceTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          iterator.return().catch(() => undefined),
+          new Promise<void>((resolve) => {
+            graceTimer = setTimeout(resolve, CLEANUP_GRACE_MS);
+          }),
+        ]);
+      } finally {
+        clearTimeout(graceTimer);
+      }
     }
   }
 }

@@ -83,6 +83,18 @@ describe("uniform connection policy (PRV-002)", () => {
       expect(src).toContain("withIdleTimeout");
       expect(src).toMatch(/for await \([^)]*of withIdleTimeout\(/);
     });
+
+    it(`${file} hands withIdleTimeout the SDK's own abort handle`, () => {
+      // Not optional, and not cosmetic. Both SDKs implement
+      // [Symbol.asyncIterator] as an async generator, and the protocol QUEUES
+      // return() behind an already-pending next(). At idle-out a read is
+      // always in flight, so without an explicit abort the cleanup cannot run
+      // until the upstream settles or the 285s deadline fires -- which would
+      // make the idle timeout decorative and leave the route almost no window
+      // to settle its spend hold. (Codex review, PR #91.)
+      const src = read("src", "lib", "providers", file);
+      expect(src).toMatch(/cancel:\s*\(\)\s*=>\s*\w+\.(controller\.)?abort\(\)/);
+    });
   }
 
   it("google.ts resets its abort clock on every chunk", () => {

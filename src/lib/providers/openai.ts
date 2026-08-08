@@ -54,7 +54,9 @@ export async function* streamOpenAI(
     });
     // Idle-bounded, not wall-clock bounded — the SDK `timeout` above covers
     // the streamed body read, so alone it would kill healthy long runs.
-    for await (const chunk of withIdleTimeout(stream, "openai")) {
+    for await (const chunk of withIdleTimeout(stream, "openai", {
+      cancel: () => stream.controller.abort(),
+    })) {
       const text = chunk.choices[0]?.delta?.content;
       if (text) yield { text };
       const finish = chunk.choices[0]?.finish_reason;
