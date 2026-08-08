@@ -27,6 +27,14 @@ in the icon pipeline. The version bumps in the same commit as any
 `public/brand/` master change; `next/image` strips the query before its
 `.svg` check, so the SVGs keep their unoptimized passthrough.
 
+### The ambient blooms return to full strength
+
+The ×0.7 dim on the four NEBULA+ bloom peaks (the previous owner tune) is
+reverted on owner direction: peaks return to the full locked-table values in
+all three theme blocks (dark 16%/14%/0.11/9%; light and system-light
+22%/0.17/0.14/13%). The particle-core `CORE_BOOST` from the same tuning
+commit stays — only the blooms were re-tuned.
+
 ### The provider time budget becomes one wall, and stops being re-armed per layer
 
 Closing the last three review findings on the streaming work below, and — more
