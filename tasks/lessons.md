@@ -2832,3 +2832,20 @@ render identical; account change wipes storage before rehydrating (the
   regression. `install-deps` shells out to apt and needs root. On a repo where
   the local gate is the only gate, "e2e green" is only a claim if WebKit
   actually launched.
+
+## Stale brand art — layered SWR caches in front of stable names
+
+- **A same-name asset swap does not propagate; version the reference.** The
+  brand masters keep their filenames by design (one `generate:icons` run, zero
+  ref churn) — but `/brand/*` ships day-fresh/week-stale HTTP caching UNDER the
+  SW's StaleWhileRevalidate image route, and the SW's background "revalidation"
+  fetch reads the still-fresh HTTP cache, not the network. Two SWR layers in
+  series means new bytes at an old URL can stay invisible on returning devices
+  for days — the owner was still seeing the pre-re-cut header icon the day
+  after the swap deployed. `src/lib/brand-assets.ts` now owns the live-DOM
+  URLs with a `?v=` bump per art change: a cold key in both caches at once,
+  while the filename contract (pipeline, docs, tests) stays intact.
+- **`next/image` keeps SVG passthrough across a query string.** The optimizer
+  refusal for SVG is gated on `src.split('?', 1)[0].endsWith('.svg')`
+  (Next 15.5), so `?v=N` does not push the file into `/_next/image`. Checked
+  against the installed source, not assumed.

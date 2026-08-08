@@ -6,6 +6,27 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The re-cut brand art now reaches returning devices
+
+The header was still painting the pre-re-cut app icon a day after the new
+artwork shipped. The masters deliberately keep their filenames when the art
+changes (`tasks/lessons.md`: swap the content, not the names) — but a stable
+name meets two stale-while-revalidate layers in front of the live DOM. The
+`/brand/:path*` HTTP policy serves a cached copy for a day, then a stale one
+for up to a week while revalidating; the service worker's
+StaleWhileRevalidate image route sits on top, answers from its own copy
+first, and its background refetch reads the still-fresh HTTP cache rather
+than the network. Same URL + new bytes therefore converges only after both
+layers age out — days, and unpredictable per device.
+
+The two live-DOM references (`ScreenHeader`'s squircle, `AuthHero`'s mark)
+now import their URLs from `src/lib/brand-assets.ts`, which appends a
+`?v=<BRAND_ASSET_VERSION>` query. Changed art gets a changed URL — a cold
+key in the browser and SW caches at once — with no filename churn anywhere
+in the icon pipeline. The version bumps in the same commit as any
+`public/brand/` master change; `next/image` strips the query before its
+`.svg` check, so the SVGs keep their unoptimized passthrough.
+
 ### The provider time budget becomes one wall, and stops being re-armed per layer
 
 Closing the last three review findings on the streaming work below, and — more
