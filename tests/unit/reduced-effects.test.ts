@@ -52,7 +52,6 @@ describe("reduced-effects gate covers every ambient layer", () => {
     ".bg-nebula-bloom",
     ".nebula-canvas",
     ".result-shimmer::before",
-    ".stream-live::after",
     ".glass",
     ".glass-solid",
     ".dev-edge",

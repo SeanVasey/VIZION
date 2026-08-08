@@ -64,7 +64,7 @@ export function StreamingResult({
       aria-label="Enhancement in progress"
       className="flex scroll-mt-[calc(env(safe-area-inset-top)+80px)] flex-col gap-4"
     >
-      <div className="glass result-shimmer stream-live rounded-2xl p-4">
+      <div className="glass result-shimmer rounded-2xl p-4">
         {/* Caption row — the finished card's exact header geometry (mb-2,
             justify-between, micro-caps register), so STREAMING becomes
             "Enhanced" in place on handoff. */}

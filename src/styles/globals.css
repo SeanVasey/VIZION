@@ -966,13 +966,12 @@
 
   /* Reduced effects (Settings → Appearance): a device-local comfort/perf
      knob that silences the AMBIENT layers — nebula canvas, colour blooms,
-     the result shimmer, the streaming card's top-edge light — while leaving
-     functional motion (sheets, progress) governed by the OS reduced-motion
-     preference. Applied as a root attribute by ReducedEffectsManager. */
+     the result shimmer — while leaving functional motion (sheets, progress)
+     governed by the OS reduced-motion preference. Applied as a root attribute
+     by ReducedEffectsManager. */
   [data-reduced-effects] .bg-nebula-bloom,
   [data-reduced-effects] .nebula-canvas,
-  [data-reduced-effects] .result-shimmer::before,
-  [data-reduced-effects] .stream-live::after {
+  [data-reduced-effects] .result-shimmer::before {
     display: none;
   }
   /* Grain is ambient texture, so it answers to the same switch — otherwise
@@ -1203,35 +1202,15 @@
     }
   }
 
-  /* The streaming card's "live" layer — an accent light travelling the top
-     edge while tokens arrive. A ::after so the pinned .result-shimmer::before
-     hairline underneath stays untouched; reuses @keyframes stream-sweep (one
-     keyframe, two consumers). Ambient decoration: it answers to Reduced
-     effects (the display:none gate above) and joins the sweep's sanctioned
-     slow pulse under reduced motion (the media block below). */
-  .stream-live {
-    position: relative;
-  }
-  .stream-live::after {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 2px;
-    border-radius: 9999px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      var(--accent-ink) 45%,
-      var(--accent-ink) 55%,
-      transparent 100%
-    );
-    background-size: 40% 100%;
-    background-repeat: no-repeat;
-    box-shadow: 0 0 12px color-mix(in srgb, var(--accent-ink) 25%, transparent);
-    opacity: 0.9;
-    animation: stream-sweep 1.4s ease-in-out infinite;
-    pointer-events: none;
-  }
+  /* REMOVED (2026-08-08): `.stream-live::after`, an accent light travelling the
+     streaming card's top edge. It ran the SAME @keyframes stream-sweep, at the
+     same 1.4s, with the same gradient and glow as .stream-progress-sweep a few
+     pixels below it — one signal drawn twice, which read as two competing
+     indicators rather than one. The bar survives because it also carries the
+     `role="status" aria-live="polite"` step label ("Reaching the model…");
+     the edge light carried nothing. Reduced-effects users already ran
+     bar-only, so this converges the two rendering paths instead of adding a
+     third. The static .result-shimmer::before hairline it sat on is untouched. */
 
   /* Status beacon beside the STREAMING caption. Functional state (like the
      CTA spinner), so NOT under the Reduced-effects gate; the OS
@@ -1289,8 +1268,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .stream-progress-sweep,
-    .stream-live::after {
+    .stream-progress-sweep {
       /* !important on purpose (A11Y-010): the base-layer reduced-motion
          collapse clamps every animation to 0.01ms with !important, which
          made this documented "slow opacity pulse" dead code — it played one
@@ -1298,8 +1276,7 @@
          more specific selector wins, so the pulse actually runs. A slow
          opacity fade is exactly the kind of motion reduced-motion permits;
          users who need NONE still get the static segment via
-         (prefers-reduced-motion: reduce) and (update: slow) UAs. The card's
-         top-edge light shares the treatment — same sweep, same substitute. */
+         (prefers-reduced-motion: reduce) and (update: slow) UAs. */
       animation: stream-pulse 2.4s ease-in-out infinite !important;
       background-position-x: 30%;
     }
