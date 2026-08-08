@@ -1,29 +1,49 @@
 import "server-only";
-import { PROVIDER_IDLE_MS, type Provider } from "@/lib/providers/config";
+import {
+  PROVIDER_IDLE_MS,
+  PROVIDER_TOTAL_MS,
+  type Provider,
+} from "@/lib/providers/config";
 import { ProviderError } from "@/lib/providers/errors";
 
 /**
- * Bound a provider stream on SILENCE rather than on total elapsed time.
+ * Bound a provider stream on SILENCE, with a real whole-stream backstop.
  *
- * WHY THIS EXISTS
- * ---------------
- * Every adapter used to pass one `PROVIDER_TIMEOUT_MS = 55_000` as the SDK
- * client's `timeout`. In both the Anthropic and OpenAI Node SDKs that option is
- * a whole-request deadline that COVERS THE STREAMED BODY READ — it is not a
- * connect or first-byte timeout. So it could not distinguish a hung connection
- * from a healthy generation that is simply long, and it killed both at 55s.
+ * WHAT THE SDK `timeout` ACTUALLY DOES — measured, not assumed
+ * ------------------------------------------------------------
+ * An earlier version of this file claimed the SDKs' `timeout` option is a
+ * whole-request deadline covering the streamed body read. **It is not**, and
+ * the correction matters enough to record: in both vendored SDKs the timer is
+ * armed around `fetch()` and cleared the moment that promise settles —
+ * `openai/src/core.ts:597-602` (`.finally(() => clearTimeout(timeout))`) and
+ * `@anthropic-ai/sdk/src/client.ts:729-733` (`try { return await this.fetch(…) }
+ * finally { clearTimeout(timeout) }`). A streaming `fetch()` resolves at the
+ * RESPONSE HEADERS; the body is consumed afterwards. So `timeout` bounds
+ * connect-and-headers only, and once the first byte lands nothing in the SDK
+ * bounds the stream at all.
  *
- * The effect was that the clock, not `max_tokens`, was the real output ceiling:
- * ~2,000-4,000 tokens at typical streaming rates, against the 16,000-64,000 the
- * adapters actually ask for. Worse, the run was still billed — the route's
- * finally-block estimates from `streamedChars` and settles the ledger — so a
- * truncated answer cost real money. That is the bug this file fixes.
+ * Two consequences, and they point in opposite directions:
  *
- * The rule here: reset the clock on every chunk. A stream that keeps producing
- * is never interrupted, however long it runs; a stream that goes quiet for
- * `idleMs` is dead and is cut. The total-elapsed backstop stays on the SDK
- * client (`PROVIDER_TOTAL_MS`), sized under the route's `maxDuration` so the
- * finally-block always runs and the spend hold is never stranded.
+ *  1. The old `PROVIDER_TIMEOUT_MS = 55_000` was NOT what truncated long runs
+ *     mid-body. It could not have been. The route's `maxDuration = 60` was —
+ *     the platform killing the whole function — which is why the fix is
+ *     primarily the raised window, and why raising it is not optional.
+ *  2. Passing `PROVIDER_TOTAL_MS` as the SDK `timeout` does NOT give a total
+ *     backstop either. A continuously productive stream would sail past it and
+ *     be killed by the platform instead, skipping the route's finally-block and
+ *     stranding the spend hold — precisely the PRV-002 leak the policy exists
+ *     to prevent.
+ *
+ * So the total deadline lives HERE, as an absolute wall measured across the
+ * whole stream lifetime, independent of how often chunks arrive. The SDK
+ * `timeout` is kept for what it genuinely covers (a hang before headers).
+ *
+ * THE IDLE RULE
+ * -------------
+ * Reset the clock on every chunk. A stream that keeps producing is never
+ * interrupted, however long it runs; a stream that goes quiet for `idleMs` is
+ * dead and is cut. Between the two, `totalMs` is sized under the route's
+ * `maxDuration` so the finally-block always runs.
  *
  * WHY `cancel` IS NOT OPTIONAL IN PRACTICE (the subtle part)
  * ----------------------------------------------------------
@@ -56,16 +76,31 @@ export interface IdleTimeoutOptions {
   cancel?: () => void;
   /** Silence budget. Defaults to PROVIDER_IDLE_MS. */
   idleMs?: number;
+  /** Whole-stream wall, measured from the first call. Defaults to
+   *  PROVIDER_TOTAL_MS, which must stay under the route's `maxDuration`. */
+  totalMs?: number;
 }
 
 export async function* withIdleTimeout<T>(
   source: AsyncIterable<T>,
   provider: Provider,
-  { cancel, idleMs = PROVIDER_IDLE_MS }: IdleTimeoutOptions = {},
+  {
+    cancel,
+    idleMs = PROVIDER_IDLE_MS,
+    totalMs = PROVIDER_TOTAL_MS,
+  }: IdleTimeoutOptions = {},
 ): AsyncGenerator<T> {
   const iterator = source[Symbol.asyncIterator]();
+  const deadline = Date.now() + totalMs;
   try {
     for (;;) {
+      // One timer per iteration, set to whichever wall comes first. The total
+      // is absolute — it does NOT reset on a chunk, which is the whole point:
+      // a stream that never goes quiet must still be bounded.
+      const remainingTotal = deadline - Date.now();
+      const expiringTotal = remainingTotal <= idleMs;
+      const waitMs = Math.max(0, Math.min(idleMs, remainingTotal));
+
       const next = iterator.next();
       // The race abandons whichever promise loses. If `next` later rejects
       // with nobody awaiting it, Node reports an unhandled rejection and (on
@@ -73,23 +108,25 @@ export async function* withIdleTimeout<T>(
       next.catch(() => {});
 
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const idle = new Promise<never>((_, reject) => {
+      const expiry = new Promise<never>((_, reject) => {
         timer = setTimeout(
           () =>
             reject(
               new ProviderError(
                 provider,
-                `The ${provider} stream went quiet for ${Math.round(idleMs / 1000)}s and was stopped.`,
+                expiringTotal
+                  ? `The ${provider} stream exceeded its ${Math.round(totalMs / 1000)}s request budget and was stopped.`
+                  : `The ${provider} stream went quiet for ${Math.round(idleMs / 1000)}s and was stopped.`,
                 504,
               ),
             ),
-          idleMs,
+          waitMs,
         );
       });
 
       let result: IteratorResult<T>;
       try {
-        result = await Promise.race([next, idle]);
+        result = await Promise.race([next, expiry]);
       } finally {
         clearTimeout(timer);
       }

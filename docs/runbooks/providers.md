@@ -226,23 +226,52 @@ Every streaming adapter bounds itself on **silence**, not on total time.
 | constant | default | what it means |
 | --- | --- | --- |
 | `PROVIDER_IDLE_MS` | 60s | Time since the last token. The one that should ever fire. |
-| `PROVIDER_TOTAL_MS` | 285s | Backstop only. **Must stay under** the enhance route's `maxDuration` (300s). |
+| `PROVIDER_TOTAL_MS` | 285s | Absolute wall across the stream's lifetime. **Must stay under** the enhance route's `maxDuration` (300s). |
 | `MEDIA_TIMEOUT_MS` | 55s | `/api/media` only — a bounded one-shot under a `maxDuration=60` route. |
 
-This replaced a single `PROVIDER_TIMEOUT_MS = 55_000` passed as the SDK clients'
-`timeout`. That option is a **whole-request deadline that covers the streamed
-body read** — not a connect or first-byte timeout — so it could not distinguish
-a hung connection from a healthy generation that was simply long, and cut both
-at 55s. The practical effect was that the clock, not `max_tokens`, was the real
-output ceiling: roughly 2,000-4,000 tokens against the 16,000-64,000 the
-adapters request. The truncated run was still billed, because the route's
-`finally` block settles the ledger from `streamedChars`.
+### What the SDK `timeout` option actually covers
 
-`withIdleTimeout` (`src/lib/providers/idle-timeout.ts`) wraps the stream loop in
-the five SDK adapters; `google.ts` is a raw fetch and carries the same policy by
-hand with an `AbortController` re-armed on every read. Both cancel the source on
-idle-out, which is what actually aborts the upstream request — without it the
-connection keeps streaming tokens nobody reads, and keeps billing for them.
+Read this before reasoning about any of the above, because the obvious
+assumption is wrong and this repo shipped it once.
+
+In both vendored SDKs the timeout timer is armed around `fetch()` and cleared
+the moment that promise settles — `openai/src/core.ts:597-602`
+(`.finally(() => clearTimeout(timeout))`) and
+`@anthropic-ai/sdk/src/client.ts:729-733`. **A streaming `fetch()` resolves at
+the response headers**, and the body is consumed afterwards, so `timeout` bounds
+connect-and-headers and nothing after it. Once the first byte lands, the SDK
+stops bounding the stream entirely.
+
+Two things follow:
+
+- The retired `PROVIDER_TIMEOUT_MS = 55_000` was **not** what truncated long
+  runs mid-stream — it could not have been. The route's `maxDuration = 60` was:
+  the platform killed the whole function. The raised window is therefore the
+  primary fix, not a supporting one.
+- A total budget **cannot** be expressed as the SDK `timeout`. That timer is
+  already gone by the time the body streams, so a continuously productive
+  stream would outlive it and be killed by the platform instead — skipping the
+  route's `finally` block and stranding the spend hold, the exact PRV-002 leak.
+
+So both budgets are enforced in application code. `withIdleTimeout`
+(`src/lib/providers/idle-timeout.ts`) wraps the stream loop in the five SDK
+adapters and holds the idle timer **and** an absolute deadline taken at the
+first call; the total does not reset on a chunk, which is the entire point.
+`google.ts` is a raw fetch and carries the same policy by hand: one
+`AbortController`, a total timer that stays armed for the whole body read, and
+an idle timer re-armed inside the read loop.
+
+`PROVIDER_TOTAL_MS` is still passed as the SDK `timeout` as well, where it does
+usefully bound a hang before headers.
+
+Cancellation is not optional and not cosmetic. Both SDKs implement
+`[Symbol.asyncIterator]` as an **async generator**, and that protocol queues a
+`return()` behind an already-pending `next()` — and at idle-out there is always
+a `next()` in flight. So each adapter passes `withIdleTimeout` the SDK's own
+abort handle (`stream.controller.abort()`, `MessageStream.abort()`), which is
+called first: it aborts the HTTP request, settles the pending read, and lets the
+queued `return()` run. Without it the error cannot even propagate, and the
+connection keeps streaming tokens nobody reads — and keeps billing for them.
 
 **`maxDuration` and `PROVIDER_TOTAL_MS` are a pair.** If the route window ever
 drops below the total backstop, the platform kills the function first and skips

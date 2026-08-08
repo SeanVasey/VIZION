@@ -188,20 +188,32 @@ export function computeCost(
  * retry both risks running past the window and can double-bill upstream
  * without a ledger row.
  *
- * TWO BUDGETS, NOT ONE, AND WHY.
- * This was a single `PROVIDER_TIMEOUT_MS = 55_000` passed as the SDKs'
- * `timeout`. That option is a WHOLE-REQUEST deadline — it covers the streamed
- * body read, not just connect — so it could not tell "hung connection" from
- * "healthy generation that is simply long", and killed both at 55s. At typical
- * rates that capped output at roughly 2,000-4,000 tokens against the
- * 16,000-64,000 the adapters actually request: the clock, not max_tokens, was
- * the real ceiling, and the truncated run was still billed. Splitting it:
+ * WHAT THE SDK `timeout` COVERS, measured rather than assumed. In both
+ * vendored SDKs the timer is armed around `fetch()` and cleared as soon as
+ * that promise settles (openai/src/core.ts:597-602;
+ * @anthropic-ai/sdk/src/client.ts:729-733). A streaming `fetch()` resolves at
+ * the RESPONSE HEADERS, so `timeout` bounds connect-and-headers and nothing
+ * after. Once the first byte lands, the SDK stops bounding the stream.
  *
- *   IDLE  — time since the last token. A hung connection still dies fast; a
- *           stream that keeps producing is never interrupted. This is the one
- *           that should fire in anger.
- *   TOTAL — a backstop under the route's maxDuration (300s) so the finally
- *           block always runs and the spend hold is never stranded.
+ * That corrects an earlier claim in this file that `timeout` was a
+ * whole-request deadline covering the body read. It never was — which means
+ * the old `PROVIDER_TIMEOUT_MS = 55_000` was NOT what truncated long runs
+ * mid-stream. The route's `maxDuration = 60` was: the platform killed the
+ * whole function. Hence the raised window is the primary fix, not a secondary
+ * one, and the two budgets below cover what the SDK does not:
+ *
+ *   IDLE  — time since the last token, enforced by withIdleTimeout. A hung
+ *           connection dies fast; a stream that keeps producing is never
+ *           interrupted. This is the one that should fire in anger.
+ *   TOTAL — an ABSOLUTE wall across the stream's lifetime, also enforced by
+ *           withIdleTimeout (and by hand in google.ts). It cannot live on the
+ *           SDK client, because that timer is already gone by the time the
+ *           body streams; a continuously productive stream would otherwise
+ *           outlive it and be killed by the platform instead, skipping the
+ *           route's finally block and stranding the spend hold.
+ *
+ * TOTAL is still passed as the SDK `timeout` as well, where it usefully bounds
+ * a hang BEFORE headers. Sized under the route's maxDuration (300s).
  */
 export const PROVIDER_IDLE_MS = numEnv("PROVIDER_IDLE_MS", 60_000);
 export const PROVIDER_TOTAL_MS = numEnv("PROVIDER_TOTAL_MS", 285_000);

@@ -10,28 +10,44 @@ All notable changes to VIZION are documented here. The format follows
 
 A healthy long generation was being killed mid-stream and billed anyway.
 
-`PROVIDER_TIMEOUT_MS = 55_000` was passed as every SDK client's `timeout`. In
-the Anthropic and OpenAI Node SDKs that option is a **whole-request deadline
-covering the streamed body read** — not a connect or first-byte timeout — so it
-could not tell a hung connection from a generation that was simply long, and it
-cut both at 55s, inside the route's `maxDuration = 60`. The practical effect:
-the clock, not `max_tokens`, was the real output ceiling, at roughly
-2,000–4,000 tokens against the 16,000–64,000 the adapters actually request. The
-route's `finally` block then estimated the partial at ~4 chars/token and settled
-the ledger, so the user paid for an answer they could not keep.
+The killer was the enhance route's `maxDuration = 60`: the platform terminated
+the whole function while the model was still producing. At typical rates that
+capped output around 2,000–4,000 tokens against the 16,000–64,000 the adapters
+request — the clock, not `max_tokens`, was the real ceiling — and the route's
+`finally` block then estimated the partial at ~4 chars/token and settled the
+ledger, so the user paid for an answer they could not keep. The window is now
+300s.
 
-The deadline is now split in two. `PROVIDER_IDLE_MS` (60s) measures time since
-the **last token**, so a stream that keeps producing is never interrupted
-however long it runs, while genuine silence still dies fast; `PROVIDER_TOTAL_MS`
-(285s) is a backstop that stays under the route's `maxDuration`, now 300, so the
-`finally` block always runs and the spend hold is never stranded. Both are
+The adapters' own budget had to be rebuilt around a correction, recorded here
+because the intuitive reading is wrong and this repo briefly shipped it. The
+SDK `timeout` option is **not** a whole-request deadline: in both vendored SDKs
+the timer is armed around `fetch()` and cleared when that promise settles
+(`openai/src/core.ts:597-602`, `@anthropic-ai/sdk/src/client.ts:729-733`), and
+a streaming `fetch()` resolves at the **response headers**. It bounds
+connect-and-headers and nothing after; once the first byte lands the SDK stops
+bounding the stream at all. So the retired `PROVIDER_TIMEOUT_MS = 55_000` never
+truncated a body mid-read, and a total budget cannot be expressed as an SDK
+`timeout` either — that timer is long gone by the time the body streams.
+
+Both budgets are therefore enforced in application code. `PROVIDER_IDLE_MS`
+(60s) measures time since the **last token**, so a stream that keeps producing
+is never interrupted however long it runs, while genuine silence dies fast.
+`PROVIDER_TOTAL_MS` (285s) is an **absolute wall** taken at the first read that
+deliberately does not reset on a chunk — without it a continuously productive
+stream had no bound at all and would be killed by the platform, skipping the
+`finally` block and stranding the spend hold (PRV-002). Both are
 env-overridable, and a test pins `PROVIDER_TOTAL_MS < maxDuration` because they
-are a pair — inverting them reintroduces the stranded-hold leak PRV-002 exists
-to prevent. `withIdleTimeout` holds the one implementation for the five SDK
-adapters; `google.ts`, a raw fetch with no SDK to wrap, carries the same policy
-with an `AbortController` re-armed on every read. Both cancel the source on
-idle-out, which is what actually aborts the upstream request — without it the
-connection keeps streaming tokens nobody reads and keeps billing for them.
+are a pair.
+
+`withIdleTimeout` holds the one implementation for the five SDK adapters;
+`google.ts`, a raw fetch with no SDK to wrap, carries the same policy by hand
+with an `AbortController` whose total timer stays armed across the body read
+and whose idle timer is re-armed per chunk. Cancellation goes through the SDK's
+own abort handle rather than `iterator.return()`, because both SDKs expose an
+async generator and that protocol queues `return()` behind a pending `next()` —
+of which there is always one at idle-out. Aborting first settles the read, lets
+the queued cleanup run, and releases a connection that would otherwise keep
+streaming tokens nobody reads and keep billing for them.
 
 `/api/media` deliberately keeps a flat whole-request deadline under its own
 `MEDIA_TIMEOUT_MS`: it is a bounded one-shot analysis under a `maxDuration=60`

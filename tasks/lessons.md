@@ -2704,15 +2704,29 @@ render identical; account change wipes storage before rehydrating (the
 
 ## Maroon · Qwen3.8 · one stream light · the 55s cutoff
 
-- **An SDK `timeout` is a whole-request deadline, not a connect timeout.** The
-  Anthropic and OpenAI Node SDKs apply `timeout` across the streamed body read,
-  so `PROVIDER_TIMEOUT_MS = 55_000` was silently the output ceiling — roughly
-  2,000-4,000 tokens against a requested 16,000-64,000 — and it fired on healthy
-  runs, not just hung ones. Nothing in the code was wrong-looking: the constant
-  was well documented, sized deliberately under `maxDuration`, and pinned by a
-  test. It was the *semantics of the option* that were misread. When a timeout
-  guards a stream, write down which clock it measures; "bounded" is not a
-  property, it is a question ("bounded on what?").
+- **"Bounded on what?" — and then go read the library.** The original diagnosis
+  here was that the SDKs' `timeout` is a whole-request deadline covering the
+  streamed body read, which made `PROVIDER_TIMEOUT_MS = 55_000` the silent
+  output ceiling. It was a confident, plausible, well-argued answer, it got
+  written into the constant's comment, a runbook, a changelog entry and a PR
+  description — and it was **wrong**. Both vendored SDKs arm the timer around
+  `fetch()` and clear it when that promise settles (`openai/src/core.ts:597-602`,
+  `@anthropic-ai/sdk/src/client.ts:729-733`), and a streaming `fetch()` resolves
+  at the response HEADERS. It bounds connect-and-headers; the body read is
+  unbounded. The actual truncator was `maxDuration = 60` — the platform killing
+  the function. A reviewer caught it. The lesson is not "ask which clock" (I did
+  ask, and answered wrongly from memory of how such options usually behave); it
+  is that for a third-party behaviour the whole fix rests on, **open
+  `node_modules` and read the four lines**. It costs a minute and it is the
+  difference between a fix and a fiction.
+- **A timer you cannot see fire is not a backstop.** Following from the above:
+  because that timer is already cleared once the body streams, passing the
+  "total" budget as the SDK `timeout` bounded nothing during the stream. A
+  continuously productive run had NO limit and would be killed by the platform
+  instead — skipping the finally block and stranding the spend hold, i.e. the
+  exact leak the policy existed to prevent. An absolute wall has to be enforced
+  where the reading happens, and it must not reset on a chunk; an idle timer and
+  a total timer look similar and do opposite jobs.
 - **A truncation that is still billed is worse than an error.** The route's
   `finally` block correctly settles the ledger from `streamedChars` — those
   tokens really were spent upstream. So the adapter throwing away the partial on

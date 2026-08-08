@@ -56,6 +56,55 @@ describe("withIdleTimeout", () => {
     await expect(run()).rejects.toMatchObject({ provider: "openai", status: 504 });
   });
 
+  it("stops a CONTINUOUSLY PRODUCTIVE stream at the total wall", async () => {
+    // The gap Codex found (PR #91, second P1). The total budget cannot live on
+    // the SDK client: both vendored SDKs clear that timer when fetch() settles
+    // — which for a stream is at the response HEADERS, before the body is read
+    // (openai/src/core.ts:597-602, @anthropic-ai/sdk/src/client.ts:729-733).
+    // So a stream that never goes quiet had NO bound at all and would run
+    // until the platform killed the function, skipping the route's finally
+    // block and stranding the spend hold. The wall is absolute: unlike the
+    // idle timer it must not reset on a chunk.
+    let cancelled = false;
+    const seen: number[] = [];
+    await expect(
+      (async () => {
+        // Chunks every 5ms — silence never approaches the 200ms idle budget.
+        for await (const v of withIdleTimeout(ticker(1_000, 5), "meta", {
+          idleMs: 200,
+          totalMs: 120,
+          cancel: () => {
+            cancelled = true;
+          },
+        })) {
+          seen.push(v);
+        }
+      })(),
+    ).rejects.toThrow(/request budget/);
+
+    expect(cancelled).toBe(true);
+    // It really was producing the whole time — this is not an idle-out wearing
+    // a different message.
+    expect(seen.length).toBeGreaterThan(5);
+  });
+
+  it("does not let the total wall reset when chunks keep arriving", async () => {
+    // Same distinction, stated as a bound: with a 120ms wall and 5ms chunks,
+    // a wall that reset per chunk would never fire at all.
+    const started = Date.now();
+    await expect(
+      (async () => {
+        for await (const v of withIdleTimeout(ticker(1_000, 5), "zai", {
+          idleMs: 5_000,
+          totalMs: 120,
+        })) {
+          void v;
+        }
+      })(),
+    ).rejects.toThrow(/request budget/);
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
   it("aborts a REAL async generator promptly — return() alone would deadlock", async () => {
     // The regression this pins (Codex review, PR #91). Both SDKs implement
     // [Symbol.asyncIterator] as an async generator, and the async-generator
