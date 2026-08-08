@@ -2633,3 +2633,46 @@ render identical; account change wipes storage before rehydrating (the
   tokens.css untouched, theme reactivity free. The cost is the tri-block
   rule: every light value is written twice (explicit + system-light), and
   forgetting the media block hands system-light users the dark values.
+
+## NEBULA+ on a phone — the unit was right on the machine it was designed on
+
+- **`vmax` silently changes which axis it means when the device rotates.**
+  The blooms were authored in `vmax` against a 1280×800 landscape
+  reference, where width is the larger axis and `vmax` is therefore
+  indistinguishable from `vw`. On a portrait phone the same numbers pin to
+  the HEIGHT axis instead, and an 80`vmax` bloom renders at 173% of the
+  screen's width. Nothing was wrong with the values; the unit meant
+  something different on the target device than it did on the design
+  surface. Treat `vmax`/`vmin` as orientation-dependent and check any
+  viewport unit against both orientations before shipping it — and note
+  that a bare `vmax`→`vw` swap only fixes portrait, because on a short
+  landscape screen `vmax` already WAS `vw`. The per-axis
+  `min(Nvw, Mvh)` clamp is what covers both.
+- **`getBoundingClientRect()` is the wrong instrument for verifying declared
+  geometry on an animated element.** It returns the post-transform box, so
+  three of the four blooms — whose keyframes start at a non-identity
+  `scale()` — never measure their declared size at any moment past t=0, and
+  the first verification run "failed" on correct CSS. `getComputedStyle`
+  resolves `calc()`/`min()`/`vw`/`vh` to pixels without the transform, and
+  is what a geometry assertion wants.
+- **A stale dev server outlives the build it was serving.** A `next start`
+  from an earlier check kept running after a clean rebuild, serving a
+  manifest whose hashed CSS filenames no longer existed — every stylesheet
+  404'd, so the page rendered unstyled and every geometry number came back
+  identical and wrong. `lsof`-based kills missed it; it needed killing by
+  PID. When measurements look uniformly impossible, verify the harness
+  before debugging the code, and confirm the asset actually loaded.
+- **An authed page ignores `emulateMedia({colorScheme})`.** `ProfileHydrator`
+  stamps `data-theme` from the signed-in profile, so a "light theme" check
+  that only emulates the media query silently measures the dark tokens —
+  and comparing dark text against a light-composited wall produces a
+  confident, meaningless failure. Drive the app's own theme control instead,
+  and assert the tokens actually swapped before trusting the numbers.
+- **A legibility fix that changes an element's visual weight is a design
+  change, and needs to be looked at.** Adding `.glass` to the mode caption
+  fixed the contrast margin and turned a one-line secondary caption into a
+  third bordered card stacked under two other cards — contradicting the
+  comment directly above it, which said "not a card". The right instrument
+  was a fill with no hairline, sheen or blur (`.ambient-scrim`, on the
+  existing DSN-010 `--scrim-panel` wash). Render the screen and look at it;
+  a contrast ratio alone cannot tell you the fix is wrong.

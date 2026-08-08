@@ -126,17 +126,23 @@ export const ModeRig = memo(function ModeRig({
         })}
       </div>
 
-      {/* Mode helper — concise secondary text, not a card, but still glass-backed:
-          this was the one on-screen caption sitting directly on the raw ambient
-          layer, and a bloom passing behind --silver text left only a ~7-8%
-          contrast margin over its own peak alpha — thin enough that overlapping
-          blooms or the particle canvas's glow could plausibly drop it below AA.
-          The stacked blurbs share one grid cell: the tallest reserves the
-          height (the glass padding is constant regardless of which mode is
-          shown, so it doesn't reintroduce a layout shift on switch), the shown
-          one cross-fades in. No aria-live: hover-driven changes would chatter;
-          aria-describedby on the shown cell carries the association instead. */}
-      <div id="mode-help-strip" className="glass grid items-start rounded-xl px-3 py-2 text-center">
+      {/* Mode helper — concise secondary text, still not a card, but scrimmed:
+          this is the one on-screen caption sitting directly on the ambient
+          layer, and a bloom passing behind --silver text spends most of that
+          pair's contrast headroom, thin enough that an overlapping bloom or
+          the particle canvas's glow could take it below AA. `.ambient-scrim`
+          is a fill and nothing else — a glass tier here would give a one-line
+          caption a hairline and a sheen and make it read heavier than the
+          mode rail it describes. The stacked blurbs share one grid cell: the
+          tallest reserves the height (the scrim's padding is constant
+          regardless of which mode is shown, so it doesn't reintroduce a
+          layout shift on switch), the shown one cross-fades in. No aria-live:
+          hover-driven changes would chatter; aria-describedby on the shown
+          cell carries the association instead. */}
+      <div
+        id="mode-help-strip"
+        className="ambient-scrim grid items-start rounded-xl px-3 py-1.5 text-center"
+      >
         {MODES.map((mode) => {
           const shown = mode.id === shownMode;
           return (

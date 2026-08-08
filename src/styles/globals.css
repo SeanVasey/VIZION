@@ -300,6 +300,26 @@
     box-shadow: var(--focus-ring), var(--glass-sheen);
   }
 
+  /* Ambient scrim — a FILL, deliberately NOT a member of the glass family.
+     Secondary copy that sits directly on the ambient background, with no glass
+     tier anywhere beneath it, still needs the NEBULA+ bloom and mote tint
+     diluted under the words: unshielded, a bloom drifting behind light-theme
+     --silver text spends most of that pair's contrast headroom, and the
+     particle canvas can add a local glow on top of it. But the glass tiers
+     are the wrong instrument here — their hairline, sheen and blur turn a
+     one-line caption into a panel, and a caption that reads as heavy as the
+     control it describes is a worse answer than the contrast problem.
+     So: fill only. No border, no sheen, no grain, no backdrop-filter.
+     The fill is the DSN-010 scrim wash, which is --void-based and therefore
+     inverts with the theme on its own (no tri-block needed — unlike
+     --glass-still above, its percentage does not vary by theme). Over plain
+     ground it is all but invisible; it only asserts itself where a bloom or a
+     mote actually drifts behind the text, which is exactly when it is needed.
+     Callers bring their own radius and padding, as they do for .glass. */
+  .ambient-scrim {
+    background-color: var(--scrim-panel);
+  }
+
   /* Translucent chrome — the top header and bottom nav. Thinner fill + a touch
      of saturation so the ambient aurora glow blooms through the bar (the glass
      panels stay on the denser --glass tier).  No hard hairline edge; a gentle

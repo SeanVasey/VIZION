@@ -33,6 +33,7 @@ const PROJECT_CLASSNAMES = [
   "bg-nebula-ground",
   "nebula-canvas",
   // Buttons + surfaces (@layer components).
+  "ambient-scrim",
   "btn-destructive",
   "btn-laser",
   "btn-secondary",
