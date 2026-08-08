@@ -6,6 +6,106 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Long streams are no longer cut off at ~55s, and a truncated run keeps its output
+
+A healthy long generation was being killed mid-stream and billed anyway.
+
+`PROVIDER_TIMEOUT_MS = 55_000` was passed as every SDK client's `timeout`. In
+the Anthropic and OpenAI Node SDKs that option is a **whole-request deadline
+covering the streamed body read** — not a connect or first-byte timeout — so it
+could not tell a hung connection from a generation that was simply long, and it
+cut both at 55s, inside the route's `maxDuration = 60`. The practical effect:
+the clock, not `max_tokens`, was the real output ceiling, at roughly
+2,000–4,000 tokens against the 16,000–64,000 the adapters actually request. The
+route's `finally` block then estimated the partial at ~4 chars/token and settled
+the ledger, so the user paid for an answer they could not keep.
+
+The deadline is now split in two. `PROVIDER_IDLE_MS` (60s) measures time since
+the **last token**, so a stream that keeps producing is never interrupted
+however long it runs, while genuine silence still dies fast; `PROVIDER_TOTAL_MS`
+(285s) is a backstop that stays under the route's `maxDuration`, now 300, so the
+`finally` block always runs and the spend hold is never stranded. Both are
+env-overridable, and a test pins `PROVIDER_TOTAL_MS < maxDuration` because they
+are a pair — inverting them reintroduces the stranded-hold leak PRV-002 exists
+to prevent. `withIdleTimeout` holds the one implementation for the five SDK
+adapters; `google.ts`, a raw fetch with no SDK to wrap, carries the same policy
+with an `AbortController` re-armed on every read. Both cancel the source on
+idle-out, which is what actually aborts the upstream request — without it the
+connection keeps streaming tokens nobody reads and keeps billing for them.
+
+`/api/media` deliberately keeps a flat whole-request deadline under its own
+`MEDIA_TIMEOUT_MS`: it is a bounded one-shot analysis under a `maxDuration=60`
+route, where the failure above cannot occur. It gets its own constant so a value
+sized for bounded calls can never again govern unbounded streaming ones.
+
+Two consequences of the same "don't waste what was paid for" principle:
+
+- **A length-stop keeps its partial.** Hitting the output ceiling mid-envelope
+  used to throw, discarding every token that had streamed. It now returns the
+  partial flagged `truncated`, which is deliberately **not** `salvaged` — salvage
+  means "complete output, lost rationale" and promises a whole prompt, so the two
+  carry different copy. A truncated run says plainly that the prompt is
+  incomplete and why it is being kept. Nothing usable streamed still errors.
+- **The live token counter no longer freezes at 1.** Anthropic reports
+  `output_tokens` at `message_start` as a header snapshot — literally 1–4 — and
+  sends the real cumulative count only in the terminal frame. The client latched
+  that first frame as authoritative and disabled its own estimator, pinning the
+  readout at `1213→1 tok · $0.0037` for the whole visible run, so an expensive
+  run never looked expensive while it was running. Mid-stream usage frames are
+  now a floor rather than a freeze, and the counters are monotonic by
+  construction; the `usageAuthoritative` flag that caused it is gone rather than
+  left permanently false.
+
+### OpenAI's library accent is a maroon, the one exception to the accent corridor
+
+Owner direction: `--dev-openai` read as pink. It moves from the assigned h336
+magenta `#cf70ba` to `#9c595d`.
+
+Every ΔE2000 floor from [0003](docs/decisions/0003-developer-accents.md) still passes — laser 66.7, **flare 21.0/18.1**
+against a floor of 18, amber 44.9, pulse 63.4 — so no semantic clearance is
+amended and the accent still cannot be misread as "error" or "pending delete".
+Nearest live accent is minimax at 10.6, matching the palette's tightest standing
+pair rather than undercutting it.
+
+What does change is the luminance corridor's lower bound. A true maroon cannot
+work here at any chroma, and not because of a rule: `#800000` measures **1.15:1**
+against the aurora-lit dark card, i.e. invisible. An accent has to be lighter
+than the card it sits on, which is why the corridor has a floor at all. The
+deepest fully-compliant red, `#a06f72`, reads as oxblood rather than maroon, so
+the value ships below the floor at Y 0.1500 — **2.41:1** on the aurora-lit dark
+card (2.92:1 on the plain dark card; 5.12:1 on the light card, better than the
+magenta it replaces). Justified because the mark is redundant: the model name is
+text immediately beside it, so it is not a graphical object required to
+understand content under WCAG 1.4.11. [0011](docs/decisions/0011-openai-maroon.md) records the derivation, and a test
+now asserts that **exactly one** accent sits below the floor and that it is
+`openai` — the corridor was previously only ever asserted for xAI, so a second
+one would have shipped unnoticed.
+
+### Qwen moves to Qwen3.8 Max
+
+`qwen3_7_max` → `qwen3_8_max`, wire id `qwen3.8-max`, with the
+`model_target` enum renamed in migration `20260808120000` (existing rows migrate
+by OID) and a `LEGACY_TARGET_IDS` entry so a stale persisted selection resolves
+instead of 400ing. The thinking ladder is unchanged — "Max" is Alibaba's model
+tier, not a reasoning depth.
+
+Qwen's 8192 output ceiling is unchanged but now `MAX_TOKENS_QWEN`-overridable.
+It is the tightest in the fleet and the `max` thinking budget consumes half of
+it, so Qwen truncates sooner than any other target; it is not raised on a guess
+because a value outside DashScope's published range 400s on every call, trading
+an occasional truncation for total failure.
+
+### The streaming card has one moving light, not two
+
+`.stream-live::after` — an accent light travelling the card's top edge — ran the
+same `@keyframes stream-sweep`, at the same 1.4s, with the same gradient and glow
+as the progress bar a few pixels below it. One signal drawn twice, which read as
+two competing indicators. The edge light is removed and the bar stays: it also
+carries the `role="status" aria-live="polite"` step label ("Reaching the
+model…"), which the edge light did not. Reduced-effects users already ran
+bar-only, so this converges the two rendering paths rather than adding a third.
+The static `.result-shimmer::before` hairline underneath is untouched.
+
 ### The I›O mark is re-cut with solid chevron and ring wedges
 
 Corrected masters replace the first I›O cut: the chevron and the two

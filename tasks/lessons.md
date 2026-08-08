@@ -2633,3 +2633,59 @@ render identical; account change wipes storage before rehydrating (the
   tokens.css untouched, theme reactivity free. The cost is the tri-block
   rule: every light value is written twice (explicit + system-light), and
   forgetting the media block hands system-light users the dark values.
+
+## Maroon · Qwen3.8 · one stream light · the 55s cutoff
+
+- **An SDK `timeout` is a whole-request deadline, not a connect timeout.** The
+  Anthropic and OpenAI Node SDKs apply `timeout` across the streamed body read,
+  so `PROVIDER_TIMEOUT_MS = 55_000` was silently the output ceiling — roughly
+  2,000-4,000 tokens against a requested 16,000-64,000 — and it fired on healthy
+  runs, not just hung ones. Nothing in the code was wrong-looking: the constant
+  was well documented, sized deliberately under `maxDuration`, and pinned by a
+  test. It was the *semantics of the option* that were misread. When a timeout
+  guards a stream, write down which clock it measures; "bounded" is not a
+  property, it is a question ("bounded on what?").
+- **A truncation that is still billed is worse than an error.** The route's
+  `finally` block correctly settles the ledger from `streamedChars` — those
+  tokens really were spent upstream. So the adapter throwing away the partial on
+  a length stop meant the user paid for output that was deliberately discarded.
+  When a failure path runs *after* money is committed, the question is not "did
+  it succeed" but "what did the spend buy, and are we keeping it".
+- **Never let a degraded-result flag borrow another's copy.** `salvaged` means
+  "complete output, lost rationale" and its UI string promises "the prompt above
+  is complete". Reusing it for a truncated run would have asserted exactly the
+  false thing, to the one user who most needs the truth. New failure mode, new
+  flag, new sentence — even when the rendering branch looks identical.
+- **A monotonic floor beats an "authoritative" latch.** The token readout froze
+  at `1213→1 tok` because Anthropic's `message_start` snapshot (output_tokens:
+  1-4) set `usageAuthoritative`, which disabled the char estimator for the rest
+  of the run. Taking `Math.max(incoming, current)` everywhere makes the counter
+  correct-by-construction and deletes the flag entirely: an estimator that can
+  only raise can never walk a real measurement backwards, so nothing needs to
+  know which number is "real".
+- **A corridor with a lower bound is a visibility constraint, not a rulebook.**
+  "Make OpenAI maroon" is unsatisfiable on a dark card and no amount of
+  ΔE tuning changes it: `#800000` is 1.15:1 on `#2E352D`. The accent must be
+  *lighter* than the surface to exist at all. Worth computing and stating the
+  measured number before proposing a compromise — the constraint that binds was
+  the corridor, while the one that *looked* binding (the `--flare` clearance)
+  turned out to pass at 21.0/18.1 without amendment.
+- **An invariant asserted for one instance is not asserted.** The accent
+  corridor was only ever checked against `xai`, so an out-of-corridor value for
+  any of the other eleven would have shipped green. Granting a deliberate
+  exception was the moment to notice — the new test now pins that exactly one
+  accent is below the floor and names it, so the exception stays singular. When
+  you find yourself allowed to break a documented rule silently, the rule needed
+  a test more than the exception needed an ADR.
+- **Two identical animations read as two indicators.** `.stream-live::after` and
+  `.stream-progress-sweep` shared one keyframe, duration, gradient and glow —
+  the CSS even said "one keyframe, two consumers" approvingly. Deduplicating a
+  *definition* is not the same as deduplicating a *signal*. When choosing which
+  to cut, the tiebreak was accessibility: the bar carried the `aria-live` step
+  label and the edge light carried nothing.
+- **Playwright browsers are not provisioned in a fresh session.** `npm run
+  test:e2e` hard-fails in global-setup until
+  `npx playwright install --with-deps webkit chromium` has run (and
+  `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` must be overridden for it). Budget for it
+  before claiming the gate is green — and note that a `... | tail` pipeline
+  returns *tail's* exit code, so a failed run can look like exit 0.
