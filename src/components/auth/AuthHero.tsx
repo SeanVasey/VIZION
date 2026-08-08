@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Wordmark } from "@/components/Wordmark";
 import { BrandPills } from "@/components/BrandPills";
+import { BRAND_MARK_SRC } from "@/lib/brand-assets";
 
 /**
  * Login hero lockup (remediation R1.2 / R6.2): the transparent brand mark large
@@ -15,7 +16,7 @@ export function AuthHero() {
           so size by width (keeping native aspect) and keep it modest so it
           stays in balance with the wordmark and the rest of the page. */}
       <Image
-        src="/brand/vizion-mark-token.svg"
+        src={BRAND_MARK_SRC}
         alt=""
         width={160}
         height={102}

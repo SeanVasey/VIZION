@@ -3,6 +3,7 @@ import Image from "next/image";
 import { PressableLink } from "@/components/ui/PressableLink";
 import { Wordmark } from "@/components/Wordmark";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BRAND_ICON_SRC } from "@/lib/brand-assets";
 
 /**
  * Full-bleed glass header with the safe-area top inset baked in.  Shows the
@@ -28,7 +29,7 @@ export function ScreenHeader({
           <div className="flex items-center gap-2">
             {/* App icon (squircle) to the LEFT of the wordmark — R1.1. */}
             <Image
-              src="/brand/vizion-icon-token.svg"
+              src={BRAND_ICON_SRC}
               alt=""
               width={36}
               height={36}
