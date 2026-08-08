@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { PROVIDER_KEY_ENV } from "@/lib/providers/config";
 
@@ -72,13 +72,62 @@ describe("uniform connection policy (PRV-002)", () => {
   // The STREAMING enhance adapters. Their SDK `timeout` bounds only
   // connect-and-headers (it is cleared when fetch() settles), so both real
   // budgets — idle and the absolute total — are enforced in application code.
-  const streamingSdkFiles = [
-    "anthropic.ts",
-    "openai.ts",
-    "mistral.ts",
-    "xai.ts",
-    "openai-compat.ts",
-  ];
+  //
+  // DERIVED, not listed. A hardcoded roster asserts the policy over the files
+  // that existed the day it was written, and the next adapter is simply not
+  // covered — which is the same failure as `google.ts` sitting outside the
+  // deadline rollout for five review rounds because it "wasn't shaped like an
+  // adapter". A module that wraps a provider stream IS a streaming adapter, so
+  // let the code say so: calling withIdleTimeout is the definition.
+  const PROVIDER_DIR = join(ROOT, "src", "lib", "providers");
+  const streamingSdkFiles = sourceFiles(PROVIDER_DIR)
+    .filter((f) => !/idle-timeout\.ts$/.test(f))
+    .filter((f) => read(f).includes("withIdleTimeout("))
+    .map((f) => basename(f))
+    .sort();
+
+  it("derives the streaming roster from the code, and it is not empty", () => {
+    // A derived list that silently evaluates to [] would make every assertion
+    // below vacuous — the loop would pass by running zero times. Pin the floor
+    // and the known members so a broken derivation fails loudly instead.
+    expect(streamingSdkFiles).toEqual(
+      expect.arrayContaining([
+        "anthropic.ts",
+        "mistral.ts",
+        "openai-compat.ts",
+        "openai.ts",
+        "xai.ts",
+      ]),
+    );
+    expect(streamingSdkFiles.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("every provider that opens a connection takes a budget first", () => {
+    // The companion to the roster above, and the rule google.ts broke: a
+    // module does not escape the policy by being shaped differently. Anything
+    // in providers/ that constructs an SDK client or issues a raw fetch must
+    // derive its bound from the invocation's one wall.
+    //
+    // vision.ts is the single documented exception — /api/media is a bounded
+    // one-shot under its own maxDuration=60 route, with its own constant so a
+    // value sized for bounded calls can never again govern streaming ones.
+    const opensConnection = sourceFiles(PROVIDER_DIR).filter((f) => {
+      const src = read(f);
+      return (
+        /new (OpenAI|Anthropic)\(/.test(src) || /\bawait fetch\(/.test(src)
+      );
+    });
+    const offenders = opensConnection
+      .filter((f) => !/vision\.ts$/.test(f))
+      .filter((f) => !read(f).includes("providerBudget("));
+    expect(
+      offenders,
+      "a provider module that opens a connection must bound it via providerBudget()",
+    ).toEqual([]);
+    // Guard the guard: if the detector stops matching, this says so.
+    expect(opensConnection.length).toBeGreaterThanOrEqual(6);
+  });
+
   for (const file of streamingSdkFiles) {
     it(`${file} cuts its SDK timeout from the REMAINING budget, not the constant`, () => {
       // This assertion used to demand `timeout: PROVIDER_TOTAL_MS`, and that
