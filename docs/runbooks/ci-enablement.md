@@ -1,9 +1,37 @@
 # Runbook — enabling GitHub Actions (owner-only)
 
-## Symptom (first seen 2026-07-27 · re-measured 2026-07-30)
+## The cause, measured 2026-08-08
 
-There are **two different failures here**, and the earlier version of this
-runbook conflated them. Separating them is what points at the cause:
+Asking the API to dispatch CI returns the answer directly:
+
+```
+POST /repos/SeanVasey/VIZION/actions/workflows/ci.yml/dispatches
+→ 422  Actions has been disabled for this user.
+```
+
+**"for this user" — not for this repository, and not for an organization.**
+The block is on the ACCOUNT, which is why the two symptoms below have one cause
+rather than the two this runbook previously inferred. Any run GitHub itself
+creates (CodeQL, Dependabot) is still *recorded*, because recording happens
+account-side of the block; nothing can ever be *picked up*.
+
+That correction matters for where to click. The old checklist opened with repo
+Settings → Actions → General, which cannot resolve an account-level disable —
+following it would have read as "the setting is already correct" and sent the
+next attempt in a circle. Repo and org policy are still worth confirming, but
+they are step 2 now, not step 1.
+
+Re-measured the same day: **31 run records, every one `queued` with a null
+conclusion**, oldest 2026-06-14, newest 2026-08-08 — and not one of them is
+`CI` or `Release`. Both counts have grown since 2026-07-30 (23 → 31) purely
+from GitHub's own workflows, which confirms the block is still live rather
+than a stale observation.
+
+## Symptom (first seen 2026-07-27 · re-measured 2026-07-30 and 2026-08-08)
+
+There are **two visible failures here**, and the earlier version of this
+runbook read them as two independent causes. The dispatch error above shows
+they are one:
 
 1. **`ci.yml` and `release.yml` have never produced a run record at all.**
    Not queued — *absent*. Both are registered and `active` (CI is workflow id
@@ -25,39 +53,51 @@ Neither symptom is explainable by the workflow files: the triggers are plain
 path filters, no `if:` conditions, and no required secrets. Both are
 repository/account-level, and only the repo owner can clear them.
 
-The distinction matters for the order of the checklist: symptom 1 (no record
-created) reads as an **Actions permissions** block, symptom 2 (records created,
-never picked up) reads as **runner capacity or billing**. Fixing billing alone
-would not make `ci.yml` start dispatching.
+Both follow from one account-level disable: nothing of ours is ever dispatched,
+and the records GitHub creates on its own behalf can never be picked up.
 
 ## Owner checklist, in order
 
-1. **Actions policy — do this first; it is the one that explains symptom 1.**
-   GitHub → repo **Settings → Actions → General**:
-   - "Actions permissions" must allow actions to run (e.g. *Allow all actions
-     and reusable workflows*). If Actions are disabled for the repository,
-     push/PR events create no run records — exactly what we see — while
-     GitHub's own security/dependency workflows still register theirs.
-   - If the repo lives in an organization, the org's Settings → Actions policy
-     overrides the repo's. Check both.
-2. **Billing / spending limit — explains symptom 2.** GitHub → account (or
-   org) **Settings → Billing and plans → Spending limits**:
-   - A private repo with exhausted included Actions minutes and a $0 spending
-     limit (or a lapsed payment method) queues runs forever. That is precisely
-     the state of all 23 existing records. Raise the limit or restore billing.
+Only the account owner can clear step 1, and no API token can do it — the
+dispatch endpoint refuses before it reaches the repository.
+
+1. **Account-level Actions — do this first; it is what the 422 names.**
+   GitHub → **your account** Settings (not the repo's):
+   - **Billing and plans → Spending limits.** The usual cause of an
+     account-wide disable is exhausted included minutes against a $0 limit, or
+     a payment method that failed. Restore billing / raise the limit.
+   - **Billing and plans → Plans.** Confirm the account is in good standing;
+     a lapsed or downgraded plan disables Actions account-wide.
+   - If both look correct, the disable is an enforcement action rather than a
+     billing state, and only **GitHub Support** can lift it. Quote the 422
+     verbatim — "Actions has been disabled for this user" is the phrase that
+     routes the ticket correctly.
+2. **Repo (and org) Actions policy — confirm, do not assume.** GitHub → repo
+   **Settings → Actions → General** → "Actions permissions" must allow runs
+   (e.g. *Allow all actions and reusable workflows*). If the repo lives in an
+   organization, the org policy overrides the repo's; check both. This is a
+   real prerequisite, but it is **not** the current blocker — see the 422.
 3. **Verify with a manual dispatch** — Actions tab → **CI** → *Run workflow*
-   on `main` (the `workflow_dispatch` trigger exists for exactly this).
-   Read the outcome against the two symptoms:
-   - *No run appears* → step 1 is still unresolved.
-   - *A run appears and sits `queued`* → step 1 is fixed, step 2 is not.
-   - *A run appears and executes steps* → both are clear; proceed to step 4.
+   on `main` (the `workflow_dispatch` trigger exists for exactly this), or the
+   API call at the top of this file. Read the outcome:
+   - *422 "disabled for this user"* → step 1 is still unresolved.
+   - *No run appears, no error* → step 2 is still unresolved.
+   - *A run appears and sits `queued`* → dispatch works; runner capacity or
+     billing is still short.
+   - *A run appears and executes steps* → clear; proceed to step 4.
 4. **After the first green run**, re-check the branch-protection story: with
    CI actually executing, `verify` can become a required status check on
    `main`.
 
 ## How to re-measure
 
-The evidence above is two API reads, both cheap to repeat:
+Three checks, all cheap to repeat. Run the dispatch FIRST — it names the cause
+outright, where the other two only describe the shape of the failure:
+
+- Dispatch CI on `main` (`actions_run_trigger` → `run_workflow`, or the
+  Actions tab). The error body is the diagnosis; see the top of this file.
+
+Then the two reads:
 
 - Run records and their statuses — `actions_list` / `list_workflow_runs` with
   no `resource_id` (all workflows). Look at `total_count`, and group by
@@ -86,3 +126,17 @@ plus `npm run audit:check`) and from Vercel's per-PR preview build. That is
 worth stating plainly: the branch-protection story is unenforced, and a commit
 that skipped the local gate would not be caught by anything. Treat the local
 gate as mandatory rather than as a convenience until step 3 above passes.
+
+Running it from a fresh container needs two provisioning steps before
+`npm run test:e2e` means anything, and neither is implied by `npm ci`:
+
+```bash
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 npx playwright install webkit chromium
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 npx playwright install-deps webkit   # needs root
+```
+
+The second is the one that bites. Without the WebKitGTK system libraries every
+`mobile-safari` test fails at `browserType.launch` with a missing-library
+banner — 30 failures that look like a code regression and are not. `install-deps`
+shells out to `apt`, so it needs root; under a sandboxed runner it must be
+allowed to escalate or it fails silently-ish and the suite stays red.
