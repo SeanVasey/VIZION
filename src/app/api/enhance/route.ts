@@ -44,8 +44,23 @@ const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 const REFINE_KIND_IDS = new Set<string>(REFINE_KINDS);
 
-/** Streaming can outlive the default function window on long enhancements. */
-export const maxDuration = 60;
+/**
+ * Streaming can outlive the default function window on long enhancements.
+ *
+ * 300, not 60. At 60 the platform killed the function while the model was
+ * still producing — and because the adapters' own deadline sat just under it
+ * at 55s, a healthy generation was capped at roughly 2,000-4,000 output tokens
+ * against the 16,000-64,000 `max_tokens` they request. The clock, not the token
+ * ceiling, was the real limit, and the truncated run was still billed by the
+ * finally-block below.
+ *
+ * The adapters now bound themselves on SILENCE (PROVIDER_IDLE_MS) with a total
+ * backstop (PROVIDER_TOTAL_MS = 285s) that stays under this window, so the
+ * finally-block always runs and the spend hold is never stranded. Raising this
+ * requires a Vercel plan whose Node-runtime limit allows it; the project is on
+ * a Team account, where 300 is available.
+ */
+export const maxDuration = 300;
 
 function err(status: number, error: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
@@ -305,11 +320,24 @@ export async function POST(request: NextRequest) {
             send({ type: "delta", text: event.text });
           } else if (event.type === "usage") {
             usage = { tokenIn: event.tokenIn, tokenOut: event.tokenOut };
+            // Floor the OUTPUT count with what has demonstrably streamed, and
+            // price the frame from that same number so the two always agree.
+            //
+            // Anthropic reports output_tokens at message_start as a header
+            // snapshot (literally 1-4) and sends the real cumulative count
+            // only at the end, so the un-floored frame read "1213→1 tok ·
+            // $0.0037" for an entire run — the counter frozen and the cost
+            // understated by roughly the output/input ratio, which is how an
+            // expensive run managed not to look expensive while it ran. The
+            // ledger's abort path already floors the same way (same ~4
+            // chars/token estimator, below); this just stops the LIVE readout
+            // being the one place that doesn't.
+            const shownOut = Math.max(event.tokenOut, Math.ceil(streamedChars / 4));
             send({
               type: "usage",
               tokenIn: event.tokenIn,
-              tokenOut: event.tokenOut,
-              costUsd: computeCost(typedTarget, event.tokenIn, event.tokenOut),
+              tokenOut: shownOut,
+              costUsd: computeCost(typedTarget, event.tokenIn, shownOut),
             });
           } else {
             result = event.result;
@@ -348,6 +376,7 @@ export async function POST(request: NextRequest) {
             ...(result.title ? { title: result.title } : {}),
             ...(result.questions ? { questions: result.questions } : {}),
             ...(result.salvaged ? { salvaged: true } : {}),
+            ...(result.truncated ? { truncated: true } : {}),
             ...(result.usageEstimated ? { usageEstimated: true } : {}),
             // Routing provenance — only on an auto-routed run, so its presence
             // is the signal. The client shouldn't have to diff the result

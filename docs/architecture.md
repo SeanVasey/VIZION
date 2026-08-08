@@ -74,7 +74,7 @@ A single `enhance(input, mode, target)` interface fans out to model-specific for
 - **Mistral Large 3** — concise front-loaded instructions; economy over scaffolding.
 - **Kimi K3** — clear goal + constraints with key context front-loaded; long-context friendly.
 - **Sonar Pro** — research-brief phrasing: scope, time window, source/citation expectations.
-- **Qwen3.7 Max** — well-separated task/context/format sections; language expectations stated.
+- **Qwen3.8 Max** — well-separated task/context/format sections; language expectations stated.
 - **Grok 4.5** — direct plain-spoken instructions, inline context, explicit output format.
 - **GLM-5.2** — labeled task/context/constraints/format parts; acceptance criteria stated.
 
@@ -96,7 +96,7 @@ adapter, which translates it onto that provider's parameter:
 | Anthropic (Fable 5 · Opus 5 · Sonnet 5) | `output_config.effort`                          | low · medium · high · xhigh · max |
 | OpenAI (GPT-5.6 Sol/Luna/Terra)         | `reasoning_effort`                              | low · medium · high               |
 | Google (Gemini 3.6 Flash)               | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high     |
-| Qwen (Qwen3.7 Max)                      | `enable_thinking` + `thinking_budget` (tokens)  | low · medium · high · xhigh · max |
+| Qwen (Qwen3.8 Max)                      | `enable_thinking` + `thinking_budget` (tokens)  | low · medium · high · xhigh · max |
 | xAI (Grok 4.5)                          | `reasoning_effort`                              | low · medium · high               |
 
 "Auto" (the default) sends nothing — the provider's own default applies. The
@@ -104,7 +104,7 @@ selection persists per target in the UI store. Vendors' consumer-app picker
 labels (Gemini "Thinking"/"Fast", ChatGPT "Ultra"…) are marketing names for
 these values, not separate models or API strings.
 
-A model **TIER** is not a thinking level either. "Max" in `Qwen3.7 Max` names
+A model **TIER** is not a thinking level either. "Max" in `Qwen3.8 Max` names
 Alibaba's flagship tier (beside Plus and Turbo) and says nothing about
 reasoning depth — reading it as one is what left that target with no selector
 while its API took a `thinking_budget` all along.

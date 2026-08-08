@@ -679,6 +679,17 @@ function TransformationDiffImpl({
             The model&apos;s explanation was cut off — the prompt above is complete.
           </p>
         ) : null}
+        {/* A truncated run is NOT a salvaged one and must not borrow its
+            wording: salvage promises a complete prompt, truncation cannot.
+            Shown independently of the rationale branch above, because a
+            truncated run can still carry a rationale. */}
+        {result.truncated && (
+          <p className="font-body mt-1 text-sm text-amber-ink" role="status">
+            The model hit its output limit — the prompt above is incomplete. It&apos;s
+            kept because you were charged for it. Try a lower thinking level or a
+            shorter input to get a full one.
+          </p>
+        )}
         <p className="font-body mt-3 flex items-center gap-1.5 text-xs tabular-nums text-silver">
           <DeveloperIcon
             developer={TARGET_DEVELOPER[effectiveTarget]}

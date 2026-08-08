@@ -134,12 +134,14 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     priceIn: numEnv("PRICE_SONAR_IN", 3),
     priceOut: numEnv("PRICE_SONAR_OUT", 15),
   },
-  qwen3_7_max: {
+  qwen3_8_max: {
     provider: "qwen",
-    // Pinned to the exact release id (PRV-007) — Model Studio lists
-    // `qwen3.7-max` verbatim (alibabacloud.com/help/en/model-studio/models,
-    // 2026-08-01), so the roster label and the wire string finally agree.
-    model: process.env.MODEL_QWEN ?? "qwen3.7-max",
+    // Pinned to the exact release id (PRV-007) — Model Studio lists the release
+    // verbatim (alibabacloud.com/help/en/model-studio/models), so the roster
+    // label and the wire string agree. Never a floating alias: `qwen-max`
+    // silently follows whatever Alibaba promotes, which is how a pinned build
+    // starts billing a different model without a diff.
+    model: process.env.MODEL_QWEN ?? "qwen3.8-max",
     priceIn: numEnv("PRICE_QWEN_IN", 1.25),
     priceOut: numEnv("PRICE_QWEN_OUT", 3.75),
   },
@@ -160,7 +162,7 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
   },
 };
 
-function numEnv(name: string, fallback: number): number {
+export function numEnv(name: string, fallback: number): number {
   const v = process.env[name];
   const n = v ? Number(v) : NaN;
   return Number.isFinite(n) ? n : fallback;
@@ -179,15 +181,44 @@ export function computeCost(
 }
 
 /**
- * Uniform provider connection policy (PRV-002). Both model routes declare
- * maxDuration=60; a provider connection that hangs past that is killed by the
- * platform, which skips the finally-block that settles/releases the spend
- * hold. Every adapter therefore bounds its own request UNDER the window:
- * 55s per attempt, zero SDK retries — an invisible retry both risks running
- * past the window and can double-bill upstream without a ledger row.
+ * Uniform provider connection policy (PRV-002). A provider connection that
+ * outlives the route's maxDuration is killed by the platform, which skips the
+ * finally-block that settles/releases the spend hold. Every adapter therefore
+ * bounds its own request UNDER the window, and zero SDK retries — an invisible
+ * retry both risks running past the window and can double-bill upstream
+ * without a ledger row.
+ *
+ * TWO BUDGETS, NOT ONE, AND WHY.
+ * This was a single `PROVIDER_TIMEOUT_MS = 55_000` passed as the SDKs'
+ * `timeout`. That option is a WHOLE-REQUEST deadline — it covers the streamed
+ * body read, not just connect — so it could not tell "hung connection" from
+ * "healthy generation that is simply long", and killed both at 55s. At typical
+ * rates that capped output at roughly 2,000-4,000 tokens against the
+ * 16,000-64,000 the adapters actually request: the clock, not max_tokens, was
+ * the real ceiling, and the truncated run was still billed. Splitting it:
+ *
+ *   IDLE  — time since the last token. A hung connection still dies fast; a
+ *           stream that keeps producing is never interrupted. This is the one
+ *           that should fire in anger.
+ *   TOTAL — a backstop under the route's maxDuration (300s) so the finally
+ *           block always runs and the spend hold is never stranded.
  */
-export const PROVIDER_TIMEOUT_MS = 55_000;
+export const PROVIDER_IDLE_MS = numEnv("PROVIDER_IDLE_MS", 60_000);
+export const PROVIDER_TOTAL_MS = numEnv("PROVIDER_TOTAL_MS", 285_000);
 export const PROVIDER_MAX_RETRIES = 0;
+
+/**
+ * The MEDIA path keeps a single whole-request deadline, and should.
+ *
+ * /api/media is a bounded one-shot analysis (max_tokens 1024-4096) whose route
+ * still declares maxDuration=60, and nothing about it streams to the user. The
+ * failure the split above fixes — a healthy long generation cut mid-flight —
+ * cannot occur here, so a flat deadline under the platform window is the
+ * simpler correct policy. Deliberately a separate constant: sharing one with
+ * the enhance path is what let a value sized for bounded calls govern
+ * unbounded streaming ones.
+ */
+export const MEDIA_TIMEOUT_MS = numEnv("MEDIA_TIMEOUT_MS", 55_000);
 
 /** Per-user limits (env-overridable). Enforced on every model route. */
 export const RATE_LIMIT_PER_MIN = numEnv("RATE_LIMIT_PER_MIN", 20);

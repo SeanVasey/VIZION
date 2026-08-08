@@ -57,28 +57,72 @@ describe("provider key env correspondence (PRV-004)", () => {
 });
 
 describe("uniform connection policy (PRV-002)", () => {
-  const sdkFiles = [
+  // The STREAMING enhance adapters. Their SDK `timeout` is a whole-request
+  // deadline that covers the body read, so it is the total backstop only —
+  // the limit that may actually fire on a healthy run is the idle one.
+  const streamingSdkFiles = [
     "anthropic.ts",
     "openai.ts",
     "mistral.ts",
     "xai.ts",
     "openai-compat.ts",
-    "vision.ts",
   ];
-  for (const file of sdkFiles) {
-    it(`${file} constructs clients with the policy timeout + retries`, () => {
+  for (const file of streamingSdkFiles) {
+    it(`${file} constructs clients with the total backstop + retries`, () => {
       const src = read("src", "lib", "providers", file);
-      expect(src).toMatch(/timeout:\s*PROVIDER_TIMEOUT_MS/);
+      expect(src).toMatch(/timeout:\s*PROVIDER_TOTAL_MS/);
       expect(src).toMatch(/maxRetries:\s*PROVIDER_MAX_RETRIES/);
+    });
+
+    it(`${file} bounds its stream on SILENCE, not elapsed time`, () => {
+      // The regression this pins: a single whole-request deadline killed
+      // healthy long generations at 55s — roughly 2,000-4,000 output tokens
+      // against a 16,000-64,000 max_tokens — and the run was still billed.
+      // Every streaming adapter must route its loop through withIdleTimeout.
+      const src = read("src", "lib", "providers", file);
+      expect(src).toContain("withIdleTimeout");
+      expect(src).toMatch(/for await \([^)]*of withIdleTimeout\(/);
     });
   }
 
-  for (const file of ["google.ts", "vision.ts"]) {
-    it(`${file}'s raw fetches carry the policy AbortSignal`, () => {
-      const src = read("src", "lib", "providers", file);
-      expect(src).toMatch(/AbortSignal\.timeout\(PROVIDER_TIMEOUT_MS\)/);
-    });
-  }
+  it("google.ts resets its abort clock on every chunk", () => {
+    // Gemini is a raw fetch with no SDK to wrap, so it carries the same
+    // policy by hand: one AbortController, a total backstop, and an idle
+    // timer re-armed inside the read loop.
+    const src = read("src", "lib", "providers", "google.ts");
+    expect(src).toContain("PROVIDER_TOTAL_MS");
+    expect(src).toContain("PROVIDER_IDLE_MS");
+    expect(src).toMatch(/controller\.abort\(\)/);
+    // Re-armed AFTER a successful read — an idle timer set once is just a
+    // total deadline wearing a different name.
+    expect(src).toMatch(/await reader\.read\(\);[\s\S]{0,200}?armIdle\(\)/);
+  });
+
+  it("vision.ts keeps a flat deadline, because /api/media is bounded", () => {
+    // Deliberately NOT the streaming policy: one-shot analysis under a
+    // maxDuration=60 route, where a whole-request deadline is correct. It has
+    // its own constant so a value sized for bounded calls can never again end
+    // up governing unbounded streaming ones.
+    const src = read("src", "lib", "providers", "vision.ts");
+    expect(src).toMatch(/timeout:\s*MEDIA_TIMEOUT_MS/);
+    expect(src).toMatch(/maxRetries:\s*PROVIDER_MAX_RETRIES/);
+    expect(src).toMatch(/AbortSignal\.timeout\(MEDIA_TIMEOUT_MS\)/);
+  });
+
+  it("the enhance route's window stays above the adapters' total backstop", () => {
+    // These are a PAIR. If maxDuration ever drops below PROVIDER_TOTAL_MS the
+    // platform kills the function first, skipping the finally-block that
+    // settles the spend hold — the exact leak PRV-002 exists to prevent.
+    const route = read("src", "app", "api", "enhance", "route.ts");
+    const config = read("src", "lib", "providers", "config.ts");
+    const maxDuration = Number(/maxDuration\s*=\s*(\d+)/.exec(route)?.[1]);
+    const total = Number(
+      /PROVIDER_TOTAL_MS"?,\s*([\d_]+)/.exec(config)?.[1]?.replace(/_/g, ""),
+    );
+    expect(Number.isFinite(maxDuration)).toBe(true);
+    expect(Number.isFinite(total)).toBe(true);
+    expect(total).toBeLessThan(maxDuration * 1000);
+  });
 });
 
 describe("server diff is bounded (PRI-001)", () => {

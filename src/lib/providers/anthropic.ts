@@ -1,12 +1,13 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { PROVIDER_MAX_RETRIES, PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
+import { PROVIDER_MAX_RETRIES, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
+import { withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /** The SDK's stream params, widened with `output_config.effort` — the GA
  *  reasoning-depth control on the Claude 5 family. This SDK version's types
@@ -59,7 +60,7 @@ export async function* streamAnthropic(
 
   const client = new Anthropic({
     apiKey,
-    timeout: PROVIDER_TIMEOUT_MS,
+    timeout: PROVIDER_TOTAL_MS,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
   let tokenIn = 0;
@@ -67,7 +68,10 @@ export async function* streamAnthropic(
 
   try {
     const stream = client.messages.stream(buildAnthropicParams(model, system, input, effort));
-    for await (const event of stream) {
+    // Idle-bounded, not wall-clock bounded: the SDK `timeout` above covers the
+    // whole request including the body read, so on its own it would kill a
+    // healthy long generation. See idle-timeout.ts.
+    for await (const event of withIdleTimeout(stream, "anthropic")) {
       if (event.type === "message_start") {
         tokenIn = event.message.usage.input_tokens;
         yield { usage: { tokenIn, tokenOut: event.message.usage.output_tokens } };
@@ -85,6 +89,9 @@ export async function* streamAnthropic(
     }
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
+    // Already shaped (e.g. the idle-timeout 504) — re-wrapping would drop its
+    // status and bury the reason inside a generic message.
+    if (error instanceof ProviderError) throw error;
     if (error instanceof Anthropic.APIError) {
       // "Anthropic", not "Opus": this one stream serves Opus 5, Sonnet 5,
       // and Fable 5 — naming one model mislabels the other two's failures.

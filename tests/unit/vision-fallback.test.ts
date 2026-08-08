@@ -89,7 +89,7 @@ describe("supportsVision", () => {
   it("flags text-only flagships so the route can redirect up front", () => {
     expect(supportsVision("deepseek_v4")).toBe(false);
     expect(supportsVision("minimax_m3")).toBe(false);
-    expect(supportsVision("qwen3_7_max")).toBe(false);
+    expect(supportsVision("qwen3_8_max")).toBe(false);
     expect(supportsVision("glm_5_2")).toBe(false);
   });
 

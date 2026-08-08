@@ -1,11 +1,12 @@
 import "server-only";
 import OpenAI from "openai";
-import { PROVIDER_MAX_RETRIES, PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
+import { PROVIDER_MAX_RETRIES, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
+import { withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /** Mistral's chat API is OpenAI-compatible (incl. json_object + streaming),
  *  so the adapter is the OpenAI SDK pointed at api.mistral.ai — no extra
@@ -29,7 +30,7 @@ export async function* streamMistral(
   const client = new OpenAI({
     apiKey,
     baseURL: MISTRAL_BASE_URL,
-    timeout: PROVIDER_TIMEOUT_MS,
+    timeout: PROVIDER_TOTAL_MS,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
 
@@ -46,7 +47,9 @@ export async function* streamMistral(
       response_format: { type: "json_object" },
       stream: true,
     });
-    for await (const chunk of stream) {
+    // Idle-bounded, not wall-clock bounded — the SDK `timeout` above covers
+    // the streamed body read, so alone it would kill healthy long runs.
+    for await (const chunk of withIdleTimeout(stream, "mistral")) {
       const text = chunk.choices[0]?.delta?.content;
       if (text) yield { text };
       const finish = chunk.choices[0]?.finish_reason;
@@ -62,6 +65,8 @@ export async function* streamMistral(
     }
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
+    // Already shaped (e.g. the idle-timeout 504) — re-wrapping drops status.
+    if (error instanceof ProviderError) throw error;
     if (error instanceof OpenAI.APIError) {
       throw new ProviderError(
         "mistral",

@@ -3,7 +3,8 @@ import OpenAI from "openai";
 import type { ThinkingLevel } from "@/lib/constants";
 import {
   PROVIDER_MAX_RETRIES,
-  PROVIDER_TIMEOUT_MS,
+  PROVIDER_TOTAL_MS,
+  numEnv,
   type Provider,
 } from "@/lib/providers/config";
 import {
@@ -12,6 +13,7 @@ import {
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
+import { withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /**
  * Shared streaming adapter for OpenAI-compatible chat APIs. The 2026-07 roster
@@ -113,7 +115,7 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
     const client = new OpenAI({
       apiKey,
       baseURL: opts.baseURL,
-      timeout: PROVIDER_TIMEOUT_MS,
+      timeout: PROVIDER_TOTAL_MS,
       maxRetries: PROVIDER_MAX_RETRIES,
     });
     const filter = opts.stripThink ? createThinkFilter() : null;
@@ -132,7 +134,9 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
       const completion = await client.chat.completions.create(
         buildCompatBody(opts, system, input, model, req),
       );
-      for await (const chunk of completion) {
+      // Idle-bounded, not wall-clock bounded — the SDK `timeout` above covers
+      // the streamed body read, so alone it would kill healthy long runs.
+      for await (const chunk of withIdleTimeout(completion, opts.provider)) {
         const delta = chunk.choices[0]?.delta as
           | { content?: string | null; reasoning_content?: string }
           | undefined;
@@ -170,6 +174,8 @@ export function makeOpenAICompatStream(opts: CompatOptions) {
       }
     } catch (error) {
       if (error instanceof ProviderNotConfiguredError) throw error;
+      // Already shaped (e.g. the idle-timeout 504) — re-wrapping drops status.
+      if (error instanceof ProviderError) throw error;
       if (error instanceof OpenAI.APIError) {
         throw new ProviderError(
           opts.provider,
@@ -298,7 +304,7 @@ const QWEN_THINKING_BUDGET: Partial<Record<ThinkingLevel, number>> = {
 };
 
 /** Alibaba Model Studio's OpenAI-compatible endpoint (international region).
- *  "Max" in `Qwen3.7 Max` is the MODEL TIER — Alibaba's flagship, next to Plus
+ *  "Max" in `Qwen3.8 Max` is the MODEL TIER — Alibaba's flagship, next to Plus
  *  and Turbo — and says nothing about reasoning depth, which is the separate
  *  per-request `enable_thinking`/`thinking_budget` pair below. */
 export const streamQwen = makeOpenAICompatStream({
@@ -306,8 +312,14 @@ export const streamQwen = makeOpenAICompatStream({
   label: "Qwen",
   keyEnv: "DASHSCOPE_API_KEY",
   baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-  // DashScope rejects anything above 8192 here with a 400 InvalidParameter.
-  maxTokens: 8_192,
+  // DashScope rejected anything above 8192 for qwen3.7-max with a 400
+  // InvalidParameter, and this is the tightest ceiling in the fleet — the max
+  // thinking budget (4096) alone eats half of it, which is why Qwen truncates
+  // sooner than any other target. Kept at 8192 because raising it on a guess
+  // trades a truncation for a hard 400 on every call; env-overridable so the
+  // real 3.8 Max ceiling can be dialled in from the vendor's model page
+  // without a deploy. See docs/runbooks/providers.md.
+  maxTokens: numEnv("MAX_TOKENS_QWEN", 8_192),
   thinkingBudget: QWEN_THINKING_BUDGET,
 });
 

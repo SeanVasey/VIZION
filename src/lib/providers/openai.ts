@@ -1,6 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
-import { PROVIDER_MAX_RETRIES, PROVIDER_TIMEOUT_MS } from "@/lib/providers/config";
+import { PROVIDER_MAX_RETRIES, PROVIDER_TOTAL_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -8,6 +8,7 @@ import {
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
+import { withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /**
  * Streaming OpenAI (GPT) call: yields raw response-text deltas, then one
@@ -29,7 +30,7 @@ export async function* streamOpenAI(
 
   const client = new OpenAI({
     apiKey,
-    timeout: PROVIDER_TIMEOUT_MS,
+    timeout: PROVIDER_TOTAL_MS,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
   const reasoningEffort = toReasoningEffort(opts.thinkingLevel);
@@ -51,7 +52,9 @@ export async function* streamOpenAI(
       stream: true,
       stream_options: { include_usage: true },
     });
-    for await (const chunk of stream) {
+    // Idle-bounded, not wall-clock bounded — the SDK `timeout` above covers
+    // the streamed body read, so alone it would kill healthy long runs.
+    for await (const chunk of withIdleTimeout(stream, "openai")) {
       const text = chunk.choices[0]?.delta?.content;
       if (text) yield { text };
       const finish = chunk.choices[0]?.finish_reason;
@@ -67,6 +70,8 @@ export async function* streamOpenAI(
     }
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError) throw error;
+    // Already shaped (e.g. the idle-timeout 504) — re-wrapping drops status.
+    if (error instanceof ProviderError) throw error;
     if (error instanceof OpenAI.APIError) {
       // Keep the upstream status so callers can classify (401/403/404 are
       // deployment-shaped, not input-shaped) — same contract as vision.

@@ -52,11 +52,15 @@ export interface EnhanceStreamState {
   step: string;
   /** Output text decoded so far. */
   partialOutput: string;
+  /** Live counters, monotonic by construction: every writer takes the MAX of
+   *  what it knows and what is already here, so a provider's early low-ball
+   *  snapshot cannot pin the ticker and the char estimator cannot walk a real
+   *  measurement backwards. There is deliberately no "authoritative" flag —
+   *  one existed, and latching it on Anthropic's `message_start` snapshot
+   *  (output_tokens: 1) is exactly what froze the readout mid-run. The
+   *  measured truth arrives with the terminal `done` result. */
   tokenIn: number;
   tokenOut: number;
-  /** True once an authoritative provider usage snapshot arrived (before
-   *  that, tokenOut is a ~4 chars/token estimate and cost is unknown). */
-  usageAuthoritative: boolean;
   costUsd: number;
 }
 
@@ -66,7 +70,6 @@ const IDLE: EnhanceStreamState = {
   partialOutput: "",
   tokenIn: 0,
   tokenOut: 0,
-  usageAuthoritative: false,
   costUsd: 0,
 };
 
@@ -95,9 +98,9 @@ export function useEnhance() {
       return {
         ...s,
         partialOutput,
-        tokenOut: s.usageAuthoritative
-          ? s.tokenOut
-          : Math.max(s.tokenOut, Math.ceil(partialOutput.length / 4)),
+        // Max, not assignment: a real provider count that already arrived
+        // stays put; before one does, this is the only thing moving.
+        tokenOut: Math.max(s.tokenOut, Math.ceil(partialOutput.length / 4)),
       };
     });
   }, []);
@@ -170,12 +173,27 @@ export function useEnhance() {
               scheduleFlush();
               break;
             case "usage":
+              // A mid-stream usage frame is a FLOOR, never a freeze.
+              //
+              // Anthropic reports `output_tokens` at `message_start` as a
+              // header snapshot — literally 1-4 — and only sends the real
+              // cumulative count in the terminal `message_delta`. Latching
+              // that first frame as authoritative pinned the readout at
+              // "1213→1 tok · $0.0037" for the whole visible run and disabled
+              // the char-based estimator that would otherwise have tracked it,
+              // so an expensive run never looked expensive while it ran.
+              //
+              // The route now floors tokenOut with what has demonstrably
+              // streamed and prices the frame from that same number, so the
+              // pair arrives self-consistent; the maxima here only guard
+              // against out-of-order frames. Cost is never recomputed
+              // client-side — the price table is server-side, and duplicating
+              // it is exactly how the two figures drift apart.
               setStream((s) => ({
                 ...s,
-                tokenIn: event.tokenIn,
-                tokenOut: event.tokenOut,
-                costUsd: event.costUsd,
-                usageAuthoritative: true,
+                tokenIn: Math.max(event.tokenIn, s.tokenIn),
+                tokenOut: Math.max(event.tokenOut, s.tokenOut),
+                costUsd: Math.max(event.costUsd, s.costUsd),
               }));
               break;
             case "done":

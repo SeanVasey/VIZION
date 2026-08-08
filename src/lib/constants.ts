@@ -80,7 +80,7 @@ export const TARGET_MODELS = [
   { id: "mistral_large_3", label: "Mistral Large 3", developer: "mistral" },
   { id: "kimi_k3", label: "Kimi K3", developer: "moonshot" },
   { id: "sonar_pro", label: "Sonar Pro", developer: "perplexity" },
-  { id: "qwen3_7_max", label: "Qwen3.7 Max", developer: "qwen" },
+  { id: "qwen3_8_max", label: "Qwen3.8 Max", developer: "qwen" },
   { id: "grok_4_5", label: "Grok 4.5", developer: "xai" },
   { id: "glm_5_2", label: "GLM-5.2", developer: "zai" },
 ] as const satisfies readonly { id: string; label: string; developer: Developer }[];
@@ -102,6 +102,7 @@ export const LEGACY_TARGET_IDS: Record<string, TargetModelId> = {
   minimax_m2_7: "minimax_m3",
   kimi_k2_6: "kimi_k3",
   gemini_3_5_thinking: "gemini_3_6_flash",
+  qwen3_7_max: "qwen3_8_max",
 };
 
 /** Developer for a target id (for the model picker + result chips). */
@@ -150,11 +151,11 @@ export const TARGET_THINKING_LEVELS: Partial<
   gemini_3_6_flash: ["minimal", "low", "medium", "high"],
   // DashScope's knob is a thinking BUDGET in tokens (enable_thinking +
   // thinking_budget), so the full five-step ladder maps onto it — the budget
-  // per step lives with the adapter. "Max" in `Qwen3.7 Max` is the model TIER
+  // per step lives with the adapter. "Max" in `Qwen3.8 Max` is the model TIER
   // (Alibaba's flagship, beside Plus and Turbo), NOT a reasoning depth: the two
   // are independent, and reading the tier as a thinking level is what left this
   // target with no selector at all.
-  qwen3_7_max: ["low", "medium", "high", "xhigh", "max"],
+  qwen3_8_max: ["low", "medium", "high", "xhigh", "max"],
   grok_4_5: ["low", "medium", "high"],
 };
 

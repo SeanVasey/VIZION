@@ -20,7 +20,7 @@ NEXT_PUBLIC_MEDIA_EXTRACTION=proxy   # default — vision via the model proxy
   (404) — the route retries once on the first _other_ configured provider
   (Opus 5 first, then GPT-5.6 Sol · Gemini 3.6 Flash · Mistral Large 3 ·
   Grok 4.5 · Muse Spark 1.1 · Kimi K3 · Sonar Pro). Targets whose flagship is
-  text-only (DeepSeek V4 · MiniMax M3 · Qwen3.7 Max · GLM-5.2) skip the
+  text-only (DeepSeek V4 · MiniMax M3 · Qwen3.8 Max · GLM-5.2) skip the
   attempt and route straight to that same chain. The response carries
   `fallbackFrom` + the real `usage.target`; usage is logged (and the chip credited)
   against the model that actually analyzed, and the card shows a soft note.

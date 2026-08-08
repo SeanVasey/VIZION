@@ -101,7 +101,7 @@ describe("thinking levels", () => {
     }
     // DashScope enable_thinking + thinking_budget — a token budget, so the
     // whole ladder maps onto it (the per-step budgets live in the adapter).
-    expect(TARGET_THINKING_LEVELS.qwen3_7_max).toEqual([
+    expect(TARGET_THINKING_LEVELS.qwen3_8_max).toEqual([
       "low",
       "medium",
       "high",
@@ -111,13 +111,13 @@ describe("thinking levels", () => {
   });
 
   it("keeps Qwen's model TIER out of its thinking ladder", () => {
-    // "Max" in `Qwen3.7 Max` is Alibaba's flagship tier (beside Plus and
+    // "Max" in `Qwen3.8 Max` is Alibaba's flagship tier (beside Plus and
     // Turbo), not a reasoning depth. Reading the tier as a thinking level is
     // what once left this target with no selector at all — the two are
     // independent, and the model string must carry no depth of its own.
-    expect(TARGETS.qwen3_7_max.model).toBe("qwen3.7-max");
-    expect(TARGETS.qwen3_7_max.model).not.toContain("thinking");
-    expect(TARGET_THINKING_LEVELS.qwen3_7_max).toBeDefined();
+    expect(TARGETS.qwen3_8_max.model).toBe("qwen3.8-max");
+    expect(TARGETS.qwen3_8_max.model).not.toContain("thinking");
+    expect(TARGET_THINKING_LEVELS.qwen3_8_max).toBeDefined();
   });
 });
 

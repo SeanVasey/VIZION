@@ -9,7 +9,7 @@ import { buildCompatBody } from "@/lib/providers/openai-compat";
  *   and 400s above it, so the shared 16k default made every Qwen run fail with
  *   `InternalError.Algo.InvalidParameter`.
  * - Qwen's reasoning knob is a token BUDGET (`enable_thinking` +
- *   `thinking_budget`), not an effort word — and "Max" in Qwen3.7 Max is the
+ *   `thinking_budget`), not an effort word — and "Max" in Qwen3.8 Max is the
  *   model tier, not a thinking level.
  */
 const BASE = {

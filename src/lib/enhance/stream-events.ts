@@ -47,6 +47,10 @@ export interface EnhanceResult {
   /** The output was recovered from a malformed envelope tail — complete,
    *  but the model's explanation was lost (rationale is empty). */
   salvaged?: boolean;
+  /** The model hit its output ceiling: the text below is what was paid for and
+   *  is kept, but it is INCOMPLETE. Never conflate with `salvaged` — that one
+   *  promises a complete prompt. */
+  truncated?: boolean;
   /** Token counts/cost are the ~4 chars/token fallback, not provider-reported
    *  usage — rendered with an approximation marker (INV-04 cost truth). */
   usageEstimated?: boolean;

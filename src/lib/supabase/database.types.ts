@@ -561,7 +561,7 @@ export type Database = {
         | "mistral_large_3"
         | "kimi_k3"
         | "sonar_pro"
-        | "qwen3_7_max"
+        | "qwen3_8_max"
         | "grok_4_5"
         | "glm_5_2"
         | "gpt_5_6_luna"

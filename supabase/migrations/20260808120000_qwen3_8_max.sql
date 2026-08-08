@@ -1,0 +1,25 @@
+-- Qwen's slot moves to Qwen3.8 Max — the roster stays at sixteen.
+--
+-- Owner direction: track Alibaba's current flagship. "Max" is the model TIER
+-- (beside Plus and Turbo), not a reasoning depth, so the per-request thinking
+-- budget (enable_thinking + thinking_budget) is unaffected and the composer's
+-- five-step ladder carries over unchanged.
+--
+-- The RENAME updates EXISTING rows automatically (enum values are stored by
+-- OID), so prompts.target_model / prompt_versions.target_model /
+-- usage_events.target / profiles.default_model written under 'qwen3_7_max'
+-- come back as 'qwen3_8_max' — no data backfill needed. LEGACY_TARGET_IDS
+-- gains `qwen3_7_max: "qwen3_8_max"` so a stale persisted selection in a
+-- client's localStorage resolves instead of 400ing on /api/enhance;
+-- tests/unit/model-target-enum.test.ts pins that correspondence.
+--
+-- Deploy order: the RENAME is the tight direction — old code writes
+-- 'qwen3_7_max', which stops existing the moment it runs, and new code writes
+-- 'qwen3_8_max', which doesn't exist until it runs — apply then deploy,
+-- keeping the window short (same drill as 20260710, 20260724, 20260725 and
+-- 20260726).
+--
+-- ALTER TYPE ... RENAME VALUE runs fine in a transaction; this migration is
+-- kept single-statement for parity with the other roster migrations.
+
+ALTER TYPE model_target RENAME VALUE 'qwen3_7_max' TO 'qwen3_8_max';
