@@ -851,7 +851,13 @@
      are equal there), the SAME branch shrinks it proportionally on
      portrait phones, and the vh ceiling additionally guards the inverse
      case (a short/landscape phone, where `vmax` already equalled `vw` and
-     a bare unit swap alone would still overflow vertically). Position
+     a bare unit swap alone would still overflow vertically). Be precise
+     about when that ceiling binds: it is not phones-only. It wins on any
+     viewport wider than the 16:10 reference, which includes every ordinary
+     16:9 desktop — at 1920×1080 the vh branch gives each bloom 90% of its
+     nominal vw size. That 10% is the accepted price of never overflowing
+     vertically, and it is uniform across all four blooms, so their relative
+     composition is unchanged. Position
      offsets and keyframe drift are expressed as the *same ratio to the
      diameter* the original vmax numbers had against their own vmax size,
      via a per-bloom `--bloom-size` custom property, so they scale in
