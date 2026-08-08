@@ -3,7 +3,10 @@
 Date: 2026-07-28
 Status: accepted — amended by [0010](./0010-google-green-openai-reassignment.md)
 (2026-08-07): `--dev-google` and `--dev-openai` were re-derived per owner
-direction; the method below is unchanged and was reapplied.
+direction; the method below is unchanged and was reapplied. Further amended by
+[0011](./0011-openai-maroon.md) (2026-08-08): `--dev-openai` became a maroon and
+is the one documented exception to the luminance corridor's LOWER bound — the
+ΔE2000 floors below are untouched and still hold for it.
 
 ## Context
 

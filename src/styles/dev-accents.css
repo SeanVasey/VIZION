@@ -20,12 +20,21 @@
  *   dark card  = --glass over the aurora-lit ground  #2E352D   <- the floor
  *   light card = --glass over --void                 #FCFCFD
  * 3:1 against the aurora-lit dark card needs relative luminance Y >= 0.1995;
- * 3:1 against the light card needs Y <= 0.2922.  Every accent below sits in
- * that band, which lies BETWEEN the two card fills — and that is why ONE hex
- * per developer is correct in BOTH themes and why none of the twelve appears
+ * 3:1 against the light card needs Y <= 0.2922.  Eleven of the twelve accents
+ * sit in that band, which lies BETWEEN the two card fills — and that is why ONE
+ * hex per developer is correct in BOTH themes and why none of the twelve appears
  * in a light block.  Do not "fix" that: adding a light override destroys the
  * property the palette was derived to have, and
  * tests/unit/developer-accents.test.ts fails if you do.
+ *
+ * --dev-openai is the ONE documented exception to the corridor's lower bound
+ * (0011): owner-directed maroon, Y 0.1500, so the mark measures 2.41:1 on the
+ * aurora-lit dark card rather than 3:1.  It is still one hex in both themes and
+ * it still clears every dE2000 floor below — only the dark-side contrast target
+ * is relaxed, on the ground that the mark is REDUNDANT (the model name is text
+ * immediately beside it), so it is not a graphical object required to
+ * understand content.  That exception is pinned by a test: a second accent
+ * dropping below the floor fails the build.  Read 0011 before adding another.
  *
  * Two lightness tiers alternate around the hue wheel so that hue-neighbours
  * differ in lightness as well as hue.
@@ -43,16 +52,29 @@
 :root {
   /* tier | published anchor | OKLCH hue drift from that anchor */
   --dev-anthropic: #a77159; /* A | anthropic.com --swatch--clay #d97757  +6.01 */
-  /* OWNER-DIRECTED REASSIGNMENT (2026-08-07, see 0010): green moved to
-     Google, and OpenAI's own palette (openai.com brand: black/white; the
-     historic #10a37f was ceded with the green) leaves nothing to source.
-     Neutral is reserved — the tests hold xAI as the ONLY neutral — so this
-     hue is ASSIGNED BY RULE, not sourced: OKLCH h336, filling the widest
-     hue gap the roster leaves open (qwen 290 -> minimax 7), biased +8 past
-     the geometric midpoint so it reads as its own identity rather than the
-     vacated Gemini violet (dE2000 10.0 to retired #b379da).  The second
-     entry with no first-party chromatic basis, after xAI, and it says so. */
-  --dev-openai: #cf70ba; /*    B | ASSIGNED, no published colour — h336    n/a */
+  /* OWNER-DIRECTED MAROON (2026-08-08, see 0011; supersedes the h336 magenta
+     0010 assigned).  OpenAI publishes no chromatic identity (openai.com brand
+     is black/white; the historic #10a37f was ceded with the green in 0010), and
+     neutral is reserved — the tests hold xAI as the ONLY neutral — so this
+     remains ASSIGNED, not sourced.  The direction is the owner's; the value is
+     the deepest maroon the constraints actually permit.
+
+     WHY IT IS THIS LIGHT.  Maroon is dark and the dark card is dark: a true
+     maroon cannot be SEEN there, let alone measured.  #800000 is 1.15:1 on the
+     aurora-lit card.  An accent has to be lighter than the card it sits on, so
+     "maroon" here means the darkest red that still reads, not the darkest red.
+
+     WHY IT IS THIS MUTED.  Chroma is capped by --dev-minimax (#c85975, rose, at
+     the same lightness tier): 10.6 dE2000 away, the palette's tightest standing
+     pair.  More chroma at this hue closes that gap, not the flare gap.
+
+     THE DEPARTURE, stated plainly: Y 0.1500 is below the corridor floor, so the
+     mark is 2.41:1 on the aurora-lit dark card (2.92:1 on the plain dark card,
+     5.12:1 on the light card — light is BETTER than the magenta it replaces).
+     Every dE2000 floor still passes with room, including the binding one:
+     flare 21.0/18.1 against a floor of 18.  Justification and the WCAG 1.4.11
+     redundant-mark reasoning are in 0011. */
+  --dev-openai: #9c595d; /*    — | ASSIGNED maroon — below corridor, see 0011  */
   --dev-deepseek: #798aee; /*  B | thesvg deepseek #4d6bfe               +4.76 */
   /* Green per the same owner direction (previously the Gemini-mark violet
      #b379da).  Anchored on the green of Google's published four-colour
