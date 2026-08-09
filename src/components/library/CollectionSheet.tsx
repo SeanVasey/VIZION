@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
-import { CheckMark, PencilMark, XMark } from "@/components/ui/glyphs";
+import { CheckMark, PencilMark, XMark, FolderMinusMark } from "@/components/ui/glyphs";
 import type { CollectionFacet, PromptCard } from "@/lib/library/queries";
 import {
   createCollectionAction,
@@ -170,7 +170,7 @@ export function CollectionSheet({
               className={rowClass}
             >
               Remove from its collection
-              <span aria-hidden="true">⌫</span>
+              <FolderMinusMark className="h-4 w-4" />
             </button>
           )}
         </div>

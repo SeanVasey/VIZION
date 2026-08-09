@@ -514,7 +514,10 @@ function CardActionsSheet({
               className="btn-destructive font-body flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 text-sm disabled:opacity-60"
             >
               Delete permanently
-              <span aria-hidden="true">⌦</span>
+              {/* XMark, matching the trash view's identical action — the two
+                  branches had drifted onto different icon technologies for
+                  one label (audit VAR-10). */}
+              <XMark className="h-4 w-4" />
             </button>
           )}
         </div>

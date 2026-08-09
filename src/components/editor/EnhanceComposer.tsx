@@ -19,7 +19,7 @@ import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
-import { TemplateMark, WarningMark } from "@/components/ui/glyphs";
+import { ClipboardMark, TemplateMark, WarningMark } from "@/components/ui/glyphs";
 import { useDraftParam } from "@/components/editor/use-draft-param";
 import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
 import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
@@ -569,7 +569,7 @@ export function EnhanceComposer() {
                 onClick={pasteFromClipboard}
                 className="glass font-body pill tap-44 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-silver transition-colors hover:text-chalk"
               >
-                <span aria-hidden="true">⌸</span> Paste from clipboard
+                <ClipboardMark /> Paste from clipboard
               </button>
             )}
             {/* The blank page needs a way in that isn't typing. Offered only

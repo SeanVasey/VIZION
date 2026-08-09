@@ -22,11 +22,15 @@ export const metadata: Metadata = {
   description:
     "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    title: "VIZION",
-    statusBarStyle: "black-translucent",
-  },
+  // NO appleWebApp block: the two static apple metas are hand-written in the
+  // <head> below. metadata.appleWebApp — even without statusBarStyle — makes
+  // React OWN an apple-mobile-web-app-status-bar-style tag and re-insert it
+  // after ThemeManager's correction, leaving two contradictory tags with the
+  // stale one last (audit VAR-02; measured both ways: statusBarStyle set
+  // duplicated under a light scheme, unset duplicated under dark).
+  // ThemeManager is the single writer of that tag (create-when-absent).
+  // Launch-time iOS behavior without a static tag is unverifiable here; see
+  // docs/runbooks/ios-verification.md.
   formatDetection: { telephone: false },
 };
 
@@ -90,6 +94,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <head>
+        {/* Hand-written so React's metadata system never owns a status-bar
+            tag (see the metadata comment above — audit VAR-02). */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="VIZION" />
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
         {/* iOS Home-Screen launch images — one per device class (PRI-007). */}
         {SPLASH_SCREENS.map((s) => (
