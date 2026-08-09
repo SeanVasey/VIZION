@@ -201,6 +201,16 @@ export function LibraryBrowser({
           placeholder="Search titles…"
           className="glass font-body min-w-0 flex-1 rounded-xl bg-transparent px-4 py-3 text-base text-text placeholder:text-muted focus:outline-none"
         />
+        {/* Visible commit affordance matching the drafts toolbar's (audit
+            VAR-11): Enter still works, but the sibling view's recorded
+            "Search" button pattern now holds on both library views. */}
+        <button
+          type="button"
+          onClick={submitSearch}
+          className="btn-secondary flex min-h-[44px] shrink-0 items-center justify-center px-4 text-sm"
+        >
+          Search
+        </button>
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
@@ -294,7 +304,11 @@ export function LibraryBrowser({
           type="button"
           onClick={loadMore}
           disabled={loadingMore || refreshing}
-          className="glass font-body min-h-[44px] rounded-xl px-4 text-sm text-text hover-hair transition-colors disabled:opacity-60"
+          // btn-secondary, content-width and centered — the recorded balance
+          // rule for secondary actions, and the recipe the drafts view's
+          // Load more already wears (audit VAR-11): the two siblings had
+          // diverged into different recipes AND geometries.
+          className="btn-secondary mx-auto flex min-h-[44px] items-center justify-center px-5 text-sm disabled:opacity-50"
         >
           {loadingMore ? "Loading more…" : "Load more"}
         </button>

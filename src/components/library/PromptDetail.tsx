@@ -454,7 +454,7 @@ export function PromptDetail({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={5}
-          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text focus:outline-none"
+          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-base text-text focus:outline-none"
         />
         <div className="flex flex-wrap items-center gap-2">
           <button

@@ -190,7 +190,7 @@ export function GenerateSheet({
           placeholder={
             editorDraft ? "Using your editor prompt…" : "Describe what to generate…"
           }
-          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text placeholder:text-muted focus:outline-none"
+          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-base text-text placeholder:text-muted focus:outline-none"
         />
 
         <div className="glass rounded-2xl p-4">

@@ -542,7 +542,7 @@ export function EnhanceComposer() {
           }}
           placeholder="Type or paste your prompt…"
           rows={8}
-          className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
+          className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-base text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
         />
 
         {dragging && (

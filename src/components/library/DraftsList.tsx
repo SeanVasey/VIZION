@@ -304,15 +304,25 @@ export function DraftsList({
     // "No drafts" while a search is active would read as "you have none",
     // which is a different and possibly false claim.
     const narrowed = Boolean(filter.q || filter.model || filter.mode);
+    // A filtered no-match is a transient state, not an empty library — it
+    // takes the QUIET line the prompts view uses (audit VAR-11); the display
+    // card below stays reserved for the true-empty state.
+    if (narrowed) {
+      return (
+        <p className="font-body py-6 text-center text-sm text-silver" role="status">
+          No drafts match. Try a different search, or clear the filter to see all
+          your drafts.
+        </p>
+      );
+    }
     return (
       <div className="glass rounded-2xl p-6 text-center">
         <p className="font-display text-balance text-xl tracking-wide text-text">
-          {narrowed ? "No drafts match" : "No drafts"}
+          No drafts
         </p>
         <p className="font-body mt-2 text-sm text-muted">
-          {narrowed
-            ? "Try a different search, or clear the filter to see all your drafts."
-            : "Start a new prompt with the + button and choose Save draft to keep an unfinished one here."}
+          Start a new prompt with the + button and choose Save draft to keep an
+          unfinished one here.
         </p>
       </div>
     );
