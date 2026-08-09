@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { writeErrorLogLine } from "@/lib/supabase/errors";
-import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
+import {
+  AUTO_PREFERENCES,
+  TARGET_MODELS,
+  type AutoPreference,
+  type TargetModelId,
+} from "@/lib/constants";
+import { resolveAutoVisionTarget } from "@/lib/enhance/auto-target";
 import {
   describeImage,
   isVisionConfigError,
@@ -17,6 +23,7 @@ import {
 import {
   TARGETS,
   computeCost,
+  isProviderConfigured,
   RATE_LIMIT_PER_MIN,
   COST_CAP_USD_PER_DAY,
 } from "@/lib/providers/config";
@@ -97,10 +104,12 @@ export async function POST(request: NextRequest) {
   } catch {
     return err(400, "Invalid JSON body.");
   }
-  const { dataUrl, target, intent } = (body ?? {}) as {
+  const { dataUrl, target, intent, auto, autoPreference } = (body ?? {}) as {
     dataUrl?: unknown;
     target?: unknown;
     intent?: unknown;
+    auto?: unknown;
+    autoPreference?: unknown;
   };
   if (typeof dataUrl !== "string") return err(400, "Missing image data.");
   // Analysis runs on the user's selected target model; older clients that
@@ -109,6 +118,20 @@ export async function POST(request: NextRequest) {
     return err(400, "Unknown target model.");
   }
   const typedTarget = (target as TargetModelId | undefined) ?? "opus_5";
+  // Auto rides BESIDE the target fallback, exactly like the enhance route —
+  // a bare "no target" can't signal it, because older clients already send
+  // nothing and must keep the Opus default. Same legality-only stance on the
+  // preference: invented values 400, presence without `auto` is inert.
+  if (auto !== undefined && typeof auto !== "boolean") {
+    return err(400, "Unknown routing mode.");
+  }
+  if (
+    autoPreference !== undefined &&
+    (typeof autoPreference !== "string" ||
+      !(AUTO_PREFERENCES as readonly string[]).includes(autoPreference))
+  ) {
+    return err(400, "Unknown routing preference.");
+  }
   // Object.hasOwn, not `in`: the prototype chain would accept "toString"
   // and silently run the default analysis while echoing the bogus intent.
   if (
@@ -129,8 +152,9 @@ export async function POST(request: NextRequest) {
     return err(413, "Image is too large to analyze.");
   }
 
-  // Vision runs on the selected model. A text-only flagship (DeepSeek,
-  // MiniMax, Qwen Max) can't take an image at all, so analysis is routed to
+  // Vision runs on the selected model — or, under auto, on the routing
+  // ladder's best configured vision target. A text-only flagship (DeepSeek,
+  // GLM) can't take an image at all, so a manual pick of one is routed to
   // the first configured vision-capable provider up front. A config-shaped
   // failure (missing key, key without permission, unknown model string)
   // retries once on the first other configured provider — a bad key for one
@@ -140,7 +164,21 @@ export async function POST(request: NextRequest) {
   // Resolved BEFORE the reservation so the "no vision model configured" 503
   // returns without ever taking a hold it would then have to release.
   let usedTarget = typedTarget;
-  if (!supportsVision(typedTarget)) {
+  if (auto) {
+    // Same ladders as the enhance route, pool narrowed to vision-capable
+    // targets and pinned to the heavy tier — analyzing an image IS the
+    // visual-context job. First configured wins; nothing configured is the
+    // same up-front 503 as the redirect path below.
+    usedTarget = resolveAutoVisionTarget(
+      (autoPreference as AutoPreference | undefined) ?? "balanced",
+      supportsVision,
+    );
+    if (!isProviderConfigured(usedTarget)) {
+      return err(503, "No vision-capable model is configured on the server.", {
+        notConfigured: true,
+      });
+    }
+  } else if (!supportsVision(typedTarget)) {
     const redirect = visionFallbackTarget(typedTarget);
     if (!redirect) {
       return err(503, "No vision-capable model is configured on the server.", {
@@ -149,6 +187,12 @@ export async function POST(request: NextRequest) {
     }
     usedTarget = redirect;
   }
+  // What this request was AIMED at after routing. Under auto that is the
+  // resolved pick — routing is a choice, not a fallback, so `fallbackFrom`
+  // must not claim otherwise. Without auto it stays the user's own target,
+  // which keeps the text-only redirect above reporting as the fallback the
+  // client re-labels from.
+  const aimedTarget = auto ? usedTarget : typedTarget;
 
   // Rate limit + cost cap + the hold, decided together under one lock — the
   // same race the sibling model route had. One hold covers this request
@@ -276,7 +320,7 @@ export async function POST(request: NextRequest) {
       intent: typedIntent,
       text: extracted.text ?? "",
       modelUsed: cfg.model,
-      ...(usedTarget !== typedTarget ? { fallbackFrom: typedTarget } : {}),
+      ...(usedTarget !== aimedTarget ? { fallbackFrom: aimedTarget } : {}),
       usage,
     });
   }
@@ -287,7 +331,7 @@ export async function POST(request: NextRequest) {
     attributes: { ...attrs, source: "proxy" },
     description: description ?? null,
     modelUsed: cfg.model,
-    ...(usedTarget !== typedTarget ? { fallbackFrom: typedTarget } : {}),
+    ...(usedTarget !== aimedTarget ? { fallbackFrom: aimedTarget } : {}),
     usage,
   });
 }

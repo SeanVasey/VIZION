@@ -151,6 +151,8 @@ function AttachmentTrayImpl({
   intakeRef?: { current: ((files: File[] | FileList) => void) | null };
 }) {
   const targetModel = useUIStore((s) => s.targetModel);
+  const autoTarget = useUIStore((s) => s.autoTarget);
+  const autoPreference = useUIStore((s) => s.autoPreference);
   const editorDraft = useUIStore((s) => s.editorDraft);
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
   const mediaNoticeAcknowledged = useUIStore((s) => s.mediaNoticeAcknowledged);
@@ -348,6 +350,10 @@ function AttachmentTrayImpl({
               dataUrl,
               target: analysisTarget,
               intent: ROLE_INTENT[role],
+              // Auto rides beside the pinned fallback, the enhance-wire shape.
+              // The response's usage.target is already adopted as analyzedWith
+              // below, so the chip names whatever routing actually picked.
+              ...(autoTarget ? { auto: true as const, autoPreference } : {}),
             }),
           });
           const data = await res.json().catch(() => ({}));
