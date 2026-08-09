@@ -58,6 +58,20 @@ const PREFERENCE_OPTIONS = AUTO_PREFERENCES.map((p) => ({
   label: AUTO_PREFERENCE_LABEL[p],
 }));
 
+/** Keys the sheet's roving-radio handler claims. The segments render INSIDE
+ *  the radiogroup element, so without a stop these bubble up, get
+ *  preventDefault'd, and yank focus onto a model radio mid-interaction
+ *  (Codex review, PR #96). Segments are plain tab stops by design — arrows
+ *  do nothing there, and that nothing must stay local. */
+const ROVING_NAV_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+]);
+
 /** Display label for a target id — falls back to the raw id so a legacy or
  *  unknown persisted value still renders as *something* rather than blank. */
 function targetLabel(id: TargetModelId): string {
@@ -272,13 +286,21 @@ function TargetPickerSheet({
               // The active segment IS the answer to "routing how?" — no prose
               // restatement needed. Tapping any segment (the current one
               // included) turns Auto on, so the row doubles as a shortcut.
-              <Segmented
-                fill
-                label="Auto routing preference"
-                options={PREFERENCE_OPTIONS}
-                value={autoPreference}
-                onChange={onPickPreference}
-              />
+              // The wrapper keeps roving-nav keys out of the enclosing model
+              // radiogroup — see ROVING_NAV_KEYS.
+              <div
+                onKeyDown={(e) => {
+                  if (ROVING_NAV_KEYS.has(e.key)) e.stopPropagation();
+                }}
+              >
+                <Segmented
+                  fill
+                  label="Auto routing preference"
+                  options={PREFERENCE_OPTIONS}
+                  value={autoPreference}
+                  onChange={onPickPreference}
+                />
+              </div>
             )}
           </section>
         )}

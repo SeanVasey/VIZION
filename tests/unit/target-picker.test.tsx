@@ -268,4 +268,17 @@ describe("TargetPicker — Auto routing preference", () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("keeps roving-nav keys inside the segments (Codex review, PR #96)", () => {
+    // The segments render inside the sheet's radiogroup element; without a
+    // propagation stop, Arrow/Home/End would reach the roving handler, get
+    // preventDefault'd, and yank focus onto a model radio mid-interaction.
+    openWithPreference();
+    const quality = screen.getByRole("button", { name: "Quality" });
+    quality.focus();
+    for (const key of ["ArrowRight", "ArrowDown", "Home", "End"]) {
+      fireEvent.keyDown(quality, { key });
+      expect(document.activeElement).toBe(quality);
+    }
+  });
 });
