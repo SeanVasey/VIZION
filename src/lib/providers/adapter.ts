@@ -1,10 +1,7 @@
 import "server-only";
 import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
 import { TARGETS, computeCost, type Provider } from "@/lib/providers/config";
-import type {
-  ProviderRequestOptions,
-  ProviderStreamChunk,
-} from "@/lib/providers/errors";
+import type { ProviderRequestOptions, ProviderStreamChunk } from "@/lib/providers/errors";
 import {
   buildSystemPrompt,
   parseEnhancePayload,

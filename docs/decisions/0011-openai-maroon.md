@@ -16,7 +16,7 @@ when Google took it). The assignment rule filled the widest open hue gap. It is
 a defensible rule and it produced a pink, which is the complaint.
 
 Nothing about 0003's method is in question. What this decision changes is one
-of 0003's *constraints*, and only for this token, so it is written down rather
+of 0003's _constraints_, and only for this token, so it is written down rather
 than absorbed.
 
 ## The constraint that binds, and why
@@ -24,23 +24,23 @@ than absorbed.
 A maroon is dark. The surface it sits on is dark. Those are in direct conflict,
 and the conflict is physical, not procedural:
 
-| candidate | contrast on the aurora-lit dark card `#2E352D` |
-|---|---|
-| `#800000` (true maroon) | **1.15:1** |
-| `#8b1a1a` | 1.36:1 |
-| `#902b2b` | 1.54:1 |
-| `#a02c2c` | 1.74:1 |
+| candidate               | contrast on the aurora-lit dark card `#2E352D` |
+| ----------------------- | ---------------------------------------------- |
+| `#800000` (true maroon) | **1.15:1**                                     |
+| `#8b1a1a`               | 1.36:1                                         |
+| `#902b2b`               | 1.54:1                                         |
+| `#a02c2c`               | 1.74:1                                         |
 
 At those values the 16px mark is not "below AA" — it is invisible. This is the
-reason 0003's corridor has a *lower* bound at all: an accent must be lighter
-than the card it renders on. So "maroon" here can only mean *the darkest red
-that still reads*, and the decision is where to stop.
+reason 0003's corridor has a _lower_ bound at all: an accent must be lighter
+than the card it renders on. So "maroon" here can only mean _the darkest red
+that still reads_, and the decision is where to stop.
 
 A second constraint caps chroma rather than lightness. `--dev-minimax`
 (`#c85975`) is a rose occupying the same lightness tier; at maroon's hue, adding
 chroma closes the gap to MiniMax, not to `--flare`. That is why the value is
 muted at C\* 29.6 — the same trade 0003 already made for Anthropic's clay
-("its hue is held at its published value and its *chroma* is cut instead").
+("its hue is held at its published value and its _chroma_ is cut instead").
 
 Searching the full sRGB cube under 0003's floors, the deepest fully-compliant
 red is `#a06f72` (L\* 51.9, C\* 20.8) — sitting exactly on the corridor floor at
@@ -56,13 +56,13 @@ h 17° · relative luminance **Y 0.1500**.
 
 **Every ΔE2000 floor from 0003 still passes, with room:**
 
-| against | measured | floor |
-|---|---|---|
-| `--laser` `#b7ff3c` | 66.7 | 20 |
-| `--flare` dark `#ff5247` | 21.0 | 18 |
-| `--flare` light `#c81d10` | **18.1** | 18 |
-| `--amber` `#ffc24b` | 44.9 | 15 |
-| `--pulse` `#3dd68c` | 63.4 | 15 |
+| against                   | measured | floor |
+| ------------------------- | -------- | ----- |
+| `--laser` `#b7ff3c`       | 66.7     | 20    |
+| `--flare` dark `#ff5247`  | 21.0     | 18    |
+| `--flare` light `#c81d10` | **18.1** | 18    |
+| `--amber` `#ffc24b`       | 44.9     | 15    |
+| `--pulse` `#3dd68c`       | 63.4     | 15    |
 
 Nearest live accents: minimax 10.6, anthropic 13.6 — minimax matching the
 palette's tightest standing pair (10.6, deepseek↔meta) rather than undercutting
@@ -73,13 +73,13 @@ the only neutral.
 **The departure.** Y 0.1500 is below the corridor's 0.1995 floor. Measured
 contrast for the 16px mark:
 
-| surface | contrast | target |
-|---|---|---|
-| aurora-lit dark card `#2E352D` | **2.41:1** | 3:1 |
-| plain dark card `#23252A` | 2.92:1 | 3:1 |
-| light card `#FCFCFD` | 5.12:1 | 3:1 ✓ |
+| surface                        | contrast   | target |
+| ------------------------------ | ---------- | ------ |
+| aurora-lit dark card `#2E352D` | **2.41:1** | 3:1    |
+| plain dark card `#23252A`      | 2.92:1     | 3:1    |
+| light card `#FCFCFD`           | 5.12:1     | 3:1 ✓  |
 
-Light is *better* than the magenta it replaces (3.07:1). Only the dark side is
+Light is _better_ than the magenta it replaces (3.07:1). Only the dark side is
 relaxed, and only on the aurora-lit composite; against the plain dark card it is
 2.92:1, within rounding of the target.
 
@@ -91,7 +91,7 @@ identification all work from the text label, and a model id the build does not
 recognise renders no mark at all. The colour is recognition support, not
 information.
 
-This is deliberately narrow. It relaxes a *contrast target* on one decorative
+This is deliberately narrow. It relaxes a _contrast target_ on one decorative
 glyph. It does **not** touch the semantic ΔE floors, which are what stop an
 accent reading as "error" or "pending delete" — the false-signal bug that 0003
 exists to fix. Those all still pass.
@@ -114,7 +114,7 @@ claim every accent is in the band.
   and every construction, floor and method in 0003, are untouched and were
   re-verified against the new value.
 - The palette no longer has the property that "one hex per developer" and "3:1
-  on both composited card fills" hold *simultaneously for all twelve*. The
+  on both composited card fills" hold _simultaneously for all twelve_. The
   one-hex property still holds for all twelve; the contrast property now holds
   for eleven. Any future accent must satisfy both — this is an exception granted
   on the redundancy argument, not a new baseline.

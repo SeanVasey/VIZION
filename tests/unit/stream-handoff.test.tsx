@@ -97,8 +97,8 @@ describe("streaming → result handoff", () => {
     const card = screen.getByLabelText("Enhancement in progress");
     // The visible glyph cluster is hidden from AT wholesale — hiding only
     // the arrow would announce "5 9 tok", two counts with no relationship.
-    const visible = [...card.querySelectorAll('span[aria-hidden="true"]')].find(
-      (s) => /⌁/.test(s.textContent ?? ""),
+    const visible = [...card.querySelectorAll('span[aria-hidden="true"]')].find((s) =>
+      /⌁/.test(s.textContent ?? ""),
     );
     expect(visible).toBeTruthy();
     expect(visible!.textContent).toContain("→");

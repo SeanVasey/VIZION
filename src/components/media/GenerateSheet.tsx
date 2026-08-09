@@ -121,8 +121,7 @@ export function GenerateSheet({
             >
               <span className="inline-flex items-center gap-1">
                 Saved
-                <CheckMark />
-                — open
+                <CheckMark />— open
               </span>
             </Link>
           ) : saveQueued ? (

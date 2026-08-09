@@ -11,9 +11,7 @@ export function showsBottomNav(pathname: string | null): boolean {
   // `usePathname` can momentarily be null during transitions; treat that as
   // "no nav" so neither the bar nor its reservation flashes in unexpectedly.
   if (!pathname) return false;
-  return !(
-    pathname.startsWith("/sign-in") || pathname.startsWith("/set-password")
-  );
+  return !(pathname.startsWith("/sign-in") || pathname.startsWith("/set-password"));
 }
 
 /**

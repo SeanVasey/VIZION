@@ -140,7 +140,9 @@ test.describe("VIZION shell + auth gate", () => {
       // `color(srgb r g b / a)` in others; both omit alpha entirely when it
       // is 1, which is the case this has to be able to fail on.
       const alpha = (v: string) =>
-        Number(/\/\s*([\d.]+)\s*\)/.exec(v)?.[1] ?? /,\s*([\d.]+)\s*\)$/.exec(v)?.[1] ?? 1);
+        Number(
+          /\/\s*([\d.]+)\s*\)/.exec(v)?.[1] ?? /,\s*([\d.]+)\s*\)$/.exec(v)?.[1] ?? 1,
+        );
       // WebKit only answers to the prefixed name, and it is not on the
       // CSSStyleDeclaration type either — read both by property name.
       const backdrop = (s: CSSStyleDeclaration) =>
@@ -248,9 +250,7 @@ test.describe("VIZION shell + auth gate", () => {
     ).toBe("smooth");
   });
 
-  test("glass keeps its appearance while the page is moving", async ({
-    page,
-  }) => {
+  test("glass keeps its appearance while the page is moving", async ({ page }) => {
     // The scroll gate must not touch `.glass`. Two stand-down generations
     // were falsified on device (2026-08): blur-off made panels see-through
     // mid-flick, and an opaque fill swap made the greys visibly shift. Only

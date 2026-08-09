@@ -126,12 +126,23 @@ describe("thinking levels", () => {
     ]);
     // OpenAI/xAI reasoning_effort — the SDK-typed trio (toReasoningEffort
     // narrows to it, so anything wider would be silently dropped).
-    for (const id of ["gpt_5_6_sol", "gpt_5_6_luna", "gpt_5_6_terra", "grok_4_5"] as const) {
+    for (const id of [
+      "gpt_5_6_sol",
+      "gpt_5_6_luna",
+      "gpt_5_6_terra",
+      "grok_4_5",
+    ] as const) {
       expect(TARGET_THINKING_LEVELS[id]).toEqual(["low", "medium", "high"]);
     }
     // Anthropic output_config.effort — the full five-step ladder.
     for (const id of ["fable_5", "opus_5", "sonnet_5"] as const) {
-      expect(TARGET_THINKING_LEVELS[id]).toEqual(["low", "medium", "high", "xhigh", "max"]);
+      expect(TARGET_THINKING_LEVELS[id]).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+      ]);
     }
     // DashScope enable_thinking + thinking_budget — a token budget, so the
     // whole ladder maps onto it (the per-step budgets live in the adapter).

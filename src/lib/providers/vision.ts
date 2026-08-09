@@ -224,8 +224,7 @@ async function describeGoogle(
       meta
         ? {
             tokenIn: meta.promptTokenCount ?? 0,
-            tokenOut:
-              (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0),
+            tokenOut: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0),
           }
         : undefined,
     );
@@ -466,10 +465,7 @@ export async function describeImage(
       case "zai":
         // Text-only flagships — callers gate on supportsVision() first, so
         // this is a defensive backstop, not a reachable user path.
-        throw new ProviderError(
-          cfg.provider,
-          "The selected model can't analyze images.",
-        );
+        throw new ProviderError(cfg.provider, "The selected model can't analyze images.");
     }
   } catch (error) {
     if (error instanceof ProviderNotConfiguredError || error instanceof ProviderError) {

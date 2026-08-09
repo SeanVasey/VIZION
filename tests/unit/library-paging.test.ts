@@ -52,8 +52,9 @@ describe("parseLibraryParams", () => {
     const id = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
     expect(parseLibraryParams({ collection: id }).collection).toBe(id);
     // Injection-shaped and truncated values never reach the query layer.
-    expect(parseLibraryParams({ collection: "DROP TABLE prompts" }).collection)
-      .toBeUndefined();
+    expect(
+      parseLibraryParams({ collection: "DROP TABLE prompts" }).collection,
+    ).toBeUndefined();
     expect(parseLibraryParams({ collection: "3fa85f64" }).collection).toBeUndefined();
   });
 });

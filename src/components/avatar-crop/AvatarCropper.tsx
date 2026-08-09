@@ -351,7 +351,10 @@ export function AvatarCropper({
       </div>
 
       {error && (
-        <p className="font-body w-full max-w-[256px] text-center text-sm text-flare" role="alert">
+        <p
+          className="font-body w-full max-w-[256px] text-center text-sm text-flare"
+          role="alert"
+        >
           {error}
         </p>
       )}

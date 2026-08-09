@@ -2,10 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
-import {
-  MAX_DRAFT_PARAM_CHARS,
-  resolveDraftParam,
-} from "@/lib/pwa/draft-param";
+import { MAX_DRAFT_PARAM_CHARS, resolveDraftParam } from "@/lib/pwa/draft-param";
 
 vi.mock("@/lib/enhance/use-enhance", () => ({
   useEnhance: () => ({

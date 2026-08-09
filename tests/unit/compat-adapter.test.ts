@@ -52,12 +52,7 @@ describe("buildCompatBody", () => {
     expect(buildCompatBody(BASE, "s", "i", "kimi-k3").response_format).toEqual({
       type: "json_object",
     });
-    const noJson = buildCompatBody(
-      { ...BASE, jsonMode: false },
-      "s",
-      "i",
-      "sonar-pro",
-    );
+    const noJson = buildCompatBody({ ...BASE, jsonMode: false }, "s", "i", "sonar-pro");
     expect("response_format" in noJson).toBe(false);
   });
 

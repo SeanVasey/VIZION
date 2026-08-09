@@ -42,11 +42,23 @@ describe("buildGenerationPrompt", () => {
   });
 
   it("derives --ar from the extracted dimensions when known", () => {
-    const square = buildGenerationPrompt("x", { ...attrs, width: 1000, height: 1000 }, "midjourney");
+    const square = buildGenerationPrompt(
+      "x",
+      { ...attrs, width: 1000, height: 1000 },
+      "midjourney",
+    );
     expect(square).toContain("--ar 1:1");
-    const portrait = buildGenerationPrompt("x", { ...attrs, width: 3024, height: 4032 }, "midjourney");
+    const portrait = buildGenerationPrompt(
+      "x",
+      { ...attrs, width: 3024, height: 4032 },
+      "midjourney",
+    );
     expect(portrait).toContain("--ar 3:4");
-    const wide = buildGenerationPrompt("x", { ...attrs, width: 2560, height: 1080 }, "midjourney");
+    const wide = buildGenerationPrompt(
+      "x",
+      { ...attrs, width: 2560, height: 1080 },
+      "midjourney",
+    );
     expect(wide).toContain("--ar 21:9");
     // No dimensions → the long-standing 16:9 default.
     const noDims = buildGenerationPrompt("x", attrs, "midjourney");
@@ -153,9 +165,7 @@ describe("intent prompts (attachment roles)", () => {
 
 describe("parseMediaText", () => {
   it("returns the transcription string", () => {
-    expect(parseMediaText('{"text":"Line one\\nLine two"}')).toBe(
-      "Line one\nLine two",
-    );
+    expect(parseMediaText('{"text":"Line one\\nLine two"}')).toBe("Line one\nLine two");
   });
   it("reads empty/invalid shapes as no legible text", () => {
     expect(parseMediaText('{"text":""}')).toBe("");

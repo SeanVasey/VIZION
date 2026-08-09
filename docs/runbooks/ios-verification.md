@@ -18,15 +18,15 @@ capability there does not mean iOS lacks it.
 Taken in an iPhone 14 Pro device context, on a confirmed secure context
 (`isSecureContext === true`), against the app's own `/sign-in`.
 
-| Capability | Playwright WebKit | Real iOS Safari | Consequence |
-| --- | --- | --- | --- |
-| `navigator.storage` | **absent** (`'storage' in navigator === false`) | present since iOS 17 — WebKit grants `persist()` on heuristics that include *"opened as a Home Screen Web App"* | A test asserting "WebKit has no Storage API" would encode a WebKitGTK fact as an iOS one, and would be exactly backwards about our primary surface |
-| `-webkit-touch-callout` | **unsupported** | supported (this is why the `@supports` hack works as an iOS filter) | The `@supports` gate in `globals.css` can only ever be verified in the negative here |
-| `navigator.vibrate` | absent | absent (MDN BCD: `safari`/`safari_ios` false) | consistent — `lib/haptics.ts`'s HONEST SCOPE note stands |
-| Background Sync | absent | absent | consistent — `OutboxFlusher`'s premise stands |
-| `:active` on touch | applies regardless of any document touch listener; `touchscreen.tap()` cannot hold a press | widely reported to require a document touch listener, all reporting 2011–2015 | unresolvable here; the app was changed so nothing depends on it |
-| `-webkit-backdrop-filter` | supported (Chromium: **not** supported) | supported | keep both prefixed and unprefixed declarations |
-| `inert`, `content-visibility`, `contain-intrinsic-size`, `color-mix`, `text-box` | all supported | — | safe to rely on |
+| Capability                                                                       | Playwright WebKit                                                                          | Real iOS Safari                                                                                                 | Consequence                                                                                                                                        |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `navigator.storage`                                                              | **absent** (`'storage' in navigator === false`)                                            | present since iOS 17 — WebKit grants `persist()` on heuristics that include _"opened as a Home Screen Web App"_ | A test asserting "WebKit has no Storage API" would encode a WebKitGTK fact as an iOS one, and would be exactly backwards about our primary surface |
+| `-webkit-touch-callout`                                                          | **unsupported**                                                                            | supported (this is why the `@supports` hack works as an iOS filter)                                             | The `@supports` gate in `globals.css` can only ever be verified in the negative here                                                               |
+| `navigator.vibrate`                                                              | absent                                                                                     | absent (MDN BCD: `safari`/`safari_ios` false)                                                                   | consistent — `lib/haptics.ts`'s HONEST SCOPE note stands                                                                                           |
+| Background Sync                                                                  | absent                                                                                     | absent                                                                                                          | consistent — `OutboxFlusher`'s premise stands                                                                                                      |
+| `:active` on touch                                                               | applies regardless of any document touch listener; `touchscreen.tap()` cannot hold a press | widely reported to require a document touch listener, all reporting 2011–2015                                   | unresolvable here; the app was changed so nothing depends on it                                                                                    |
+| `-webkit-backdrop-filter`                                                        | supported (Chromium: **not** supported)                                                    | supported                                                                                                       | keep both prefixed and unprefixed declarations                                                                                                     |
+| `inert`, `content-visibility`, `contain-intrinsic-size`, `color-mix`, `text-box` | all supported                                                                              | —                                                                                                               | safe to rely on                                                                                                                                    |
 
 ## The rule
 
@@ -41,7 +41,7 @@ Good uses — things where sharing the rendering engine is the whole point:
 Bad uses — assert these and you are describing Linux, not iOS:
 
 - "capability X is missing on iOS" from `typeof navigator.x === 'undefined'`
-- anything about touch *input* semantics: `:active` on tap, the synthetic-click
+- anything about touch _input_ semantics: `:active` on tap, the synthetic-click
   sequence, long-press, the double-tap-zoom delay
 - storage eviction, ITP, Home Screen web-app behaviour, the status bar
 
@@ -63,23 +63,29 @@ Bad uses — assert these and you are describing Linux, not iOS:
 
 There is deliberately no committed spec for the table above: a test asserting
 "WebKit lacks `navigator.storage`" would enshrine the very error this runbook
-exists to prevent, and would fail as a *bug report* the day WebKitGTK adds it.
+exists to prevent, and would fail as a _bug report_ the day WebKitGTK adds it.
 Re-measure ad hoc when upgrading Playwright, with a scratch script:
 
 ```js
 // node scratch.mjs — run from the repo root, app served on :3100
 import { webkit, chromium, devices } from "playwright";
-for (const [name, type] of [["webkit", webkit], ["chromium", chromium]]) {
+for (const [name, type] of [
+  ["webkit", webkit],
+  ["chromium", chromium],
+]) {
   const b = await type.launch();
   const p = await (await b.newContext({ ...devices["iPhone 14 Pro"] })).newPage();
   await p.goto("http://127.0.0.1:3100/sign-in");
-  console.log(name, await p.evaluate(() => ({
-    secure: window.isSecureContext,
-    storage: "storage" in navigator,
-    touchCallout: CSS.supports("-webkit-touch-callout", "none"),
-    vibrate: typeof navigator.vibrate,
-    backdropPrefixed: CSS.supports("-webkit-backdrop-filter", "blur(1px)"),
-  })));
+  console.log(
+    name,
+    await p.evaluate(() => ({
+      secure: window.isSecureContext,
+      storage: "storage" in navigator,
+      touchCallout: CSS.supports("-webkit-touch-callout", "none"),
+      vibrate: typeof navigator.vibrate,
+      backdropPrefixed: CSS.supports("-webkit-backdrop-filter", "blur(1px)"),
+    })),
+  );
   await b.close();
 }
 ```
@@ -102,7 +108,7 @@ The open questions. The first is no longer depended on; the rest are:
   `.glass-nav` are architected around (blur on a `::before`, bar promoted to
   its own layer). That one was found empirically on device — the bottom nav
   floated mid-screen over the footer — and headless WebKit is unlikely to
-  reproduce it, since it turns on WebKit's *async* scrolling. Treat the
+  reproduce it, since it turns on WebKit's _async_ scrolling. Treat the
   architecture as load-bearing and do not "simplify" it without a device.
 - the hold-slider's long-press behaviour (ADR-0012): that the 300ms hold +
   `-webkit-touch-callout: none` actually beats the system callout/loupe on

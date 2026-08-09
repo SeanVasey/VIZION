@@ -44,10 +44,7 @@ export function Horizon({ className = "" }: { className?: string }) {
     <div
       aria-hidden="true"
       data-state="idle"
-      className={[
-        "horizon flex h-7 w-full items-center justify-center",
-        className,
-      ]
+      className={["horizon flex h-7 w-full items-center justify-center", className]
         .filter(Boolean)
         .join(" ")}
     >

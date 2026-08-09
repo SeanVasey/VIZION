@@ -285,7 +285,9 @@ describe("Editing a draft in place", () => {
       target: { value: "edit into the void" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-    expect((await screen.findAllByText(/no longer there/)).length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText(/no longer there/)).length).toBeGreaterThanOrEqual(
+      1,
+    );
   });
 
   it("surfaces a failed open without pretending the draft is empty", async () => {
@@ -447,7 +449,9 @@ describe("Transport failures and conflicts (Codex review, PR #58)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't reach the server/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /couldn't reach the server/i,
+    );
     expect((screen.getByLabelText("Draft text") as HTMLTextAreaElement).value).toBe(
       "precious edit",
     );
@@ -480,7 +484,9 @@ describe("Transport failures and conflicts (Codex review, PR #58)", () => {
     actions.getDraftBodyAction.mockRejectedValue(new Error("network down"));
     renderList();
     openEditor();
-    expect((await screen.findAllByText(/couldn't reach the server/i)).length).toBeGreaterThanOrEqual(1);
+    expect(
+      (await screen.findAllByText(/couldn't reach the server/i)).length,
+    ).toBeGreaterThanOrEqual(1);
     expect(screen.queryByLabelText("Draft text")).toBeNull();
   });
 
@@ -489,7 +495,9 @@ describe("Transport failures and conflicts (Codex review, PR #58)", () => {
     renderList();
     fireEvent.click(screen.getByRole("button", { name: /^Delete draft:/ }));
     fireEvent.click(screen.getByRole("button", { name: "Delete draft" }));
-    expect((await screen.findAllByText(/couldn't reach the server/i)).length).toBeGreaterThanOrEqual(1);
+    expect(
+      (await screen.findAllByText(/couldn't reach the server/i)).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("a concurrent save elsewhere is reported as a conflict, not as deletion", async () => {

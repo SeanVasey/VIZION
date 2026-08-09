@@ -22,8 +22,8 @@ export default function RouteError({
           Something went wrong
         </h1>
         <p className="font-body mt-2 text-sm text-muted">
-          The screen hit an unexpected error. Your prompts are safe on the
-          server — try again.
+          The screen hit an unexpected error. Your prompts are safe on the server — try
+          again.
         </p>
         <button
           type="button"

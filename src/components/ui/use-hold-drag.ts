@@ -236,10 +236,7 @@ export function useHoldDrag({
       // it travelled, and a press this hook classified as not-a-tap must
       // not fall through and open the sheet (Codex review, PR #99 — the
       // same rule use-swipe-actions applies past the same threshold).
-      if (
-        Math.abs(e.clientX - p.x) > SLOP_PX ||
-        Math.abs(e.clientY - p.y) > SLOP_PX
-      ) {
+      if (Math.abs(e.clientX - p.x) > SLOP_PX || Math.abs(e.clientY - p.y) > SLOP_PX) {
         clearTimeout(timer.current);
         cancelled.current = true;
       }

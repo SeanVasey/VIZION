@@ -125,10 +125,7 @@ export function LibraryFilterSheet({
   const section = "font-body text-xs uppercase tracking-wider text-silver";
   const chip = chipClass;
 
-  const modelGroups = useMemo(
-    () => groupModelFacets(facets.models),
-    [facets.models],
-  );
+  const modelGroups = useMemo(() => groupModelFacets(facets.models), [facets.models]);
   const pickModel = (id: string) =>
     setPending((p) => ({ ...p, model: id as LibraryFilter["model"] }));
 

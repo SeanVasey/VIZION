@@ -44,9 +44,7 @@ function sseBody(): ReadableStream<Uint8Array> {
 async function capture(
   opts?: Parameters<typeof streamGoogle>[3],
 ): Promise<{ generationConfig: Record<string, unknown> }> {
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValue({ ok: true, status: 200, body: sseBody() });
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, body: sseBody() });
   vi.stubEnv("GOOGLE_API_KEY", "g-test");
   vi.stubGlobal("fetch", fetchMock);
 
@@ -241,10 +239,7 @@ function rawBody(text: string): ReadableStream<Uint8Array> {
 
 async function drainText(body: ReadableStream<Uint8Array>): Promise<string> {
   vi.stubEnv("GOOGLE_API_KEY", "g-test");
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, status: 200, body }),
-  );
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, body }));
   let text = "";
   for await (const chunk of streamGoogle("sys", "in", "gemini-3.6-flash")) {
     if (chunk.text) text += chunk.text;

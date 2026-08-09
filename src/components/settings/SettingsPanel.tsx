@@ -259,10 +259,7 @@ export function SettingsPanel({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="settings-display-name"
-            className="font-body text-sm text-text"
-          >
+          <label htmlFor="settings-display-name" className="font-body text-sm text-text">
             Display name
           </label>
           <input
@@ -327,8 +324,8 @@ export function SettingsPanel({
         </Field>
         {pendingEmail && (
           <p className="font-body rounded-lg border border-hair bg-surface px-3 py-2 text-xs text-amber-ink">
-            Confirmation sent to <span className="text-text">{pendingEmail}</span> —
-            check that inbox to finish the change.{" "}
+            Confirmation sent to <span className="text-text">{pendingEmail}</span> — check
+            that inbox to finish the change.{" "}
             <button
               type="button"
               onClick={() => {
@@ -409,9 +406,7 @@ export function SettingsPanel({
             <span
               aria-hidden="true"
               className={`h-6 w-6 rounded-full transition-transform ${
-                reducedEffects
-                  ? "translate-x-6 bg-on-laser"
-                  : "translate-x-0 bg-silver"
+                reducedEffects ? "translate-x-6 bg-on-laser" : "translate-x-0 bg-silver"
               }`}
             />
           </button>
@@ -510,7 +505,8 @@ function initials(fullName: string | null, displayName: string | null): string {
   if (!source) return "◉";
   const parts = source.split(/\s+/).filter(Boolean);
   const letters =
-    (parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "");
+    (parts[0]?.[0] ?? "") +
+    (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "");
   return letters.toUpperCase() || "◉";
 }
 
@@ -518,10 +514,7 @@ function ChangePassword({
   write,
   status,
 }: {
-  write: (
-    key: string,
-    run: () => Promise<{ ok: boolean; error?: string }>,
-  ) => void;
+  write: (key: string, run: () => Promise<{ ok: boolean; error?: string }>) => void;
   status: { state: string; message?: string } | undefined;
 }) {
   const [open, setOpen] = useState(false);

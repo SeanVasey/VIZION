@@ -64,10 +64,7 @@ describe("enhanceStream salvage + stop reasons", () => {
     // not keep. The partial rides out flagged `truncated` — which is NOT
     // `salvaged`: salvage promises a complete output, truncation cannot, and
     // the two carry different copy in the result view.
-    feed(
-      { text: '{"output":"cut off mid-sente' },
-      { stopReason: "max_tokens" },
-    );
+    feed({ text: '{"output":"cut off mid-sente' }, { stopReason: "max_tokens" });
     const events = await drain();
     const done = events.at(-1);
     if (done?.type !== "done") throw new Error("expected a done event");
@@ -104,10 +101,7 @@ describe("enhanceStream salvage + stop reasons", () => {
   });
 
   it("stop-reason chunks emit no delta or usage events of their own", async () => {
-    feed(
-      { text: '{"output":"ok","rationale":"r"}' },
-      { stopReason: "end_turn" },
-    );
+    feed({ text: '{"output":"ok","rationale":"r"}' }, { stopReason: "end_turn" });
     const events = await drain();
     // One delta run for the decoded output, then done — nothing extra for
     // the stop-reason chunk.

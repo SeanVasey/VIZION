@@ -143,22 +143,22 @@ describe("stripEngineSyntax — the base prompt is user text, not syntax", () =>
   it.each([
     ["[intro] warm tape loop Mood: calm.", "audio"],
     ["[lofi] neon alley --ar 16:9 --v 6", "midjourney"],
-  ] as const)(
-    "keeps a leading bracket the user wrote (%s)",
-    (input, engine) => {
-      // `[intro]`/`[verse]`/`[chorus]` are standard audio-generator syntax and
-      // `[lofi]` an ordinary style tag — content, not something to strip.
-      expect(stripEngineSyntax(input, engine)).toContain(
-        input.slice(0, input.indexOf("]") + 1),
-      );
-    },
-  );
+  ] as const)("keeps a leading bracket the user wrote (%s)", (input, engine) => {
+    // `[intro]`/`[verse]`/`[chorus]` are standard audio-generator syntax and
+    // `[lofi]` an ordinary style tag — content, not something to strip.
+    expect(stripEngineSyntax(input, engine)).toContain(
+      input.slice(0, input.indexOf("]") + 1),
+    );
+  });
 
   it("preserves paragraph breaks — nothing is ever cut from the middle", () => {
     // The attachment tray joins an inserted description onto the draft with a
     // blank line, so multi-paragraph bases are a path the app itself creates.
     expect(
-      stripEngineSyntax("A cyberpunk street.\n\nNeon signs. --ar 16:9 --v 6", "midjourney"),
+      stripEngineSyntax(
+        "A cyberpunk street.\n\nNeon signs. --ar 16:9 --v 6",
+        "midjourney",
+      ),
     ).toBe("A cyberpunk street.\n\nNeon signs.");
   });
 

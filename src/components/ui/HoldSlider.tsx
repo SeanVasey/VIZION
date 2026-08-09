@@ -2,10 +2,7 @@
 
 import { useCallback, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import {
-  useHoldDrag,
-  type TrackGeometry,
-} from "@/components/ui/use-hold-drag";
+import { useHoldDrag, type TrackGeometry } from "@/components/ui/use-hold-drag";
 
 /**
  * The hold-slider control class (docs/decisions/0012-hold-slider.md).

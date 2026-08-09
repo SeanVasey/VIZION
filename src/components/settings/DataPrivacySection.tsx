@@ -87,10 +87,10 @@ export function DataPrivacySection({ deleteError }: { deleteError?: string }) {
       <MediaManager />
 
       <p className="font-body text-xs leading-relaxed text-silver">
-        Prompts and their versions stay until you delete them. Attached media stays
-        in your private storage (50 MB) until you remove it here or in the composer
-        tray — or attach with &quot;Analyze without keeping&quot; and nothing is
-        stored. Usage records are kept for cost-cap accounting.
+        Prompts and their versions stay until you delete them. Attached media stays in
+        your private storage (50 MB) until you remove it here or in the composer tray — or
+        attach with &quot;Analyze without keeping&quot; and nothing is stored. Usage
+        records are kept for cost-cap accounting.
       </p>
 
       <div className="flex items-center justify-between gap-3">
@@ -117,9 +117,8 @@ export function DataPrivacySection({ deleteError }: { deleteError?: string }) {
         <div className="min-w-0">
           <p className="font-body text-base text-text">Delete account</p>
           <p className="font-body text-xs text-silver">
-            Permanently deletes your sign-in, profile, prompts and all their
-            versions, collections, activity, usage records, and stored media.
-            This cannot be undone.
+            Permanently deletes your sign-in, profile, prompts and all their versions,
+            collections, activity, usage records, and stored media. This cannot be undone.
           </p>
         </div>
         <button

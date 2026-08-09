@@ -39,14 +39,15 @@ const MIGRATIONS_DIR = join(ROOT, "supabase", "migrations");
  * and a wrong one would have made every downstream assertion agree with itself.
  * The baseline is in the repo now, so the replay starts where Postgres does.
  */
-const CREATE_RE =
-  /CREATE\s+TYPE\s+(?:public\.)?model_target\s+AS\s+ENUM\s*\(([^)]*)\)/i;
+const CREATE_RE = /CREATE\s+TYPE\s+(?:public\.)?model_target\s+AS\s+ENUM\s*\(([^)]*)\)/i;
 
 function readBaselineLabels(): string[] {
   for (const file of readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
     .sort()) {
-    const m = CREATE_RE.exec(stripComments(readFileSync(join(MIGRATIONS_DIR, file), "utf8")));
+    const m = CREATE_RE.exec(
+      stripComments(readFileSync(join(MIGRATIONS_DIR, file), "utf8")),
+    );
     if (m) return [...m[1]!.matchAll(/'([^']+)'/g)].map((v) => v[1]!);
   }
   throw new Error(

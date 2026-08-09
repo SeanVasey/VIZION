@@ -5,11 +5,7 @@ import {
   type TargetModelId,
 } from "@/lib/constants";
 import { isProviderConfigured } from "@/lib/providers/config";
-import {
-  TARGET_ROUTING,
-  blendedPrice,
-  type SpeedClass,
-} from "@/lib/providers/manifest";
+import { TARGET_ROUTING, blendedPrice, type SpeedClass } from "@/lib/providers/manifest";
 
 /**
  * Auto model routing — pick a target for the user when they'd rather not.
@@ -171,9 +167,18 @@ export const AUTO_LADDERS: Record<
   AutoPreference,
   Record<AutoTier, readonly TargetModelId[]>
 > = {
-  quality: { light: buildLadder("quality", "light"), heavy: buildLadder("quality", "heavy") },
-  balanced: { light: buildLadder("balanced", "light"), heavy: buildLadder("balanced", "heavy") },
-  budget: { light: buildLadder("budget", "light"), heavy: buildLadder("budget", "heavy") },
+  quality: {
+    light: buildLadder("quality", "light"),
+    heavy: buildLadder("quality", "heavy"),
+  },
+  balanced: {
+    light: buildLadder("balanced", "light"),
+    heavy: buildLadder("balanced", "heavy"),
+  },
+  budget: {
+    light: buildLadder("budget", "light"),
+    heavy: buildLadder("budget", "heavy"),
+  },
 };
 
 function classify(

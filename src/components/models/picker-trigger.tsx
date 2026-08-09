@@ -12,11 +12,7 @@ export const PICKER_TRIGGER_FALLBACK_CLASS =
  *  glyph language; decorative, each trigger carries its own text). */
 export function PickerChevron() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-4 w-4 shrink-0 text-silver"
-    >
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-silver">
       <path
         d="M8 10l4 4 4-4"
         fill="none"

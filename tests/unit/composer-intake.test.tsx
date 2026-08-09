@@ -120,9 +120,7 @@ describe("paste-from-clipboard affordance", () => {
     renderComposer();
     fireEvent.focus(screen.getByLabelText("Prompt input"));
     fireEvent.click(screen.getByRole("button", { name: /paste from clipboard/i }));
-    expect(
-      await screen.findByDisplayValue("pasted prompt"),
-    ).toBeTruthy();
+    expect(await screen.findByDisplayValue("pasted prompt")).toBeTruthy();
   });
 
   it("stays hidden once there is a draft to protect", () => {
@@ -150,8 +148,8 @@ describe("paste-from-clipboard affordance", () => {
     renderComposer();
     fireEvent.focus(screen.getByLabelText("Prompt input"));
     fireEvent.click(screen.getByRole("button", { name: /paste from clipboard/i }));
-    expect((await screen.findAllByText(/couldn't read the clipboard/i)).length).toBeGreaterThanOrEqual(
-      1,
-    );
+    expect(
+      (await screen.findAllByText(/couldn't read the clipboard/i)).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 });

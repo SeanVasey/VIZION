@@ -54,7 +54,6 @@ export function isKeyboardViewport(sample: ViewportSample): boolean {
  */
 export function keyboardInset(sample: ViewportSample): number {
   if (!isKeyboardViewport(sample)) return 0;
-  const occluded =
-    sample.layoutHeight - sample.visualHeight - (sample.offsetTop ?? 0);
+  const occluded = sample.layoutHeight - sample.visualHeight - (sample.offsetTop ?? 0);
   return Math.max(0, Math.round(occluded));
 }

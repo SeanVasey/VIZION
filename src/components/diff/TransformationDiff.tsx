@@ -671,8 +671,8 @@ function TransformationDiffImpl({
         {result.truncated && (
           <p className="font-body mt-1 text-sm text-amber-ink" role="status">
             The model hit its output limit — the prompt above is incomplete. It&apos;s
-            kept because you were charged for it. Try a lower thinking level or a
-            shorter input to get a full one.
+            kept because you were charged for it. Try a lower thinking level or a shorter
+            input to get a full one.
           </p>
         )}
         <p className="font-body mt-3 flex items-center gap-1.5 text-xs tabular-nums text-silver">

@@ -46,9 +46,7 @@ describe("resolveAutoTarget — totality", () => {
     // filtering can never walk off the end of a non-empty pool.
     for (const preference of AUTO_PREFERENCES) {
       for (const tier of ["light", "heavy"] as const) {
-        expect([...AUTO_LADDERS[preference][tier]].sort()).toEqual(
-          [...POOL].sort(),
-        );
+        expect([...AUTO_LADDERS[preference][tier]].sort()).toEqual([...POOL].sort());
       }
     }
   });
@@ -85,7 +83,13 @@ describe("resolveAutoTarget — tiers and reasons", () => {
   });
 
   it("escalates one character past the threshold", () => {
-    const route = resolveAutoTarget("polish", LONG_INPUT_CHARS + 1, false, "balanced", ALL);
+    const route = resolveAutoTarget(
+      "polish",
+      LONG_INPUT_CHARS + 1,
+      false,
+      "balanced",
+      ALL,
+    );
     expect(route.tier).toBe("heavy");
     expect(route.reason).toBe("long-input");
   });

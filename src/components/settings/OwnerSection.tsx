@@ -4,7 +4,12 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateOwnerSettingsAction } from "@/lib/owner/actions";
 import { useSettingWrite } from "@/components/settings/use-setting-write";
-import { Divider, Field, FieldStatus, SettingsSection } from "@/components/settings/Field";
+import {
+  Divider,
+  Field,
+  FieldStatus,
+  SettingsSection,
+} from "@/components/settings/Field";
 
 /**
  * Owner console (2026-08). Rendered only when the server says the signed-in
@@ -81,15 +86,17 @@ export function OwnerSection({
           <span
             aria-hidden="true"
             className={`h-6 w-6 rounded-full transition-transform ${
-              openAccess ? "translate-x-6 bg-[var(--on-laser)]" : "translate-x-0 bg-silver"
+              openAccess
+                ? "translate-x-6 bg-[var(--on-laser)]"
+                : "translate-x-0 bg-silver"
             }`}
           />
         </button>
       </Field>
       <FieldStatus status={status.owner_access} />
       <p className="font-body text-xs text-silver">
-        When off, only you can register for or use VIZION — new sign-ups
-        pause and other accounts see a closed notice instead of the app.
+        When off, only you can register for or use VIZION — new sign-ups pause and other
+        accounts see a closed notice instead of the app.
       </p>
 
       <Divider />
@@ -124,8 +131,8 @@ export function OwnerSection({
       </Field>
       <FieldStatus status={status.owner_accent} />
       <p className="font-body text-xs text-silver">
-        Peak intensity of the developer color field on library cards. Default
-        26% — around 20% reads as a whisper, 34%+ as a statement.
+        Peak intensity of the developer color field on library cards. Default 26% — around
+        20% reads as a whisper, 34%+ as a statement.
       </p>
     </SettingsSection>
   );

@@ -114,11 +114,14 @@ for (const [id, exemption] of exemptById) {
   if (!advisories.has(id)) {
     // Not an error: the advisory was withdrawn, re-ranged, or the dependency is
     // gone. Say so, so the exemption gets removed rather than lingering.
-    console.log(`· ${id} (${exemption.package}) is no longer reported — drop this exemption.`);
+    console.log(
+      `· ${id} (${exemption.package}) is no longer reported — drop this exemption.`,
+    );
     continue;
   }
   const problem = exemption.verify();
-  if (problem) failures.push(`${id} (${exemption.package}): exemption NO LONGER HOLDS — ${problem}`);
+  if (problem)
+    failures.push(`${id} (${exemption.package}): exemption NO LONGER HOLDS — ${problem}`);
   else console.log(`· ${id} (${exemption.package}) exempt, verified patched in place.`);
 }
 

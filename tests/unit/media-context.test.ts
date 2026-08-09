@@ -7,10 +7,9 @@ import {
 } from "@/lib/media/context";
 import type { MediaItem } from "@/lib/media/queue";
 
-function item(over: Partial<MediaItem>): Pick<
-  MediaItem,
-  "role" | "status" | "name" | "description" | "attrs"
-> {
+function item(
+  over: Partial<MediaItem>,
+): Pick<MediaItem, "role" | "status" | "name" | "description" | "attrs"> {
   return {
     role: "reference",
     status: "ready",

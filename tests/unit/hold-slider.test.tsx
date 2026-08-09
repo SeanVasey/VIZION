@@ -64,8 +64,7 @@ function Host({
 }
 
 const pill = () => screen.getByRole("button", { name: "Pill" });
-const overlay = () =>
-  document.querySelector<HTMLElement>("[data-hold-slider-overlay]");
+const overlay = () => document.querySelector<HTMLElement>("[data-hold-slider-overlay]");
 
 /** Down at a known x so drag targets derive from the spacing constant. */
 const DOWN_X = 300;
@@ -256,9 +255,7 @@ describe("drag, commit, and the trailing click", () => {
     moveTo(DOWN_X + 4 * DETENT_SPACING_PX);
     const el = overlay()!;
     expect(el.textContent).toContain("Fable 5 · Extra High");
-    expect(
-      el.querySelector("[data-tone]")!.getAttribute("data-tone"),
-    ).toBe("ultra");
+    expect(el.querySelector("[data-tone]")!.getAttribute("data-tone")).toBe("ultra");
   });
 
   it("announces the committed value through the live region", () => {

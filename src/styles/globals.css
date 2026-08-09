@@ -1292,7 +1292,9 @@
      cue — but layer order runs base < utilities, so the utility always won.)
      Compose, ring first, exactly as .glass / .glass-solid / .fab-glass do. */
   .selected-ink:focus-visible {
-    box-shadow: var(--focus-ring), inset 0 0 0 1.5px var(--accent-ink);
+    box-shadow:
+      var(--focus-ring),
+      inset 0 0 0 1.5px var(--accent-ink);
   }
 
   /* Live-stream progress bar: a Laser sweep gliding along a Hair track.

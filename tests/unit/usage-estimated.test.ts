@@ -42,10 +42,7 @@ describe("usage estimate marking (INV-04 cost truth)", () => {
   });
 
   it("adds the provider's reasoning floor to the fallback estimate (PRV-003)", async () => {
-    feed(
-      { text: '{"output":"done","rationale":"why"}' },
-      { estReasoningTokens: 1000 },
-    );
+    feed({ text: '{"output":"done","rationale":"why"}' }, { estReasoningTokens: 1000 });
     const result = await drainDone();
     expect(result.usageEstimated).toBe(true);
     // ceil(raw/4) is ~9 tokens here — the floor must dominate.

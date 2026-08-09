@@ -81,7 +81,13 @@ describe("Segmented", () => {
     // "Few-shot" broke across two lines in the composer's shape rail, which
     // made the rail taller than its neighbours — the reason `fill` exists.
     const { container } = render(
-      <Segmented label="Test group" options={OPTIONS} value="a" onChange={vi.fn()} fill />,
+      <Segmented
+        label="Test group"
+        options={OPTIONS}
+        value="a"
+        onChange={vi.fn()}
+        fill
+      />,
     );
     for (const b of container.querySelectorAll("button")) {
       expect(b.className).toContain("whitespace-nowrap");
@@ -90,12 +96,20 @@ describe("Segmented", () => {
 
   it("lays fill segments out as equal columns across the container", () => {
     const { container } = render(
-      <Segmented label="Test group" options={OPTIONS} value="a" onChange={vi.fn()} fill />,
+      <Segmented
+        label="Test group"
+        options={OPTIONS}
+        value="a"
+        onChange={vi.fn()}
+        fill
+      />,
     );
     const group = container.querySelector('[role="group"]') as HTMLElement;
     // Inline, not a `grid-cols-${n}` class: Tailwind can't emit a class it
     // never sees in the source, so an interpolated one is missing at runtime.
-    expect(group.style.gridTemplateColumns).toBe(`repeat(${OPTIONS.length}, minmax(0, 1fr))`);
+    expect(group.style.gridTemplateColumns).toBe(
+      `repeat(${OPTIONS.length}, minmax(0, 1fr))`,
+    );
     expect(group.className).toContain("w-full");
     expect(group.className).not.toContain("inline-flex");
   });

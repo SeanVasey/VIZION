@@ -53,7 +53,6 @@ const GROUPS: { developer: Developer; models: TargetModel[] }[] = DEVELOPER_ORDE
   }),
 ).filter((g) => g.models.length > 0);
 
-
 /** Auto's preference segments — a Segmented (toggle buttons), NOT more radios:
  *  nesting a second radiogroup inside the sheet's would break the roving
  *  contract A11Y-002 pins, and aria-pressed is what these actually do. */

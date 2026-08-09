@@ -86,7 +86,11 @@ export async function* streamXAI(
     // Already shaped (e.g. the idle-timeout 504) — re-wrapping drops status.
     if (error instanceof ProviderError) throw error;
     if (error instanceof OpenAI.APIError) {
-      throw new ProviderError("xai", `Grok request failed: ${error.message}`, error.status);
+      throw new ProviderError(
+        "xai",
+        `Grok request failed: ${error.message}`,
+        error.status,
+      );
     }
     throw new ProviderError(
       "xai",

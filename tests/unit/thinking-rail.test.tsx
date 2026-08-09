@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import {
-  DETENT_SPACING_PX,
-  HOLD_MS,
-} from "@/components/ui/use-hold-drag";
+import { DETENT_SPACING_PX, HOLD_MS } from "@/components/ui/use-hold-drag";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
 import type { EnhanceRequest } from "@/lib/enhance/use-enhance";
@@ -141,9 +138,7 @@ describe("thinking rail behaviour", () => {
     const low = screen.getByRole("radio", { name: "Low" });
     const lowBars = low.querySelectorAll("svg path");
     expect(lowBars).toHaveLength(3);
-    expect(
-      [...lowBars].filter((p) => p.getAttribute("opacity") === "1"),
-    ).toHaveLength(1);
+    expect([...lowBars].filter((p) => p.getAttribute("opacity") === "1")).toHaveLength(1);
     // Max breaks the meter (tall bar overshoots) and carries the ultra ink.
     const max = screen.getByRole("radio", { name: "Max" });
     expect(max.querySelector('svg path[d="M18 19V4"]')).not.toBeNull();
@@ -157,9 +152,7 @@ describe("thinking rail behaviour", () => {
   it("reflects the stored level in the trigger glyph, neutral under Auto", () => {
     useUIStore.setState({ thinkingLevels: { opus_5: "max" } });
     renderComposer();
-    expect(
-      thinkingTrigger().querySelector('svg path[d="M18 19V4"]'),
-    ).not.toBeNull();
+    expect(thinkingTrigger().querySelector('svg path[d="M18 19V4"]')).not.toBeNull();
   });
 
   it("offers only the selected target's ladder, and no rail without one", () => {
@@ -200,8 +193,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     fireEvent.pointerMove(trigger, { pointerId: 1, clientX: x, clientY: 400 });
     fireEvent.pointerUp(trigger, { pointerId: 1, clientX: x, clientY: 400 });
   }
-  const overlay = () =>
-    document.querySelector<HTMLElement>("[data-hold-slider-overlay]");
+  const overlay = () => document.querySelector<HTMLElement>("[data-hold-slider-overlay]");
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -267,9 +259,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     act(() => {
       vi.advanceTimersByTime(HOLD_MS);
     });
-    expect(
-      overlay()!.querySelector('[data-detent-dot="minimal"]'),
-    ).not.toBeNull();
+    expect(overlay()!.querySelector('[data-detent-dot="minimal"]')).not.toBeNull();
     fireEvent.pointerCancel(thinkingTrigger(), { pointerId: 1 });
   });
 

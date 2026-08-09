@@ -65,7 +65,9 @@ describe("questions in the envelope", () => {
 
   it("omits the key rather than carrying an empty array", () => {
     expect(parseEnhancePayload(envelope({ questions: [] })).questions).toBeUndefined();
-    expect(parseEnhancePayload(envelope({ questions: ["", "  "] })).questions).toBeUndefined();
+    expect(
+      parseEnhancePayload(envelope({ questions: ["", "  "] })).questions,
+    ).toBeUndefined();
   });
 
   it("is never fatal when malformed", () => {

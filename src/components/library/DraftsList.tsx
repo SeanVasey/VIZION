@@ -310,8 +310,8 @@ export function DraftsList({
     if (narrowed) {
       return (
         <p className="font-body py-6 text-center text-sm text-silver" role="status">
-          No drafts match. Try a different search, or clear the filter to see all
-          your drafts.
+          No drafts match. Try a different search, or clear the filter to see all your
+          drafts.
         </p>
       );
     }
@@ -321,8 +321,8 @@ export function DraftsList({
           No drafts
         </p>
         <p className="font-body mt-2 text-sm text-muted">
-          Start a new prompt with the + button and choose Save draft to keep an
-          unfinished one here.
+          Start a new prompt with the + button and choose Save draft to keep an unfinished
+          one here.
         </p>
       </div>
     );
@@ -372,7 +372,12 @@ export function DraftsList({
                 className="-mx-1 -my-3 shrink-0 px-1 py-3 text-silver transition-colors hover:text-accent disabled:opacity-50"
               >
                 {/* Pencil — 1.5px stroke, rounded joins (style-guide §1.4). */}
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                >
                   <path
                     d="M4 20h4l10-10a2.5 2.5 0 0 0-3.5-3.5L4.5 16.5 4 20Z"
                     stroke="currentColor"
@@ -391,7 +396,12 @@ export function DraftsList({
                 className="-mx-1 -my-3 shrink-0 px-1 py-3 text-silver transition-colors hover:text-flare disabled:opacity-50"
               >
                 {/* 1.5px stroke, rounded joins (style-guide §1.4). */}
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-5 w-5">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                >
                   <path
                     d="M5 7h14M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M7 7l.8 12A1.5 1.5 0 0 0 9.3 20.5h5.4a1.5 1.5 0 0 0 1.5-1.5L17 7"
                     stroke="currentColor"
@@ -489,8 +499,8 @@ export function DraftsList({
               className="font-body w-full resize-y rounded-lg border border-hair bg-surface px-3 py-2 text-sm text-text placeholder:text-muted read-only:opacity-60 focus:outline-none"
             />
             <p className="font-body text-xs text-silver">
-              Editing the text only — target model and mode stay as saved. Open the
-              draft in the composer to change those.
+              Editing the text only — target model and mode stay as saved. Open the draft
+              in the composer to change those.
             </p>
             {editError && (
               <p role="alert" className="font-body text-sm text-flare">

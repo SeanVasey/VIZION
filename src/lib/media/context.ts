@@ -40,10 +40,7 @@ function summarizeAttrs(attrs: MediaAttributes | undefined): string | null {
  * MAX_CONTEXT_CHARS each.
  */
 export function buildMediaContext(
-  items: readonly Pick<
-    MediaItem,
-    "role" | "status" | "name" | "description" | "attrs"
-  >[],
+  items: readonly Pick<MediaItem, "role" | "status" | "name" | "description" | "attrs">[],
 ): string[] {
   const blocks: string[] = [];
   for (const item of items) {
@@ -69,6 +66,6 @@ export function buildStyleSnippet(attrs: MediaAttributes): string {
     attrs.mood ? `${attrs.mood} mood` : undefined,
     attrs.palette?.length ? `palette ${attrs.palette.slice(0, 6).join(" ")}` : undefined,
   ].filter(Boolean);
-  const body = bits.length ? bits.join("; ") : attrs.description?.trim() ?? "";
+  const body = bits.length ? bits.join("; ") : (attrs.description?.trim() ?? "");
   return body ? `Style reference: ${body}` : "";
 }

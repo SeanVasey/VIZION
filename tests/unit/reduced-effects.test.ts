@@ -116,7 +116,10 @@ describe("glass depth tokens", () => {
     // thin would spend the §6 ink margin and the accent's presence at once.
     const pseudo = /\n\s*\.fab-glass::before\s*\{([^}]*)\}/.exec(CSS)![1]!;
     const mix = /color-mix\(in srgb,\s*var\(--laser\)\s*(\d+)%/.exec(pseudo);
-    expect(mix, "the FAB fill must be a --laser color-mix, not a raw token").not.toBeNull();
+    expect(
+      mix,
+      "the FAB fill must be a --laser color-mix, not a raw token",
+    ).not.toBeNull();
     const pct = Number(mix![1]);
     expect(pct).toBeGreaterThanOrEqual(75);
     expect(pct).toBeLessThan(100);

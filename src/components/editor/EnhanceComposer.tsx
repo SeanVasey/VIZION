@@ -417,9 +417,7 @@ export function EnhanceComposer() {
   // A hold that silently flipped Auto on would be an invisible mode change
   // from a control that didn't advertise it, so plain-model mode stays a
   // pure tap trigger (the wrapper claims nothing while disabled).
-  const budgetSelectedIndex = BUDGET_DETENTS.findIndex(
-    (d) => d.id === autoPreference,
-  );
+  const budgetSelectedIndex = BUDGET_DETENTS.findIndex((d) => d.id === autoPreference);
   const onBudgetCommit = useCallback(
     (index: number) => {
       const detent = BUDGET_DETENTS[index];
@@ -427,10 +425,7 @@ export function EnhanceComposer() {
     },
     [setAutoPreference],
   );
-  const budgetLiveLabel = useCallback(
-    (detent: Detent) => `Auto · ${detent.label}`,
-    [],
-  );
+  const budgetLiveLabel = useCallback((detent: Detent) => `Auto · ${detent.label}`, []);
 
   // Persist Polish's revert decisions with the result they belong to — as
   // component state in the diff they died on navigation while the result now

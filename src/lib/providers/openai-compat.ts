@@ -54,8 +54,7 @@ interface CompatOptions {
 /** The streaming request body, widened for the non-standard keys a compat API
  *  may accept (DashScope's thinking pair). Unknown keys pass through the SDK
  *  to the wire as-is. */
-type CompatBody = OpenAI.ChatCompletionCreateParamsStreaming &
-  Record<string, unknown>;
+type CompatBody = OpenAI.ChatCompletionCreateParamsStreaming & Record<string, unknown>;
 
 /**
  * Pure request-body builder (exported for tests — no SDK mocking needed).
@@ -84,9 +83,7 @@ export function buildCompatBody(
       : { response_format: { type: "json_object" as const } }),
     stream: true,
   };
-  const budget = req.thinkingLevel
-    ? opts.thinkingBudget?.[req.thinkingLevel]
-    : undefined;
+  const budget = req.thinkingLevel ? opts.thinkingBudget?.[req.thinkingLevel] : undefined;
   if (budget !== undefined) {
     // DashScope only honours thinking on a streamed request, which this always
     // is. Reasoning arrives in `delta.reasoning_content` — a field we never

@@ -130,18 +130,18 @@ diffing against the hosted project.
 The stacking order is coherent but was documented only in a component comment.
 The full ladder, lowest to highest:
 
-| Layer | z-index | Where |
-| --- | --- | --- |
-| Ambient background (ground + blooms + particle field) | `-10` | `AmbientNebula` |
-| Glass/chrome `::before` tints | `-1` | `.glass-chrome` / `.glass-nav` pseudo |
-| Content (mode-rig cells, bottom-nav base) | `1`–`10` | in-flow chrome |
-| Sticky result action bar | `30` | `TransformationDiff` |
-| Fixed chrome (header, FAB, keyboard bar) | `40` | `ScreenHeader` · `NewPromptFab` · `KeyboardActionBar` |
-| Bottom nav | `50` | `BottomNav` |
-| Avatar-crop modal | `60` | `SettingsPanel` |
-| Sheets | `70` | `Sheet` |
-| Toasts | `80` | `Toast` |
-| Skip-to-content link | `100` | root layout |
+| Layer                                                 | z-index  | Where                                                 |
+| ----------------------------------------------------- | -------- | ----------------------------------------------------- |
+| Ambient background (ground + blooms + particle field) | `-10`    | `AmbientNebula`                                       |
+| Glass/chrome `::before` tints                         | `-1`     | `.glass-chrome` / `.glass-nav` pseudo                 |
+| Content (mode-rig cells, bottom-nav base)             | `1`–`10` | in-flow chrome                                        |
+| Sticky result action bar                              | `30`     | `TransformationDiff`                                  |
+| Fixed chrome (header, FAB, keyboard bar)              | `40`     | `ScreenHeader` · `NewPromptFab` · `KeyboardActionBar` |
+| Bottom nav                                            | `50`     | `BottomNav`                                           |
+| Avatar-crop modal                                     | `60`     | `SettingsPanel`                                       |
+| Sheets                                                | `70`     | `Sheet`                                               |
+| Toasts                                                | `80`     | `Toast`                                               |
+| Skip-to-content link                                  | `100`    | root layout                                           |
 
 The one non-obvious relation — toast (`80`) over FAB (`40`) so a confirmation
 is never hidden behind the compose button — is intentional. Keep new overlays

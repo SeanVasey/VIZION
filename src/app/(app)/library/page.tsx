@@ -7,11 +7,7 @@ import { DraftsList } from "@/components/library/DraftsList";
 import { DraftsToolbar } from "@/components/library/DraftsToolbar";
 import { Footer } from "@/components/Footer";
 import { queryDraftModelFacets, queryDraftsPage } from "@/lib/drafts/queries";
-import {
-  isDraftsView,
-  libraryHref,
-  parseLibraryParams,
-} from "@/lib/library/paging";
+import { isDraftsView, libraryHref, parseLibraryParams } from "@/lib/library/paging";
 import {
   queryLibraryFacets,
   queryLibraryPage,

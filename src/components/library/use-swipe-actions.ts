@@ -65,7 +65,8 @@ export function useSwipeActions({ enabled = true }: { enabled?: boolean } = {}) 
       engaged.current = true;
     }
     // Clamp so a row can't be dragged clear off its own track.
-    const base = open === "left" ? SWIPE_REVEAL_PX : open === "right" ? -SWIPE_REVEAL_PX : 0;
+    const base =
+      open === "left" ? SWIPE_REVEAL_PX : open === "right" ? -SWIPE_REVEAL_PX : 0;
     setDx(Math.max(-SWIPE_REVEAL_PX, Math.min(SWIPE_REVEAL_PX, base + deltaX)));
   }
 

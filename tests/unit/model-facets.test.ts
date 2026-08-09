@@ -52,11 +52,7 @@ describe("groupModelFacets", () => {
       { id: "grok_4_5", count: 2 },
     ])!;
     const anthropic = groups.find((g) => g.developer === "anthropic")!;
-    expect(anthropic.models.map((m) => m.id)).toEqual([
-      "opus_5",
-      "sonnet_5",
-      "fable_5",
-    ]);
+    expect(anthropic.models.map((m) => m.id)).toEqual(["opus_5", "sonnet_5", "fable_5"]);
   });
 
   it("carries the label and developer each chip needs", () => {

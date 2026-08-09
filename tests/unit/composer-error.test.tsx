@@ -87,9 +87,9 @@ describe("composer failed-run recovery", () => {
     expect(screen.getByText("salvage me")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copy" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Use as draft" }));
-    expect(
-      (screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value,
-    ).toBe("salvage me");
+    expect((screen.getByLabelText("Prompt input") as HTMLTextAreaElement).value).toBe(
+      "salvage me",
+    );
   });
 
   it("suppresses the partial card while a previous result is still rendered", () => {

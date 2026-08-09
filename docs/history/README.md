@@ -11,11 +11,11 @@ Reading them as current truth generates false audit signals every cycle,
 which is exactly the drift [ADR-0005](../decisions/0005-living-canon.md) was
 written to stop.
 
-| file | what it was |
-| --- | --- |
-| `VIZION FINAL PLAN v1.md` | the original build plan and decision log |
-| `VIZION-product-spec.md` | the v1 product specification (§-numbered) |
-| `VIZION-style-guide.html` | the v1 visual style guide |
+| file                      | what it was                               |
+| ------------------------- | ----------------------------------------- |
+| `VIZION FINAL PLAN v1.md` | the original build plan and decision log  |
+| `VIZION-product-spec.md`  | the v1 product specification (§-numbered) |
+| `VIZION-style-guide.html` | the v1 visual style guide                 |
 
 **Where the living canon lives now** (per ADR-0005): the code itself, the
 `CHANGELOG.md`, `src/styles/tokens.css` (the locked 7-role token layer), and the

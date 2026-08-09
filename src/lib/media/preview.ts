@@ -74,10 +74,7 @@ interface SignedPath {
 }
 
 /** Batch signer — `supabase.storage.from("media").createSignedUrls`. */
-type BatchSigner = (
-  paths: string[],
-  ttlSeconds: number,
-) => Promise<SignedPath[] | null>;
+type BatchSigner = (paths: string[], ttlSeconds: number) => Promise<SignedPath[] | null>;
 
 /**
  * Sign thumbnails for the rows that have one, keyed by ASSET id (the manager

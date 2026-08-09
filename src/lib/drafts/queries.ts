@@ -72,7 +72,9 @@ export async function queryDraftsPage(
 ): Promise<{ cards: DraftCard[]; nextCursor: string | null; unavailable: boolean }> {
   let q = supabase
     .from("drafts")
-    .select("id, title, body, target_model, mode, thinking_level, created_at, updated_at");
+    .select(
+      "id, title, body, target_model, mode, thinking_level, created_at, updated_at",
+    );
 
   // Search covers the BODY as well as the title. A draft's title is derived
   // from its first line, so title-only search (what the prompts library does,

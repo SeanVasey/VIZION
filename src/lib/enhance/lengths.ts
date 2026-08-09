@@ -37,9 +37,7 @@ const LENGTH_LABEL: Partial<Record<ModeId, Record<LengthId, string>>> = {
 };
 
 /** Labels for a mode, or null when the mode has no dial. */
-export function lengthOptions(
-  mode: ModeId,
-): { id: LengthId; label: string }[] | null {
+export function lengthOptions(mode: ModeId): { id: LengthId; label: string }[] | null {
   const labels = LENGTH_LABEL[mode];
   if (!labels) return null;
   return LENGTHS.map((id) => ({ id, label: labels[id] }));
@@ -51,9 +49,7 @@ export function lengthOptions(
  * and a single sentence covering both would have to be vague enough to be
  * worthless.
  */
-export const LENGTH_INSTRUCTIONS: Partial<
-  Record<ModeId, Record<LengthId, string>>
-> = {
+export const LENGTH_INSTRUCTIONS: Partial<Record<ModeId, Record<LengthId, string>>> = {
   condense: {
     short:
       "LENGTH — TIGHT: Trim conservatively. Remove obvious redundancy, filler, and hedging, but keep the prompt's existing sentence structure and any instruction you are not certain is duplicated.",

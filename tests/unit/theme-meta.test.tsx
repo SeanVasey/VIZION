@@ -57,7 +57,9 @@ afterEach(() => {
   cleanup();
   useUIStore.setState({ theme: "system" });
   document.head
-    .querySelectorAll('meta[name="theme-color"], meta[name="apple-mobile-web-app-status-bar-style"]')
+    .querySelectorAll(
+      'meta[name="theme-color"], meta[name="apple-mobile-web-app-status-bar-style"]',
+    )
     .forEach((el) => el.remove());
   vi.restoreAllMocks();
 });

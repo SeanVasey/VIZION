@@ -82,9 +82,8 @@ export function AttachmentDetailsSheet({
               developer={TARGET_DEVELOPER[item.usage.target]}
               className="h-3.5 w-3.5 shrink-0 text-accent"
             />
-            {TARGET_LABEL[item.usage.target]} · {item.usage.tokenIn}→
-            {item.usage.tokenOut} tok · {item.usage.estimated ? "≈" : ""}$
-            {item.usage.costUsd.toFixed(4)}
+            {TARGET_LABEL[item.usage.target]} · {item.usage.tokenIn}→{item.usage.tokenOut}{" "}
+            tok · {item.usage.estimated ? "≈" : ""}${item.usage.costUsd.toFixed(4)}
           </p>
         )}
 

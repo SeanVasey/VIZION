@@ -50,22 +50,22 @@ export function MediaPrivacySheet({
           <span aria-hidden="true" className="text-accent">
             ▸
           </span>
-          Files upload to your private VIZION storage (50 MB per account) and stay
-          until you remove them — manage anytime in Settings → Data &amp; privacy.
+          Files upload to your private VIZION storage (50 MB per account) and stay until
+          you remove them — manage anytime in Settings → Data &amp; privacy.
         </li>
         <li className="flex gap-2">
           <span aria-hidden="true" className="text-accent">
             ▸
           </span>
-          A downscaled frame is sent to {modelLabel} for analysis. Analysis counts
-          toward your daily usage cap.
+          A downscaled frame is sent to {modelLabel} for analysis. Analysis counts toward
+          your daily usage cap.
         </li>
         <li className="flex gap-2">
           <span aria-hidden="true" className="text-accent">
             ▸
           </span>
-          Prefer not to store the file? Choose &quot;Analyze without keeping&quot; —
-          the file never uploads; only this session sees it.
+          Prefer not to store the file? Choose &quot;Analyze without keeping&quot; — the
+          file never uploads; only this session sees it.
         </li>
       </ul>
       <p className="font-body mt-3 text-xs text-silver">

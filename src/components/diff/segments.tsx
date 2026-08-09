@@ -68,10 +68,7 @@ export function ComparisonSegments({ segments }: { segments: DiffSegment[] }) {
             {seg.text}
           </span>
         ) : (
-          <span
-            key={i}
-            className={seg.op === "added" ? ADDED_CLASS + gap : undefined}
-          >
+          <span key={i} className={seg.op === "added" ? ADDED_CLASS + gap : undefined}>
             {seg.text}
           </span>
         );

@@ -110,7 +110,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             className="pointer-events-none fixed inset-x-4 z-[80] flex justify-center"
             style={{
-              bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
+              bottom:
+                "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + var(--float-gap))",
             }}
           >
             {/* No live-region ROLE here (the sr-only regions above announce)

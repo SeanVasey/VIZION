@@ -227,6 +227,8 @@ describe("save-with-outbox — GenerateSheet", () => {
     savePromptAction.mockRejectedValueOnce(new Error("boom"));
     renderGenerateSheet();
     await clickSave(/save to library/i);
-    expect(screen.getByText(/couldn't save to the library — try again/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/couldn't save to the library — try again/i),
+    ).toBeInTheDocument();
   });
 });

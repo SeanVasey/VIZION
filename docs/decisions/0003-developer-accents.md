@@ -47,7 +47,7 @@ Each accent is used against three surfaces: the dark card (`--glass` over
 `--void`, and again over the aurora-lit ground, the darker of which binds), the
 light card, and — for the mark — the card surface itself. Solving 3:1 against
 the aurora-lit dark card and 3:1 against the light card simultaneously puts
-relative luminance in a corridor that lies *between* the two card fills. Every
+relative luminance in a corridor that lies _between_ the two card fills. Every
 accent sits in that corridor, which is why one value is correct in both themes
 and why none of the twelve appears in a light block. A test fails if a light
 override is added, because adding one destroys the property the palette was
@@ -74,7 +74,7 @@ forces. Two are weaker and say so in their token comment:
   It is deliberately a **full-contrast** neutral — 3.38:1 against the
   aurora-lit dark card, 3.65:1 against the light card, mid-pack among the
   eleven sourced accents — because the risk with a lone grey among colours is
-  that it reads as a *state*. It cannot here: this app expresses "disabled"
+  that it reads as a _state_. It cannot here: this app expresses "disabled"
   as `disabled:opacity-*` on a still-coloured control, and a model id the build
   does not recognise renders no mark at all, so there is no missing-data
   appearance for it to be mistaken for.
@@ -90,7 +90,7 @@ The floors used (20 ΔE2000 to `--laser`, 18 to both `--flare` values, 15 to
 `--amber` and `--pulse`) were set by measured **co-presence on the library
 list**, where `--flare` appears only as an alert paragraph and as the delete
 swipe panel, and `--amber` and `--pulse` do not appear at all. Anthropic's clay
-is the tightest: its hue is held at its published value and its *chroma* is cut
+is the tightest: its hue is held at its published value and its _chroma_ is cut
 instead, because at clay's hue no higher chroma clears `--flare` at any
 luminance in the corridor. Mistral wins the one full-chroma warm slot on a
 measured tiebreak — it reaches it at zero cost from its own published flame
@@ -115,12 +115,12 @@ of how long its preview happens to be.
 
 Eight cards from the same model get eight identical fields. That was raised as
 a repeat of the original complaint and is not: what was wrong before was a
-*false* signal — a destructive colour asserting "delete" on rows nobody was
+_false_ signal — a destructive colour asserting "delete" on rows nobody was
 deleting. A developer-derived field is constant because the data is constant,
 which is a true statement. The alternative — damp the field when every visible
 card shares a developer — was rejected outright: scroll one more card in and
 every edge brightens, filter down and the page dims. Any treatment whose
-strength depends on what else happens to be on screen *is* a state signal, which
+strength depends on what else happens to be on screen _is_ a state signal, which
 is the class of bug being removed.
 
 ### One overlay carries the field and the focus ring
@@ -132,7 +132,7 @@ descendant draws. The card had therefore had **no visible keyboard focus
 indicator at all**, a live WCAG 2.4.7 failure predating this change, which the
 e2e focus-ring spec could not catch because it can only reach the signed-out
 `/sign-in` route. An inset ring on this overlay survives the clip, and it must
-be a sibling because an inset shadow paints *below* its own element's
+be a sibling because an inset shadow paints _below_ its own element's
 descendants — a ring drawn inside the card would sit under the card's text.
 
 The field is gated off while a row is displaced (`data-swiping`), so during the
@@ -150,7 +150,7 @@ keyboard-focused and then swiped by the same hybrid-input user.
   `--void`, or to the card background invalidates all twelve values. That
   dependency is invisible from the tokens themselves, which is why it is
   recorded here.
-- The mark is deliberately *not* gated by Reduced effects; the field is. An
+- The mark is deliberately _not_ gated by Reduced effects; the field is. An
   unrelated comfort toggle must never be able to amputate an identity channel.
 - The library filter chips keep the single-colour mark. Their active state is a
   `bg-laser` pill, against which the palette measures around 3.2:1 — camouflage.

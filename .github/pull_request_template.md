@@ -58,13 +58,13 @@ Link specifications, designs, discussions, incidents, decisions, analytics,
 external tickets, or predecessor/follow-up PRs. Remove unused rows.
 -->
 
-| Reference | Link or identifier |
-| --- | --- |
-| Issue / task | Closes # |
-| Specification / design | |
-| Discussion / decision | |
-| Incident / support case | |
-| Related PR | |
+| Reference               | Link or identifier |
+| ----------------------- | ------------------ |
+| Issue / task            | Closes #           |
+| Specification / design  |                    |
+| Discussion / decision   |                    |
+| Incident / support case |                    |
+| Related PR              |                    |
 
 ## Change profile
 
@@ -82,16 +82,16 @@ Risk guidance:
   requires an explicitly coordinated review and release plan.
 -->
 
-| Field | Selection and rationale |
-| --- | --- |
-| Change type(s) | |
-| Primary area / owner | |
-| Risk level | Low / Medium / High / Critical — |
-| User-facing change | No / Yes — |
-| Breaking change | No / Yes — |
-| Version impact | None / Patch / Minor / Major — |
-| Deployment mode | None / Standard / Coordinated — |
-| Feature flag | None / Existing / New — |
+| Field                | Selection and rationale          |
+| -------------------- | -------------------------------- |
+| Change type(s)       |                                  |
+| Primary area / owner |                                  |
+| Risk level           | Low / Medium / High / Critical — |
+| User-facing change   | No / Yes —                       |
+| Breaking change      | No / Yes —                       |
+| Version impact       | None / Patch / Minor / Major —   |
+| Deployment mode      | None / Standard / Coordinated —  |
+| Feature flag         | None / Existing / New —          |
 
 ## Scope and behavior
 
@@ -117,10 +117,10 @@ Describe observable behavior. Use `N/A — no behavioral change` when accurate.
 Add or remove rows as needed.
 -->
 
-| Scenario | Before | After |
-| --- | --- | --- |
-| Primary path | | |
-| Failure / edge path | | |
+| Scenario            | Before | After |
+| ------------------- | ------ | ----- |
+| Primary path        |        |       |
+| Failure / edge path |        |       |
 
 ## Implementation
 
@@ -136,8 +136,8 @@ flow, trust boundaries, or state transitions. Keep routine mechanics brief.
 <!-- Group by behavior, component, route, service, API, or data layer. -->
 
 | Area | Change | Rationale |
-| --- | --- | --- |
-| | | |
+| ---- | ------ | --------- |
+|      |        |           |
 
 ### Decisions and trade-offs
 
@@ -176,15 +176,15 @@ useful; do not paste raw logs. Explain failures and checks not run.
 Add or remove rows to match the repository.
 -->
 
-| Check or command | Result | Evidence / notes |
-| --- | --- | --- |
-| Lint / formatting | Pass / Fail / Not run | |
-| Type / static analysis | Pass / Fail / Not run | |
-| Unit tests | Pass / Fail / Not run | |
-| Integration tests | Pass / Fail / Not run | |
-| End-to-end tests | Pass / Fail / Not run | |
-| Build / package | Pass / Fail / Not run | |
-| Security / dependency scan | Pass / Fail / Not run | |
+| Check or command           | Result                | Evidence / notes |
+| -------------------------- | --------------------- | ---------------- |
+| Lint / formatting          | Pass / Fail / Not run |                  |
+| Type / static analysis     | Pass / Fail / Not run |                  |
+| Unit tests                 | Pass / Fail / Not run |                  |
+| Integration tests          | Pass / Fail / Not run |                  |
+| End-to-end tests           | Pass / Fail / Not run |                  |
+| Build / package            | Pass / Fail / Not run |                  |
+| Security / dependency scan | Pass / Fail / Not run |                  |
 
 ### Manual validation
 
@@ -193,10 +193,10 @@ Provide reproducible steps and results. Cover the primary path plus meaningful
 negative, permission, recovery, and edge cases affected by this change.
 -->
 
-| Scenario | Steps / input | Expected result | Actual result |
-| --- | --- | --- | --- |
-| Primary path | | | |
-| Error / edge path | | | |
+| Scenario          | Steps / input | Expected result | Actual result |
+| ----------------- | ------------- | --------------- | ------------- |
+| Primary path      |               |                 |               |
+| Error / edge path |               |                 |               |
 
 ### Test environment
 
@@ -273,9 +273,9 @@ types, serialized data, SDKs, third-party integrations, and consumers.
 Describe versioning, deprecation, compatibility, and required consumer action.
 -->
 
-| Contract / consumer | Change | Compatibility | Consumer action / deadline |
-| --- | --- | --- | --- |
-| | | Backward-compatible / Breaking | |
+| Contract / consumer | Change | Compatibility                  | Consumer action / deadline |
+| ------------------- | ------ | ------------------------------ | -------------------------- |
+|                     |        | Backward-compatible / Breaking |                            |
 
 ### Database, storage, and data lifecycle
 
@@ -303,9 +303,9 @@ transitive risk, runtime/bundle impact, and removal of replaced packages when
 applicable.
 -->
 
-| Dependency | Action / version | Purpose | Security, license, and size review |
-| --- | --- | --- | --- |
-| | Added / Updated / Removed | | |
+| Dependency | Action / version          | Purpose | Security, license, and size review |
+| ---------- | ------------------------- | ------- | ---------------------------------- |
+|            | Added / Updated / Removed |         |                                    |
 
 ### Performance and resource use
 
@@ -317,8 +317,8 @@ cold starts, and cache behavior as applicable.
 -->
 
 | Metric and scenario | Baseline | After | Delta / budget | Evidence |
-| --- | ---: | ---: | ---: | --- |
-| | | | | |
+| ------------------- | -------: | ----: | -------------: | -------- |
+|                     |          |       |                |          |
 
 - **Caching or invalidation impact:**
 - **Expected behavior at peak / degraded conditions:**
@@ -359,21 +359,21 @@ values here; list variable or secret names only. A source-code revert is not a
 complete recovery plan for irreversible data changes or external side effects.
 -->
 
-| Concern | Plan |
-| --- | --- |
-| Environments affected | |
-| Prerequisites / external dependencies | |
-| Environment variables / secret names | |
-| Feature flag and default state | |
-| Migration / deployment order | |
-| Cache / queue / search-index action | |
-| Rollout strategy and monitoring window | |
-| Expected downtime / user disruption | |
-| Post-deploy verification | |
-| Rollback trigger | |
-| Containment / code rollback | |
-| Data recovery / roll-forward | |
-| Responsible owner | |
+| Concern                                | Plan |
+| -------------------------------------- | ---- |
+| Environments affected                  |      |
+| Prerequisites / external dependencies  |      |
+| Environment variables / secret names   |      |
+| Feature flag and default state         |      |
+| Migration / deployment order           |      |
+| Cache / queue / search-index action    |      |
+| Rollout strategy and monitoring window |      |
+| Expected downtime / user disruption    |      |
+| Post-deploy verification               |      |
+| Rollback trigger                       |      |
+| Containment / code rollback            |      |
+| Data recovery / roll-forward           |      |
+| Responsible owner                      |      |
 
 ## Documentation and release communication
 
@@ -384,13 +384,13 @@ runbooks, examples, screenshots, support guidance, migration/upgrade notes,
 changelog, and release notes.
 -->
 
-| Artifact | Status | Link / rationale |
-| --- | --- | --- |
-| User documentation | Updated / Not needed / Follow-up | |
-| Developer / API documentation | Updated / Not needed / Follow-up | |
-| Operations / support runbook | Updated / Not needed / Follow-up | |
-| Changelog / release notes | Updated / Not needed / Follow-up | |
-| Migration / upgrade guidance | Updated / Not needed / Follow-up | |
+| Artifact                      | Status                           | Link / rationale |
+| ----------------------------- | -------------------------------- | ---------------- |
+| User documentation            | Updated / Not needed / Follow-up |                  |
+| Developer / API documentation | Updated / Not needed / Follow-up |                  |
+| Operations / support runbook  | Updated / Not needed / Follow-up |                  |
+| Changelog / release notes     | Updated / Not needed / Follow-up |                  |
+| Migration / upgrade guidance  | Updated / Not needed / Follow-up |                  |
 
 ### Proposed release note
 
@@ -420,8 +420,8 @@ Use `N/A — no follow-up work` when accurate.
 -->
 
 | Follow-up | Owner | Issue / reference | Target |
-| --- | --- | --- | --- |
-| | | | |
+| --------- | ----- | ----------------- | ------ |
+|           |       |                   |        |
 
 ## Author readiness checklist
 
@@ -431,29 +431,29 @@ in the relevant section rather than treating an unchecked box as “N/A.”
 -->
 
 - [ ] The title and summary describe the outcome clearly and use the
-  repository's conventions.
+      repository's conventions.
 - [ ] The PR has a focused scope; unrelated changes were removed or separated.
 - [ ] I reviewed the complete diff, including generated files, lockfiles,
-  configuration, and migrations.
+      configuration, and migrations.
 - [ ] Related issues, specifications, decisions, and follow-up work are linked.
 - [ ] Applicable automated checks pass; failures, skipped checks, and untested
-  areas are documented.
+      areas are documented.
 - [ ] Tests cover changed behavior and meaningful failure, permission,
-  recovery, or edge paths where appropriate.
+      recovery, or edge paths where appropriate.
 - [ ] User-visible states, responsive behavior, themes, localization, and
-  accessibility were evaluated where affected.
+      accessibility were evaluated where affected.
 - [ ] Security, privacy, authorization, data, dependency, and supply-chain
-  implications were evaluated where affected.
+      implications were evaluated where affected.
 - [ ] Breaking changes, compatibility limits, migrations, configuration
-  changes, deployment steps, and recovery limits are disclosed.
+      changes, deployment steps, and recovery limits are disclosed.
 - [ ] Documentation, examples, changelog entries, release notes, and
-  operational guidance are updated where needed.
+      operational guidance are updated where needed.
 - [ ] No secrets, credentials, sensitive data, unsanitized logs, debug code, or
-  unintended artifacts are included.
+      unintended artifacts are included.
 - [ ] Known limitations, residual risks, reviewer focus areas, and responsible
-  owners are stated honestly.
+      owners are stated honestly.
 - [ ] This PR is ready for review; required reviewers and repository-native
-  checks will provide formal approval.
+      checks will provide formal approval.
 
 ## Additional notes
 

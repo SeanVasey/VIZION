@@ -32,13 +32,13 @@ Bump the one number and every surface follows at the next build.
 All in **one PR**, so `main` is never in a half-released state:
 
 1. **Bump** — `npm version <x.y.z> --no-git-tag-version` (updates `package.json`
-   + `package-lock.json`; the flag matters — tags are the workflow's job).
+   - `package-lock.json`; the flag matters — tags are the workflow's job).
 2. **Cut the changelog** — in `CHANGELOG.md`, rename `## [Unreleased]`'s content
    to `## [x.y.z] - YYYY-MM-DD`, leave a fresh empty `[Unreleased]` above it,
    and add the compare link at the bottom of the file.
 3. **Verify** — the full gate (`lint → typecheck → test → e2e → build`), plus
    `npm run check:db-enum -- --strict` if any migration landed since the last
-   release (CI can only see migration *files*, never the hosted schema — see
+   release (CI can only see migration _files_, never the hosted schema — see
    [migrations.md](./migrations.md)). Then commit, push, PR, merge.
 
 ## What happens on merge

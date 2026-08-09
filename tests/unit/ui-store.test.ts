@@ -94,7 +94,11 @@ describe("useUIStore", () => {
     expect(next.mediaStoreByDefault).toBe(true);
     // Already-set values pass through untouched.
     const kept = migrate(
-      { targetModel: "opus_5", mediaNoticeAcknowledged: true, mediaStoreByDefault: false },
+      {
+        targetModel: "opus_5",
+        mediaNoticeAcknowledged: true,
+        mediaStoreByDefault: false,
+      },
       5,
     ) as { mediaNoticeAcknowledged: boolean; mediaStoreByDefault: boolean };
     expect(kept.mediaNoticeAcknowledged).toBe(true);

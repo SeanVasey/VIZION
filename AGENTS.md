@@ -24,9 +24,9 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
   the tree has drifted from Prettier; a wholesale reformat is a deliberate
   standalone commit, never folded into other work)
 - **Before e2e, once per machine:** `npx playwright install --with-deps webkit
-  chromium` — the same line CI uses (the two engines the configured projects
+chromium` — the same line CI uses (the two engines the configured projects
   need; a bare `install` would add Firefox, which no project uses).
-- **`npm run check:db-enum`** — a read-only preflight asking the *hosted*
+- **`npm run check:db-enum`** — a read-only preflight asking the _hosted_
   Postgres whether it actually has what the app expects: every `model_target`
   enum label, plus the columns and functions later migrations added. Worth
   knowing about because the static checks cannot catch what it catches —
