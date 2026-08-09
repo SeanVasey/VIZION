@@ -74,6 +74,16 @@ export async function updateProfileAction(patch: ProfilePatch): Promise<ActionRe
   if (patch.full_name !== undefined) update.full_name = patch.full_name?.trim() || null;
   if (patch.display_name !== undefined) {
     update.display_name = patch.display_name?.trim() || null;
+    // Mirror the client rule (audit VAR-08 / OBS-3): the slug format was
+    // enforced only by the Save button's gate, so any other caller could
+    // store a value the settings screen then flags as invalid.
+    if (update.display_name !== null && !/^[a-z0-9_-]{3,24}$/.test(update.display_name)) {
+      return {
+        ok: false,
+        error:
+          "Display names are 3–24 characters: lowercase letters, numbers, hyphen (-) or underscore (_).",
+      };
+    }
   }
   if (patch.default_model !== undefined) update.default_model = patch.default_model;
   if (patch.theme !== undefined) update.theme = patch.theme;

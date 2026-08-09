@@ -58,9 +58,15 @@ export function PromptDetail({
   const router = useRouter();
   const { toast } = useToast();
   const [pending, startTransition] = useTransition();
-  // Server-action failures were previously swallowed — every mutation on this
-  // screen reports here.
+  // Server-action failures were previously swallowed, then funnelled into a
+  // single line at the bottom of the Revise section — which put a failed
+  // Restore's only feedback ~700px below the button that caused it (audit
+  // VAR-23). Each section now owns the errors its controls raise: tags at the
+  // top, history beside Restore, and the original slot keeps revise/save/
+  // delete.
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tagError, setTagError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const target = prompt.target_model as TargetModelId;
 
   // Lazy version bodies: seeded with the server-shipped compare pair, grown
@@ -92,7 +98,7 @@ export function PromptDetail({
           const body = res.body;
           setBodies((prev) => new Map(prev).set(body.id, body));
         } else {
-          setActionError(res.error ?? "Couldn't load that version.");
+          setHistoryError(res.error ?? "Couldn't load that version.");
         }
       });
     },
@@ -215,11 +221,11 @@ export function PromptDetail({
   }
 
   function restore(id: string) {
-    setActionError(null);
+    setHistoryError(null);
     startTransition(async () => {
       const res = await restoreVersionAction(prompt.id, id);
       if (res.ok) router.refresh();
-      else setActionError(res.error ?? "Couldn't restore that version.");
+      else setHistoryError(res.error ?? "Couldn't restore that version.");
     });
   }
 
@@ -264,9 +270,14 @@ export function PromptDetail({
         promptId={prompt.id}
         tags={prompt.tags}
         disabled={pending}
-        onError={setActionError}
+        onError={setTagError}
         onSaved={() => router.refresh()}
       />
+      {tagError && (
+        <p className="font-body text-sm text-flare" role="alert">
+          {tagError}
+        </p>
+      )}
 
       {/* Current output — the reason the prompt was saved; copy is the primary
           "use it" action and lives where the eyes are. */}
@@ -405,6 +416,11 @@ export function PromptDetail({
             </li>
           ))}
         </ul>
+        {historyError && (
+          <p className="font-body mt-2 text-sm text-flare" role="alert">
+            {historyError}
+          </p>
+        )}
       </section>
 
       {/* Revise → re-enhance → save as a new version. */}

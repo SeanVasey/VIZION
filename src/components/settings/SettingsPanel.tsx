@@ -92,6 +92,13 @@ export function SettingsPanel({
     displayName !== (profile.display_name ?? "");
   const displayNameValid =
     displayName.trim() === "" || DISPLAY_NAME_RE.test(displayName.trim());
+  // Error TREATMENT is dirty-gated (audit VAR-08): a stored value that
+  // violates the rule (seeded out-of-band) used to light the flare border and
+  // rule line on a pristine load — an error about something the user never
+  // typed. Save stays gated on validity either way; pristine shows the rule
+  // as passive silver guidance.
+  const displayNameDirty = displayName !== (profile.display_name ?? "");
+  const showDisplayNameError = displayNameDirty && !displayNameValid;
 
   function saveIdentity() {
     write(
@@ -267,10 +274,10 @@ export function SettingsPanel({
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            aria-invalid={!displayNameValid}
+            aria-invalid={showDisplayNameError}
             aria-describedby="display-name-rule"
             className={`font-body w-full rounded-lg border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none ${
-              displayNameValid ? "border-hair" : "border-flare"
+              showDisplayNameError ? "border-flare" : "border-hair"
             }`}
           />
           {/* Name the two symbols and keep the glyph in parentheses. Written as
@@ -284,7 +291,7 @@ export function SettingsPanel({
               revert to one. */}
           <p
             id="display-name-rule"
-            className={`font-body text-xs ${displayNameValid ? "text-silver" : "text-flare"}`}
+            className={`font-body text-xs ${showDisplayNameError ? "text-flare" : "text-silver"}`}
           >
             3–24 characters: lowercase letters, numbers, hyphen (-) or underscore (_)
           </p>
