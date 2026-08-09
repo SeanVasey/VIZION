@@ -27,8 +27,8 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 
 <div align="center">
 
-<!-- Live capture of the shipped sign-in gate, rendered from the production build (currently a stale v0.2.1 capture — regeneration pending approval). -->
-<img src="./docs/preview.png" alt="VIZION sign-in gate — the aperture glyph, wordmark, VASEY/AI + version pills, and the three Supabase auth methods" width="300" />
+<!-- Live capture of the shipped sign-in gate (v0.3.0), rendered from the production build. -->
+<img src="./docs/preview.png" alt="VIZION sign-in gate — the I›O mark, wordmark, VASEY/AI + version pills, and the three Supabase auth methods" width="300" />
 
 </div>
 

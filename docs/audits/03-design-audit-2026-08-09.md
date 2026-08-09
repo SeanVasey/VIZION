@@ -149,3 +149,70 @@ Reply with item IDs, e.g. *"Approve VAR-01, VAR-04, VAR-D1"* · *"Approve all
 P2"* · *"Reject VAR-12; revise VAR-03 using option (b)"*. The ten CMCs above
 are already in this PR — flag any to revert. Nothing else ships without your
 word.
+
+---
+
+# Part 2 — Implementation report (2026-08-09, post-approval)
+
+Owner approval: **"Approve all listed VAR items"** — VAR-01…VAR-23 + VAR-D1.
+All 24 are implemented across seven commits (waves B1–B7 + this docs wave),
+each gated (lint 0 · typecheck 0 · unit green · build clean) before commit.
+Where an item offered bounded options, the choice made is recorded below.
+
+## Dispositions
+
+| ID | Disposition | Choice made / validation |
+| --- | --- | --- |
+| VAR-01 | done | Labels wrap via `overflow-wrap:anywhere` on the rig label span (break-word does not lower flex min-content — measured); at 200% root scale all six labels render fully, cells grow 56→100px; default scale single-line, unclipped |
+| VAR-02 | done | Option (a), extended: `metadata.appleWebApp` removed entirely — even without `statusBarStyle` it made React own and re-insert a status-bar tag (measured both ways); capable/title metas hand-written; live probes 3/3 per scheme show exactly one tag with resolved polarity. iOS launch-time caveat recorded (ios-verification.md) |
+| VAR-03 | done | Option (a): ADR-0004 Q7 amended to the de-facto rule; composer/revise/generation textareas → `text-base`, drafts search → the library search recipe |
+| VAR-04 | done | Both detail queries check `error` and render the library's can't-load card; head query shared via React `cache()` |
+| VAR-05 | done | Meter fills use `bg-accent`/`bg-amber-ink` (dark unchanged; light gains 5.5:1-class boundaries) |
+| VAR-06 | done | RedditSans-700 + JetBrains 500/700 dropped; `font-weights.test.ts` pins vendored ⊆ used in both directions |
+| VAR-07 | done | `rounded-md` → `rounded` (the primitive's radius) |
+| VAR-08 | done | Error treatment dirty-gated; slug rule also enforced in `updateProfileAction` |
+| VAR-09 | done | Enhance skeleton = one solid chassis with rails/editor/tray/CTA; library gains the quick-chip row + card anatomy; settings centers the avatar hero; the library comment's absolute claim scoped honestly |
+| VAR-10 | done | Archived-view delete uses the trash view's `XMark`; new `FolderMinusMark` + `ClipboardMark` glyphs; U+2300-block scan (⌁ allowlisted) added to ui-contracts |
+| VAR-11 | done | Load more → `btn-secondary` centered (the recorded balance rule); filtered-empty → quiet status line in both views (cards reserved for true-empty; recorded wording kept); prompts search gains the drafts toolbar's visible Search button |
+| VAR-12 | done | `.btn-laser:disabled { opacity: 0.6 }` (the flagship CTAs' value); 17 per-site utilities removed; ui-contracts bans recurrence |
+| VAR-13 | done | Spinner added to the Re-enhance pending state, matching the two sibling CTAs |
+| VAR-14 | done | `right: max(1rem, calc((100vw - 640px)/2 + 1rem))` — 16px inside the column at 1280 (measured), phones unchanged |
+| VAR-15 | done | Numbered convention (`icon0.svg` + `icon1.png`); SSR head emits both links, SVG first (verified) |
+| VAR-16 | done | `generateMetadata` with the prompt's title; missing id 404s from metadata, curing the contradictory tab |
+| VAR-17 | done | "► RE-ENHANCE"; one exported `NOT_CONFIGURED_MESSAGE` renders on both surfaces |
+| VAR-18 | done | Option (b): aria-label → "VASEY Multimedia" (zero visible change; matches the sibling VASEY/AI label treatment) |
+| VAR-19 | done | `text-[0.6875rem]` ×2 (identical at default root; scales with user font preference) |
+| VAR-20 | done | "center" in copy + the pinned test string, one commit |
+| VAR-21 | done | `flex-wrap` on the compare rail; readout drops to its own line (probe: wraps, no page pan) |
+| VAR-22 | done | Thin `mr-[0.25ch]` between opposite-op diff neighbours (presentation only) |
+| VAR-23 | done | Per-section error slots: tags at top, restore/version-load beside History, revise/save/delete keep the original line |
+| VAR-D1 | done | `docs/preview.png` recaptured per the recorded recipe from the shipped v0.3.0 build (same 1179×2739 frame); README comment + alt updated |
+
+## Validation performed
+
+Per batch: full gate (lint · typecheck · unit · production build). Rendered:
+live computed-style probes and screenshots against the running production
+build (stub Supabase) at 320/390/1280, dark + light, for VAR-01 (200% root
+scale), VAR-02 (3× runs per scheme), VAR-05, VAR-12, VAR-14, VAR-15, VAR-21
+(byte-copied-markup probe; live version rows aren't seedable in this stub),
+plus the CMC validations in Part 1. Not renderable here: a real streaming
+run (provider keys), WebKit/real iOS (environment; caveats recorded), forced
+query failures for VAR-04/CMC-07 (source mirrors the sibling branches).
+
+Tests: two intent-preserving assertion updates (drafts filtered-empty line
+form; icon-alpha path to the numbered icon) and one string pin updated with
+its copy (VAR-20), each in the same commit as its change. New guards:
+`.btn-laser:disabled` + per-site-dim ban, U+2300-block scan, font-weight
+vendored⊆used suite. Suite grew 1254 → 1260, all green.
+
+## Remaining risks / unverified
+
+- iOS launch-time status-bar behavior without a static tag (VAR-02) — not
+  verifiable in this environment; flagged for the next on-device pass.
+- The composer textarea's 14→16px raises its rendered line length on
+  desktop; measured fine at 320–1280, but worth an on-device glance.
+- OBS-1 (BrandPills tracking), OBS-2 (FAB/Connection overlap) remain
+  observations only; DSN-019, PWA-07, PRI-002 stay with their owners.
+
+No unapproved visible change shipped: every visible delta traces to a
+listed CMC or an approved VAR item above.

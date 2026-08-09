@@ -6,6 +6,31 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Design audit (2026-08-09): the approved wave — all 24 proposals land
+
+The owner approved every VAR item in the audit report
+(`docs/audits/03-design-audit-2026-08-09.md`, which now carries the full
+implementation record and per-item dispositions). Highlights, by what a user
+sees: ModeRig labels survive 200% OS text scaling by wrapping instead of
+clipping to fragments; the FAB anchors to the app column instead of the
+viewport corner at desktop widths; the version-compare rail wraps at 320px;
+every saved prompt's tab carries its own title; a transient fetch failure on
+the prompt detail renders a can't-load card instead of a false 404 or "0
+versions"; PromptDetail errors surface beside the controls that raised them;
+the storage meter keeps its meaning in light theme via the -ink fills; the
+library's two sibling views share one furniture set (btn-secondary centered
+Load more, quiet filtered-empty line, visible Search commit) and the Q7 input
+recipe is amended in ADR-0004 to the de-facto two-tier rule with four
+stragglers converted (the composer textarea finally wears its recorded 16px);
+exactly one iOS status-bar meta ships, owned by ThemeManager (the
+metadata-system duplicate measured and removed); unused vendored font weights
+are dropped with a vendored⊆used guard test; the three U+2300 text glyphs
+join the SVG glyph language with a codepoint-scan guard; the scalable SVG
+favicon actually ships via the numbered icon convention; one
+`.btn-laser:disabled` dim replaces the 8-vs-9 per-site split; and
+`docs/preview.png` is recaptured from the shipped v0.3.0 build per the
+recorded recipe. Full before/after and validation per item in the report.
+
 ### Design audit (2026-08-09): confirmed minor corrections
 
 An approval-gated design audit (report + approval table:
