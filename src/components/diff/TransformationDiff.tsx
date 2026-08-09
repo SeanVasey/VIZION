@@ -660,7 +660,7 @@ function TransformationDiffImpl({
               type="button"
               onClick={saveAsNewVersion}
               disabled={saving}
-              className="btn-laser flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm disabled:opacity-60"
+              className="btn-laser flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm"
             >
               {saving ? "Saving…" : "Save as new version"}
             </button>
@@ -682,7 +682,7 @@ function TransformationDiffImpl({
             <p className="font-body mb-1 text-xs uppercase tracking-wider text-silver">
               What changed
             </p>
-            <p className="font-body text-sm text-text">{result.rationale}</p>
+            <p className="font-body break-words text-sm text-text">{result.rationale}</p>
           </>
         ) : result.salvaged ? (
           <p className="font-body text-sm text-silver" role="status">
@@ -705,20 +705,28 @@ function TransformationDiffImpl({
             developer={TARGET_DEVELOPER[effectiveTarget]}
             className="h-3.5 w-3.5 shrink-0 text-accent"
           />
-          {/* Routing provenance: an auto-routed run says which model it chose
-              — and, when the server explains itself, why — because "Auto"
-              alone tells the user nothing about what they just paid for. */}
-          {result.resolvedTarget && (
-            <span>
-              Auto → {TARGET_LABEL[result.resolvedTarget]}
-              {result.resolvedReason && AUTO_REASON_LABEL[result.resolvedReason]
-                ? ` (${AUTO_REASON_LABEL[result.resolvedReason]})`
-                : ""}{" "}
-              ·{" "}
-            </span>
-          )}
-          {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok ·{" "}
-          {result.usageEstimated ? "≈" : ""}${result.costUsd.toFixed(4)}
+          {/* ONE text span beside the icon: a flex parent blockifies each
+              child, so a second span here becomes its own column and the line
+              wraps as two side-by-side stacks with interleaved reading order.
+              All text lives in this single flex item and wraps as normal
+              inline flow (the FolderMark inline-icon idiom). */}
+          <span className="min-w-0">
+            {/* Routing provenance: an auto-routed run says which model it
+                chose — and, when the server explains itself, why — because
+                "Auto" alone tells the user nothing about what they just paid
+                for. */}
+            {result.resolvedTarget && (
+              <>
+                Auto → {TARGET_LABEL[result.resolvedTarget]}
+                {result.resolvedReason && AUTO_REASON_LABEL[result.resolvedReason]
+                  ? ` (${AUTO_REASON_LABEL[result.resolvedReason]})`
+                  : ""}{" "}
+                ·{" "}
+              </>
+            )}
+            {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok ·{" "}
+            {result.usageEstimated ? "≈" : ""}${result.costUsd.toFixed(4)}
+          </span>
         </p>
       </div>
 
@@ -730,7 +738,7 @@ function TransformationDiffImpl({
           </p>
           <ul className="flex flex-col gap-1">
             {result.assumptions.map((a, i) => (
-              <li key={i} className="font-body text-sm text-text">
+              <li key={i} className="font-body break-words text-sm text-text">
                 <span aria-hidden="true" className="text-accent">
                   ▸{" "}
                 </span>
@@ -787,7 +795,7 @@ function TransformationDiffImpl({
             type="button"
             disabled={refinePending || answeredCount === 0}
             onClick={() => onAnswer(result.questions!, answers)}
-            className="btn-laser font-body mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm disabled:opacity-60"
+            className="btn-laser font-body mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm"
           >
             {refinePending ? "Re-running…" : "Answer & re-run"}
           </button>

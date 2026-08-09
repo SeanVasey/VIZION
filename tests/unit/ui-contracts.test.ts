@@ -236,6 +236,62 @@ describe("UI contracts", () => {
       }
     });
   });
+
+  describe("technical marks belong to the SVG glyph language", () => {
+    /**
+     * U+2300–23FF (Miscellaneous Technical) glyphs render as platform-styled
+     * text, outside the Glyph primitive's stroke discipline — INV-002 swept
+     * the emoji ranges but three of these shipped later (⌦ ⌫ ⌸, audit
+     * VAR-10). The one sanctioned exception is ⌁ (U+2301), the decorative
+     * token-ticker mark (PRI-013: aria-hidden with an sr-only phrase).
+     */
+    it("renders no U+2300-23FF codepoint outside the ⌁ allowlist", () => {
+      const offenders: string[] = [];
+      const base = join(ROOT, "src");
+      for (const file of sourceFiles(base)) {
+        const rel = file.slice(base.length + 1).replace(/\\/g, "/");
+        const src = readFileSync(file, "utf8")
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .replace(/(^|[^:])\/\/[^\n]*/g, "$1")
+          .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+        for (const m of src.matchAll(/[⌀-⏿]/g)) {
+          if (m[0] === "⌁") continue;
+          offenders.push(`${rel}: U+${m[0].codePointAt(0)!.toString(16)}`);
+        }
+      }
+      expect(
+        offenders,
+        "draw it as a Glyph in src/components/ui/glyphs.tsx instead",
+      ).toEqual([]);
+    });
+  });
+
+  describe("one disabled dim for Laser CTAs", () => {
+    /**
+     * Call sites had drifted into an 8-vs-9 split of disabled:opacity-50/60
+     * (audit VAR-12) — same recipe class, two dim levels, one file carrying
+     * both. The dim now lives on .btn-laser:disabled itself; a per-site
+     * utility would silently fork the recipe again.
+     */
+    it("defines .btn-laser:disabled with a single opacity", () => {
+      const decls = block(/^\.btn-laser:disabled$/);
+      expect(decls, "no .btn-laser:disabled rule in globals.css").not.toBe("");
+      expect(decls).toMatch(/opacity:\s*0\.6/);
+    });
+
+    it("bans per-site disabled:opacity on btn-laser call sites", () => {
+      const offenders: string[] = [];
+      for (const [rel, cls] of classLists()) {
+        if (cls.includes("btn-laser") && /disabled:opacity-/.test(cls)) {
+          offenders.push(rel);
+        }
+      }
+      expect(
+        offenders,
+        "the disabled dim lives on .btn-laser:disabled — remove the per-site utility",
+      ).toEqual([]);
+    });
+  });
 });
 
 function sourceFiles(dir: string): string[] {

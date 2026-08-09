@@ -20,23 +20,23 @@ export const bebasNeue = localFont({
   display: "swap",
 });
 
+// Vendored weights ⊆ used weights (audit VAR-06, pinned by
+// tests/unit/font-weights.test.ts): RedditSans-700 was preloaded on every
+// route — auth pages included — while no rule in src ever set weight 700,
+// and two JetBrains weights sat vendored-inert. A weight joins this manifest
+// when a consumer (font-bold / font-weight: 700) actually lands.
 export const redditSans = localFont({
   src: [
     { path: "./RedditSans-400.woff2", weight: "400", style: "normal" },
     { path: "./RedditSans-500.woff2", weight: "500", style: "normal" },
     { path: "./RedditSans-600.woff2", weight: "600", style: "normal" },
-    { path: "./RedditSans-700.woff2", weight: "700", style: "normal" },
   ],
   variable: "--font-reddit-sans",
   display: "swap",
 });
 
 export const jetBrainsMono = localFont({
-  src: [
-    { path: "./JetBrainsMono-400.woff2", weight: "400", style: "normal" },
-    { path: "./JetBrainsMono-500.woff2", weight: "500", style: "normal" },
-    { path: "./JetBrainsMono-700.woff2", weight: "700", style: "normal" },
-  ],
+  src: [{ path: "./JetBrainsMono-400.woff2", weight: "400", style: "normal" }],
   variable: "--font-jetbrains",
   display: "swap",
   // The mono family renders ONLY in the enhance/library OUTPUT regions — never

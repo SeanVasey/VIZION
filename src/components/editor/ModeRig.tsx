@@ -126,7 +126,22 @@ export const ModeRig = memo(function ModeRig({
                   inherits the cell's --on-laser so it stays legible on the
                   Laser lens-lock fill. */}
               <ModeIcon id={mode.id} className={active ? undefined : "text-accent"} />
-              <span className="cap-trim leading-none tracking-wide">{mode.label}</span>
+              {/* The sub-360 tracking must live HERE, not only on the button:
+                  this span's own tracking-wide beats an inherited value, so
+                  the cell-level max-[359px]:tracking-tight never reached the
+                  label and Condense/Reformat overflowed their cells at 320.
+                  overflow-wrap:anywhere is the 200%-text-scale valve (audit
+                  VAR-01): at default root sizes every label fits and nothing
+                  breaks, but under OS/browser font scaling a single word may
+                  exceed the cell — breaking mid-word and letting the cell
+                  grow taller beats clipping to fragments ('xpan', 'nden').
+                  `anywhere`, not break-words: this span is a FLEX item, and
+                  overflow-wrap:break-word does not lower min-content sizing
+                  there, so the word sized the box and clipped instead of
+                  breaking (measured). */}
+              <span className="cap-trim leading-none tracking-wide [overflow-wrap:anywhere] max-[359px]:tracking-tight">
+                {mode.label}
+              </span>
             </button>
           );
         })}

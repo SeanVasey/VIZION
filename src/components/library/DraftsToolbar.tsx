@@ -42,7 +42,7 @@ export function DraftsToolbar({
   const chip = (active: boolean) =>
     [
       "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
-      active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
+      active ? "selected-ink bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
     ].join(" ");
 
   return (
@@ -70,7 +70,7 @@ export function DraftsToolbar({
           placeholder="Search drafts"
           autoCapitalize="none"
           autoCorrect="off"
-          className="font-body min-h-[44px] w-full rounded-lg border border-hair bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none"
+          className="glass font-body min-w-0 w-full rounded-xl bg-transparent px-4 py-3 text-base text-text placeholder:text-muted focus:outline-none"
         />
         <button
           type="submit"

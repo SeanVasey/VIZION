@@ -6,7 +6,54 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
-### Added — Auto stops pretending sixteen models are two
+### Design audit (2026-08-09): the approved wave — all 24 proposals land
+
+The owner approved every VAR item in the audit report
+(`docs/audits/03-design-audit-2026-08-09.md`, which now carries the full
+implementation record and per-item dispositions). Highlights, by what a user
+sees: ModeRig labels survive 200% OS text scaling by wrapping instead of
+clipping to fragments; the FAB anchors to the app column instead of the
+viewport corner at desktop widths; the version-compare rail wraps at 320px;
+every saved prompt's tab carries its own title; a transient fetch failure on
+the prompt detail renders a can't-load card instead of a false 404 or "0
+versions"; PromptDetail errors surface beside the controls that raised them;
+the storage meter keeps its meaning in light theme via the -ink fills; the
+library's two sibling views share one furniture set (btn-secondary centered
+Load more, quiet filtered-empty line, visible Search commit) and the Q7 input
+recipe is amended in ADR-0004 to the de-facto two-tier rule with four
+stragglers converted (the composer textarea finally wears its recorded 16px);
+exactly one iOS status-bar meta ships, owned by ThemeManager (the
+metadata-system duplicate measured and removed); unused vendored font weights
+are dropped with a vendored⊆used guard test; the three U+2300 text glyphs
+join the SVG glyph language with a codepoint-scan guard; the scalable SVG
+favicon actually ships via the numbered icon convention; one
+`.btn-laser:disabled` dim replaces the 8-vs-9 per-site split; and
+`docs/preview.png` is recaptured from the shipped v0.3.0 build per the
+recorded recipe. Full before/after and validation per item in the report.
+
+### Design audit (2026-08-09): confirmed minor corrections
+
+An approval-gated design audit (report + approval table:
+`docs/audits/03-design-audit-2026-08-09.md`) applied ten Confirmed Minor
+Corrections — proven defects whose intended result the repo itself records;
+every proposal involving a design choice awaits explicit approval in the
+report. The corrections: the A11Y-003 `selected-ink` cue reaches the four
+active-laser chip groups the capstone fix missed; `.selected-ink:focus-visible`
+re-composes `--focus-ring` (the utility layer had been silently deleting the
+keyboard focus indicator on selected controls — the site comment claimed the
+opposite and is corrected); the Auto-provenance meta line renders as one
+inline run instead of two interleaved flex columns; `break-words` lands on the
+four sans/display surfaces rendering user/model-authored text (a pasted-URL
+title panned the whole page at 320); the Sheet footer's bottom padding takes
+the `max(0.75rem, env(safe-area-inset-bottom))` floor instead of collapsing to
+0 off-notch; ModeRig's sub-360px tracking now reaches the label span (DSN-007's
+recorded "stops overflowing at 320" was measured false — "CondenseReformat");
+the library query-failure branch regains the every-surface `<Footer inset />`;
+the root 404 titles itself "Not found"; error.tsx's heading becomes a real
+`h1` (visually identical); and four docs sites catch up with the Terra/Luna
+tier swap (plus the 33-file icon-matrix count). A 'centre'→'center' copy fix
+was attempted and reverted — a unit test pins the British string, so it rides
+the approval list instead.
 
 Auto routing used to be a two-outcome table: small tidy-up jobs went to
 Sonnet 5, everything else to Opus 5, and fourteen roster models — and the

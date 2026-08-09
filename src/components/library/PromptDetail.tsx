@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { MODES, MODE_LABEL, type ModeId, type TargetModelId } from "@/lib/constants";
 import { boundedDiffWords, countChangedSections } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
-import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
+import {
+  NOT_CONFIGURED_MESSAGE,
+  useEnhance,
+  type EnhanceResponse,
+} from "@/lib/enhance/use-enhance";
 import { useToast } from "@/components/ui/Toast";
 import { useCopy } from "@/components/ui/use-copy";
 import { StreamingResult } from "@/components/diff/StreamingResult";
@@ -54,9 +58,15 @@ export function PromptDetail({
   const router = useRouter();
   const { toast } = useToast();
   const [pending, startTransition] = useTransition();
-  // Server-action failures were previously swallowed — every mutation on this
-  // screen reports here.
+  // Server-action failures were previously swallowed, then funnelled into a
+  // single line at the bottom of the Revise section — which put a failed
+  // Restore's only feedback ~700px below the button that caused it (audit
+  // VAR-23). Each section now owns the errors its controls raise: tags at the
+  // top, history beside Restore, and the original slot keeps revise/save/
+  // delete.
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tagError, setTagError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const target = prompt.target_model as TargetModelId;
 
   // Lazy version bodies: seeded with the server-shipped compare pair, grown
@@ -88,7 +98,7 @@ export function PromptDetail({
           const body = res.body;
           setBodies((prev) => new Map(prev).set(body.id, body));
         } else {
-          setActionError(res.error ?? "Couldn't load that version.");
+          setHistoryError(res.error ?? "Couldn't load that version.");
         }
       });
     },
@@ -211,11 +221,11 @@ export function PromptDetail({
   }
 
   function restore(id: string) {
-    setActionError(null);
+    setHistoryError(null);
     startTransition(async () => {
       const res = await restoreVersionAction(prompt.id, id);
       if (res.ok) router.refresh();
-      else setActionError(res.error ?? "Couldn't restore that version.");
+      else setHistoryError(res.error ?? "Couldn't restore that version.");
     });
   }
 
@@ -247,7 +257,7 @@ export function PromptDetail({
     <div className="flex flex-col gap-6">
       <header>
         {/* h2: the ScreenHeader already carries the screen's h1 ("Prompt"). */}
-        <h2 className="font-display text-balance text-2xl tracking-wide text-text">
+        <h2 className="font-display break-words text-balance text-2xl tracking-wide text-text">
           {prompt.title}
         </h2>
         <p className="font-body mt-1 text-xs tabular-nums text-silver">
@@ -260,15 +270,23 @@ export function PromptDetail({
         promptId={prompt.id}
         tags={prompt.tags}
         disabled={pending}
-        onError={setActionError}
+        onError={setTagError}
         onSaved={() => router.refresh()}
       />
+      {tagError && (
+        <p className="font-body text-sm text-flare" role="alert">
+          {tagError}
+        </p>
+      )}
 
       {/* Current output — the reason the prompt was saved; copy is the primary
           "use it" action and lives where the eyes are. */}
       <section className="flex flex-col gap-3" aria-label="Current output">
         {versions.length >= 2 && (
-          <div className="flex items-center gap-2">
+          // flex-wrap: with two selects + the changed-sections readout the
+          // rail overflows a 320px viewport and pans the whole page (audit
+          // VAR-21) — wrapping drops the readout to its own line instead.
+          <div className="flex flex-wrap items-center gap-2">
             <VersionSelect
               value={aId}
               onChange={setAId}
@@ -398,6 +416,11 @@ export function PromptDetail({
             </li>
           ))}
         </ul>
+        {historyError && (
+          <p className="font-body mt-2 text-sm text-flare" role="alert">
+            {historyError}
+          </p>
+        )}
       </section>
 
       {/* Revise → re-enhance → save as a new version. */}
@@ -431,16 +454,22 @@ export function PromptDetail({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={5}
-          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text focus:outline-none"
+          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-base text-text focus:outline-none"
         />
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={runRevise}
             disabled={enhanceMutation.isPending || draft.trim() === ""}
-            className="btn-laser min-h-[44px] rounded-xl px-4 text-sm disabled:opacity-60"
+            className="btn-laser min-h-[44px] rounded-xl px-4 text-sm"
           >
-            {enhanceMutation.isPending ? "Enhancing…" : "► Re-enhance"}
+            {enhanceMutation.isPending ? (
+              <>
+                <span className="spinner" aria-hidden="true" /> Enhancing…
+              </>
+            ) : (
+              "► RE-ENHANCE"
+            )}
           </button>
           {revised && (
             <button
@@ -472,7 +501,7 @@ export function PromptDetail({
           <>
             <p className="font-body text-sm text-flare" role="alert">
               {enhanceMutation.error.notConfigured
-                ? "This model isn't configured yet — add its API key on the server."
+                ? NOT_CONFIGURED_MESSAGE
                 : enhanceMutation.error.message}
             </p>
             {/* Same as the composer: text that already streamed survives a

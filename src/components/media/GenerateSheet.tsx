@@ -170,7 +170,7 @@ export function GenerateSheet({
               onClick={() => pickEngine(t.id)}
               className={`tap-44 font-body rounded-full px-3 py-1.5 text-xs transition-colors ${
                 engine === t.id
-                  ? "bg-laser font-medium text-on-laser"
+                  ? "selected-ink bg-laser font-medium text-on-laser"
                   : "glass text-silver hover:text-chalk"
               }`}
             >
@@ -190,7 +190,7 @@ export function GenerateSheet({
           placeholder={
             editorDraft ? "Using your editor prompt…" : "Describe what to generate…"
           }
-          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-sm text-text placeholder:text-muted focus:outline-none"
+          className="glass font-body w-full resize-y rounded-xl bg-transparent p-3 text-base text-text placeholder:text-muted focus:outline-none"
         />
 
         <div className="glass rounded-2xl p-4">

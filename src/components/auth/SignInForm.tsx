@@ -203,7 +203,7 @@ export function SignInForm({
           subtle
           type="submit"
           disabled={busy}
-          className="btn-laser font-body flex min-h-[48px] items-center justify-center rounded-xl px-6 text-base disabled:opacity-60"
+          className="btn-laser font-body flex min-h-[48px] items-center justify-center rounded-xl px-6 text-base"
         >
           {busy
             ? withPassword

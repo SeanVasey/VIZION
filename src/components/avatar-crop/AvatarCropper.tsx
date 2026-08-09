@@ -282,7 +282,7 @@ export function AvatarCropper({
       className="glass flex w-full max-w-sm flex-col items-center gap-5 rounded-2xl p-5 focus:outline-none"
     >
       <p id={hintId} className="sr-only">
-        Drag to pan, tap a point to centre it, or use the arrow keys.
+        Drag to pan, tap a point to center it, or use the arrow keys.
       </p>
       {/* Square viewport with a circular mask: dimmed corners + a ring. */}
       <div
@@ -370,7 +370,7 @@ export function AvatarCropper({
           type="button"
           onClick={onSave}
           disabled={disabled}
-          className="btn-laser flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-4 text-sm disabled:opacity-60"
+          className="btn-laser flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-4 text-sm"
         >
           {rendering ? "Saving…" : "Use photo"}
         </button>

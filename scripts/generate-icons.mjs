@@ -176,13 +176,17 @@ async function main() {
   );
 
   // 5. Next.js App Router auto-wired icons:
-  //    • icon.svg   — scalable favicon (preferred by modern browsers)
-  //    • icon.png   — raster fallback
+  //    • icon0.svg  — scalable favicon (preferred by modern browsers)
+  //    • icon1.png  — raster fallback
   //    • apple-icon.png — home-screen tile
+  // NUMBERED names, not icon.svg + icon.png: with both unnumbered files Next
+  // emitted a link for the PNG only, so the SVG was generated and served but
+  // never referenced by any tag (audit VAR-15). The numbered convention makes
+  // Next link both, SVG first.
   console.log("Rendering Next.js App Router icons...");
-  await fs.copyFile(ICON_SVG, path.join(APP_DIR, "icon.svg"));
-  logWrite(path.join(APP_DIR, "icon.svg"));
-  await renderSquarePng(iconSvg, 512, path.join(APP_DIR, "icon.png"), { flatten: true });
+  await fs.copyFile(ICON_SVG, path.join(APP_DIR, "icon0.svg"));
+  logWrite(path.join(APP_DIR, "icon0.svg"));
+  await renderSquarePng(iconSvg, 512, path.join(APP_DIR, "icon1.png"), { flatten: true });
   await renderSquarePng(iconSvg, 180, path.join(APP_DIR, "apple-icon.png"), {
     flatten: true,
   });

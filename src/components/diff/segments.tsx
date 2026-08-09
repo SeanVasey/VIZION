@@ -51,17 +51,31 @@ export function InputSegments({ segments }: { segments: DiffSegment[] }) {
 export function ComparisonSegments({ segments }: { segments: DiffSegment[] }) {
   return (
     <>
-      {segments.map((seg, i) =>
-        seg.op === "removed" ? (
-          <span key={i} className={REMOVED_CLASS}>
+      {segments.map((seg, i) => {
+        // A word replacement renders as removed→added with nothing between:
+        // the LCS matches the single space BETWEEN words as equal, so the
+        // struck word and its replacement abut and read as one fused token
+        // ("AnnounceWrite"). A thin margin between opposite-op neighbours is
+        // presentation only — the diff data is untouched (audit VAR-22).
+        const next = segments[i + 1];
+        const fused =
+          next &&
+          ((seg.op === "removed" && next.op === "added") ||
+            (seg.op === "added" && next.op === "removed"));
+        const gap = fused ? " mr-[0.25ch]" : "";
+        return seg.op === "removed" ? (
+          <span key={i} className={REMOVED_CLASS + gap}>
             {seg.text}
           </span>
         ) : (
-          <span key={i} className={seg.op === "added" ? ADDED_CLASS : undefined}>
+          <span
+            key={i}
+            className={seg.op === "added" ? ADDED_CLASS + gap : undefined}
+          >
             {seg.text}
           </span>
-        ),
-      )}
+        );
+      })}
     </>
   );
 }

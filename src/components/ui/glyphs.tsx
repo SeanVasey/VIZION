@@ -74,6 +74,28 @@ export function PencilMark({ className }: { className?: string }) {
   );
 }
 
+/** Remove-from-collection: the FolderMark silhouette with a minus (audit
+ *  VAR-10 — replaces the U+232B text glyph, which rendered as platform type
+ *  outside the SVG glyph language). */
+export function FolderMinusMark({ className }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+      <path d="M9 13.5h6" />
+    </Glyph>
+  );
+}
+
+/** Paste from clipboard (audit VAR-10 — replaces the U+2338 text glyph). */
+export function ClipboardMark({ className }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <rect x="5.5" y="4.5" width="13" height="16" rx="2" />
+      <path d="M9.5 4.5V4A1.5 1.5 0 0 1 11 2.5h2A1.5 1.5 0 0 1 14.5 4v.5" />
+    </Glyph>
+  );
+}
+
 /** Cap-warning triangle. */
 export function WarningMark({ className }: { className?: string }) {
   return (

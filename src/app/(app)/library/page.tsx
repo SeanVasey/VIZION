@@ -80,6 +80,7 @@ export default async function LibraryPage({
               Your prompts are safe on the server — check your connection and reload.
             </p>
           </div>
+          <Footer inset />
         </div>
       </>
     );

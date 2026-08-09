@@ -60,7 +60,7 @@ export function AttachmentDetailsSheet({
             type="button"
             disabled={!primaryInsert.text.trim()}
             onClick={() => onInsert(item.id, primaryInsert.text)}
-            className="btn-laser flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm disabled:opacity-50"
+            className="btn-laser flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm"
           >
             ↑ {primaryInsert.label}
           </button>

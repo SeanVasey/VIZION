@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import { useEnhanceViewStore } from "@/stores/enhance-view";
 import { TARGET_THINKING_LEVELS, type ThinkingLevel } from "@/lib/constants";
-import { useEnhance } from "@/lib/enhance/use-enhance";
+import { NOT_CONFIGURED_MESSAGE, useEnhance } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { TargetPicker } from "@/components/models/TargetPicker";
@@ -19,7 +19,7 @@ import { AttachmentTray } from "@/components/media/AttachmentTray";
 import { KeyboardActionBar } from "@/components/editor/KeyboardActionBar";
 import { TemplateSheet } from "@/components/editor/TemplateSheet";
 import { Segmented } from "@/components/ui/Segmented";
-import { TemplateMark, WarningMark } from "@/components/ui/glyphs";
+import { ClipboardMark, TemplateMark, WarningMark } from "@/components/ui/glyphs";
 import { useDraftParam } from "@/components/editor/use-draft-param";
 import { FORMATS, FORMAT_LABEL } from "@/lib/enhance/formats";
 import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
@@ -542,7 +542,7 @@ export function EnhanceComposer() {
           }}
           placeholder="Type or paste your prompt…"
           rows={8}
-          className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
+          className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-base text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
         />
 
         {dragging && (
@@ -569,7 +569,7 @@ export function EnhanceComposer() {
                 onClick={pasteFromClipboard}
                 className="glass font-body pill tap-44 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-silver transition-colors hover:text-chalk"
               >
-                <span aria-hidden="true">⌸</span> Paste from clipboard
+                <ClipboardMark /> Paste from clipboard
               </button>
             )}
             {/* The blank page needs a way in that isn't typing. Offered only
@@ -622,7 +622,7 @@ export function EnhanceComposer() {
               subtle
               onClick={runEnhance}
               disabled={enhanceMutation.isPending || isEmpty}
-              className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
+              className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm"
             >
               {enhanceMutation.isPending ? (
                 <>
@@ -648,7 +648,7 @@ export function EnhanceComposer() {
             role="alert"
           >
             {enhanceMutation.error.notConfigured
-              ? "This model isn't configured yet — add its API key on the server to enable it."
+              ? NOT_CONFIGURED_MESSAGE
               : enhanceMutation.error.message}
           </p>
           {/* Anything that already streamed in survives the failure — a run

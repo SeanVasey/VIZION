@@ -42,12 +42,42 @@ export default function EnhanceLoading() {
           </div>
           <Skeleton className="mx-auto h-3 w-3/5 rounded" />
         </div>
-        {/* Editor + rails + CTA. */}
-        <div className="glass rounded-2xl p-4">
-          <Skeleton lines={3} />
+        {/* The composer chassis — ONE solid rounded-rectangle holding rails,
+            editor, tray rows and the CTA, exactly as EnhanceComposer ships it
+            (its comment: "every control lives within the one rounded-
+            rectangle"). The skeleton had drifted to the pre-chassis layout of
+            three separate blocks (audit VAR-09). */}
+        <div className="glass-solid flex flex-col rounded-2xl">
+          {/* Target + Thinking rails. */}
+          <div className="flex min-h-[56px] items-center justify-between px-4 py-3">
+            <Skeleton className="h-3 w-16 rounded" />
+            <Skeleton className="h-9 w-32 rounded-full" />
+          </div>
+          <div className="flex min-h-[56px] items-center justify-between border-t border-hair px-4 py-3">
+            <Skeleton className="h-3 w-20 rounded" />
+            <Skeleton className="h-9 w-28 rounded-full" />
+          </div>
+          {/* Editor area. */}
+          <div className="border-t border-hair px-4 py-4">
+            <Skeleton lines={3} />
+            <div className="h-16" />
+          </div>
+          {/* Template chip row. */}
+          <div className="border-t border-hair px-4 py-3">
+            <Skeleton className="h-9 w-36 rounded-full" />
+          </div>
+          {/* Attach row. */}
+          <div className="flex items-center gap-3 border-t border-hair px-4 py-3">
+            <Skeleton className="h-11 w-36 rounded-full" />
+            <Skeleton className="ml-auto h-9 w-32 rounded-full" />
+          </div>
+          {/* Bottom rail: token estimate · Clear · ENHANCE. */}
+          <div className="flex min-h-[60px] items-center border-t border-hair px-4 py-2">
+            <Skeleton className="h-3 w-20 rounded" />
+            <Skeleton className="ml-auto mr-4 h-3 w-12 rounded" />
+            <Skeleton className="h-11 w-36 rounded-full" />
+          </div>
         </div>
-        <Skeleton className="h-11 w-full rounded-xl" />
-        <Skeleton className="mx-auto h-11 w-40 rounded-full" />
       </div>
     </>
   );

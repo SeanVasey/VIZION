@@ -14,9 +14,13 @@ export default function RouteError({
   return (
     <div className="mx-auto flex max-w-screen-sm flex-col px-4 py-5 pt-safe">
       <div className="glass rounded-2xl p-6 text-center">
-        <p className="font-display text-balance text-xl tracking-wide text-text">
+        {/* h1, not p: this boundary replaces everything under the root layout,
+            so without it the crash document has no heading at all — the same
+            "every screen gets an h1" rule ScreenHeader records. Visually
+            identical: preflight resets headings and the classes govern. */}
+        <h1 className="font-display text-balance text-xl tracking-wide text-text">
           Something went wrong
-        </p>
+        </h1>
         <p className="font-body mt-2 text-sm text-muted">
           The screen hit an unexpected error. Your prompts are safe on the
           server — try again.

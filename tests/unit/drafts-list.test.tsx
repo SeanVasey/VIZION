@@ -176,7 +176,7 @@ describe("Drafts list", () => {
 
   it("does not claim you have no drafts when a search simply matched none", () => {
     renderList([], false, { view: "drafts", sort: "updated", q: "otters" });
-    expect(screen.getByText("No drafts match")).toBeTruthy();
+    expect(screen.getByText(/No drafts match\./)).toBeTruthy();
     expect(screen.queryByText("No drafts")).toBeNull();
   });
 

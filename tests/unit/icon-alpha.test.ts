@@ -73,7 +73,7 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
     join(ICONS, "favicon-16.png"),
     join(ICONS, "favicon-32.png"),
     join(ICONS, "favicon-48.png"),
-    join(ROOT, "src", "app", "icon.png"),
+    join(ROOT, "src", "app", "icon1.png"),
     join(ROOT, "src", "app", "apple-icon.png"),
   ];
 

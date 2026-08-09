@@ -49,6 +49,25 @@ The owner console's native range input (Q18/`DSN-022`) is a third, distinct
 control class (a slider, not a text field) and is exempt from the text-input
 recipe; it is tinted with `--accent-ink`.
 
+**Amended 2026-08-09 (audit VAR-03, owner-approved).** The shipped fields had
+diverged from the tier assignment above — the named tier-1 exemplar (the
+composer textarea) wore `text-sm`, while the named tier-2 examples (rename,
+collection name) wore glass/`text-base` — so the recorded rule is restated to
+match the de-facto system the code actually follows:
+
+- **Floating / primary work surfaces** — the composer textarea, the library
+  and drafts search fields, sheet fields (rename, collection name, confirm
+  phrase, clarify answers, generation base prompt), and the sign-in fields:
+  `glass` (or transparent inside a glass/solid chassis), `text-base` (16px,
+  the iOS no-zoom floor), `rounded-xl`.
+- **Settings / utility forms** — the Settings identity fields and similar
+  labeled form rows: `surface`, `text-sm`, `rounded-lg`, tighter padding.
+
+Converted to conform in the same change: the composer textarea, the drafts
+search (which now matches the library search beside it), the revise textarea,
+and the generation base prompt (`text-sm` → `text-base`; drafts search also
+`surface/rounded-lg` → `glass/rounded-xl`).
+
 ### Q8 — The AvatarCropper viewfinder mask is tokenized (`DSN-020`)
 
 The only hardcoded `rgba` box-shadow in components is replaced with a

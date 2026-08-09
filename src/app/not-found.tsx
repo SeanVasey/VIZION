@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ScreenHeader } from "@/components/ScreenHeader";
+
+/* The only routed surface without a title left the root default in the tab;
+   every sibling titles itself, and the template appends "· VIZION". */
+export const metadata: Metadata = { title: "Not found" };
 
 /**
  * Branded 404 — notFound() (e.g. a mistyped or foreign /library/<id>, which

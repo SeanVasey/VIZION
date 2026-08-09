@@ -111,8 +111,8 @@ export function StreamingResult({
           /* Waiting for the first token — pending is stated by the step live
              region above; these lines are pure decoration. */
           <div className="flex flex-col gap-2" aria-hidden="true">
-            <span className="skeleton h-4 w-11/12 rounded-md" />
-            <span className="skeleton h-4 w-4/5 rounded-md" />
+            <span className="skeleton h-4 w-11/12 rounded" />
+            <span className="skeleton h-4 w-4/5 rounded" />
           </div>
         )}
       </div>

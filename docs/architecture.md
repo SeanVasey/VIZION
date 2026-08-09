@@ -94,7 +94,7 @@ adapter, which translates it onto that provider's parameter:
 | Provider                                | Parameter                                       | Levels offered                    |
 | --------------------------------------- | ----------------------------------------------- | --------------------------------- |
 | Anthropic (Fable 5 · Opus 5 · Sonnet 5) | `output_config.effort`                          | low · medium · high · xhigh · max |
-| OpenAI (GPT-5.6 Sol/Luna/Terra)         | `reasoning_effort`                              | low · medium · high               |
+| OpenAI (GPT-5.6 Sol/Terra/Luna)         | `reasoning_effort`                              | low · medium · high               |
 | Google (Gemini 3.6 Flash)               | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high     |
 | Qwen (Qwen3.8 Max)                      | `enable_thinking` + `thinking_budget` (tokens)  | low · medium · high · xhigh · max |
 | xAI (Grok 4.5)                          | `reasoning_effort`                              | low · medium · high               |
