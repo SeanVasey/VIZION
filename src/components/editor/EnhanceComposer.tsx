@@ -4,8 +4,11 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import { useEnhanceViewStore } from "@/stores/enhance-view";
 import {
+  AUTO_PREFERENCES,
+  AUTO_PREFERENCE_LABEL,
   TARGET_THINKING_LEVELS,
   THINKING_LEVEL_LABEL,
+  type AutoPreference,
   type ThinkingLevel,
 } from "@/lib/constants";
 import { NOT_CONFIGURED_MESSAGE, useEnhance } from "@/lib/enhance/use-enhance";
@@ -61,6 +64,17 @@ function buildThinkingDetents(ladder: readonly ThinkingLevel[]): Detent[] {
     })),
   ];
 }
+
+/** Auto-routing's budget slider, cheapest first so the fill grows with
+ *  spend: budget → balanced → quality. That is AUTO_PREFERENCES *reversed* —
+ *  the wire constant is quality-first and test-pinned, so the display order
+ *  is derived here, never by reordering the constant. No ultra tier: the
+ *  ramp tops out at laser, and the fill width does the disambiguating. */
+const BUDGET_DETENTS: Detent[] = [...AUTO_PREFERENCES].reverse().map((p) => ({
+  id: p,
+  label: AUTO_PREFERENCE_LABEL[p],
+  tone: p === "budget" ? "silver" : "laser",
+}));
 
 /**
  * The control pill shared by the Target and Thinking rails.
@@ -395,6 +409,25 @@ export function EnhanceComposer() {
     [targetModel],
   );
 
+  // The Target rail's budget slider — live ONLY while Auto routing is on.
+  // A hold that silently flipped Auto on would be an invisible mode change
+  // from a control that didn't advertise it, so plain-model mode stays a
+  // pure tap trigger (the wrapper claims nothing while disabled).
+  const budgetSelectedIndex = BUDGET_DETENTS.findIndex(
+    (d) => d.id === autoPreference,
+  );
+  const onBudgetCommit = useCallback(
+    (index: number) => {
+      const detent = BUDGET_DETENTS[index];
+      if (detent) setAutoPreference(detent.id as AutoPreference);
+    },
+    [setAutoPreference],
+  );
+  const budgetLiveLabel = useCallback(
+    (detent: Detent) => `Auto · ${detent.label}`,
+    [],
+  );
+
   // Persist Polish's revert decisions with the result they belong to — as
   // component state in the diff they died on navigation while the result now
   // survives, silently shipping the model's fully-accepted output (Codex
@@ -512,16 +545,28 @@ export function EnhanceComposer() {
           <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
             Target
           </span>
-          <TargetPicker
-            label="Target model"
-            value={targetModel}
-            onChange={setTargetModel}
-            auto={autoTarget}
-            onAutoChange={setAutoTarget}
-            autoPreference={autoPreference}
-            onAutoPreferenceChange={setAutoPreference}
-            triggerClassName={RAIL_TRIGGER_CLASS}
-          />
+          {/* Budget hold-slider (ADR-0012), live only while Auto routing is
+              on — disabled it claims nothing and the pill is a pure tap
+              trigger. Same wrapper as the Thinking rail, so both pills carry
+              the same affordance and the matched-pair contract holds. */}
+          <HoldSliderTrigger
+            detents={BUDGET_DETENTS}
+            selectedIndex={budgetSelectedIndex}
+            liveLabel={budgetLiveLabel}
+            onCommit={onBudgetCommit}
+            enabled={autoTarget}
+          >
+            <TargetPicker
+              label="Target model"
+              value={targetModel}
+              onChange={setTargetModel}
+              auto={autoTarget}
+              onAutoChange={setAutoTarget}
+              autoPreference={autoPreference}
+              onAutoPreferenceChange={setAutoPreference}
+              triggerClassName={RAIL_TRIGGER_CLASS}
+            />
+          </HoldSliderTrigger>
         </div>
 
         {/* Thinking rail — reasoning depth, only for targets whose provider

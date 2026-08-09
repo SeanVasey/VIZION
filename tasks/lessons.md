@@ -2958,3 +2958,39 @@ render identical; account change wipes storage before rehydrating (the
   referenced for months; the numbered convention (`icon0.svg`, `icon1.png`)
   emits both links, SVG first. When a generator claims a browser behavior,
   curl the head it actually produces.
+
+## 2026-08-09 — Hold-sliders on the composer rails (ADR-0012)
+
+- **A viewport clamp breaks the "anchored under the finger" premise — drag
+  mapping must be RELATIVE.** The overlay track anchors the selected detent
+  under the pointer-down x, then clamps to the viewport; on a phone the
+  composer pills sit near the right edge, so the clamp displaces the track
+  and the finger starts over some OTHER detent. Mapping `clientX` to detents
+  absolutely teleported Auto → Max on the first move. Record
+  `fingerX − selectedCenter` at activation and subtract it from every move.
+  The unit tests (constant-derived geometry, no layout) were green through
+  all of this — only the e2e drag in mobile emulation caught it, which is
+  the argument for including mouse in a touch gesture.
+- **A two-phase gesture needs a two-phase axis claim.** `touch-action` is
+  consulted once, at gesture start — `pan-y pinch-zoom` rightly leaves
+  vertical scroll native before the hold fires, but that decision cannot be
+  revoked mid-gesture from CSS. Once active, a non-passive window
+  `touchmove` preventDefault is the only way to keep a vertical wander from
+  panning the page under the drag. Remove it at teardown; never widen the
+  resting claim to `none` instead (that defect already shipped once,
+  app-wide).
+- **jsdom timer-driven state needs `act()` even under testing-library.**
+  Every `fireEvent` is act-wrapped; the hold timer's setState is not — the
+  overlay "never appeared" in the first test run purely because the flush
+  hadn't happened. `act(() => vi.advanceTimersByTime(HOLD_MS))` is part of
+  the gesture-test recipe now, alongside pointerId-carrying fireEvents.
+- **An always-mounted announcement region must not take `role="status"` in
+  a tree that already owns one.** The result view's tests query
+  `getByRole("status")` singular (and clarify-questions pins the count).
+  `aria-live="polite"` alone announces; the role added nothing but the
+  collision.
+- **Escape-while-held reverts need click suppression at POINTER-UP, not on
+  a timer.** The settle-flag + `setTimeout(0)` recipe (use-swipe-actions)
+  assumes the click follows immediately; after Escape the finger can stay
+  down for seconds, so mark cancelled and settle when the lift eventually
+  fires.

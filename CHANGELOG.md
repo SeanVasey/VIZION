@@ -27,6 +27,14 @@ All notable changes to VIZION are documented here. The format follows
   ("Opus 5 · Extra High") and the fill wears the meter glyph's own ramp:
   faint for Auto, silver through Low, laser for Medium/High, the ultra
   violet above. A plain tap still opens the sheet unchanged.
+- **Auto-routing budget hold-slider**: while Auto routing is on, the same
+  press-and-hold on the Target pill drags the three routing presets,
+  cheapest first (Budget → Balanced → Quality) so the fill grows with
+  spend; with Auto off the pill stays a pure tap trigger — a hold never
+  silently enables routing. The pill now also names the active preference
+  at rest ("Auto · Balanced") instead of a bare "Auto", so the budget the
+  slider adjusts is visible without opening the sheet (Settings keeps the
+  bare label — it wires no preference).
 
 ### Design audit (2026-08-09): the approved wave — all 24 proposals land
 

@@ -138,9 +138,17 @@ function TargetPickerImpl({
           )
         )}
         {/* `grow` so a full-width trigger (Settings) pushes the chevron to the
-            right edge; in a content-width pill (composer) it is a no-op. */}
+            right edge; in a content-width pill (composer) it is a no-op.
+            Under Auto the pill names the active routing preference too —
+            "Auto · Balanced" — so the budget the hold-slider adjusts is
+            visible at rest, not only inside the sheet. Settings passes no
+            preference and keeps the bare "Auto". */}
         <span className="grow truncate text-left">
-          {auto ? "Auto" : targetLabel(value)}
+          {auto
+            ? autoPreference
+              ? `Auto · ${AUTO_PREFERENCE_LABEL[autoPreference]}`
+              : "Auto"
+            : targetLabel(value)}
         </span>
         <svg
           aria-hidden="true"
