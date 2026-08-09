@@ -6,6 +6,16 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Theme toggle wears categorical marks** — sun (light), moon (dark),
+  monitor (system) — in the SVG glyph language, replacing the rotated
+  half-circle text glyphs (◐ ◑ ◓) that told the modes apart only by
+  rotation. The mark tracks the stored *setting*, never the resolved
+  appearance: under "system" the monitor shows even while the OS resolves
+  dark, so a deliberate dark choice and an inherited one are visually
+  distinct at a glance.
+
 ### Added
 
 - **Hold-slider control class** (`useHoldDrag` + `HoldSliderTrigger`/
