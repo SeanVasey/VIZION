@@ -297,7 +297,7 @@ export function SettingsPanel({
             disabled={
               !identityDirty || !displayNameValid || status.identity?.state === "saving"
             }
-            className="btn-laser ml-auto flex min-h-[44px] items-center justify-center rounded-xl px-5 text-sm disabled:opacity-50"
+            className="btn-laser ml-auto flex min-h-[44px] items-center justify-center rounded-xl px-5 text-sm"
           >
             {status.identity?.state === "saving" ? "Saving…" : "Save changes"}
           </button>
@@ -442,7 +442,7 @@ export function SettingsPanel({
             type="button"
             onClick={submitEmailChange}
             disabled={newEmail.trim() === ""}
-            className="btn-laser flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm disabled:opacity-50"
+            className="btn-laser flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm"
           >
             Send confirmation
           </button>
@@ -578,7 +578,7 @@ function ChangePassword({
         <button
           type="submit"
           disabled={status?.state === "saving"}
-          className="btn-laser min-h-[44px] flex-1 rounded-xl px-5 text-sm disabled:opacity-60"
+          className="btn-laser min-h-[44px] flex-1 rounded-xl px-5 text-sm"
         >
           {status?.state === "saving" ? "Saving…" : "Update"}
         </button>

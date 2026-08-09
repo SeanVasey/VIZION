@@ -370,7 +370,7 @@ export function AvatarCropper({
           type="button"
           onClick={onSave}
           disabled={disabled}
-          className="btn-laser flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-4 text-sm disabled:opacity-60"
+          className="btn-laser flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-4 text-sm"
         >
           {rendering ? "Saving…" : "Use photo"}
         </button>

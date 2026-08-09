@@ -440,7 +440,7 @@ export function DraftsList({
                 editBaseVersion === null ||
                 editBody.trim() === ""
               }
-              className="btn-laser flex min-h-[44px] flex-1 items-center justify-center px-5 text-sm disabled:opacity-50"
+              className="btn-laser flex min-h-[44px] flex-1 items-center justify-center px-5 text-sm"
             >
               {savingEdit ? "Saving…" : "Save changes"}
             </button>

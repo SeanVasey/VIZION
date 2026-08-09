@@ -112,7 +112,7 @@ export function CollectionSheet({
                         () => setRenaming(null),
                       )
                     }
-                    className="btn-laser min-h-[44px] shrink-0 rounded-xl px-4 text-sm disabled:opacity-50"
+                    className="btn-laser min-h-[44px] shrink-0 rounded-xl px-4 text-sm"
                   >
                     Save
                   </button>
@@ -192,7 +192,7 @@ export function CollectionSheet({
             type="button"
             disabled={pending || createDraft.trim() === ""}
             onClick={createAndMove}
-            className="btn-laser min-h-[44px] shrink-0 rounded-xl px-4 text-sm disabled:opacity-50"
+            className="btn-laser min-h-[44px] shrink-0 rounded-xl px-4 text-sm"
           >
             Create
           </button>

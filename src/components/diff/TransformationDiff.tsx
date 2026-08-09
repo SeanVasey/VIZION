@@ -660,7 +660,7 @@ function TransformationDiffImpl({
               type="button"
               onClick={saveAsNewVersion}
               disabled={saving}
-              className="btn-laser flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm disabled:opacity-60"
+              className="btn-laser flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm"
             >
               {saving ? "Saving…" : "Save as new version"}
             </button>
@@ -795,7 +795,7 @@ function TransformationDiffImpl({
             type="button"
             disabled={refinePending || answeredCount === 0}
             onClick={() => onAnswer(result.questions!, answers)}
-            className="btn-laser font-body mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm disabled:opacity-60"
+            className="btn-laser font-body mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 text-sm"
           >
             {refinePending ? "Re-running…" : "Answer & re-run"}
           </button>

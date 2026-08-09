@@ -236,6 +236,33 @@ describe("UI contracts", () => {
       }
     });
   });
+
+  describe("one disabled dim for Laser CTAs", () => {
+    /**
+     * Call sites had drifted into an 8-vs-9 split of disabled:opacity-50/60
+     * (audit VAR-12) — same recipe class, two dim levels, one file carrying
+     * both. The dim now lives on .btn-laser:disabled itself; a per-site
+     * utility would silently fork the recipe again.
+     */
+    it("defines .btn-laser:disabled with a single opacity", () => {
+      const decls = block(/^\.btn-laser:disabled$/);
+      expect(decls, "no .btn-laser:disabled rule in globals.css").not.toBe("");
+      expect(decls).toMatch(/opacity:\s*0\.6/);
+    });
+
+    it("bans per-site disabled:opacity on btn-laser call sites", () => {
+      const offenders: string[] = [];
+      for (const [rel, cls] of classLists()) {
+        if (cls.includes("btn-laser") && /disabled:opacity-/.test(cls)) {
+          offenders.push(rel);
+        }
+      }
+      expect(
+        offenders,
+        "the disabled dim lives on .btn-laser:disabled — remove the per-site utility",
+      ).toEqual([]);
+    });
+  });
 });
 
 function sourceFiles(dir: string): string[] {

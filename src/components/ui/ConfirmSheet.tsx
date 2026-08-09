@@ -38,6 +38,12 @@ export function ConfirmSheet({
   }, [open]);
   const blocked = requireText !== undefined && typed !== requireText;
 
+  // The destructive arm keeps its per-site dim: only .btn-laser carries a
+  // :disabled rule of its own (audit VAR-12).
+  const confirmVariant = destructive
+    ? "btn-destructive disabled:opacity-50"
+    : "btn-laser";
+
   return (
     <Sheet
       open={open}
@@ -59,9 +65,7 @@ export function ConfirmSheet({
               onConfirm();
               onClose();
             }}
-            className={`${
-              destructive ? "btn-destructive" : "btn-laser"
-            } flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm disabled:opacity-50`}
+            className={`${confirmVariant} flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm`}
           >
             {confirmLabel}
           </PressableButton>

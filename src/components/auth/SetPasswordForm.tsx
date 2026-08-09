@@ -54,7 +54,7 @@ export function SetPasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="btn-laser flex min-h-[48px] items-center justify-center rounded-xl px-6 text-base disabled:opacity-60"
+        className="btn-laser flex min-h-[48px] items-center justify-center rounded-xl px-6 text-base"
       >
         {pending ? "Saving…" : "Set password & continue"}
       </button>

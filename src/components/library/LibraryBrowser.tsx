@@ -447,7 +447,7 @@ function CardActionsSheet({
             type="button"
             disabled={pending || title.trim() === "" || title.trim() === prompt.title}
             onClick={() => run(() => updatePromptTitleAction(prompt.id, title))}
-            className="btn-laser min-h-[44px] shrink-0 rounded-xl px-4 text-sm disabled:opacity-50"
+            className="btn-laser min-h-[44px] shrink-0 rounded-xl px-4 text-sm"
           >
             Rename
           </button>

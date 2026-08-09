@@ -196,7 +196,11 @@ export function MediaManager({ onChanged }: { onChanged?: () => void }) {
       {/* Byte meter — quota state is visible at ANY usage level. */}
       <div className="h-1.5 overflow-hidden rounded-full bg-hair" aria-hidden="true">
         <div
-          className={`h-full rounded-full ${budget.warn ? "bg-amber" : "bg-laser"}`}
+          // -ink fills, not raw laser/amber: on light the raw hues measure
+          // 1.06–1.57:1 against the card and vanish (audit VAR-05, the
+          // INV-001 rule applied to this 6px bar). On dark the inks ARE the
+          // raw hues, so nothing changes there.
+          className={`h-full rounded-full ${budget.warn ? "bg-amber-ink" : "bg-accent"}`}
           style={{ width: `${Math.min(100, Math.round(budget.pct * 100))}%` }}
         />
       </div>

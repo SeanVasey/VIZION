@@ -166,7 +166,7 @@ export function NewPromptFab() {
               type="button"
               onClick={saveThenStart}
               disabled={pending}
-              className="btn-laser flex min-h-[44px] w-full items-center justify-center px-5 text-sm disabled:opacity-50"
+              className="btn-laser flex min-h-[44px] w-full items-center justify-center px-5 text-sm"
             >
               {pending ? "Saving…" : "Save draft"}
             </button>

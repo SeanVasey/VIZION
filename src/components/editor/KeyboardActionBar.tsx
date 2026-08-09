@@ -67,7 +67,7 @@ function KeyboardActionBarImpl({
         onPointerDown={(e) => e.preventDefault()}
         onClick={onEnhance}
         disabled={disabled}
-        className="btn-laser pill flex h-11 items-center gap-1.5 px-4 text-sm disabled:opacity-60"
+        className="btn-laser pill flex h-11 items-center gap-1.5 px-4 text-sm"
       >
         {pending ? (
           <>

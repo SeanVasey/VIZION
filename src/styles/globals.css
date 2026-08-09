@@ -465,6 +465,14 @@
   .btn-laser:active:not(:disabled) {
     filter: brightness(0.94);
   }
+  /* ONE disabled dim for every Laser CTA. Call sites had drifted into an
+     8-vs-9 split of disabled:opacity-50/60 utilities (audit VAR-12); 0.6 is
+     the value the flagship CTAs (ENHANCE, sign-in) already shipped, and the
+     higher floor keeps the --on-laser label legible while dimmed. Per-site
+     disabled:opacity-* on btn-laser is banned by ui-contracts.test.ts. */
+  .btn-laser:disabled {
+    opacity: 0.6;
+  }
 
   /* The floating "New prompt" button — the one Laser fill that sits ON TOP of
      content rather than in the flow, so it is the one that has to stop hiding

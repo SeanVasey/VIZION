@@ -438,9 +438,15 @@ export function PromptDetail({
             type="button"
             onClick={runRevise}
             disabled={enhanceMutation.isPending || draft.trim() === ""}
-            className="btn-laser min-h-[44px] rounded-xl px-4 text-sm disabled:opacity-60"
+            className="btn-laser min-h-[44px] rounded-xl px-4 text-sm"
           >
-            {enhanceMutation.isPending ? "Enhancing…" : "► Re-enhance"}
+            {enhanceMutation.isPending ? (
+              <>
+                <span className="spinner" aria-hidden="true" /> Enhancing…
+              </>
+            ) : (
+              "► Re-enhance"
+            )}
           </button>
           {revised && (
             <button

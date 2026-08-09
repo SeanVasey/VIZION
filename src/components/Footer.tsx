@@ -99,10 +99,13 @@ export function Footer({ inset = false }: { inset?: boolean }) {
       {/* font-body, not font-mono: JetBrains is scoped to the enhanced-prompt
           output region only (INV-11 / R2); tabular-nums keeps the version
           digits steady in Reddit Sans. */}
-      <p className="font-body mb-4 text-[11px] tabular-nums text-silver">
+      {/* 0.6875rem, not 11px: same size at the default root, but the rem
+          register (all five sibling 11px sites) scales with the user's
+          browser font-size preference where px stays frozen (audit VAR-19). */}
+      <p className="font-body mb-4 text-[0.6875rem] tabular-nums text-silver">
         VIZION v{APP_VERSION} · Multi-Model Prompt Studio
       </p>
-      <p className="font-body text-[11px] leading-relaxed text-silver">
+      <p className="font-body text-[0.6875rem] leading-relaxed text-silver">
         © {year}{" "}
         <a
           href="https://vaseymultimedia.com"
