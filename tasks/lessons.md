@@ -2905,3 +2905,56 @@ render identical; account change wipes storage before rehydrating (the
   pinned target — under auto that's every run. The fix was naming what a
   request was *aimed at* after routing (`aimedTarget`) and comparing against
   that, so a genuine mid-run retry still reports honestly.
+
+## 2026-08-09 — Approval-gated design audit (report → CMCs → approved VAR wave)
+
+- **A "resolved" disposition can overclaim its blast radius.** A11Y-003's
+  ledger entry said the selected-ink cue went "on every active Laser fill";
+  a grep found four `aria-pressed` chip groups that never got it. When a
+  finding is resolved across N sites, the disposition must enumerate them —
+  and the durable fix is a *scanning* guard, not an enumerated one.
+- **A comment asserting cascade behavior is a claim, not a fact.** The
+  `.selected-ink` comment said ":focus-visible box-shadow REPLACES this";
+  layer order (base < utilities) ran it exactly backwards, so focused
+  selected controls had NO focus ring — on dark, none at all. The compose
+  contract (`--focus-ring` first) already documented the repair; pin
+  cascade claims with a computed-style probe, never prose.
+- **A recorded fix is not a landed fix — measure the recipe.** DSN-007's
+  resolution ("labels stop overflowing at 320") shipped as a cell-level
+  `max-[359px]:tracking-tight` that the label span's own `tracking-wide`
+  overrode; scrollWidth 51/49 vs 46 cells disproved the record a wave
+  later. The verification recipe written into a disposition should be run,
+  not just written.
+- **`overflow-wrap: break-word` does not lower min-content in flex/intrinsic
+  sizing.** The rig label (a flex item) sized itself to the unbreakable word
+  and clipped instead of wrapping under 200% text scale; `anywhere` is the
+  value that participates in min-content. break-word remains right for
+  block-level paragraphs (the title fixes).
+- **`metadata.appleWebApp` makes React own a status-bar meta even with
+  `statusBarStyle` unset** — and React re-inserts its tag AFTER a runtime
+  correction, so ThemeManager + the metadata system produced two
+  contradictory tags with the stale one last (measured in both
+  configurations; the duplicate just switched schemes when the static value
+  was removed). If a runtime manager owns a tag, the metadata system must
+  not emit it at all: hand-write the sibling metas and let the manager
+  create-when-absent.
+- **`.pb-safe` is a bare `env()` late in the utilities layer — beside a
+  `py-*` it silently deletes the declared bottom padding wherever the inset
+  is 0.** Same trap class as the box-shadow compose contract. The safe
+  recipe is the `max(padding, env(...))` floor the codebase already used
+  three times; sheet footers had shipped 0px on every non-notch device.
+- **The e2e Supabase stub + a production `next start` is a full rendered-
+  audit harness.** Sign in through the real form; remember ProfileHydrator
+  re-applies the ACCOUNT's stored theme after hydration (correct server-
+  as-truth behavior), so a capture script must stamp `data-theme` post-
+  hydration to shoot the non-stored theme rather than seeding localStorage.
+- **A pinned test string is authoritative evidence against a "confirmed
+  minor correction".** The sr-only 'centre'→'center' fix turned a verbatim
+  test pin red — which made the intended result ambiguous by the audit's
+  own criteria; it was reverted on the spot and shipped later as an
+  approved item WITH its test. The gate is what kept the protocol honest.
+- **Next links only the PNG when `icon.png` and `icon.svg` coexist
+  unnumbered.** The generated "scalable favicon" was served and never
+  referenced for months; the numbered convention (`icon0.svg`, `icon1.png`)
+  emits both links, SVG first. When a generator claims a browser behavior,
+  curl the head it actually produces.
