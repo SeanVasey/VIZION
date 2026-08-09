@@ -3076,3 +3076,34 @@ test:e2e` hard-fails in global-setup until
   touch" e2e now pins it (Chromium-only; WebKitGTK has no touch synthesis,
   and the iOS callout/loupe half stays on the manual list in
   ios-verification.md).
+
+## 2026-08-09 — "Clicking is very slow": the blur that queued the input
+
+- **Long-task metrics can read clean while input rots in the queue.** The
+  idle profile showed 0–52ms of long tasks and the CPU profile showed the
+  page nearly idle — while Event Timing showed even `pointerdown` waiting
+  140–340ms for dispatch and every interaction's duration at 360–790ms. A
+  saturated render pipeline is many SHORT tasks; input queues between
+  them and no 50ms threshold ever trips. For responsiveness questions,
+  `PerformanceObserver({type:"event"})`'s `processingStart − startTime` is
+  the instrument; longtask is the wrong one.
+- **A synthesized click inherits the touch's timeStamp — measure arrival,
+  not timestamps.** The first tap-delay probe compared `e.timeStamp`s and
+  "proved" zero delay; the timestamps were hardware times carried through
+  the queue. `performance.now()` inside the handler told the truth. Any
+  latency measurement built on event timestamps measures the wrong clock.
+- **"GPU-composited, negligible" is a claim about a WHOLE style set, not a
+  property list.** The bloom comment reasoned transform-only keyframes +
+  `will-change: transform` = composited = free — and each layer also
+  carried `filter: blur(80px)`, which re-rastered it (scale AND
+  translate-only variants both, measured) every frame at viewport scale.
+  A filter on an animating layer re-prices the whole animation; the
+  comment's claim was never measured until the owner felt it.
+- **A blur of a radial gradient IS a radial gradient — bake it.** The
+  gaussian was convolved numerically into ~12 gradient stops per bloom
+  (≤1.4% fit error), painted on an enlarged `::before` to keep the old
+  filter's overspill past the box. Same keyframes, no filter property,
+  input delay ~15ms. The px-fixed blur could not be matched by one
+  percent-stop set at every viewport — two reference bakes (393×852
+  default, 1280×800 from 1024px up) hold both ends, and the deviation
+  between them is documented where the stops live.

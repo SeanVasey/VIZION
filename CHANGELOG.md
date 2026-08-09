@@ -8,6 +8,23 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **Taps respond immediately — the ambient blur no longer queues input**
+  (owner report: "the time it takes for something to come up on the screen
+  when clicking is very slow"). The NEBULA+ blooms carried
+  `filter: blur(80px)` while animating, which re-rastered viewport-scale
+  layers on effectively every frame — measured with the Event Timing API:
+  even `pointerdown` sat 140–340ms in the input queue before dispatch, and
+  a pill tap took 360–790ms to paint its sheet, on an UNTHROTTLED desktop
+  CPU (long-task metrics saw nothing: the pipeline saturates with many
+  short rendering tasks, never one long one). The gaussian softness is now
+  baked into multi-stop radial gradients (numerically convolved from the
+  original profiles, ≤1.4% fit error; two reference sets — px-exact at the
+  393×852 phone and at the 1280×800 design reference from 1024px up) on an
+  enlarged `::before` that preserves the old blur's overspill, and the
+  `filter` property is gone. Same drift keyframes, now genuinely
+  composited: input delay ~15ms, tap→sheet-painted ~50–110ms, nav-tab
+  response 77–162ms (was 334–408ms). A geometry-suite pin keeps any live
+  filter from returning to the bloom layers.
 - **The hold-slider engages under real touch** (ADR-0012 amendment). The
   first on-device pass found the slider never displayed on an iPhone: the
   pre-hold window — which no suite exercised (the mouse e2e waits out the
