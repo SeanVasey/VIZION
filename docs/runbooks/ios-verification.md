@@ -104,5 +104,13 @@ The open questions. The first is no longer depended on; the rest are:
   floated mid-screen over the footer — and headless WebKit is unlikely to
   reproduce it, since it turns on WebKit's *async* scrolling. Treat the
   architecture as load-bearing and do not "simplify" it without a device.
+- the hold-slider's long-press behaviour (ADR-0012): that the 300ms hold +
+  `-webkit-touch-callout: none` actually beats the system callout/loupe on
+  the composer pills, and that the active-phase `touchmove` preventDefault
+  holds a mid-drag vertical wander against a `pointercancel`. The e2e drag
+  spec is mouse-driven by design — it says nothing about iOS touch. If the
+  callout fires anyway, the revert path is graceful (the gesture cancels,
+  nothing commits), so the failure mode is a missing accelerator, not a
+  broken control.
 
-A single pass on a physical iPhone, in the installed PWA, would close all four.
+A single pass on a physical iPhone, in the installed PWA, would close all five.

@@ -200,6 +200,7 @@ describe("UI contracts", () => {
       ["components/ui/Sheet.tsx", "portaled to <body>"],
       ["components/ui/Toast.tsx", "portaled to <body>"],
       ["components/editor/KeyboardActionBar.tsx", "portaled to <body>"],
+      ["components/ui/HoldSlider.tsx", "portaled to <body>"],
       ["components/background/AmbientNebula.tsx", "root-level ambient layer"],
       ["components/nav/BottomNav.tsx", "root-level chrome"],
       // Rendered in the (app) layout as a SIBLING of {children}, so its

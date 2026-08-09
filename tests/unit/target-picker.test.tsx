@@ -194,6 +194,25 @@ describe("TargetPicker — Auto routing", () => {
     expect(trigger.textContent).toContain("Auto");
     expect(trigger.textContent).not.toContain("Sonnet 5");
   });
+
+  it("names the routing preference on the trigger when one is wired", () => {
+    // "Auto · Balanced": the budget the hold-slider adjusts must be visible
+    // at rest, not only inside the sheet. Settings passes no preference and
+    // keeps the bare "Auto" (previous test).
+    render(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={vi.fn()}
+        auto
+        onAutoChange={vi.fn()}
+        autoPreference="balanced"
+        onAutoPreferenceChange={vi.fn()}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: /target model/i });
+    expect(trigger.textContent).toContain("Auto · Balanced");
+  });
 });
 
 describe("TargetPicker — Auto routing preference", () => {

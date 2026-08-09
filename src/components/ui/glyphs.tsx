@@ -153,3 +153,44 @@ export function FolderMark({ className }: { className?: string }) {
     </Glyph>
   );
 }
+
+/** Sun — the LIGHT theme, categorically. The theme marks name the STORED
+ *  setting, never the resolved appearance: under "system" the machine mark
+ *  shows even when the OS resolves dark, which is exactly what separates a
+ *  deliberate dark choice from an inherited one (the rotated half-circle
+ *  glyphs these replace could not make that distinction legible). */
+export function SunMark({ className }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2.5" />
+      <path d="M12 19v2.5" />
+      <path d="M2.5 12H5" />
+      <path d="M19 12h2.5" />
+      <path d="M5.3 5.3l1.8 1.8" />
+      <path d="M16.9 16.9l1.8 1.8" />
+      <path d="M18.7 5.3l-1.8 1.8" />
+      <path d="M7.1 16.9l-1.8 1.8" />
+    </Glyph>
+  );
+}
+
+/** Crescent moon — the DARK theme. */
+export function MoonMark({ className }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <path d="M20.4 14.2A8.5 8.5 0 1 1 9.8 3.6a7 7 0 0 0 10.6 10.6z" />
+    </Glyph>
+  );
+}
+
+/** Monitor — the SYSTEM theme (follow the machine's own setting). */
+export function SystemMark({ className }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <rect x="3" y="4.5" width="18" height="13" rx="2" />
+      <path d="M9 21h6" />
+      <path d="M12 17.5V21" />
+    </Glyph>
+  );
+}

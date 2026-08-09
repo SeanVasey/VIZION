@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  DETENT_SPACING_PX,
+  HOLD_MS,
+} from "@/components/ui/use-hold-drag";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
 import type { EnhanceRequest } from "@/lib/enhance/use-enhance";
@@ -173,5 +177,165 @@ describe("thinking rail behaviour", () => {
       </ToastProvider>,
     );
     expect(screen.queryByText("Thinking")).toBeNull();
+  });
+});
+
+describe("thinking rail hold-slider (ADR-0012)", () => {
+  /** Drive the accelerator: press the pill, wait out the hold, drag by
+   *  whole detents, release. Geometry derives from the down-x and the
+   *  spacing constant, so jsdom's layoutless rects are irrelevant. */
+  const DOWN_X = 300;
+  function holdAndDrag(steps: number) {
+    const trigger = thinkingTrigger();
+    fireEvent.pointerDown(trigger, {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    const x = DOWN_X + steps * DETENT_SPACING_PX;
+    fireEvent.pointerMove(trigger, { pointerId: 1, clientX: x, clientY: 400 });
+    fireEvent.pointerUp(trigger, { pointerId: 1, clientX: x, clientY: 400 });
+  }
+  const overlay = () =>
+    document.querySelector<HTMLElement>("[data-hold-slider-overlay]");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("offers [Auto, ...the target's ladder] as detents — six for Opus", () => {
+    renderComposer();
+    fireEvent.pointerDown(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    const dots = overlay()!.querySelectorAll("[data-detent-dot]");
+    expect([...dots].map((d) => d.getAttribute("data-detent-dot"))).toEqual([
+      "auto",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+    ]);
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+    });
+  });
+
+  it("adapts the detent count to the model — four for Grok, Minimal only for Gemini", () => {
+    useUIStore.setState({ targetModel: "grok_4_5" });
+    const { rerender } = renderComposer();
+    fireEvent.pointerDown(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    expect(overlay()!.querySelectorAll("[data-detent-dot]")).toHaveLength(4);
+    fireEvent.pointerCancel(thinkingTrigger(), { pointerId: 1 });
+
+    useUIStore.setState({ targetModel: "gemini_3_6_flash" });
+    rerender(
+      <ToastProvider>
+        <EnhanceComposer />
+      </ToastProvider>,
+    );
+    fireEvent.pointerDown(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    expect(
+      overlay()!.querySelector('[data-detent-dot="minimal"]'),
+    ).not.toBeNull();
+    fireEvent.pointerCancel(thinkingTrigger(), { pointerId: 1 });
+  });
+
+  it("drags to a depth, stores it per target, and sends it", () => {
+    renderComposer();
+    holdAndDrag(3); // Auto → low → medium → high
+    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "high" });
+    vi.useRealTimers(); // submit() renders a toast timer; real time is fine now
+    expect(submit().thinkingLevel).toBe("high");
+  });
+
+  it("drags fully left back to Auto, which sends no level at all", () => {
+    useUIStore.setState({ thinkingLevels: { opus_5: "max" } });
+    renderComposer();
+    // The selected detent (max, index 5) anchors under the finger — five
+    // steps left lands on Auto.
+    holdAndDrag(-5);
+    expect(useUIStore.getState().thinkingLevels).toEqual({});
+    vi.useRealTimers();
+    expect(submit()).not.toHaveProperty("thinkingLevel");
+  });
+
+  it("ramps the fill tone with the level and shows the model-qualified label", () => {
+    renderComposer();
+    const trigger = thinkingTrigger();
+    fireEvent.pointerDown(trigger, {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    const fill = () => overlay()!.querySelector("[data-tone]")!;
+    expect(fill().getAttribute("data-tone")).toBe("faint"); // Auto
+    fireEvent.pointerMove(trigger, {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(fill().getAttribute("data-tone")).toBe("silver"); // low
+    fireEvent.pointerMove(trigger, {
+      pointerId: 1,
+      clientX: DOWN_X + 3 * DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(fill().getAttribute("data-tone")).toBe("laser"); // high
+    fireEvent.pointerMove(trigger, {
+      pointerId: 1,
+      clientX: DOWN_X + 5 * DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(fill().getAttribute("data-tone")).toBe("ultra"); // max
+    expect(overlay()!.textContent).toContain("Opus 5 · Max");
+    fireEvent.pointerUp(trigger, {
+      pointerId: 1,
+      clientX: DOWN_X + 5 * DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "max" });
+  });
+
+  it("keeps a tap a tap — the sheet still opens after the wrapper landed", () => {
+    renderComposer();
+    fireEvent.click(thinkingTrigger());
+    expect(screen.getByRole("radio", { name: "Max" })).toBeInTheDocument();
   });
 });

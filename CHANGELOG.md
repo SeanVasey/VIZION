@@ -6,6 +6,46 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Theme toggle wears categorical marks** — sun (light), moon (dark),
+  monitor (system) — in the SVG glyph language, replacing the rotated
+  half-circle text glyphs (◐ ◑ ◓) that told the modes apart only by
+  rotation. The mark tracks the stored *setting*, never the resolved
+  appearance: under "system" the monitor shows even while the OS resolves
+  dark, so a deliberate dark choice and an inherited one are visually
+  distinct at a glance.
+
+### Added
+
+- **Hold-slider control class** (`useHoldDrag` + `HoldSliderTrigger`/
+  `HoldSliderOverlay`, ADR-0012): press-and-hold on a trigger pill expands a
+  detent capsule track — live label above, tone-ramped fill (silver → laser →
+  ultra), 44px detents anchored under the finger — and the same unbroken
+  gesture drags between stops; release commits, Escape/cancel reverts. A
+  plain tap still opens the pill's sheet, which remains the complete
+  keyboard/screen-reader path; commits are announced through a polite live
+  region. Two-phase axis claim (`pan-y pinch-zoom` at rest, window touchmove
+  preventDefault while active), 300ms hold under the iOS system long-press,
+  context menu and callout suppressed only mid-gesture, mouse included so
+  desktop and Playwright share the gesture.
+- **Thinking rail hold-slider**: press-and-hold the Thinking pill and drag —
+  the detents are `[Auto, …the selected model's own ladder]`, so the track
+  adapts per model (six stops for the five-step ladders, four for Grok's
+  three, Minimal appearing only on Gemini's) and dragging fully left is the
+  one-gesture route back to Auto. The live label reads model-qualified
+  ("Opus 5 · Extra High") and the fill wears the meter glyph's own ramp:
+  faint for Auto, silver through Low, laser for Medium/High, the ultra
+  violet above. A plain tap still opens the sheet unchanged.
+- **Auto-routing budget hold-slider**: while Auto routing is on, the same
+  press-and-hold on the Target pill drags the three routing presets,
+  cheapest first (Budget → Balanced → Quality) so the fill grows with
+  spend; with Auto off the pill stays a pure tap trigger — a hold never
+  silently enables routing. The pill now also names the active preference
+  at rest ("Auto · Balanced") instead of a bare "Auto", so the budget the
+  slider adjusts is visible without opening the sheet (Settings keeps the
+  bare label — it wires no preference).
+
 ### Design audit (2026-08-09): the approved wave — all 24 proposals land
 
 The owner approved every VAR item in the audit report
