@@ -59,6 +59,14 @@ interface RawVision {
 
 type AnthropicImageMediaType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
 
+/** MiniMax M-series interleaves `<think>…</think>` reasoning inside `content`
+ *  (the enhance adapter filters it chunk-by-chunk via `stripThink`). This is
+ *  the buffered-response equivalent: drop closed spans, then anything after a
+ *  dangling open tag — a truncated thought is never attribute JSON. */
+function stripThinkSpans(raw: string): string {
+  return raw.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/<think>[\s\S]*$/, "");
+}
+
 async function describeAnthropic(
   base64: string,
   mediaType: string,
@@ -237,7 +245,9 @@ async function describeGoogle(
 }
 
 /** Fallback priority when the selected model can't run vision — the original
- *  design analyzed on Opus, so Anthropic stays first. */
+ *  design analyzed on Opus, so Anthropic stays first. Sonar stays last: its
+ *  answers are search-grounded, the least neutral lens for describing an
+ *  image the user attached. */
 const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
   "opus_5",
   "gpt_5_6_sol",
@@ -246,21 +256,27 @@ const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
   "grok_4_5",
   "muse_spark_1_1",
   "kimi_k3",
+  "qwen3_8_max",
+  "minimax_m3",
   "sonar_pro",
 ];
 
-/** Providers whose roster flagship takes image input. DeepSeek, MiniMax,
- *  Qwen Max, and GLM-5.2 are text-only flagships (their vision models are
- *  separate SKUs — e.g. Z.ai's glm-5v-turbo), so media analysis for those
- *  targets is routed to the fallback chain. */
+/** Providers whose roster flagship takes image input. DeepSeek and GLM-5.2
+ *  are text-only flagships (their vision models are separate SKUs — e.g.
+ *  Z.ai's glm-5v-turbo), so media analysis for those targets is routed to
+ *  the fallback chain. MiniMax M3 and Qwen3.8-Max joined this set 2026-08:
+ *  both flagships take image_url content parts natively (platform.minimax.io
+ *  text-openai-api docs; Model Studio's qwen3.8-max page). */
 const VISION_CAPABLE_PROVIDERS: ReadonlySet<Provider> = new Set([
   "anthropic",
   "openai",
   "google",
   "meta",
+  "minimax",
   "mistral",
   "moonshot",
   "perplexity",
+  "qwen",
   "xai",
 ]);
 
@@ -413,9 +429,40 @@ export async function describeImage(
         );
       case "google":
         return finish(await describeGoogle(base64, mediaType, cfg.model, spec));
-      case "deepseek":
-      case "minimax":
+      case "minimax": {
+        // M3 reasons by default and interleaves the reasoning INSIDE content
+        // (the M-series signature) — same headroom as the other reasoning
+        // models, and the think spans are stripped before the parse. Base URL
+        // and jsonMode mirror `streamMiniMax` (openai-compat.ts).
+        const r = await describeOpenAICompatible(
+          requireKey("MINIMAX_API_KEY"),
+          "https://api.minimax.io/v1",
+          base64,
+          mediaType,
+          cfg.model,
+          spec,
+          { max_tokens: 4096 },
+        );
+        return finish({ ...r, raw: stripThinkSpans(r.raw) });
+      }
       case "qwen":
+        // DashScope's compatible-mode endpoint, same base URL as `streamQwen`.
+        // No thinking params: DashScope only honours thinking on a STREAMED
+        // request (openai-compat.ts), and this call is buffered — so content
+        // is clean JSON and the non-reasoning 1024 cap is enough, comfortably
+        // under DashScope's 8192 output ceiling.
+        return finish(
+          await describeOpenAICompatible(
+            requireKey("DASHSCOPE_API_KEY"),
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            base64,
+            mediaType,
+            cfg.model,
+            spec,
+            { max_tokens: 1024 },
+          ),
+        );
+      case "deepseek":
       case "zai":
         // Text-only flagships — callers gate on supportsVision() first, so
         // this is a defensive backstop, not a reachable user path.

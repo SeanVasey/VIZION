@@ -16,6 +16,8 @@ const KEY_ENVS = [
   "META_API_KEY",
   "MOONSHOT_API_KEY",
   "PERPLEXITY_API_KEY",
+  "MINIMAX_API_KEY",
+  "DASHSCOPE_API_KEY",
 ] as const;
 
 describe("isVisionConfigError", () => {
@@ -83,13 +85,20 @@ describe("visionFallbackTarget", () => {
     vi.stubEnv("MOONSHOT_API_KEY", "k-test");
     expect(visionFallbackTarget("minimax_m3")).toBe("kimi_k3");
   });
+
+  it("reaches the 2026-08 additions before Sonar, after the incumbents", () => {
+    // MiniMax M3 and Qwen3.8-Max joined the capable set; search-grounded
+    // Sonar stays the last resort.
+    vi.stubEnv("MINIMAX_API_KEY", "m3-test");
+    expect(visionFallbackTarget("deepseek_v4")).toBe("minimax_m3");
+    vi.stubEnv("DASHSCOPE_API_KEY", "q-test");
+    expect(visionFallbackTarget("deepseek_v4")).toBe("qwen3_8_max");
+  });
 });
 
 describe("supportsVision", () => {
   it("flags text-only flagships so the route can redirect up front", () => {
     expect(supportsVision("deepseek_v4")).toBe(false);
-    expect(supportsVision("minimax_m3")).toBe(false);
-    expect(supportsVision("qwen3_8_max")).toBe(false);
     expect(supportsVision("glm_5_2")).toBe(false);
   });
 
@@ -101,6 +110,10 @@ describe("supportsVision", () => {
     expect(supportsVision("gpt_5_6_luna")).toBe(true);
     expect(supportsVision("gpt_5_6_terra")).toBe(true);
     expect(supportsVision("sonar_pro")).toBe(true);
+    // 2026-08 additions: both flagships take image_url content parts natively
+    // (verified against platform.minimax.io and Model Studio's model page).
+    expect(supportsVision("minimax_m3")).toBe(true);
+    expect(supportsVision("qwen3_8_max")).toBe(true);
   });
 });
 
