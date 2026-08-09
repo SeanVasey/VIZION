@@ -103,14 +103,14 @@ Defaults live in `src/lib/providers/config.ts`; override per deployment:
 MODEL_OPUS=claude-opus-5                              # default
 MODEL_SONNET=claude-sonnet-5                          # default
 MODEL_GPT=gpt-5.6-sol                                 # default — point at your deployed OpenAI model
-MODEL_GPT_LUNA=gpt-5.6-luna                           # default — the 5.6 family's balanced mid tier
-MODEL_GPT_TERRA=gpt-5.6-terra                         # default — the 5.6 family's fast tier
+MODEL_GPT_LUNA=gpt-5.6-luna                           # default — the 5.6 family's small, cost-efficient tier
+MODEL_GPT_TERRA=gpt-5.6-terra                         # default — the 5.6 family's balanced mid tier
 MODEL_FABLE=claude-fable-5                            # default
 MODEL_DEEPSEEK=deepseek-v4-pro                        # default — pinned exact flagship id (PRV-007)
 MODEL_GEMINI=gemini-3.6-flash                         # default — point at your deployed Gemini model (see note below)
 MODEL_MUSE=muse-spark-1.1                             # default — the Meta Model API serving string
 MODEL_MINIMAX=MiniMax-M3                              # default
-MODEL_MISTRAL=mistral-large-latest                    # default — STILL FLOATING; see the pinning note below
+MODEL_MISTRAL=mistral-large-2512                      # default — pinned 2026-08-08 (see the note below)
 MODEL_KIMI=kimi-k3                                    # default
 MODEL_SONAR=sonar-pro                                 # default
 MODEL_QWEN=qwen3.8-max                                # default — pinned exact release id (PRV-007)
@@ -122,21 +122,25 @@ The labels in the picker are named product targets; set the env to the exact
 model string your account serves. Swapping a model is a config change, not a
 refactor.
 
-> **Floating aliases & provisional prices (audit PRV-007 / PRV-008).** Two of
-> the sixteen defaults were repinned to exact ids on 2026-08-01
-> (`deepseek-v4-pro`, `qwen3.8-max` — both taken verbatim from the vendors'
-> model-ID pages, with DeepSeek's published cache-miss rates). One alias
-> remains deliberate: **`mistral-large-latest`** — Mistral publishes no exact
-> wire string for the current Large 3 (v25.12), and inferring one from the
-> deprecated `mistral-large-2411` pattern risks 404ing every call. **The day
-> Mistral publishes the versioned id, set `MODEL_MISTRAL` (and re-verify
-> `PRICE_MISTRAL_*`).** Three price rows are PROVISIONAL, marked in
-> `config.ts`: `PRICE_KIMI_*` (K2-series carry-over), `PRICE_MINIMAX_*`
-> (M2-series carry-over), and `PRICE_GLM_*` (GLM-5 reference rates) — replace
-> the defaults (or set the env overrides) when Moonshot / MiniMax / Z.ai
-> publish list rates. **A price change is a cost-cap change**: after any
-> repin, check the deployed `PRICE_*` overrides in Vercel — a stale override
-> silently miscounts the daily cap.
+> **Pinned ids & verified prices (audit PRV-007 / PRV-008 — resolved
+> 2026-08-08).** All sixteen defaults are now pinned to exact vendor ids, and
+> every price row was re-verified against the vendor's own page on 2026-08-08
+> (`pricesVerifiedAt` on each `TARGETS` entry; per-row sources and caveats in
+> the `config.ts` comments). The last deliberate float — `mistral-large-latest`
+> — closed when Mistral published `mistral-large-2512` on the Large 3 model
+> card, and the three provisional rows (Kimi K3, MiniMax M3, GLM-5.2) now
+> carry vendor-published rates. Standing caveats worth knowing before the next
+> re-verify: MiniMax's rate is a list price with a "permanent 50% off"
+> applied (if the promo ends, every figure doubles); DeepSeek has officially
+> announced a significant increase "in the near future"; Sonnet 5's intro
+> $2/$10 expires 2026-08-31 (the default already carries the standard $3/$15);
+> Qwen's rate is the Singapore/International region's, ~18% above the others;
+> Sonar Pro bills a per-request search fee (~$6/1k requests) the per-token
+> table cannot express. **A price change is a cost-cap change AND a routing
+> change**: Auto ranks candidates by the live `PRICE_*` values (see “Auto
+> routing” below), so after any repin check the deployed `PRICE_*` overrides
+> in Vercel — a stale override silently miscounts the daily cap *and* skews
+> which model Auto picks.
 
 > **A vendor's app picker is not its API model list.** Gemini's "Thinking" and
 > "Fast", ChatGPT's "Ultra"/"Light", etc. are consumer labels for a

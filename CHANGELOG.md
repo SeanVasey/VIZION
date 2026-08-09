@@ -6,6 +6,40 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed — model pricing catches up with the vendors' August pages
+
+Every one of the sixteen price rows was re-verified against its vendor's own
+pricing page on 2026-08-08, and each `TARGETS` entry now carries a
+`pricesVerifiedAt` stamp (META-01, the lightweight form — presence and format
+are test-pinned, age deliberately is not). Eight rows moved:
+
+- **GPT-5.6 Sol** output was 2× under the published rate ($15 → $30/1M).
+- **GPT-5.6 Terra and Luna had their tier roles swapped** — Terra is OpenAI's
+  balanced mid tier ($2/$12, was $0.2/$0.8) and Luna the small tier
+  ($0.2/$1.2 after OpenAI's July 30 cut, was $1/$4). The roster order, tier
+  comments, and target-idiom prose now say so too.
+- **Mistral Large 3** dropped to $0.5/$1.5 (the old $2/$6 was Large 2.1's) —
+  and the deliberately floating `mistral-large-latest` is finally **pinned to
+  `mistral-large-2512`**, now that Mistral publishes the versioned id
+  (PRV-007 closed).
+- **Kimi K3**'s placeholder was ~5× under the real list price ($3/$15) and
+  **GLM-5.2**'s reference rate rose to $1.4/$4.4 — the last provisional rows
+  from PRV-008, now vendor-published.
+- **Grok 4.5** dropped to $2/$6 and **Qwen3.8 Max** rose to $2/$6 (the
+  Singapore/International region's rate; other regions run ~18% cheaper).
+
+Unchanged but now verified: Fable 5, Opus 5, Sonnet 5 (the standard $3/$15 —
+the intro $2/$10 expires 2026-08-31, and overcounting for three weeks beats
+undercounting forever), DeepSeek V4 (an official increase is pending),
+Gemini 3.6 Flash, Muse Spark 1.1, MiniMax M3 (a "permanent 50% off" list
+basis), and Sonar Pro (whose per-request search fee stays an accepted,
+documented undercount).
+
+**A price change is a cost-cap change — check the deployed `PRICE_*`
+overrides in Vercel**: a stale override silently miscounts the daily cap. And
+new with this cycle, **`PRICE_*` values also feed Auto's cost ranking**, so a
+stale override now skews which model Auto picks, not just the cap math.
+
 ### Condense stops wearing Expand's icon
 
 The two modes have rendered one glyph since mode icons first shipped:

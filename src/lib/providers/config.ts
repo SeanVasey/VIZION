@@ -19,9 +19,20 @@ interface TargetConfig {
   provider: Provider;
   /** Model string actually sent to the provider — overridable via env (D9). */
   model: string;
-  /** USD per 1M input / output tokens, for the cost cap. */
+  /** USD per 1M input / output tokens, for the cost cap — and, since the
+   *  score-based router landed, for Auto's cost ranking (manifest.ts reads
+   *  these live, so a PRICE_* override re-ranks Auto too). */
   priceIn: number;
   priceOut: number;
+  /** ISO date the prices and model string were last checked against the
+   *  vendor's own page (META-01). Bump on every re-verify; models.test.tsx
+   *  pins presence + format, deliberately NOT age — a test that starts
+   *  failing by calendar time breaks "ship-ready every commit". */
+  pricesVerifiedAt: string;
+  /** Set when a row carries a carry-over/reference rate rather than a
+   *  vendor-published one; every such row is named in the runbook's
+   *  provisional-price note (PRV-008). Absent = vendor-verified. */
+  pricesAssumed?: true;
 }
 
 /**
@@ -37,102 +48,137 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     model: process.env.MODEL_OPUS ?? "claude-opus-5",
     priceIn: numEnv("PRICE_OPUS_IN", 5),
     priceOut: numEnv("PRICE_OPUS_OUT", 25),
+    pricesVerifiedAt: "2026-08-08",
   },
   sonnet_5: {
     provider: "anthropic",
+    // The STANDARD rate. Anthropic's introductory $2/$10 runs only through
+    // 2026-08-31; carrying the standard figure overcounts the cap by ≤33%
+    // for three weeks instead of undercounting it forever after — the safe
+    // side for a spend limit.
     model: process.env.MODEL_SONNET ?? "claude-sonnet-5",
     priceIn: numEnv("PRICE_SONNET_IN", 3),
     priceOut: numEnv("PRICE_SONNET_OUT", 15),
+    pricesVerifiedAt: "2026-08-08",
   },
   gpt_5_6_sol: {
     provider: "openai",
+    // developers.openai.com pricing — the earlier $15 output default was 2×
+    // under the published rate. Long-context surcharge starts at 272K prompt
+    // tokens, unreachable under MAX_INPUT_CHARS.
     model: process.env.MODEL_GPT ?? "gpt-5.6-sol",
     priceIn: numEnv("PRICE_GPT_IN", 5),
-    priceOut: numEnv("PRICE_GPT_OUT", 15),
+    priceOut: numEnv("PRICE_GPT_OUT", 30),
+    pricesVerifiedAt: "2026-08-08",
   },
   gpt_5_6_luna: {
     provider: "openai",
-    // The balanced mid tier of the GPT-5.6 family; defaults follow the
-    // family's published tiering below Sol — override via env when the
-    // deployed rates differ.
+    // The SMALL, cost-efficient tier of the GPT-5.6 family (the earlier
+    // comment had Luna and Terra's roles swapped). Rates reflect OpenAI's
+    // 2026-07-30 price cut (~80% down on this tier).
     model: process.env.MODEL_GPT_LUNA ?? "gpt-5.6-luna",
-    priceIn: numEnv("PRICE_GPT_LUNA_IN", 1),
-    priceOut: numEnv("PRICE_GPT_LUNA_OUT", 4),
+    priceIn: numEnv("PRICE_GPT_LUNA_IN", 0.2),
+    priceOut: numEnv("PRICE_GPT_LUNA_OUT", 1.2),
+    pricesVerifiedAt: "2026-08-08",
   },
   gpt_5_6_terra: {
     provider: "openai",
-    // The fast, light tier of the GPT-5.6 family.
+    // The BALANCED MID tier of the GPT-5.6 family (roles un-swapped, as
+    // above). Post-cut rate from developers.openai.com; OpenRouter's cheaper
+    // listing is a temporary routed promo, not the first-party price.
     model: process.env.MODEL_GPT_TERRA ?? "gpt-5.6-terra",
-    priceIn: numEnv("PRICE_GPT_TERRA_IN", 0.2),
-    priceOut: numEnv("PRICE_GPT_TERRA_OUT", 0.8),
+    priceIn: numEnv("PRICE_GPT_TERRA_IN", 2),
+    priceOut: numEnv("PRICE_GPT_TERRA_OUT", 12),
+    pricesVerifiedAt: "2026-08-08",
   },
   fable_5: {
     provider: "anthropic",
     model: process.env.MODEL_FABLE ?? "claude-fable-5",
     priceIn: numEnv("PRICE_FABLE_IN", 10),
     priceOut: numEnv("PRICE_FABLE_OUT", 50),
+    pricesVerifiedAt: "2026-08-08",
   },
   deepseek_v4: {
     provider: "deepseek",
     // Pinned to the exact flagship id (PRV-007 — the floating `deepseek-chat`
     // alias let an upstream swap silently change behavior and invalidate this
-    // price row). Id + rates from api-docs.deepseek.com, 2026-08-01; input
-    // rate is the cache-miss figure (the conservative one for the cap).
+    // price row; the legacy aliases were fully retired 2026-07-24). Id + rates
+    // re-verified against api-docs.deepseek.com 2026-08-08; input rate is the
+    // cache-miss figure (the conservative one for the cap). DeepSeek has an
+    // official notice of a "significant" price increase pending — re-check on
+    // any DeepSeek bump.
     model: process.env.MODEL_DEEPSEEK ?? "deepseek-v4-pro",
     priceIn: numEnv("PRICE_DEEPSEEK_IN", 0.435),
     priceOut: numEnv("PRICE_DEEPSEEK_OUT", 0.87),
+    pricesVerifiedAt: "2026-08-08",
   },
   gemini_3_6_flash: {
     provider: "google",
     // "Thinking" and "Fast" in Gemini's app are thinkingLevel values on this
     // ONE model — there is no `gemini-3.6-thinking` model string (it would
     // 404). Reasoning depth rides the per-request thinking selector
-    // (EnhanceArgs.thinkingLevel), not a second roster entry.
+    // (EnhanceArgs.thinkingLevel), not a second roster entry. Rates confirmed
+    // on ai.google.dev (output includes thinking tokens).
     model: process.env.MODEL_GEMINI ?? "gemini-3.6-flash",
     priceIn: numEnv("PRICE_GEMINI_IN", 1.5),
     priceOut: numEnv("PRICE_GEMINI_OUT", 7.5),
+    pricesVerifiedAt: "2026-08-08",
   },
   muse_spark_1_1: {
     provider: "meta",
     // Meta Model API's Muse Spark 1.1 (Meta Superintelligence Labs) — the
-    // closed-weights successor to the retired Llama API line.
+    // closed-weights successor to the retired Llama API line. Standard-tier
+    // rates corroborated across OpenRouter and pricing trackers (Meta's own
+    // model page resists scraping); the opt-in "contributor" tier's cheaper
+    // rates trade prompts for training data and are deliberately not used.
     model: process.env.MODEL_MUSE ?? "muse-spark-1.1",
     priceIn: numEnv("PRICE_MUSE_IN", 1.25),
     priceOut: numEnv("PRICE_MUSE_OUT", 4.25),
+    pricesVerifiedAt: "2026-08-08",
   },
   minimax_m3: {
     provider: "minimax",
-    // M3 launch rates match the M2-series list pricing; override PRICE_MINIMAX_*
-    // if MiniMax publishes different rates.
+    // Official platform.minimax.io PAYG rate (standard tier, ≤512K input),
+    // resolving the M2 carry-over placeholder (PRV-008). NOTE the basis: this
+    // is the $0.60/$2.40 list with a "permanent 50% off" applied — if MiniMax
+    // quietly ends the promo every figure doubles, so re-check on any bump.
     model: process.env.MODEL_MINIMAX ?? "MiniMax-M3",
     priceIn: numEnv("PRICE_MINIMAX_IN", 0.3),
     priceOut: numEnv("PRICE_MINIMAX_OUT", 1.2),
+    pricesVerifiedAt: "2026-08-08",
   },
   mistral_large_3: {
     provider: "mistral",
-    // STILL FLOATING (PRV-007, deliberate): Mistral publishes no exact wire
-    // string for the current Large 3 (v25.12) — only deprecated versions show
-    // the dated pattern (mistral-large-2411/-2407), and pinning an INFERRED
-    // "mistral-large-2512" risks 404ing every call (the invented-model-string
-    // incident class). Pin via MODEL_MISTRAL the day Mistral publishes the id;
-    // procedure in docs/runbooks/providers.md.
-    model: process.env.MODEL_MISTRAL ?? "mistral-large-latest",
-    priceIn: numEnv("PRICE_MISTRAL_IN", 2),
-    priceOut: numEnv("PRICE_MISTRAL_OUT", 6),
+    // PINNED 2026-08-08: Mistral now publishes the versioned id on the Large 3
+    // model card (docs.mistral.ai, mistral-large-2512; OpenRouter serves the
+    // same string), closing the deliberate `mistral-large-latest` float this
+    // comment used to document. Rates from mistral.ai/pricing — the old $2/$6
+    // figures were Large 2.1's.
+    model: process.env.MODEL_MISTRAL ?? "mistral-large-2512",
+    priceIn: numEnv("PRICE_MISTRAL_IN", 0.5),
+    priceOut: numEnv("PRICE_MISTRAL_OUT", 1.5),
+    pricesVerifiedAt: "2026-08-08",
   },
   kimi_k3: {
     provider: "moonshot",
-    // K3 launch rates match the K2-series list pricing; override PRICE_KIMI_*
-    // if Moonshot publishes different rates.
+    // Official platform.kimi.ai rates (platform.moonshot.ai now redirects
+    // there), resolving the K2 carry-over placeholder (PRV-008) — the real
+    // list price is ~5× the placeholder. Input is the cache-miss figure.
     model: process.env.MODEL_KIMI ?? "kimi-k3",
-    priceIn: numEnv("PRICE_KIMI_IN", 0.6),
-    priceOut: numEnv("PRICE_KIMI_OUT", 2.5),
+    priceIn: numEnv("PRICE_KIMI_IN", 3),
+    priceOut: numEnv("PRICE_KIMI_OUT", 15),
+    pricesVerifiedAt: "2026-08-08",
   },
   sonar_pro: {
     provider: "perplexity",
+    // Token rates only: Perplexity also bills a PER-REQUEST search fee
+    // (~$6/1k requests at the default search_context_size) that a per-token
+    // table cannot express — an accepted, documented undercount of well under
+    // a cent per run (docs/runbooks/providers.md).
     model: process.env.MODEL_SONAR ?? "sonar-pro",
     priceIn: numEnv("PRICE_SONAR_IN", 3),
     priceOut: numEnv("PRICE_SONAR_OUT", 15),
+    pricesVerifiedAt: "2026-08-08",
   },
   qwen3_8_max: {
     provider: "qwen",
@@ -140,25 +186,33 @@ export const TARGETS: Record<TargetModelId, TargetConfig> = {
     // verbatim (alibabacloud.com/help/en/model-studio/models), so the roster
     // label and the wire string agree. Never a floating alias: `qwen-max`
     // silently follows whatever Alibaba promotes, which is how a pinned build
-    // starts billing a different model without a diff.
+    // starts billing a different model without a diff. Rates are the
+    // International/Singapore region's — every other region runs ~18% cheaper,
+    // so set PRICE_QWEN_* to match the account's actual billing region.
     model: process.env.MODEL_QWEN ?? "qwen3.8-max",
-    priceIn: numEnv("PRICE_QWEN_IN", 1.25),
-    priceOut: numEnv("PRICE_QWEN_OUT", 3.75),
+    priceIn: numEnv("PRICE_QWEN_IN", 2),
+    priceOut: numEnv("PRICE_QWEN_OUT", 6),
+    pricesVerifiedAt: "2026-08-08",
   },
   grok_4_5: {
     provider: "xai",
+    // docs.x.ai standard tier (<200K prompt tokens) — the 2× long-context
+    // tier starts at 200K prompt tokens, unreachable under MAX_INPUT_CHARS,
+    // so the single rate is honest here. Old $3/$15 default predated the cut.
     model: process.env.MODEL_GROK ?? "grok-4.5",
-    priceIn: numEnv("PRICE_GROK_IN", 3),
-    priceOut: numEnv("PRICE_GROK_OUT", 15),
+    priceIn: numEnv("PRICE_GROK_IN", 2),
+    priceOut: numEnv("PRICE_GROK_OUT", 6),
+    pricesVerifiedAt: "2026-08-08",
   },
   glm_5_2: {
     provider: "zai",
-    // GLM-5.2 list rates are unpublished at launch — defaults are the GLM-5
-    // reference rates; override PRICE_GLM_* when Z.ai publishes them.
-    // MODEL_GLM also absorbs any long-context variant serving string.
+    // Official docs.z.ai international rates, resolving the GLM-5 reference
+    // placeholder (PRV-008). MODEL_GLM also absorbs any long-context variant
+    // serving string.
     model: process.env.MODEL_GLM ?? "glm-5.2",
-    priceIn: numEnv("PRICE_GLM_IN", 1),
-    priceOut: numEnv("PRICE_GLM_OUT", 3.2),
+    priceIn: numEnv("PRICE_GLM_IN", 1.4),
+    priceOut: numEnv("PRICE_GLM_OUT", 4.4),
+    pricesVerifiedAt: "2026-08-08",
   },
 };
 
