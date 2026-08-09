@@ -272,7 +272,10 @@ export function PromptDetail({
           "use it" action and lives where the eyes are. */}
       <section className="flex flex-col gap-3" aria-label="Current output">
         {versions.length >= 2 && (
-          <div className="flex items-center gap-2">
+          // flex-wrap: with two selects + the changed-sections readout the
+          // rail overflows a 320px viewport and pans the whole page (audit
+          // VAR-21) — wrapping drops the readout to its own line instead.
+          <div className="flex flex-wrap items-center gap-2">
             <VersionSelect
               value={aId}
               onChange={setAId}

@@ -137,12 +137,18 @@ export function NewPromptFab() {
           // specificity, so this button had no keyboard focus indicator at
           // all. `.fab-glass:focus-visible` composes the ring back in front
           // of the shadow.
-          "pressable btn-laser fab-glass fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full",
+          "pressable btn-laser fab-glass fixed z-40 flex h-14 w-14 items-center justify-center rounded-full",
           "transition-opacity duration-200 motion-reduce:transition-none",
           keyboardVisible ? "pointer-events-none opacity-0" : "opacity-100",
         ].join(" ")}
         style={{
           bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + var(--float-gap))",
+          // Anchored to the APP COLUMN's trailing edge, not the viewport
+          // corner: every other floating surface (sheets, side pickers) holds
+          // the max-w-screen-sm column, and `right-4` left this button 248px
+          // into empty canvas at 1280px (audit VAR-14). Below 640px the max()
+          // resolves to the original 1rem, so phones are untouched.
+          right: "max(1rem, calc((100vw - 640px) / 2 + 1rem))",
         }}
       >
         {/* Plus on a 24px grid, 1.5px stroke, rounded caps (style-guide §1.4). */}
