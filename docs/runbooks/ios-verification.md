@@ -110,13 +110,19 @@ The open questions. The first is no longer depended on; the rest are:
   floated mid-screen over the footer — and headless WebKit is unlikely to
   reproduce it, since it turns on WebKit's _async_ scrolling. Treat the
   architecture as load-bearing and do not "simplify" it without a device.
-- the hold-slider's long-press behaviour (ADR-0012): that the 300ms hold +
-  `-webkit-touch-callout: none` actually beats the system callout/loupe on
-  the composer pills, and that the active-phase `touchmove` preventDefault
-  holds a mid-drag vertical wander against a `pointercancel`. The e2e drag
-  spec is mouse-driven by design — it says nothing about iOS touch. If the
-  callout fires anyway, the revert path is graceful (the gesture cancels,
-  nothing commits), so the failure mode is a missing accelerator, not a
-  broken control.
+- the hold-slider's long-press behaviour (ADR-0012, amended 2026-08-09
+  after the first on-device pass failed — the pre-hold window was open to
+  a UA pan-steal and the slop rule discarded the press-and-slide gesture).
+  The pre-hold window is now pinned under real synthesized touch in
+  Chromium (`authed.spec.ts` "under touch", CDP-only: press-and-slide
+  engages, a stationary hold expands, a tap stays a tap), and the resting
+  `touch-action: pinch-zoom` denies the UA the pre-hold pan-cancel by
+  construction. What still needs the device is the WebKit/iOS half: that
+  `-webkit-touch-callout: none` plus the global button `user-select: none`
+  actually beat the ~500ms system callout/loupe on the composer pills, and
+  that the active-phase `touchmove` preventDefault holds a mid-drag
+  vertical wander against a `pointercancel`. If they fire anyway, the
+  revert path is graceful (the gesture cancels, nothing commits), so the
+  failure mode is a missing accelerator, not a broken control.
 
 A single pass on a physical iPhone, in the installed PWA, would close all five.

@@ -16,8 +16,9 @@ import {
  *
  * The load-bearing contract is the SPLIT: a tap must remain exactly the tap
  * it always was (the wrapped pill's click opens the sheet — the accessible
- * path), while only a deliberate hold engages the overlay track. Every test
- * here guards one side of that line, or the gesture's exits (commit, Escape,
+ * path), while a deliberate hold — or a sideways slide in the same unbroken
+ * press, the reference gesture — engages the overlay track. Every test here
+ * guards one side of that line, or the gesture's exits (commit, Escape,
  * pointercancel), which must never leak a phantom click into the pill.
  *
  * Geometry is tested through the exported pure functions because jsdom has
@@ -152,15 +153,21 @@ describe("tap vs hold", () => {
     expect(el!.parentElement).toBe(document.body);
   });
 
-  it("stands down when the press moves past slop before the hold", () => {
+  it("stands down when the press wanders vertically past slop before the hold", () => {
     const onCommit = vi.fn();
     const onOpen = vi.fn();
     render(<Host onCommit={onCommit} onOpen={onOpen} />);
+    // A mouse has no implicit capture, so a lift outside the wrapper would
+    // never reach it — the stand-down must claim the pointer or the press
+    // record leaks and the wrapper is inert until remount.
+    const capture = vi.fn();
+    pill().parentElement!.setPointerCapture = capture;
     down();
-    moveTo(DOWN_X + SLOP_PX + 4);
+    moveTo(DOWN_X, 400 + SLOP_PX + 4);
     hold();
     expect(overlay()).toBeNull();
-    up(DOWN_X + SLOP_PX + 4);
+    expect(capture).toHaveBeenCalledWith(1);
+    up();
     expect(onCommit).not.toHaveBeenCalled();
     // A mouse release over the pill fires a browser click regardless of
     // travel — a press classified as not-a-tap must not open the sheet
@@ -176,6 +183,25 @@ describe("tap vs hold", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
+  it("engages on a sideways slide at once — the reference gesture never waits out the timer", () => {
+    const onCommit = vi.fn();
+    const onOpen = vi.fn();
+    render(<Host onCommit={onCommit} onOpen={onOpen} />);
+    down();
+    // Past slop, x-dominant, long before HOLD_MS: the slide IS the gesture.
+    // Treating it as a departure is what read on-device as "the slider never
+    // appears" (2026-08-09) — the press was quietly discarded instead.
+    moveTo(DOWN_X + SLOP_PX + 4);
+    expect(overlay()).not.toBeNull();
+    // The same unbroken motion drags on and commits normally.
+    moveTo(DOWN_X + 2 * DETENT_SPACING_PX);
+    up(DOWN_X + 2 * DETENT_SPACING_PX);
+    expect(onCommit).toHaveBeenCalledExactlyOnceWith(2);
+    expect(overlay()).toBeNull();
+    fireEvent.click(pill());
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("is fully inert when disabled — no axis claim, no overlay", () => {
     render(<Host enabled={false} />);
     const wrapper = pill().parentElement!;
@@ -187,9 +213,14 @@ describe("tap vs hold", () => {
     expect(overlay()).toBeNull();
   });
 
-  it("claims pan-y pinch-zoom (never none) while enabled", () => {
+  it("claims pinch-zoom while enabled — pans stay off the UA, zoom stays native", () => {
+    // NOT `pan-y pinch-zoom`: touch-action is consulted once, at gesture
+    // start, so the pre-hold window is defensible only from this resting
+    // value — under `pan-y` the UA stayed free to read a pre-hold vertical
+    // drift as a scroll and end the press with pointercancel. And never
+    // `none`, the value that killed zoom app-wide once (zoom-and-share).
     render(<Host />);
-    expect(pill().parentElement!.style.touchAction).toBe("pan-y pinch-zoom");
+    expect(pill().parentElement!.style.touchAction).toBe("pinch-zoom");
   });
 });
 

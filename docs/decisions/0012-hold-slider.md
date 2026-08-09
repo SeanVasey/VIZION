@@ -2,7 +2,8 @@
 
 Date: 2026-08-09
 Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
-ruling, DSN-022)
+ruling, DSN-022); amended same day after the first on-device pass — see
+below
 
 ## Context
 
@@ -44,7 +45,8 @@ with these properties fixed:
   `touch-action: pan-y pinch-zoom` (the lessons.md rule — never `none`);
   once the hold fires, the pointer is captured and a non-passive window
   `touchmove` preventDefault holds the line against a late vertical pan.
-  Disabled wrappers make no claim at all.
+  Disabled wrappers make no claim at all. _(Superseded by the amendment
+  below: the resting claim is now `pinch-zoom`.)_
 - **Hold timing:** 300ms — above `usePressable`'s 130ms press floor so a
   decisive tap stays a tap, below the ~500ms system long-press so the iOS
   callout never races the overlay (callout and context menu are additionally
@@ -72,3 +74,41 @@ with these properties fixed:
 - Hold behaviour on real iOS (callout suppression, mid-drag pointercancel)
   cannot be verified by the WebKitGTK e2e project — it is on the manual list
   in `docs/runbooks/ios-verification.md`.
+
+## Amendment (2026-08-09): the pre-hold window
+
+The first on-device pass failed the same day this landed: on an iPhone the
+slider did not display at all — a press produced either nothing or the tap
+sheet. Two independent defects lived in the PRE-HOLD window, the one phase
+no suite exercised (the mouse e2e waits out the hold before moving; the
+unit tests dispatch the events the implementation expects). Either alone
+reads as a dead control; both are repaired:
+
+1. **The slop rule discarded the reference gesture.** The recording this
+   control is modeled on engages under press-and-slide — one unbroken
+   motion, no stationary pause. The shipped rule classified >10px of
+   pre-hold movement on _either_ axis as not-this-control and quietly
+   swallowed the press (no overlay, and deliberately no sheet). Repair:
+   pre-hold movement past slop now **activates** the track when x-dominant
+   — the slide _is_ the gesture, on the axis the wrapper always reserved —
+   and stands down only when y-dominant (scroll intent, unchanged).
+2. **`pan-y` granted the UA the means to kill the press.** `touch-action`
+   is consulted once, at gesture start (the two-phase-claim lesson), so the
+   resting value is the pre-hold window's only defense — and `pan-y
+pinch-zoom` left the UA free to read a pre-hold vertical drift as a pan
+   and end the press with `pointercancel` (MDN documents `pointercancel`
+   firing once the pointer starts manipulating the viewport). Repair: the
+   resting claim narrows to **`pinch-zoom`** — zoom stays native (the WCAG
+   guard in zoom-and-share), while single-finger pans starting on the two
+   composer pills belong to the gesture. The library's swipe rows rightly
+   keep `pan-y`: a full-width list row IS the scroll surface; a ~44px pill
+   is not. `none` stays banned.
+
+Verified under real synthesized touch in Chromium (CDP drives the actual
+gesture recognizer: touch-action consultation, pointer derivation, click
+synthesis): press-and-slide engages and commits, a stationary hold expands,
+a quick tap still opens the sheet — `tests/e2e/authed.spec.ts` "under
+touch", Chromium-only. Which of the two defects the owner's device hit is
+not established and does not need to be; real-iOS confirmation of the
+repaired gesture stays on the manual list in
+`docs/runbooks/ios-verification.md`.

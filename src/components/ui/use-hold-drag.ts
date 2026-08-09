@@ -9,26 +9,37 @@ import { tap } from "@/lib/haptics";
  *
  * This is the accelerator half of a two-path control: a plain TAP falls
  * through to the wrapped trigger's own click (the sheet — the complete,
- * discoverable path), while holding past HOLD_MS expands an overlay track
- * and the same unbroken pointer drags between detents; release commits.
- * The overlay is pointer-transparent decoration — this hook owns the whole
- * gesture from the wrapper element.
+ * discoverable path), while holding past HOLD_MS — or sliding sideways past
+ * slop in the same unbroken press, which is how the reference control is
+ * actually used — expands an overlay track and the same pointer drags
+ * between detents; release commits. The overlay is pointer-transparent
+ * decoration — this hook owns the whole gesture from the wrapper element.
  *
  * The gesture is claimed in two phases, extending the axis-claim rule
- * (tasks/lessons.md, 2026-07): before the hold fires, `touch-action:
- * pan-y pinch-zoom` leaves vertical scroll native and only reserves the
- * horizontal axis; once the hold fires the pointer is captured AND a
- * non-passive window `touchmove` preventDefault stops a late vertical pan
- * from stealing the pointer mid-drag. `touch-action: none` at rest is
- * never acceptable (it disabled pinch-zoom app-wide once already).
+ * (tasks/lessons.md, 2026-07): at rest the wrapper claims every
+ * single-finger pan (`touch-action: pinch-zoom` — zoom stays native, and
+ * never the `none` that once disabled it app-wide). touch-action is
+ * consulted once, at gesture start, so this resting value is the pre-hold
+ * window's ONLY defense: the original `pan-y` grant let the UA read a
+ * pre-hold vertical drift as a scroll and end the press with
+ * `pointercancel` — measured in Chromium under synthesized touch (one
+ * pointermove, then pointercancel ~6ms later), and the on-device
+ * "the slider never appears" (2026-08-09, ADR-0012 amendment). Once the
+ * hold fires the pointer is captured AND a non-passive window `touchmove`
+ * preventDefault stops a late vertical pan from stealing the pointer
+ * mid-drag. The two composer pills are not a scroll surface — unlike the
+ * library's swipe rows, which rightly keep `pan-y` because a full-width
+ * list row IS one.
  */
 
 /** Hold time before the slider engages. Above usePressable's 130ms press
  *  floor (a decisive tap must stay a tap), below the ~500ms system
  *  long-press so the iOS callout never races the overlay. */
 export const HOLD_MS = 300;
-/** Movement past which a pre-hold press is a scroll, not a hold —
- *  matches use-swipe-actions' INTENT_PX. */
+/** Pre-hold movement past this is INTENT, not jitter — and the axis says
+ *  which intent: x-dominant engages the track at once (press-and-slide, the
+ *  reference gesture), y-dominant stands down for the scroll. Matches
+ *  use-swipe-actions' INTENT_PX. */
 export const SLOP_PX = 10;
 /** Horizontal travel per detent — one 44px touch target each. */
 export const DETENT_SPACING_PX = 44;
@@ -180,31 +191,45 @@ export function useHoldDrag({
   }, [onWindowTouchMove, onWindowKeyDown, setActiveBoth]);
   teardownRef.current = teardown;
 
-  const activate = useCallback(() => {
-    const p = press.current;
-    if (!p) return;
-    const { detentCount: count, selectedIndex: selected } = latest.current;
-    const geometry = computeTrackGeometry(
-      p.x,
-      p.el.getBoundingClientRect(),
-      count,
-      selected,
-      window.innerWidth,
-    );
-    // Touch/pen are implicitly captured to the pointer-down target already;
-    // this is for a mouse outrunning the wrapper. try/catch for jsdom.
-    try {
-      p.el.setPointerCapture(p.pointerId);
-    } catch {
-      /* jsdom, or a pointer that ended during the hold */
-    }
-    // The active-phase axis claim — see the header. Non-passive on purpose.
-    window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
-    window.addEventListener("keydown", onWindowKeyDown);
-    dragOffset.current = p.x - geometry.detentCenters[selected]!;
-    tap(8);
-    setActiveBoth({ dragIndex: selected, geometry });
-  }, [onWindowKeyDown, onWindowTouchMove, setActiveBoth]);
+  /** `currentX`: set when a pre-hold SLIDE engages the track — the finger
+   *  has already travelled, so the first dragIndex maps its position now
+   *  rather than snapping back to the anchor (a quick flick would otherwise
+   *  expand, commit the unchanged selection, and read as a no-op). The
+   *  timer path passes nothing: the finger is still on the anchor. */
+  const activate = useCallback(
+    (currentX?: number) => {
+      const p = press.current;
+      if (!p) return;
+      const { detentCount: count, selectedIndex: selected } = latest.current;
+      const geometry = computeTrackGeometry(
+        p.x,
+        p.el.getBoundingClientRect(),
+        count,
+        selected,
+        window.innerWidth,
+      );
+      // Touch/pen are implicitly captured to the pointer-down target already;
+      // this is for a mouse outrunning the wrapper. try/catch for jsdom.
+      try {
+        p.el.setPointerCapture(p.pointerId);
+      } catch {
+        /* jsdom, or a pointer that ended during the hold */
+      }
+      // The active-phase axis claim — see the header. Non-passive on purpose.
+      window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
+      window.addEventListener("keydown", onWindowKeyDown);
+      dragOffset.current = p.x - geometry.detentCenters[selected]!;
+      tap(8);
+      setActiveBoth({
+        dragIndex:
+          currentX === undefined
+            ? selected
+            : detentIndexForX(currentX - dragOffset.current, geometry),
+        geometry,
+      });
+    },
+    [onWindowKeyDown, onWindowTouchMove, setActiveBoth],
+  );
 
   // A gesture interrupted by unmount must not leave window listeners behind.
   useEffect(() => teardown, [teardown]);
@@ -229,16 +254,41 @@ export function useHoldDrag({
     const current = activeRef.current;
     if (!current) {
       if (cancelled.current) return;
-      // Pre-hold: any real movement means scroll/drag intent — stand down
-      // and let the user agent have the gesture (tap stays possible under
-      // slop). The press is marked cancelled rather than dropped: a mouse
-      // release over the pill still fires a browser click no matter how far
-      // it travelled, and a press this hook classified as not-a-tap must
-      // not fall through and open the sheet (Codex review, PR #99 — the
-      // same rule use-swipe-actions applies past the same threshold).
-      if (Math.abs(e.clientX - p.x) > SLOP_PX || Math.abs(e.clientY - p.y) > SLOP_PX) {
+      const dx = Math.abs(e.clientX - p.x);
+      const dy = Math.abs(e.clientY - p.y);
+      // Under slop either way: still a tap-in-progress — keep waiting.
+      if (dx <= SLOP_PX && dy <= SLOP_PX) return;
+      // Pre-hold, past slop: the AXIS says what the movement meant.
+      //
+      // X-dominant is the gesture itself, not a departure from it: the
+      // reference control engages under press-and-slide in one motion, and
+      // the first shipped cut waited out the hold timer regardless — on a
+      // real phone the first move outran the timer, the press was quietly
+      // discarded, and the control read as dead ("the slider never
+      // appears", 2026-08-09; measured in the app under synthesized
+      // touch). The wrapper has always denied the UA this axis, so
+      // engaging is the only honest reading of a sideways slide.
+      if (dx >= dy) {
         clearTimeout(timer.current);
-        cancelled.current = true;
+        activate(e.clientX);
+        return;
+      }
+      // Y-dominant: scroll intent — stand down. The press is marked
+      // cancelled rather than dropped: a mouse release over the pill still
+      // fires a browser click no matter how far it travelled, and a press
+      // this hook classified as not-a-tap must not fall through and open
+      // the sheet (Codex review, PR #99 — the same rule use-swipe-actions
+      // applies past the same threshold). Capture, so the lift lands here
+      // even when a MOUSE wanders off the wrapper before releasing — an
+      // uncaptured stand-down leaked `press` and left the wrapper inert
+      // until remount. (Touch was never exposed: its implicit capture
+      // already routes the lift through the wrapper.)
+      clearTimeout(timer.current);
+      cancelled.current = true;
+      try {
+        p.el.setPointerCapture(p.pointerId);
+      } catch {
+        /* jsdom, or a pointer already ended */
       }
       return;
     }
@@ -312,11 +362,12 @@ export function useHoldDrag({
       onPointerCancel,
       onClickCapture,
       onContextMenu,
-      // The pre-hold axis claim; omitted entirely when inert so a disabled
+      // The resting claim (see the header for why it must deny every
+      // single-finger pan); omitted entirely when inert so a disabled
       // wrapper makes no claim at all (the swipe-actions rule).
       style: enabled
         ? ({
-            touchAction: "pan-y pinch-zoom",
+            touchAction: "pinch-zoom",
             WebkitTouchCallout: "none",
           } as React.CSSProperties)
         : undefined,
