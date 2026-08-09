@@ -155,13 +155,26 @@ describe("tap vs hold", () => {
 
   it("stands down when the press moves past slop before the hold", () => {
     const onCommit = vi.fn();
-    render(<Host onCommit={onCommit} />);
+    const onOpen = vi.fn();
+    render(<Host onCommit={onCommit} onOpen={onOpen} />);
     down();
     moveTo(DOWN_X + SLOP_PX + 4);
     hold();
     expect(overlay()).toBeNull();
-    up();
+    up(DOWN_X + SLOP_PX + 4);
     expect(onCommit).not.toHaveBeenCalled();
+    // A mouse release over the pill fires a browser click regardless of
+    // travel — a press classified as not-a-tap must not open the sheet
+    // (Codex review, PR #99; the use-swipe-actions rule).
+    fireEvent.click(pill());
+    expect(onOpen).not.toHaveBeenCalled();
+    // The suppression is one-shot: once its same-task reset runs, the NEXT
+    // press is an ordinary tap.
+    vi.advanceTimersByTime(0);
+    down();
+    up();
+    fireEvent.click(pill());
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   it("is fully inert when disabled — no axis claim, no overlay", () => {

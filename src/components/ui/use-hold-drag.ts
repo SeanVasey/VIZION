@@ -122,8 +122,9 @@ export function useHoldDrag({
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   /** Mirror of `active` for window listeners and move handlers. */
   const activeRef = useRef<typeof active>(null);
-  /** Escape/cancel happened while the finger was still down: the eventual
-   *  pointer-up must neither commit nor let its trailing click through. */
+  /** The gesture died while the pointer was still down — Escape mid-drag,
+   *  or pre-hold movement past slop: the eventual pointer-up must neither
+   *  commit nor let its trailing click through. */
   const cancelled = useRef(false);
   /** Swallows the click the browser fires after a hold's pointer-up. */
   const suppressClick = useRef(false);
@@ -227,14 +228,20 @@ export function useHoldDrag({
     if (!p || e.pointerId !== p.pointerId) return;
     const current = activeRef.current;
     if (!current) {
-      // Pre-hold: any real movement means scroll intent — stand down and
-      // let the user agent have the gesture (tap stays possible under slop).
+      if (cancelled.current) return;
+      // Pre-hold: any real movement means scroll/drag intent — stand down
+      // and let the user agent have the gesture (tap stays possible under
+      // slop). The press is marked cancelled rather than dropped: a mouse
+      // release over the pill still fires a browser click no matter how far
+      // it travelled, and a press this hook classified as not-a-tap must
+      // not fall through and open the sheet (Codex review, PR #99 — the
+      // same rule use-swipe-actions applies past the same threshold).
       if (
         Math.abs(e.clientX - p.x) > SLOP_PX ||
         Math.abs(e.clientY - p.y) > SLOP_PX
       ) {
         clearTimeout(timer.current);
-        press.current = null;
+        cancelled.current = true;
       }
       return;
     }
@@ -269,7 +276,8 @@ export function useHoldDrag({
       teardown();
       settle();
     } else if (cancelled.current) {
-      // Escape'd mid-hold; the lift still fires a click — swallow it.
+      // Escape'd or moved-past-slop while down; the lift still fires a
+      // click — swallow it.
       cancelled.current = false;
       settle();
     }
