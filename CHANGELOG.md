@@ -6,6 +6,20 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Hold-slider control class** (`useHoldDrag` + `HoldSliderTrigger`/
+  `HoldSliderOverlay`, ADR-0012): press-and-hold on a trigger pill expands a
+  detent capsule track — live label above, tone-ramped fill (silver → laser →
+  ultra), 44px detents anchored under the finger — and the same unbroken
+  gesture drags between stops; release commits, Escape/cancel reverts. A
+  plain tap still opens the pill's sheet, which remains the complete
+  keyboard/screen-reader path; commits are announced through a polite live
+  region. Two-phase axis claim (`pan-y pinch-zoom` at rest, window touchmove
+  preventDefault while active), 300ms hold under the iOS system long-press,
+  context menu and callout suppressed only mid-gesture, mouse included so
+  desktop and Playwright share the gesture.
+
 ### Design audit (2026-08-09): the approved wave — all 24 proposals land
 
 The owner approved every VAR item in the audit report
