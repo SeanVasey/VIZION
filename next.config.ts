@@ -162,6 +162,8 @@ const nextConfig: NextConfig = {
       },
       {
         // The service worker must never be cached so updates roll out immediately.
+        // vercel.json repeats the Cache-Control + Service-Worker-Allowed pair at
+        // the edge layer — keep the two in agreement when editing either.
         source: "/sw.js",
         headers: [
           { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },

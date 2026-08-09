@@ -9,7 +9,7 @@ const OPEN_PX = 56;
 /** How far the row slides when open — the width of one action. */
 export const SWIPE_REVEAL_PX = 84;
 
-export type SwipeSide = "left" | "right" | null;
+type SwipeSide = "left" | "right" | null;
 
 /**
  * iOS-style swipe-to-reveal for a list row, without a gesture library.

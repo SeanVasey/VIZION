@@ -15,7 +15,7 @@ export interface ActionResult {
   error?: string;
 }
 
-export interface OwnerSettingsPatch {
+interface OwnerSettingsPatch {
   openAccess?: boolean;
   devAccentStrength?: number;
 }

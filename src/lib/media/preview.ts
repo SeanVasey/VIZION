@@ -74,7 +74,7 @@ interface SignedPath {
 }
 
 /** Batch signer — `supabase.storage.from("media").createSignedUrls`. */
-export type BatchSigner = (
+type BatchSigner = (
   paths: string[],
   ttlSeconds: number,
 ) => Promise<SignedPath[] | null>;

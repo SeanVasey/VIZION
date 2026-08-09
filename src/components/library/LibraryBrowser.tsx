@@ -19,6 +19,7 @@ import {
   type ModeId,
 } from "@/lib/constants";
 import { relativeTime } from "@/lib/library/util";
+import { MODEL_LABELS as MODEL_LABEL_MAP } from "@/lib/library/model-labels";
 import {
   countActiveFilters,
   libraryHref,
@@ -45,11 +46,8 @@ import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 
 export type { PromptCard } from "@/lib/library/queries";
 
-const MODEL_LABEL_MAP = new Map<string, string>(
-  TARGET_MODELS.map((m) => [m.id, m.label]),
-);
-
-/** Developer for a stored target id.  Tolerant like MODEL_LABEL_MAP above:
+/** Developer for a stored target id.  Tolerant like the shared MODEL_LABEL_MAP
+ *  (`MODEL_LABELS` in lib/library/model-labels):
  *  PromptCard.target_model is typed `string`, so a card can hold an id this
  *  build no longer knows, and DeveloperIcon destructures PATHS[developer] —
  *  which throws on an unknown key and would blank-screen the whole library.

@@ -176,7 +176,7 @@ const OUTPUT_STRUCTURE_ALLOWED =
 const OUTPUT_STRUCTURE_FORBIDDEN =
   "This mode preserves the input's shape — the OUTPUT SHAPE rule above stands: do not introduce sections, tags, or lists the author did not already use.";
 
-export interface SystemPromptOptions {
+interface SystemPromptOptions {
   mode: ModeId;
   target: TargetModelId;
   refine?: EnhanceRefine;
@@ -261,7 +261,7 @@ export function buildSystemPrompt(opts: SystemPromptOptions): string {
   ].join("\n");
 }
 
-export interface EnhancePayload {
+interface EnhancePayload {
   output: string;
   rationale: string;
   /** Assumptions the model made to fill gaps — optional, capped, tolerant. */

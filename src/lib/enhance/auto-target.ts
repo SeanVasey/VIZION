@@ -57,7 +57,7 @@ import {
  */
 export const LONG_INPUT_CHARS = 4_000;
 
-export type AutoTier = "light" | "heavy";
+type AutoTier = "light" | "heavy";
 
 /** Why routing landed where it did — reported back as `resolvedReason` so the
  *  result meta can say more than "Auto → X". Priority when several apply:
@@ -68,7 +68,7 @@ export type AutoRouteReason =
   | "long-input"
   | "media-context";
 
-export interface AutoRoute {
+interface AutoRoute {
   target: TargetModelId;
   tier: AutoTier;
   reason: AutoRouteReason;

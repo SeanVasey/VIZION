@@ -120,7 +120,8 @@ const DOT_R = 4;
 const FILL_INSET_PX = 6;
 
 /**
- * The expanded track — pure presentation, exported for tests. Portalled to
+ * The expanded track — pure presentation; the suites (unit and e2e) reach it
+ * through the `data-hold-slider-overlay` DOM hook, not an import. Portalled to
  * `document.body` because the composer chassis is `overflow-hidden`
  * (EnhanceComposer) and would clip a track wider than the rail; fixed
  * positioning comes from TrackGeometry, which already anchored the selected
@@ -129,7 +130,7 @@ const FILL_INSET_PX = 6;
  * gesture it visualizes. z-[85]: above the toast tier; a Sheet can never be
  * open mid-gesture.
  */
-export function HoldSliderOverlay({
+function HoldSliderOverlay({
   detents,
   dragIndex,
   geometry,

@@ -28,10 +28,12 @@ type ProfilePatch = {
  * `display_name` uniqueness is enforced by a DB constraint and surfaced here.
  */
 /**
- * The only hosts an avatar may load from (audit SEC-006) — the same set the
- * CSP img-src and next/image remotePatterns allow. The client renders
- * avatar_url with `unoptimized` (Supabase transforms it already), which skips
- * remotePatterns, so the server is where the allowlist must live.
+ * The only hosts an avatar may load from (audit SEC-006). This mirrors
+ * next/image remotePatterns (`*.supabase.co` wildcard + the two OAuth CDNs);
+ * the CSP img-src is NARROWER — it pins the exact configured Supabase origin
+ * (SEC-001). The client renders avatar_url with `unoptimized` (Supabase
+ * transforms it already), which skips remotePatterns, so the server is where
+ * this allowlist must live.
  */
 function isAllowedAvatarUrl(raw: string): boolean {
   try {

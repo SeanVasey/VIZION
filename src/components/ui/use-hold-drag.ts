@@ -35,7 +35,7 @@ export const DETENT_SPACING_PX = 44;
 /** Inset from the capsule's rounded end to the first/last detent center. */
 export const TRACK_PAD_PX = 22;
 /** Rendered height of the overlay capsule. */
-export const TRACK_HEIGHT_PX = 48;
+const TRACK_HEIGHT_PX = 48;
 /** Minimum gap between the track and the viewport edges. */
 export const EDGE_MARGIN_PX = 16;
 

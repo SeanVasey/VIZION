@@ -50,7 +50,7 @@ export interface StoreFileInput {
   role: string;
 }
 
-export type StoreOutcome =
+type StoreOutcome =
   | { ok: true; assetId: string; storagePath: string; softNote?: string }
   | { ok: false; reason: "quota" | "invalid" | "reserve" | "upload"; message: string };
 
@@ -136,7 +136,7 @@ export async function storeAttachment(
   return { ok: true, assetId: reserved.id, storagePath: reserved.storagePath };
 }
 
-export type RemoveOutcome =
+type RemoveOutcome =
   | { ok: true }
   | { ok: false; stage: "object" | "row"; message: string };
 

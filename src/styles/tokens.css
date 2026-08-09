@@ -8,14 +8,17 @@
  *
  * --chalk / --silver are theme-swapped role tokens (primary / muted text), so
  * the same component utilities stay WCAG-AA legible in dark and light.
- * --laser / --on-laser / --flare are constant across themes.
+ * --laser / --on-laser are constant across themes; --flare darkens on light
+ * (#ff5247 → #c81d10) like the -ink roles, per the blocks below.
  * ===================================================================== */
 
 :root {
   /* --- dark (default) ------------------------------------------------ */
   --void: #0f1012; /* page bg stop                     */
   --void-2: #0e1013; /* page bg stop / on-laser ink      */
-  --lift: #16181d; /* raised page bg stop              */
+  --lift: #16181d; /* raised page bg stop — reserved: unreferenced since the
+                      NEBULA+ swap (275d8ee) removed its last reader,
+                      .bg-mesh-ground; kept as part of the locked role set */
 
   --chalk: #f2f3f6; /* primary text                     */
   --silver: #b9bcc5; /* muted text                       */

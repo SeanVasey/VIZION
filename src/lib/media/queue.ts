@@ -74,7 +74,7 @@ export function patchItem(
   return items.map((it) => (it.id === id ? { ...it, ...patch } : it));
 }
 
-export interface AdmittedFile<F> {
+interface AdmittedFile<F> {
   file: F;
   kind: MediaKind;
 }

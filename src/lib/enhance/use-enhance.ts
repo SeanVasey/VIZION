@@ -61,7 +61,7 @@ class EnhanceError extends Error {
 
 /** Live progress of an in-flight enhance stream (transient per-run state —
  *  deliberately NOT in the persisted UI store). */
-export interface EnhanceStreamState {
+interface EnhanceStreamState {
   active: boolean;
   /** Current processing step / thinking label. */
   step: string;

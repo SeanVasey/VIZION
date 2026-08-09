@@ -4,6 +4,8 @@ import {
   LIBRARY_PAGE_SIZE,
   decodeCursor,
   encodeCursor,
+  escapeLike,
+  quoteOrValue,
   type LibraryFilter,
   type LibrarySort,
 } from "@/lib/library/paging";
@@ -54,17 +56,6 @@ const SORT_SPEC: Record<
   created: { column: "created_at", ascending: false },
   title: { column: "title", ascending: true },
 };
-
-/** Escape ilike wildcards in user input. */
-function escapeLike(s: string): string {
-  return s.replace(/[\\%_]/g, (m) => `\\${m}`);
-}
-
-/** Quote a value for a PostgREST or=() expression (titles can contain commas
- *  and parens, which would otherwise break the filter grammar). */
-function quoteOrValue(v: string): string {
-  return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-}
 
 interface PageRow {
   id: string;

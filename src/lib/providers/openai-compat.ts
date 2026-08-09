@@ -54,7 +54,7 @@ interface CompatOptions {
 /** The streaming request body, widened for the non-standard keys a compat API
  *  may accept (DashScope's thinking pair). Unknown keys pass through the SDK
  *  to the wire as-is. */
-export type CompatBody = OpenAI.ChatCompletionCreateParamsStreaming &
+type CompatBody = OpenAI.ChatCompletionCreateParamsStreaming &
   Record<string, unknown>;
 
 /**
@@ -97,7 +97,7 @@ export function buildCompatBody(
   return body;
 }
 
-export function makeOpenAICompatStream(opts: CompatOptions) {
+function makeOpenAICompatStream(opts: CompatOptions) {
   return async function* stream(
     system: string,
     input: string,

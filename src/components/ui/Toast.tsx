@@ -11,7 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-export interface ToastOptions {
+interface ToastOptions {
   text: string;
   /** Optional action (e.g. Undo). Runs, then dismisses the toast. */
   action?: { label: string; onAction: () => void };

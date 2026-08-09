@@ -5,6 +5,10 @@ import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
+import {
+  PICKER_TRIGGER_FALLBACK_CLASS,
+  PickerChevron,
+} from "@/components/models/picker-trigger";
 
 /**
  * Reasoning-depth picker — trigger + sheet, and deliberately NOT a `<select>`.
@@ -58,10 +62,7 @@ function ThinkingPickerImpl({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className={
-          triggerClassName ??
-          "font-body inline-flex min-h-[44px] items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-2.5 text-sm text-text"
-        }
+        className={triggerClassName ?? PICKER_TRIGGER_FALLBACK_CLASS}
       >
         <span className="sr-only">{label}: </span>
         <DepthGlyph level={value ?? null} className="h-4 w-4 shrink-0" />
@@ -71,20 +72,7 @@ function ThinkingPickerImpl({
         <span className="grow truncate text-left">
           {value ? THINKING_LEVEL_LABEL[value] : "Auto"}
         </span>
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          className="h-4 w-4 shrink-0 text-silver"
-        >
-          <path
-            d="M8 10l4 4 4-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <PickerChevron />
       </button>
       <ThinkingPickerSheet
         open={open}

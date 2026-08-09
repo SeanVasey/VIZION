@@ -21,8 +21,8 @@ export function SafeAreaProvider({ children }: { children: ReactNode }) {
 
   return (
     // No background here: an opaque fill would paint OVER the fixed -z-10
-    // ambient layer (mesh canvas + aurora + gradient ground) and hide it —
-    // html/body already carry the token background beneath that layer.
+    // ambient layer (NEBULA+ ground vignette + blooms + particle field) and
+    // hide it — html/body already carry the token background beneath it.
     <div className="relative flex min-h-[100dvh] flex-col text-text">
       <main
         id="main-content"

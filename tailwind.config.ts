@@ -16,9 +16,10 @@ const config: Config = {
       current: "currentColor",
       // The seven locked roles (FINAL_PLAN §2) + Amber warning.
       void: "var(--void)",
-      // --void-2 / --lift remain in tokens.css (the mesh-ground gradient reads
-      // them) but no `bg-void-2`/`text-lift` utility was ever consumed — the
-      // dead color keys are dropped (DEAD-003).
+      // --void-2 / --lift remain in tokens.css but emit no color key here —
+      // the dead keys were dropped (DEAD-003). Since the NEBULA+ swap (275d8ee)
+      // --void-2's only reader is HoldSlider's track wash (an arbitrary-value
+      // utility) and --lift has no reader at all (kept: tokens.css is LOCKED).
       onyx: "var(--onyx)",
       silver: "var(--silver)",
       chalk: "var(--chalk)",

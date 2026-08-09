@@ -29,7 +29,7 @@ import {
   streamZai,
 } from "@/lib/providers/openai-compat";
 
-export interface EnhanceArgs {
+interface EnhanceArgs {
   input: string;
   mode: ModeId;
   target: TargetModelId;
@@ -80,7 +80,7 @@ export interface EnhanceOutput {
 /** Events surfaced by the streaming adapter. `delta` text is the DECODED
  *  output field (the envelope scanner runs here, once, for every provider);
  *  `usage` snapshots are cumulative. `done` always closes a successful run. */
-export type AdapterStreamEvent =
+type AdapterStreamEvent =
   | { type: "delta"; text: string }
   | { type: "usage"; tokenIn: number; tokenOut: number; snapshot?: boolean }
   | { type: "done"; result: EnhanceOutput };
@@ -243,7 +243,9 @@ export async function* enhanceStream({
  *  Mistral: model_length). */
 const LENGTH_STOPS = new Set(["length", "max_tokens", "MAX_TOKENS", "model_length"]);
 
-/** Buffered form — a drain of the stream, so there is exactly one code path. */
+/** Buffered form — a drain of the stream, so there is exactly one code path.
+ *  No production caller (the route streams); its sole consumer is the
+ *  stream/drain equivalence assertion in tests/unit/stream.test.ts. */
 export async function enhance(args: EnhanceArgs): Promise<EnhanceOutput> {
   for await (const event of enhanceStream(args)) {
     if (event.type === "done") return event.result;

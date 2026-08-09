@@ -18,7 +18,7 @@
  * treats a query-suffixed `.svg` as unoptimized SVG passthrough — it strips
  * the query before the extension check.)
  */
-export const BRAND_ASSET_VERSION = "2";
+const BRAND_ASSET_VERSION = "2";
 
 export const BRAND_ICON_SRC = `/brand/vizion-icon-token.svg?v=${BRAND_ASSET_VERSION}`;
 export const BRAND_MARK_SRC = `/brand/vizion-mark-token.svg?v=${BRAND_ASSET_VERSION}`;

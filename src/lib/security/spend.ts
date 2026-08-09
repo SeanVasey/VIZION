@@ -29,7 +29,7 @@ import { COST_CAP_USD_PER_DAY, RATE_LIMIT_PER_MIN } from "@/lib/providers/config
 type Db = SupabaseClient<Database>;
 
 /** Why admission was refused. `db` covers everything unclassified. */
-export type ReserveFailure = "rate" | "cap" | "db";
+type ReserveFailure = "rate" | "cap" | "db";
 
 export interface Reservation {
   /** Pass to `settleSpend` or `releaseSpend`. */

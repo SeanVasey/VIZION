@@ -287,7 +287,10 @@ test.describe("VIZION shell + auth gate", () => {
   }) => {
     const res = await request.get("/sw.js");
     expect(res.ok()).toBeTruthy();
+    // Both tokens: dropping either from the config must fail here (SW-006 —
+    // the old no-cache-only assertion let a no-store regression ship green).
     expect(res.headers()["cache-control"]).toContain("no-cache");
+    expect(res.headers()["cache-control"]).toContain("no-store");
   });
 
   test("registers a service worker and serves the offline fallback", async ({

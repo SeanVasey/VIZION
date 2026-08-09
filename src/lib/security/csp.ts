@@ -24,7 +24,7 @@
  * ever the ORIGIN: a stray path or query in the env value must never reach
  * the policy.
  */
-export function configuredSupabaseOrigin(raw: string | undefined): string | null {
+function configuredSupabaseOrigin(raw: string | undefined): string | null {
   if (!raw) return null;
   try {
     const { origin, protocol } = new URL(raw);
@@ -43,7 +43,7 @@ export function configuredSupabaseOrigin(raw: string | undefined): string | null
  * origin allowed for REST does NOT bring its own socket. Measured in both
  * engines — see the git history of next.config.ts for the probe table.
  */
-export function derivedWebsocketOrigin(origin: string): string {
+function derivedWebsocketOrigin(origin: string): string {
   return origin.replace(/^http/i, "ws");
 }
 

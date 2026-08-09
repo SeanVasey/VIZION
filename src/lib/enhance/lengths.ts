@@ -18,12 +18,11 @@ import type { ModeId } from "@/lib/constants";
 export const LENGTHS = ["short", "medium", "long"] as const;
 export type LengthId = (typeof LENGTHS)[number];
 
-/** Modes the dial applies to. The same shape as SHAPE_PRESERVING — a
- *  mode-keyed capability set, checked rather than assumed. */
-const LENGTH_MODES = new Set<ModeId>(["condense", "expand"]);
-
+/** Whether the dial applies to a mode — derived from LENGTH_LABEL's keys so
+ *  the capability set has exactly one source of truth (the shipped UI gates
+ *  on `lengthOptions(mode) !== null`, which reads the same record). */
 export function hasLengthControl(mode: ModeId): boolean {
-  return LENGTH_MODES.has(mode);
+  return lengthOptions(mode) !== null;
 }
 
 /**

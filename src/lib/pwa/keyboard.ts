@@ -24,7 +24,7 @@ export const KEYBOARD_MIN_OVERLAP = 150;
  *  indicates a keyboard. Slack absorbs floating-point scale readouts. */
 const MAX_UNZOOMED_SCALE = 1.01;
 
-export interface ViewportSample {
+interface ViewportSample {
   /** `window.innerHeight` — the layout viewport height. */
   layoutHeight: number;
   /** `visualViewport.height` — the visible height in CSS px at current scale. */

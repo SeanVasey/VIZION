@@ -17,7 +17,7 @@ const PAN_STEP = 8;
 /** Pointer travel below this reads as a tap rather than a drag. */
 const TAP_SLOP = 4;
 
-export interface AvatarCropperProps {
+interface AvatarCropperProps {
   file: File;
   onCancel: () => void;
   onCropped: (blob: Blob) => void;

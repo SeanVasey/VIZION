@@ -9,6 +9,20 @@ import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/con
 
 export const LIBRARY_PAGE_SIZE = 30;
 
+/** Escape ilike wildcards in user input, so a literal % or _ in a search term
+ *  matches itself instead of everything. Shared by library and drafts queries
+ *  (SEC-004) — an escaping fix must land in one place, never two. */
+export function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
+/** Quote a value for a PostgREST `or=()` expression. A search term can contain
+ *  commas and parens, which would otherwise break the filter grammar and turn a
+ *  harmless query into a 400 (or, worse, a different filter). */
+export function quoteOrValue(v: string): string {
+  return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 /**
  * `drafts` is a view over a DIFFERENT relation (public.drafts), not a filter on
  * prompts. It lives in this union anyway so the view switch, the URL shape, the

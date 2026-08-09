@@ -9,7 +9,7 @@ export interface SettingStatus {
   message?: string;
 }
 
-export interface ActionLikeResult {
+interface ActionLikeResult {
   ok: boolean;
   error?: string;
 }

@@ -47,7 +47,9 @@ jobs:
         run: npm run build
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        # Just the two engines the configured projects use (mobile-safari →
+        # WebKit, mobile-chrome → Chromium); a bare `install` adds Firefox too.
+        run: npx playwright install --with-deps webkit chromium
 
       - name: E2E tests
         run: npm run test:e2e
@@ -55,7 +57,7 @@ jobs:
       - name: Security audit (production dependencies)
         # Audit what actually ships. Dev/build tooling (esbuild via vite/vitest)
         # carries advisories that only affect a running dev server / Deno, never
-        # the deployed runtime; a full-tree report is run separately as advisory.
+        # the deployed runtime; the full tree is gated by the next step.
         run: npm audit --omit=dev --audit-level=high
 
       - name: Security audit (full tree, gated)

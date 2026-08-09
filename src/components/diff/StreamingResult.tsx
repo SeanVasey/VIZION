@@ -91,8 +91,8 @@ export function StreamingResult({
             </p>
           )}
         </div>
-        {/* Slim sweep track + the aria-live step line — the unchanged shared
-            component; no tokens passed, so its own usage row stays dormant. */}
+        {/* Slim sweep track + the aria-live step line — the shared component;
+            the usage ticker renders in this header, above. */}
         <StreamProgress step={step} className="mb-3" />
         {partialOutput ? (
           /* OUTPUT REGION: streamed result text renders in mono (JetBrains).

@@ -103,7 +103,7 @@ function audioSpec(base: string, a: MediaAttributes): string {
 /** Per-user local media budget; Amber warning fires at 80%. */
 export const MEDIA_QUOTA_BYTES = 50 * 1024 * 1024; // 50 MB
 
-export interface BudgetStatus {
+interface BudgetStatus {
   usedBytes: number;
   quotaBytes: number;
   pct: number;

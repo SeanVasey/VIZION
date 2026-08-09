@@ -10,7 +10,7 @@ import { contentHash } from "@/lib/library/hash";
 import { parseLibraryParams } from "@/lib/library/paging";
 import { queryLibraryPage, type PromptCard } from "@/lib/library/queries";
 
-export interface SaveResult {
+interface SaveResult {
   ok: boolean;
   promptId?: string;
   error?: string;

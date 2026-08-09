@@ -21,7 +21,8 @@ import {
   type MediaStoreDeps,
 } from "@/lib/media/pipeline";
 import { buildMediaContext, sanitizeName } from "@/lib/media/context";
-import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
+import { type TargetModelId } from "@/lib/constants";
+import { MODEL_LABELS as MODEL_LABEL_MAP } from "@/lib/library/model-labels";
 import { StreamProgress } from "@/components/feedback/StreamProgress";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
@@ -55,10 +56,6 @@ function UploadGlyph({ className }: { className?: string }) {
 /** Extraction pipeline flag (locked default: proxy, with on-device fallback). */
 const EXTRACTION =
   process.env.NEXT_PUBLIC_MEDIA_EXTRACTION === "ondevice" ? "ondevice" : "proxy";
-
-const MODEL_LABEL_MAP = new Map<string, string>(
-  TARGET_MODELS.map((m) => [m.id, m.label]),
-);
 
 /** Route intent per role ("generate" analyzes like a reference). */
 const ROLE_INTENT: Record<
@@ -575,7 +572,6 @@ function AttachmentTrayImpl({
                 item.status,
               ) && (
                 <StreamProgress
-                  indeterminate
                   step={itemStepLabel(
                     item,
                     // Pre-resolution the destination is Auto's to pick, so

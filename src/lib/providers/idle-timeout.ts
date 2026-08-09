@@ -67,7 +67,7 @@ import { ProviderError } from "@/lib/providers/errors";
  */
 const CLEANUP_GRACE_MS = 2_000;
 
-export interface IdleTimeoutOptions {
+interface IdleTimeoutOptions {
   /**
    * Abort the underlying request. Required for any SDK-backed stream — see the
    * async-generator queueing note above. Omit only for a source whose

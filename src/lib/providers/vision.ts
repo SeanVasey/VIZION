@@ -25,7 +25,7 @@ import type { MediaAttributes } from "@/lib/media/types";
  * spec and the parse happens once at the tail. Server-side only.
  */
 
-export interface VisionResult {
+interface VisionResult {
   attrs: Partial<MediaAttributes>;
   /** Transcription — present only for `expect: "text"` analyses. */
   text?: string;
@@ -36,7 +36,7 @@ export interface VisionResult {
   usageEstimated?: boolean;
 }
 
-export interface VisionOptions {
+interface VisionOptions {
   /** System prompt override (defaults to MEDIA_EXTRACT_SYSTEM). */
   system?: string;
   /** What the response parses as (defaults to "attributes"). */
@@ -354,7 +354,7 @@ export async function describeImage(
         // JSON is emitted, silently returning empty attributes.
         return finish(
           await describeOpenAICompatible(
-            requireKey("OPENAI_API_KEY"),
+            requireKey(PROVIDER_KEY_ENV[cfg.provider]),
             undefined,
             base64,
             mediaType,
@@ -367,7 +367,7 @@ export async function describeImage(
         // Grok-class models reason unconditionally — same headroom as OpenAI.
         return finish(
           await describeOpenAICompatible(
-            requireKey("XAI_API_KEY"),
+            requireKey(PROVIDER_KEY_ENV[cfg.provider]),
             "https://api.x.ai/v1",
             base64,
             mediaType,
@@ -379,7 +379,7 @@ export async function describeImage(
       case "mistral":
         return finish(
           await describeOpenAICompatible(
-            requireKey("MISTRAL_API_KEY"),
+            requireKey(PROVIDER_KEY_ENV[cfg.provider]),
             "https://api.mistral.ai/v1",
             base64,
             mediaType,
@@ -391,7 +391,7 @@ export async function describeImage(
       case "meta":
         return finish(
           await describeOpenAICompatible(
-            requireKey("META_API_KEY"),
+            requireKey(PROVIDER_KEY_ENV[cfg.provider]),
             "https://api.meta.ai/v1",
             base64,
             mediaType,
@@ -404,7 +404,7 @@ export async function describeImage(
       case "moonshot":
         return finish(
           await describeOpenAICompatible(
-            requireKey("MOONSHOT_API_KEY"),
+            requireKey(PROVIDER_KEY_ENV[cfg.provider]),
             "https://api.moonshot.ai/v1",
             base64,
             mediaType,
@@ -417,7 +417,7 @@ export async function describeImage(
         // Sonar reasons before answering — same headroom as OpenAI.
         return finish(
           await describeOpenAICompatible(
-            requireKey("PERPLEXITY_API_KEY"),
+            requireKey(PROVIDER_KEY_ENV[cfg.provider]),
             "https://api.perplexity.ai",
             base64,
             mediaType,
@@ -435,7 +435,7 @@ export async function describeImage(
         // models, and the think spans are stripped before the parse. Base URL
         // and jsonMode mirror `streamMiniMax` (openai-compat.ts).
         const r = await describeOpenAICompatible(
-          requireKey("MINIMAX_API_KEY"),
+          requireKey(PROVIDER_KEY_ENV[cfg.provider]),
           "https://api.minimax.io/v1",
           base64,
           mediaType,
@@ -453,7 +453,7 @@ export async function describeImage(
         // under DashScope's 8192 output ceiling.
         return finish(
           await describeOpenAICompatible(
-            requireKey("DASHSCOPE_API_KEY"),
+            requireKey(PROVIDER_KEY_ENV[cfg.provider]),
             "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
             base64,
             mediaType,
