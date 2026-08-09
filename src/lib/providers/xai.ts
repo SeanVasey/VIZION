@@ -45,8 +45,13 @@ export async function* streamXAI(
   try {
     const stream = await client.chat.completions.create({
       model,
-      // Output ceiling: a runaway generation must stay bounded.
-      max_tokens: 16_000,
+      // Output ceiling: a runaway generation must stay bounded — and Grok
+      // reasons unconditionally (xAI defaults to high effort), billing its
+      // reasoning against this ceiling like the OpenAI path. High effort gets
+      // the same headroom so a heavy pass can't truncate the envelope
+      // (audit 04 uncertain-01: this had drifted from openai.ts; vision.ts
+      // already granted Grok the reasoning-class headroom).
+      max_tokens: reasoningEffort === "high" ? 32_000 : 16_000,
       messages: [
         { role: "system", content: system },
         { role: "user", content: input },

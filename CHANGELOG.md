@@ -6,6 +6,36 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Cleanup audit, approved wave (2026-08-09) — the held items land
+
+The owner approved the audit's held recommendations
+(`docs/audits/04-cleanup-audit-2026-08-09.md` § approval-gated items carries
+per-item dispositions, including four deliberately still deferred):
+
+- **Grok gets the reasoning headroom** — xai.ts mirrors openai.ts's
+  effort-conditional output ceiling (32k at high effort; Grok reasons
+  unconditionally and bills it against the ceiling), closing a sibling drift
+  the audit could not prove was intentional. The one behavior change of the
+  wave; it can only reduce truncation.
+- **The save-with-outbox flow lives once** — extracted to
+  `lib/library/save-with-outbox.ts` behind 12 new characterization tests that
+  pinned every queued/error/offline branch of both surfaces BEFORE the
+  refactor and stayed green through it (SW-001/SW-002 had to be fixed twice
+  precisely because this flow was copy-pasted).
+- **The eslint class allowlist retires** — the plugin's default CSS scan was
+  already the real enforcement (the list had silently fallen ~13 classes
+  behind while lint stayed green); the config now says so, and the rule was
+  mutation-tested to prove it still bites.
+- **SW precache drops `icons/apple-touch-icon.png`** (~15.4 KiB per install a
+  URL no document, manifest, or platform convention ever requests — grooming
+  PERF-005's mistaken carry-over clause with approval).
+- **CI**: e2e traces/reports now upload on failure; CLAUDE.md §8's structure
+  diagram matches the shipped tree and §9 drops the retired Lighthouse PWA
+  category; the PR template's examples are VIZION-domain.
+- **Formatting**: one dedicated, purely mechanical `npm run format` commit
+  brings the drifted tree (128 files) back to Prettier, and `format:check`
+  joins CI so it cannot re-drift.
+
 ### Conservative cleanup audit (2026-08-09) — dead code, redundancy, doc drift
 
 An 8-dimension adversarially-verified cleanup pass

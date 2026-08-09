@@ -106,16 +106,23 @@ the shape only).
 
 ```
 src/
-  app/            App Router routes — layout · (auth)/ · enhance/ · library/ · profile/
-                  · api/{enhance,media}/  (route handlers, P3+)
-  components/     nav/ · editor/ · diff/ · swatch/ · avatar-crop/ · profile/
-  lib/            supabase/ (P2) · providers/ (adapter + formatters, P3) · pwa/ · query/
+  app/            App Router routes — layout · (auth)/{sign-in,set-password} ·
+                  (app)/{enhance,library,profile} · auth/* (callback/confirm/
+                  sign-out/delete-account) · api/{enhance,media}/ · fonts/
+  components/     nav/ · editor/ · diff/ · library/ · media/ · models/ · auth/ ·
+                  avatar-crop/ · settings/ · ui/ · feedback/ · background/ · pwa/
+  lib/            supabase/ · providers/ (adapter + formatters) · enhance/ ·
+                  library/ · drafts/ · media/ · security/ · auth/ · owner/ ·
+                  profile/ · pwa/ · query/
   stores/         zustand UI state
-  styles/         tokens.css (the 7 roles) · globals.css
-public/           manifest.webmanifest · icons/ · splash/ · sw.js (built) · offline.html
-scripts/          build-sw.mjs · generate-icons.mjs
-tests/            unit/ · e2e/
-docs/             architecture.md · decisions/ · runbooks/
+  styles/         tokens.css (the 7 roles) · globals.css · dev-accents.css
+public/           manifest.webmanifest · icons/ · splash/ · brand/ · sw.js (built)
+                  · offline.html + offline.js · robots.txt
+scripts/          build-sw.mjs · generate-icons.mjs · check-audit.mjs ·
+                  check-model-enum.mjs · verify-migrations.mjs
+supabase/         migrations/ (the whole schema from nothing — see AGENTS.md)
+tests/            unit/ · e2e/ (+ e2e/support/ stub Supabase) · stubs/
+docs/             architecture.md · decisions/ · runbooks/ · audits/ · history/
 tasks/            lessons.md
 ```
 
@@ -127,7 +134,9 @@ tasks/            lessons.md
   in `spend_reserve` (§7), not an edge posture.
 - iOS storage-eviction recovery: `navigator.storage.persist()`, re-hydrate from
   Supabase on launch, IndexedDB outbox flushed on `visibilitychange`.
-- Full WCAG AA pass; Lighthouse PWA ✓.
+- Full WCAG AA pass; Lighthouse a11y ✓ + manual installability check (the
+  Lighthouse PWA category was retired upstream in v12 — see
+  `docs/runbooks/hardening.md`).
 
 ## 10. Workflow Orchestration
 

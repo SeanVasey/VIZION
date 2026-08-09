@@ -11,9 +11,9 @@ Common types: feat, fix, perf, refactor, docs, test, build, ci, chore,
 security, revert.
 
 Examples:
-  feat(auth): add passkey sign-in
-  fix(player): prevent duplicate playback events
-  perf(api): reduce project-list query latency
+  feat(enhance): add a per-model thinking-depth selector
+  fix(library): prevent duplicate save on offline retry
+  perf(api): reduce enhance-route admission latency
 
 AUTHOR INSTRUCTIONS
 
@@ -27,7 +27,7 @@ AUTHOR INSTRUCTIONS
    unsanitized production logs, or private vulnerability details. Use the
    repository's approved private security-reporting process when necessary.
 6. Check an author-attestation box only when it is true. CI results, required
-   reviews, rulesets, and CODEOWNERS remain the authoritative controls.
+   reviews, and rulesets remain the authoritative controls.
 -->
 
 ## Summary

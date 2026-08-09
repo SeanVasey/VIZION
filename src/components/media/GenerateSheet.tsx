@@ -8,8 +8,7 @@ import { useUIStore } from "@/stores/ui";
 import { buildGenerationPrompt } from "@/lib/media/formatters";
 import { GEN_TARGETS, type GenTargetId } from "@/lib/media/types";
 import { sanitizeName } from "@/lib/media/context";
-import { savePromptAction } from "@/lib/library/actions";
-import { enqueueOutbox } from "@/lib/pwa/outbox";
+import { savePromptWithOutbox } from "@/lib/library/save-with-outbox";
 import { useCopy } from "@/components/ui/use-copy";
 import { CheckMark } from "@/components/ui/glyphs";
 import { highlightGenerationPrompt, stripEngineSyntax } from "@/lib/media/highlight";
@@ -75,38 +74,22 @@ export function GenerateSheet({
       tokenOut: 0,
     };
     startSave(async () => {
-      // Queue claims are gated on the write landing under a real owner
-      // (SW-001/SW-002) — see TransformationDiff for the incident shape.
-      if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        if (userId && (await enqueueOutbox(userId, "save-prompt", payload))) {
-          setSaveQueued(true);
-        } else {
-          setSaveError(
-            "Couldn't queue this save on this device — copy the prompt before leaving.",
-          );
-        }
-        return;
-      }
-      try {
-        const res = await savePromptAction(payload);
-        if (res.ok && res.promptId) setSavedId(res.promptId);
-        else if (res.duplicate) {
-          // This exact content is already in the library (LIB-007): link the
-          // existing card instead of reporting a failure over a success state.
-          setSavedId(res.duplicate.promptId);
-        } else setSaveError(res.error ?? "Couldn't save to the library.");
-      } catch {
-        if (
-          typeof navigator !== "undefined" &&
-          navigator.onLine === false &&
-          userId &&
-          (await enqueueOutbox(userId, "save-prompt", payload))
-        ) {
-          setSaveQueued(true);
-        } else {
-          setSaveError("Couldn't save to the library — try again.");
-        }
-      }
+      // One shared control flow (SW-001/SW-002 hardened, audit 04 redun-05) —
+      // this surface only maps the result onto its own state and copy.
+      const res = await savePromptWithOutbox(userId, payload);
+      if (res.status === "saved") setSavedId(res.promptId);
+      else if (res.status === "duplicate") {
+        // This exact content is already in the library (LIB-007): link the
+        // existing card instead of reporting a failure over a success state.
+        setSavedId(res.duplicate.promptId);
+      } else if (res.status === "queued") setSaveQueued(true);
+      else if (res.status === "queue-failed")
+        setSaveError(
+          "Couldn't queue this save on this device — copy the prompt before leaving.",
+        );
+      else if (res.source === "action")
+        setSaveError(res.message ?? "Couldn't save to the library.");
+      else setSaveError("Couldn't save to the library — try again.");
     });
   }
 

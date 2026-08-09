@@ -55,13 +55,19 @@ async function main() {
     // cached at runtime via stale-while-revalidate rather than precached.
     //
     // Only the icons the OFFLINE experience actually needs are precached: the
-    // manifest's install icons (192/256/384/512 + maskable) and the iOS
-    // apple-touch-icon. icon-1024 (115 KB, an App-Store artifact), the favicons,
-    // and the intermediate iOS sizes are browser-chrome assets the SW never
-    // needs offline (PERF-005 / DEAD-001) — they are still served on demand and
-    // runtime-cached by the StaleWhileRevalidate image route. `icons/**/*.png`
-    // swept all 19 and spent ~130 KB of first-visit data on assets no offline
-    // path uses.
+    // manifest's install icons (192/256/384/512 + maskable). icon-1024
+    // (115 KB, an App-Store artifact), the favicons, and the intermediate iOS
+    // sizes are browser-chrome assets the SW never needs offline (PERF-005 /
+    // DEAD-001) — still served on demand and runtime-cached by the
+    // StaleWhileRevalidate image route. `icons/**/*.png` swept all 19 and
+    // spent ~130 KB of first-visit data on assets no offline path uses.
+    // icons/apple-touch-icon.png left the list 2026-08-09 (audit 04 pwa-04,
+    // owner-approved): no document, manifest, or platform convention requests
+    // that URL — iOS probes root /apple-touch-icon.png and the layout links
+    // /apple-icon.png (the App Router convention file), so the precached entry
+    // could never serve either (Cache Storage keys are full URLs). PERF-005's
+    // disposition listed it as offline-needed; that clause was a mistaken
+    // carry-over.
     const { count, size, warnings } = await injectManifest({
       swSrc: bundled,
       swDest: SW_DEST,
@@ -76,7 +82,6 @@ async function main() {
         "icons/icon-512.png",
         "icons/maskable-192.png",
         "icons/maskable-512.png",
-        "icons/apple-touch-icon.png",
       ],
     });
 

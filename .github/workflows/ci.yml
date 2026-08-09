@@ -54,6 +54,20 @@ jobs:
       - name: E2E tests
         run: npm run test:e2e
 
+      - name: Upload e2e traces on failure
+        # Retry traces (`trace: on-first-retry`) and the report otherwise die
+        # with the runner — a red e2e leg was undebuggable from the log alone
+        # (audit 04 ci-05).
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Security audit (production dependencies)
         # Audit what actually ships. Dev/build tooling (esbuild via vite/vitest)
         # carries advisories that only affect a running dev server / Deno, never
