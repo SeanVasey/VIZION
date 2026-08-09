@@ -19,6 +19,14 @@ All notable changes to VIZION are documented here. The format follows
   preventDefault while active), 300ms hold under the iOS system long-press,
   context menu and callout suppressed only mid-gesture, mouse included so
   desktop and Playwright share the gesture.
+- **Thinking rail hold-slider**: press-and-hold the Thinking pill and drag —
+  the detents are `[Auto, …the selected model's own ladder]`, so the track
+  adapts per model (six stops for the five-step ladders, four for Grok's
+  three, Minimal appearing only on Gemini's) and dragging fully left is the
+  one-gesture route back to Auto. The live label reads model-qualified
+  ("Opus 5 · Extra High") and the fill wears the meter glyph's own ramp:
+  faint for Auto, silver through Low, laser for Medium/High, the ultra
+  violet above. A plain tap still opens the sheet unchanged.
 
 ### Design audit (2026-08-09): the approved wave — all 24 proposals land
 

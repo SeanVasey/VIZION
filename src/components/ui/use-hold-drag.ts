@@ -127,6 +127,12 @@ export function useHoldDrag({
   const cancelled = useRef(false);
   /** Swallows the click the browser fires after a hold's pointer-up. */
   const suppressClick = useRef(false);
+  /** Finger-to-selected-detent x offset at activation. The geometry clamps
+   *  to the viewport, so on a narrow screen the selected detent may NOT sit
+   *  under the finger — the drag must stay RELATIVE to where the hand
+   *  already is, or the first move teleports the value to whatever detent
+   *  the clamp happened to leave underneath. */
+  const dragOffset = useRef(0);
   /** Props can change mid-gesture (they don't in practice, but a stale
    *  closure in a window listener is not worth the bet). */
   const latest = useRef({ detentCount, selectedIndex, onCommit });
@@ -194,6 +200,7 @@ export function useHoldDrag({
     // The active-phase axis claim — see the header. Non-passive on purpose.
     window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
     window.addEventListener("keydown", onWindowKeyDown);
+    dragOffset.current = p.x - geometry.detentCenters[selected]!;
     tap(8);
     setActiveBoth({ dragIndex: selected, geometry });
   }, [onWindowKeyDown, onWindowTouchMove, setActiveBoth]);
@@ -233,8 +240,9 @@ export function useHoldDrag({
     }
     // Dragging: x-only (vertical drift is ignored, like the reference), and
     // state moves only when the DETENT changes — a handful of renders per
-    // gesture, never one per pixel.
-    const next = detentIndexForX(e.clientX, current.geometry);
+    // gesture, never one per pixel. The offset keeps the mapping relative
+    // to the finger even where the clamp displaced the track.
+    const next = detentIndexForX(e.clientX - dragOffset.current, current.geometry);
     if (next !== current.dragIndex) {
       tap(5);
       setActiveBoth({ ...current, dragIndex: next });

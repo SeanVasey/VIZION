@@ -95,8 +95,11 @@ export function HoldSliderTrigger({
     <span className="inline-flex" {...props}>
       {children}
       {/* Always mounted so the first commit's announcement is not dropped
-          while the region registers (the A11Y-005 lesson). */}
-      <span aria-live="polite" role="status" className="sr-only">
+          while the region registers (the A11Y-005 lesson). aria-live only,
+          deliberately NOT role="status": the result view's tests (and the
+          clarify-questions guard) query role=status SINGULAR, and a live
+          announcement needs no role to be spoken. */}
+      <span aria-live="polite" data-hold-slider-announce="" className="sr-only">
         {announced}
       </span>
       {active && dragDetent && (

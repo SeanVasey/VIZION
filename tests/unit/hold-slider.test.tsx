@@ -197,6 +197,34 @@ describe("drag, commit, and the trailing click", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it("keeps the drag relative to the finger when the clamp displaces the track", () => {
+    // A phone viewport with the pill near the right edge: the track clamps
+    // left, so the finger no longer starts over the selected detent. The
+    // first shipped cut mapped absolute x and teleported Auto → Max on the
+    // first move (caught by the e2e drag in mobile emulation).
+    const onCommit = vi.fn();
+    render(<Host onCommit={onCommit} />);
+    const descriptor = Object.getOwnPropertyDescriptor(window, "innerWidth");
+    Object.defineProperty(window, "innerWidth", {
+      value: 375,
+      configurable: true,
+    });
+    try {
+      fireEvent.pointerDown(pill(), {
+        pointerId: 1,
+        clientX: 340,
+        clientY: 400,
+        button: 0,
+      });
+      hold();
+      moveTo(340 + DETENT_SPACING_PX);
+      up(340 + DETENT_SPACING_PX);
+      expect(onCommit).toHaveBeenCalledExactlyOnceWith(1);
+    } finally {
+      if (descriptor) Object.defineProperty(window, "innerWidth", descriptor);
+    }
+  });
+
   it("starts the drag from the committed detent, not from zero", () => {
     const onCommit = vi.fn();
     render(<Host selectedIndex={2} onCommit={onCommit} />);
@@ -222,7 +250,10 @@ describe("drag, commit, and the trailing click", () => {
 
   it("announces the committed value through the live region", () => {
     render(<Host />);
-    const region = screen.getByRole("status");
+    // Located by hook, not role: role=status is deliberately absent (the
+    // result view's tests own the singular status query).
+    const region = document.querySelector("[data-hold-slider-announce]")!;
+    expect(region.getAttribute("aria-live")).toBe("polite");
     expect(region.textContent).toBe("");
     down();
     hold();

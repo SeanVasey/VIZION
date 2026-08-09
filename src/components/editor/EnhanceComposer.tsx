@@ -1,14 +1,20 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import { useEnhanceViewStore } from "@/stores/enhance-view";
-import { TARGET_THINKING_LEVELS, type ThinkingLevel } from "@/lib/constants";
+import {
+  TARGET_THINKING_LEVELS,
+  THINKING_LEVEL_LABEL,
+  type ThinkingLevel,
+} from "@/lib/constants";
 import { NOT_CONFIGURED_MESSAGE, useEnhance } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { TargetPicker } from "@/components/models/TargetPicker";
 import { ThinkingPicker } from "@/components/models/ThinkingPicker";
+import { targetLabel } from "@/components/models/target-label";
+import { HoldSliderTrigger, type Detent } from "@/components/ui/HoldSlider";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
 import { StreamingResult } from "@/components/diff/StreamingResult";
 import { PartialOutput } from "@/components/diff/PartialOutput";
@@ -26,6 +32,35 @@ import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
 
 /** Frozen option list for the format rail — built once, not per render. */
 const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
+
+/** Hold-slider tone per thinking level — keyed to the level's IDENTITY, never
+ *  its ladder position (the DepthGlyph rule), so "high" wears the same laser
+ *  on Grok's 3-step ladder as on Fable's 5-step one. The ramp mirrors the
+ *  meter glyph's vocabulary: muted silver below the accent, laser through the
+ *  middle, the ultra violet for the two tiers above High. */
+const LEVEL_TONE: Record<ThinkingLevel, Detent["tone"]> = {
+  minimal: "silver",
+  low: "silver",
+  medium: "laser",
+  high: "laser",
+  xhigh: "ultra",
+  max: "ultra",
+};
+
+/** Auto rides the slider as the LEFTMOST detent — dragging fully left is the
+ *  one-gesture route back to "send nothing, provider default applies". */
+const AUTO_DETENT: Detent = { id: "auto", label: "Auto", tone: "faint" };
+
+function buildThinkingDetents(ladder: readonly ThinkingLevel[]): Detent[] {
+  return [
+    AUTO_DETENT,
+    ...ladder.map((level) => ({
+      id: level,
+      label: THINKING_LEVEL_LABEL[level],
+      tone: LEVEL_TONE[level],
+    })),
+  ];
+}
 
 /**
  * The control pill shared by the Target and Thinking rails.
@@ -335,6 +370,31 @@ export function EnhanceComposer() {
     [targetModel, setThinkingLevel],
   );
 
+  // The thinking rail's hold-slider (ADR-0012): [Auto, ...the target's own
+  // ladder], so the detent count adapts per model (4/5/6) and a ladderless
+  // target — which renders no rail at all — never builds one. Everything
+  // here re-computes only on a target switch, the same cadence as
+  // onThinkingChange, so the memoized picker inside the wrapper holds.
+  const thinkingDetents = useMemo(
+    () => (levelOptions ? buildThinkingDetents(levelOptions) : null),
+    [levelOptions],
+  );
+  const thinkingSelectedIndex =
+    thinkingLevel && levelOptions ? levelOptions.indexOf(thinkingLevel) + 1 : 0;
+  const onThinkingCommit = useCallback(
+    (index: number) => {
+      const ladder = TARGET_THINKING_LEVELS[targetModel];
+      if (!ladder) return;
+      // Index 0 is the Auto detent — the store's own "no level" signal.
+      setThinkingLevel(targetModel, index === 0 ? null : (ladder[index - 1] ?? null));
+    },
+    [targetModel, setThinkingLevel],
+  );
+  const thinkingLiveLabel = useCallback(
+    (detent: Detent) => `${targetLabel(targetModel)} · ${detent.label}`,
+    [targetModel],
+  );
+
   // Persist Polish's revert decisions with the result they belong to — as
   // component state in the diff they died on navigation while the result now
   // survives, silently shipping the model's fully-accepted output (Codex
@@ -474,18 +534,30 @@ export function EnhanceComposer() {
             render this pill's label larger than the one directly above it. The
             caption is a `<span>` because there is no longer a form element for
             `htmlFor` to point at — the trigger carries its own accessible name. */}
-        {levelOptions && (
+        {levelOptions && thinkingDetents && (
           <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
             <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
               Thinking
             </span>
-            <ThinkingPicker
-              label="Thinking depth"
-              value={thinkingLevel}
-              options={levelOptions}
-              onChange={onThinkingChange}
-              triggerClassName={RAIL_TRIGGER_CLASS}
-            />
+            {/* Hold-to-drag accelerator around the pill (ADR-0012): a tap
+                still opens the sheet below — the wrapper adds the gesture
+                without touching the picker's props, so the memo and the
+                matched-pair trigger class both hold. */}
+            <HoldSliderTrigger
+              detents={thinkingDetents}
+              selectedIndex={thinkingSelectedIndex}
+              liveLabel={thinkingLiveLabel}
+              onCommit={onThinkingCommit}
+              enabled
+            >
+              <ThinkingPicker
+                label="Thinking depth"
+                value={thinkingLevel}
+                options={levelOptions}
+                onChange={onThinkingChange}
+                triggerClassName={RAIL_TRIGGER_CLASS}
+              />
+            </HoldSliderTrigger>
           </div>
         )}
 

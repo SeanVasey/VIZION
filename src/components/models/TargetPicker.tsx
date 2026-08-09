@@ -6,6 +6,7 @@ import { CheckGlyph } from "@/components/ui/CheckGlyph";
 import { Segmented } from "@/components/ui/Segmented";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
+import { targetLabel } from "@/components/models/target-label";
 import {
   AUTO_PREFERENCES,
   AUTO_PREFERENCE_LABEL,
@@ -48,7 +49,6 @@ const GROUPS: { developer: Developer; models: TargetModel[] }[] = DEVELOPER_ORDE
   }),
 ).filter((g) => g.models.length > 0);
 
-const LABEL_BY_ID = new Map(TARGET_MODELS.map((m) => [m.id, m.label]));
 
 /** Auto's preference segments — a Segmented (toggle buttons), NOT more radios:
  *  nesting a second radiogroup inside the sheet's would break the roving
@@ -71,12 +71,6 @@ const ROVING_NAV_KEYS = new Set([
   "Home",
   "End",
 ]);
-
-/** Display label for a target id — falls back to the raw id so a legacy or
- *  unknown persisted value still renders as *something* rather than blank. */
-function targetLabel(id: TargetModelId): string {
-  return LABEL_BY_ID.get(id) ?? id;
-}
 
 // Memoized: nested in the composer, which re-renders per keystroke and per SSE
 // flush. Its props are all stable identity (store values + store setters), so

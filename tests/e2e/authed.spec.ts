@@ -285,3 +285,49 @@ test.describe("new prompt + drafts", () => {
    * is, that it clears the nav, and that it is on the right routes.
    */
 });
+
+/**
+ * The thinking rail's hold-slider (ADR-0012), driven with a real mouse —
+ * which is exactly why the gesture includes mouse pointers at all. Only an
+ * engine can answer whether the hold timer, pointer capture, and the
+ * trailing-click suppression compose over a real event stream. This is
+ * evidence about the RENDERING ENGINE only: the iOS half (callout
+ * suppression, mid-drag pointercancel) is on the manual list in
+ * docs/runbooks/ios-verification.md.
+ */
+test.describe("thinking hold-slider", () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+  });
+
+  test("press-hold-drag commits a depth; a plain click still opens the sheet", async ({
+    page,
+  }) => {
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    await expect(pill).toContainText("Auto");
+    const box = (await pill.boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    // Hold past HOLD_MS (300ms), then drag three detents right:
+    // Auto → Low → Medium → High.
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+    await page.mouse.move(cx + 3 * 44, cy, { steps: 6 });
+    await page.mouse.up();
+
+    await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    await expect(pill).toContainText("High");
+    // The trailing click was swallowed — no sheet.
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // The tap path is untouched: a plain click opens the sheet as before.
+    await pill.click();
+    const sheet = page.getByRole("dialog", { name: "Thinking depth" });
+    await expect(sheet).toBeVisible();
+    await expect(
+      sheet.getByRole("radio", { name: "High", exact: true }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+});
