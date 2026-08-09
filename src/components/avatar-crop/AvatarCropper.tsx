@@ -282,7 +282,7 @@ export function AvatarCropper({
       className="glass flex w-full max-w-sm flex-col items-center gap-5 rounded-2xl p-5 focus:outline-none"
     >
       <p id={hintId} className="sr-only">
-        Drag to pan, tap a point to centre it, or use the arrow keys.
+        Drag to pan, tap a point to center it, or use the arrow keys.
       </p>
       {/* Square viewport with a circular mask: dimmed corners + a ring. */}
       <div

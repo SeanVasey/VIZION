@@ -42,6 +42,12 @@ export interface EnhanceRequest {
   mediaContext?: string[];
 }
 
+/** The one user-facing copy for a provider whose key isn't deployed. Both
+ *  run surfaces (composer, library re-enhance) render it; hoisted after the
+ *  two had drifted apart (audit VAR-17). */
+export const NOT_CONFIGURED_MESSAGE =
+  "This model isn't configured yet — add its API key on the server to enable it.";
+
 class EnhanceError extends Error {
   constructor(
     message: string,

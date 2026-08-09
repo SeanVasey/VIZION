@@ -49,7 +49,7 @@ describe("AvatarCropper — the dialog it declares itself to be", () => {
     renderCropper();
     const area = screen.getByRole("group", { name: "Crop area" });
     expect(area).toHaveAccessibleDescription(
-      "Drag to pan, tap a point to centre it, or use the arrow keys.",
+      "Drag to pan, tap a point to center it, or use the arrow keys.",
     );
     expect(area.tabIndex).toBe(0);
   });

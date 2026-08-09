@@ -49,7 +49,7 @@ export function Footer({ inset = false }: { inset?: boolean }) {
           href="https://vaseymultimedia.com"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Vasey Multimedia"
+          aria-label="VASEY Multimedia"
           className="-m-2 inline-flex items-center p-2 text-silver opacity-45 transition-opacity hover:opacity-75"
         >
           <svg

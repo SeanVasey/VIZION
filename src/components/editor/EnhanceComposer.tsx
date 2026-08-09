@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import { useEnhanceViewStore } from "@/stores/enhance-view";
 import { TARGET_THINKING_LEVELS, type ThinkingLevel } from "@/lib/constants";
-import { useEnhance } from "@/lib/enhance/use-enhance";
+import { NOT_CONFIGURED_MESSAGE, useEnhance } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { TargetPicker } from "@/components/models/TargetPicker";
@@ -648,7 +648,7 @@ export function EnhanceComposer() {
             role="alert"
           >
             {enhanceMutation.error.notConfigured
-              ? "This model isn't configured yet — add its API key on the server to enable it."
+              ? NOT_CONFIGURED_MESSAGE
               : enhanceMutation.error.message}
           </p>
           {/* Anything that already streamed in survives the failure — a run

@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { MODES, MODE_LABEL, type ModeId, type TargetModelId } from "@/lib/constants";
 import { boundedDiffWords, countChangedSections } from "@/lib/enhance/diff";
 import { relativeTime, parseTags } from "@/lib/library/util";
-import { useEnhance, type EnhanceResponse } from "@/lib/enhance/use-enhance";
+import {
+  NOT_CONFIGURED_MESSAGE,
+  useEnhance,
+  type EnhanceResponse,
+} from "@/lib/enhance/use-enhance";
 import { useToast } from "@/components/ui/Toast";
 import { useCopy } from "@/components/ui/use-copy";
 import { StreamingResult } from "@/components/diff/StreamingResult";
@@ -445,7 +449,7 @@ export function PromptDetail({
                 <span className="spinner" aria-hidden="true" /> Enhancing…
               </>
             ) : (
-              "► Re-enhance"
+              "► RE-ENHANCE"
             )}
           </button>
           {revised && (
@@ -478,7 +482,7 @@ export function PromptDetail({
           <>
             <p className="font-body text-sm text-flare" role="alert">
               {enhanceMutation.error.notConfigured
-                ? "This model isn't configured yet — add its API key on the server."
+                ? NOT_CONFIGURED_MESSAGE
                 : enhanceMutation.error.message}
             </p>
             {/* Same as the composer: text that already streamed survives a
