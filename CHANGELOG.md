@@ -6,6 +6,36 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — Auto stops pretending sixteen models are two
+
+Auto routing used to be a two-outcome table: small tidy-up jobs went to
+Sonnet 5, everything else to Opus 5, and fourteen roster models — and the
+question of what anything cost — never entered into it. It could even resolve
+to a provider whose API key wasn't configured and hand the user a 503 for a
+model they never picked.
+
+Auto now routes the whole roster from a documented, precomputed policy: a
+server-side manifest holds an editorial strength rank and speed class per
+model, prices come live from the cost-cap table, and six ladders (Quality /
+Balanced / Budget × light / heavy jobs) are materialized once and walked
+top-to-bottom, **skipping any provider without a key** — availability is part
+of the policy, not a surprise after the run starts. Sonar Pro sits out of the
+pool on purpose (search-grounded answers and a per-request search fee make it
+a deliberate manual pick; it remains fully pickable). Routing is still free,
+instant, and explainable — no model call decides which model to call.
+
+The picker's Auto section gains a **Quality / Balanced / Budget** segmented
+row; tapping a preset stores it and turns Auto on in the same tap. The
+preference is device-local (the Reduced-effects idiom) and rides the request
+beside `auto: true`; refines still pin to the model that produced the result.
+Results now say *why* as well as *which*: "Auto → Sonnet 5 (quick task)".
+
+Media analysis routes too: with Auto on, `/api/media` resolves through the
+same ladders narrowed to vision-capable targets, instead of always defaulting
+to Opus. And that pool grew — **MiniMax M3 and Qwen3.8 Max analyze images
+now** (both flagships take image input natively; VIZION's capability set had
+rotted), leaving DeepSeek and GLM-5.2 as the only text-only flagships.
+
 ### Changed — model pricing catches up with the vendors' August pages
 
 Every one of the sixteen price rows was re-verified against its vendor's own

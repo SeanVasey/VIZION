@@ -298,6 +298,46 @@ Both limits are enforced **before** any model call via the `usage_window` aggreg
 (RLS-scoped to the caller). Every successful enhance writes a `usage_events` row
 (tokens + cost) — the ledger backs both the rate window and the daily cost sum.
 
+## Auto routing (`src/lib/enhance/auto-target.ts` + `src/lib/providers/manifest.ts`)
+
+Auto is a **static, precomputed policy — deliberately not a model call**. Two
+inputs live in the manifest: an editorial `strength` rank (1–10, one rationale
+comment per entry — re-rank there, never inline) and a `speed` class. Cost
+comes from the live `TARGETS` prices as a blended $/1M at a documented 1:1
+in:out mix.
+
+At module load the router materializes **six ladders** — {quality, balanced,
+budget} × {light, heavy}:
+
+- The **tier** is the old table's split, kept verbatim: polish/clarify/condense
+  are `light` until >4,000 chars or an attachment escalates; expand/reformat/
+  adapt are always `heavy`.
+- Each ladder orders the pool (all sixteen minus `autoExcluded` — currently
+  Sonar Pro, whose search-grounded answers and per-request search fee make it
+  a manual-pick-only engine): **quality** sorts by strength then price;
+  **balanced** does the same under a price ceiling (premium-tier models rank
+  after everything else) and, on the light tier, puts `fast` models first;
+  **budget** sorts by price then strength. A strength floor per (preference,
+  tier) decides who may lead; below-floor targets are appended, never
+  dropped, so a ladder can't be emptied.
+- Resolution walks the ladder and takes the **first target whose provider key
+  is configured** — Auto can never resolve to a 503. Nothing configured =
+  ladder head + the route's ordinary pre-stream 503.
+
+The media route uses the same ladders pinned to the heavy tier and filtered to
+vision-capable targets (`resolveAutoVisionTarget`).
+
+Operational couplings to know:
+
+- **`PRICE_*` overrides re-rank Auto.** The router prices candidates from the
+  live `TARGETS` values, so a pricing override is a routing change, not just a
+  cap change. After editing Vercel env, sanity-check what Budget resolves to.
+- **A key added or removed re-routes Auto** on the next invocation —
+  availability is part of the policy, by design.
+- The exported `AUTO_LADDERS` are the test surface: `auto-target.test.ts`
+  derives its expectations from them and from live `TARGETS`, so price moves
+  don't rot the suite.
+
 ## Modes (`src/lib/enhance/modes.ts`)
 
 Six enhancement modes drive the transformation. `MODE_INSTRUCTIONS` carries the per-mode

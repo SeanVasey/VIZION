@@ -2875,3 +2875,33 @@ render identical; account change wipes storage before rehydrating (the
   on them never returns). Diagnosis: reproduce on the base tree, compute
   what alpha turns the resting color into the measured one (~0.855 here),
   then find the animation that passes through it.
+
+## Auto routing over the full roster (2026-08)
+
+- **Routing data is capability data — put it where the audit said.** The
+  smarter Auto needed strength, speed, price, vision, and availability per
+  model; four of five already existed, scattered exactly as PROD-05 recorded.
+  Building the router meant *partially* delivering that manifest (routing
+  facts only) and saying so in the file header — a full five-source
+  consolidation bolted onto a feature PR would have doubled its blast radius
+  for no user-visible gain.
+- **A price change is now a routing change too.** `blendedPrice` reads the
+  live `TARGETS` values, so a `PRICE_*` override in Vercel re-ranks Auto as
+  well as re-pricing the cap. The changelog line grew a clause; tests derive
+  expected orderings from live `TARGETS` so a reprice can't rot the suite.
+- **Vendor tier NAMES are data, not vibes — verify roles, not just rates.**
+  The pricing re-verify caught GPT-5.6 Terra and Luna with swapped roles in
+  VIZION (Terra is the mid tier, Luna the small one): prices, roster order,
+  tier comments, and the target-idiom prose all repeated the same wrong
+  assignment. One wrong "which tier is this" answer at intake had fanned into
+  four surfaces; the fix touched all four in one commit.
+- **Capability sets rot in the flattering direction.** MiniMax M3 and
+  Qwen3.8 Max shipped with native image input, but VISION_CAPABLE_PROVIDERS
+  still said text-only — nothing fails when you under-claim a capability, so
+  no test ever caught it. Model-facts research goes through the vendor's
+  current page on every roster touch, capabilities included, not just prices.
+- **"Auto is not a fallback" needed its own line of code.** The media route
+  reported `fallbackFrom` whenever the used target differed from the request's
+  pinned target — under auto that's every run. The fix was naming what a
+  request was *aimed at* after routing (`aimedTarget`) and comparing against
+  that, so a genuine mid-run retry still reports honestly.
