@@ -6,6 +6,42 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Taps respond immediately — the ambient blur no longer queues input**
+  (owner report: "the time it takes for something to come up on the screen
+  when clicking is very slow"). The NEBULA+ blooms carried
+  `filter: blur(80px)` while animating, which re-rastered viewport-scale
+  layers on effectively every frame — measured with the Event Timing API:
+  even `pointerdown` sat 140–340ms in the input queue before dispatch, and
+  a pill tap took 360–790ms to paint its sheet, on an UNTHROTTLED desktop
+  CPU (long-task metrics saw nothing: the pipeline saturates with many
+  short rendering tasks, never one long one). The gaussian softness is now
+  baked into multi-stop radial gradients (numerically convolved from the
+  original profiles, ≤1.4% fit error; two reference sets — px-exact at the
+  393×852 phone and at the 1280×800 design reference from 1024px up) on an
+  enlarged `::before` that preserves the old blur's overspill, and the
+  `filter` property is gone. Same drift keyframes, now genuinely
+  composited: input delay ~15ms, tap→sheet-painted ~50–110ms, nav-tab
+  response 77–162ms (was 334–408ms). A geometry-suite pin keeps any live
+  filter from returning to the bloom layers.
+- **The hold-slider engages under real touch** (ADR-0012 amendment). The
+  first on-device pass found the slider never displayed on an iPhone: the
+  pre-hold window — which no suite exercised (the mouse e2e waits out the
+  hold before moving) — carried two independent killers. The slop rule
+  classified press-and-slide, the reference gesture itself, as
+  not-this-control and silently swallowed the press; and the resting
+  `touch-action: pan-y pinch-zoom` left the UA free to read a pre-hold
+  vertical drift as a pan and end the press with `pointercancel`. Now an
+  x-dominant slide past slop engages the track immediately (y-dominant
+  still stands down for the scroll), the resting claim is `pinch-zoom`
+  (pans stay off the UA on the two pills; zoom stays native per the WCAG
+  guard), and a slop-cancelled mouse press captures the pointer so its
+  lift can't leak the press record and leave the wrapper inert. The
+  pre-hold window is pinned under real synthesized touch in Chromium
+  (CDP): press-and-slide commits, a stationary hold expands, a quick tap
+  still opens the sheet.
+
 ### Cleanup audit, approved wave (2026-08-09) — the held items land
 
 The owner approved the audit's held recommendations
@@ -102,8 +138,9 @@ category:
   gesture drags between stops; release commits, Escape/cancel reverts. A
   plain tap still opens the pill's sheet, which remains the complete
   keyboard/screen-reader path; commits are announced through a polite live
-  region. Two-phase axis claim (`pan-y pinch-zoom` at rest, window touchmove
-  preventDefault while active), 300ms hold under the iOS system long-press,
+  region. Two-phase axis claim (`pinch-zoom` at rest since the same-day
+  touch repair above, window touchmove preventDefault while active), 300ms
+  hold under the iOS system long-press,
   context menu and callout suppressed only mid-gesture, mouse included so
   desktop and Playwright share the gesture.
 - **Thinking rail hold-slider**: press-and-hold the Thinking pill and drag —

@@ -41,7 +41,10 @@ function touchActionValues(): { where: string; value: string }[] {
     out.push({ where: "globals.css", value: m[1]!.trim() });
   }
   // Inline React styles, e.g. `touchAction: "pan-y pinch-zoom"`.
-  for (const rel of ["src/components/library/use-swipe-actions.ts"]) {
+  for (const rel of [
+    "src/components/library/use-swipe-actions.ts",
+    "src/components/ui/use-hold-drag.ts",
+  ]) {
     const src = readFileSync(join(ROOT, rel), "utf8");
     for (const m of src.matchAll(/touchAction:[^"']*["']([^"']+)["']/g)) {
       out.push({ where: rel, value: m[1]!.trim() });

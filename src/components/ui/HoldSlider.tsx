@@ -11,8 +11,9 @@ import { useHoldDrag, type TrackGeometry } from "@/components/ui/use-hold-drag";
  * press-and-hold → drag accelerator on top of it, without touching the pill's
  * own props (the composer pickers are memoized — PERF-006 — and their class
  * strings are a tested matched pair). A tap behaves exactly as before; a hold
- * expands the overlay track and the same unbroken gesture drags between
- * detents; release commits, Escape/cancel reverts.
+ * — or a sideways slide in the same unbroken press — expands the overlay
+ * track and the gesture drags between detents; release commits, Escape/cancel
+ * reverts.
  *
  * The overlay is pointer-transparent, aria-hidden DECORATION: the pill label
  * stays the authoritative readout, the sheet stays the complete keyboard and

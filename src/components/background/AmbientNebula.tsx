@@ -9,9 +9,14 @@ import { useEffect, useRef } from "react";
  * Three stacked fixed layers, bottom to top:
  *  1. `.bg-nebula-ground` — static theme-derived radial vignette, always
  *     present; under prefers-reduced-motion it IS the whole background.
- *  2. Four `.bg-nebula-bloom` divs — blurred colour blooms driven purely by
- *     CSS keyframes (GPU-composited, negligible; they may keep drifting
- *     while the tab is hidden — only the JS loop below must stop).
+ *  2. Four `.bg-nebula-bloom` divs — colour blooms driven purely by CSS
+ *     keyframes. Their gaussian softness is BAKED into multi-stop gradients
+ *     (globals.css): a live `filter: blur()` here re-rastered
+ *     viewport-scale layers every frame and queued tap input 140–340ms
+ *     behind the render pipeline (measured 2026-08-09) — with the baked
+ *     paint the same drift is genuinely composited and negligible. They may
+ *     keep drifting while the tab is hidden — only the JS loop below must
+ *     stop.
  *  3. This single 2D <canvas> particle field: three parallax tiers (far /
  *     mid / near, round-robin i % 3); the first nine particles glow accent,
  *     the rest are quiet motes. Particles pulse and wrap at ±40px margins.

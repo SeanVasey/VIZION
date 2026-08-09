@@ -122,4 +122,41 @@ describe("NEBULA+ bloom geometry", () => {
     expect(rule).toMatch(/left:\s*30vw/);
     expect(rule).toMatch(/top:\s*36vh/);
   });
+
+  it("keeps the bloom blur BAKED — no live filter may return to the layer", () => {
+    // The input-latency contract (2026-08-09): `filter: blur(80px)` on the
+    // animating blooms re-rastered viewport-scale layers every frame and
+    // queued tap input 140–340ms before dispatch — taps read as "nothing is
+    // happening". The softness now lives in the gradient stops; a filter
+    // reappearing here is the regression, whatever its radius.
+    const shared = /\.bg-nebula-bloom\s*\{([^}]*)\}/.exec(stripped);
+    expect(shared, ".bg-nebula-bloom shared rule not found").not.toBeNull();
+    expect(shared![1]!).not.toMatch(/filter:/);
+
+    // The paint rides an enlarged ::before (the old blur bled past the box),
+    // sized by the per-bloom halo fraction.
+    const before = /\.bg-nebula-bloom::before\s*\{([^}]*)\}/.exec(stripped);
+    expect(before, ".bg-nebula-bloom::before rule not found").not.toBeNull();
+    expect(before![1]!).toMatch(
+      /inset:\s*calc\(var\(--bloom-halo\)\s*\*\s*var\(--bloom-size\)\s*\*\s*-1\)/,
+    );
+    expect(before![1]!).toMatch(/background:\s*var\(--bloom-paint\)/);
+
+    // Every bloom (base set and the ≥1024px reference set) declares the
+    // baked pair; none re-declares a background or a filter of its own.
+    for (const { id } of BLOOMS) {
+      const blocks = [
+        ...stripped.matchAll(
+          new RegExp(`\\.bg-nebula-bloom-${id}\\s*\\{([^}]*)\\}`, "g"),
+        ),
+      ];
+      expect(blocks.length, `expected base + desktop blocks for bloom ${id}`).toBe(2);
+      for (const m of blocks) {
+        expect(m[1]!).toMatch(/--bloom-halo:/);
+        expect(m[1]!).toMatch(/--bloom-paint:\s*radial-gradient\(/);
+        expect(m[1]!).not.toMatch(/filter:/);
+        expect(m[1]!).not.toMatch(/\bbackground:/);
+      }
+    }
+  });
 });

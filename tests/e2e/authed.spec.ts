@@ -329,4 +329,98 @@ test.describe("thinking hold-slider", () => {
       "true",
     );
   });
+
+  /**
+   * The same control under REAL SYNTHESIZED TOUCH — Chromium only, because
+   * touch synthesis rides CDP and WebKitGTK has no equivalent. This is the
+   * layer the on-device failure lived in (2026-08-09): the mouse spec above
+   * waits out the hold before moving, so the whole pre-hold window — where
+   * the UA competes for the gesture and the slop rule classifies the press —
+   * had no engine coverage at all. Chromium's gesture recognizer consults
+   * `touch-action`, derives pointer events, and synthesizes the tap click
+   * exactly where iOS does; it is still not iOS (the callout/loupe half
+   * stays on the manual list in docs/runbooks/ios-verification.md).
+   */
+  test.describe("under touch", () => {
+    const pillBox = async (page: import("@playwright/test").Page) => {
+      const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+      await expect(pill).toContainText("Auto");
+      const box = (await pill.boundingBox())!;
+      return { pill, cx: box.x + box.width / 2, cy: box.y + box.height / 2 };
+    };
+    const touchSender = async (page: import("@playwright/test").Page) => {
+      const cdp = await page.context().newCDPSession(page);
+      return (
+        type: "touchStart" | "touchMove" | "touchEnd",
+        points: { x: number; y: number }[],
+      ) =>
+        cdp.send("Input.dispatchTouchEvent", {
+          type,
+          touchPoints: points.map((p) => ({ ...p, id: 1 })),
+        });
+    };
+
+    test.beforeEach(({ browserName }) => {
+      test.skip(browserName !== "chromium", "touch synthesis is CDP, Chromium-only");
+    });
+
+    test("press-and-slide in one unbroken motion engages and commits", async ({
+      page,
+    }) => {
+      const { pill, cx, cy } = await pillBox(page);
+      const touch = await touchSender(page);
+
+      // The reference gesture (ADR-0012's ChatGPT recording): press and slide
+      // sideways at once, never pausing for the hold timer. Six 22px steps =
+      // three detents right: Auto → Low → Medium → High.
+      await touch("touchStart", [{ x: cx, y: cy }]);
+      for (let step = 1; step <= 6; step++) {
+        await touch("touchMove", [{ x: cx + step * 22, y: cy }]);
+        await page.waitForTimeout(20);
+      }
+      await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+      await touch("touchEnd", []);
+
+      await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+      await expect(pill).toContainText("High");
+      // The synthesized tap click after the lift must not open the sheet.
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+    });
+
+    test("a stationary touch hold expands the track without opening the sheet", async ({
+      page,
+    }) => {
+      const { pill, cx, cy } = await pillBox(page);
+      const touch = await touchSender(page);
+
+      await touch("touchStart", [{ x: cx, y: cy }]);
+      // No movement at all: the 300ms timer is the only way in, and the UA
+      // (long-press context menu, selection) must not wrestle it away.
+      await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+      await touch("touchEnd", []);
+
+      await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+      // Released on the anchor detent: Auto re-commits, nothing changes.
+      await expect(pill).toContainText("Auto");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+    });
+
+    test("a quick touch tap still opens the sheet", async ({ page }) => {
+      const { cx, cy } = await pillBox(page);
+      const touch = await touchSender(page);
+
+      // Pipelined, NOT awaited in sequence: CDP commands process in order,
+      // and awaiting the start's round-trip under a loaded worker pool once
+      // stretched the "tap" past HOLD_MS — at which point the control
+      // rightly treated it as a hold and suppressed the click. The finger
+      // this simulates is down for milliseconds; the dispatch must be too.
+      const start = touch("touchStart", [{ x: cx, y: cy }]);
+      const end = touch("touchEnd", []);
+      await Promise.all([start, end]);
+
+      // The resting axis claim must not cost the synthesized click.
+      await expect(page.getByRole("dialog", { name: "Thinking depth" })).toBeVisible();
+      await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    });
+  });
 });
