@@ -658,7 +658,7 @@ const PromptRow = memo(function PromptRow({
             wrapping title column, so the net cost is 16px. The title has no
             truncate and no line-clamp, so nothing is lost — it reflows. */}
         <div className="flex items-start justify-between gap-2">
-          <p className="font-body min-w-0 text-base text-text">
+          <p className="font-body min-w-0 break-words text-base text-text">
             {p.favorite && (
               // --silver, not the Laser accent: the star is already redundant
               // with the Favorites chip and the swipe action, and it was the

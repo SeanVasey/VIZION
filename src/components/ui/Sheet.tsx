@@ -397,7 +397,13 @@ export function Sheet({
         {children}
       </div>
       {footer && (
-        <div className="shrink-0 border-t border-hair px-4 py-3 pb-safe">{footer}</div>
+        // pb via max(), not `py-3 pb-safe`: .pb-safe is a bare env() later in
+        // the utilities layer, so it silently replaced py-3's 12px bottom with
+        // 0 wherever the safe-area inset is 0 (desktop, Android, home-button
+        // iPhones) — the same floor idiom as the pr-[max(...)] column below.
+        <div className="shrink-0 border-t border-hair px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {footer}
+        </div>
       )}
       {/* Safe-area padding when there's no footer strip to carry it. */}
       {!footer && <div className="pb-safe" />}

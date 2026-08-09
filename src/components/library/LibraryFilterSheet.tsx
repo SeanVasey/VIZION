@@ -33,7 +33,7 @@ const countClass = (active: boolean) => (active ? "opacity-80" : undefined);
 const chipClass = (active: boolean) =>
   [
     "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
-    active ? "bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
+    active ? "selected-ink bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
   ].join(" ");
 
 /** Decorate a bare facet for the flat (ungrouped) path, so both paths render

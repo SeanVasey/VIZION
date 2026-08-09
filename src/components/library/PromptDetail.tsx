@@ -247,7 +247,7 @@ export function PromptDetail({
     <div className="flex flex-col gap-6">
       <header>
         {/* h2: the ScreenHeader already carries the screen's h1 ("Prompt"). */}
-        <h2 className="font-display text-balance text-2xl tracking-wide text-text">
+        <h2 className="font-display break-words text-balance text-2xl tracking-wide text-text">
           {prompt.title}
         </h2>
         <p className="font-body mt-1 text-xs tabular-nums text-silver">

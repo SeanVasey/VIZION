@@ -170,7 +170,7 @@ export function GenerateSheet({
               onClick={() => pickEngine(t.id)}
               className={`tap-44 font-body rounded-full px-3 py-1.5 text-xs transition-colors ${
                 engine === t.id
-                  ? "bg-laser font-medium text-on-laser"
+                  ? "selected-ink bg-laser font-medium text-on-laser"
                   : "glass text-silver hover:text-chalk"
               }`}
             >

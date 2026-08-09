@@ -19,7 +19,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZION
 > _transforms_ it — across sixteen target models from twelve developers
-> (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol/Luna/Terra · DeepSeek V4 ·
+> (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol/Terra/Luna · DeepSeek V4 ·
 > Gemini 3.6 Flash · Muse Spark 1.1 · MiniMax M3 · Mistral Large 3 · Kimi K3 ·
 > Sonar Pro · Qwen3.8 Max · Grok 4.5 · GLM-5.2), a per-model thinking-depth
 > selector, six enhancement modes, and media-aware
@@ -27,7 +27,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 
 <div align="center">
 
-<!-- Live capture of the shipped sign-in gate (v0.2.0), rendered from the production build. -->
+<!-- Live capture of the shipped sign-in gate, rendered from the production build (currently a stale v0.2.1 capture — regeneration pending approval). -->
 <img src="./docs/preview.png" alt="VIZION sign-in gate — the aperture glyph, wordmark, VASEY/AI + version pills, and the three Supabase auth methods" width="300" />
 
 </div>
@@ -116,7 +116,7 @@ reading as I › O — shown two ways:
   safe-zone tiles, and the iOS splash glyph.
 
 These two SVGs are the single source of truth; `npm run generate:icons` re-derives the
-entire 32-file icon + splash matrix from them via `sharp`. Don't hand-edit the PNGs.
+entire 33-file icon + splash matrix from them via `sharp`. Don't hand-edit the PNGs.
 
 ## License
 

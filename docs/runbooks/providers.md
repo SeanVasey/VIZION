@@ -160,7 +160,7 @@ translates it onto the provider's parameter:
 | Targets | Wire parameter | Levels |
 | --- | --- | --- |
 | Fable 5 · Opus 5 · Sonnet 5 | `output_config.effort` | low · medium · high · xhigh · max |
-| GPT-5.6 Sol / Luna / Terra | `reasoning_effort` | low · medium · high |
+| GPT-5.6 Sol / Terra / Luna | `reasoning_effort` | low · medium · high |
 | Gemini 3.6 Flash | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high |
 | Qwen3.8 Max | `enable_thinking` + `thinking_budget` (tokens) | low · medium · high · xhigh · max |
 | Grok 4.5 | `reasoning_effort` | low · medium · high |

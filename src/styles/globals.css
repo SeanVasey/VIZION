@@ -1247,11 +1247,21 @@
      1.06–1.18:1 against the light chassis — invisible to color-blind and
      low-vision users in the theme half of users see. The inset accent-ink
      ring is the BottomNav-dot precedent generalized: on dark the ink IS
-     Laser (no visual change); on light it draws a 5.5:1 boundary. Composes
-     with the focus ring because :focus-visible box-shadow REPLACES this —
-     acceptable: focus indication supersedes selection while focused. */
+     Laser (no visual change); on light it draws a 5.5:1 boundary. */
   .selected-ink {
     box-shadow: inset 0 0 0 1.5px var(--accent-ink);
+  }
+
+  /* The --focus-ring compose contract (see its declaration): this utility
+     sits in a LATER layer than the base :focus-visible ring, so without this
+     rule the selection ink silently replaces the focus ring — a focused
+     active control showed no focus indicator at all on dark, and on light
+     was indistinguishable from its unfocused self. (An earlier comment here
+     claimed the opposite — that :focus-visible would replace the selection
+     cue — but layer order runs base < utilities, so the utility always won.)
+     Compose, ring first, exactly as .glass / .glass-solid / .fab-glass do. */
+  .selected-ink:focus-visible {
+    box-shadow: var(--focus-ring), inset 0 0 0 1.5px var(--accent-ink);
   }
 
   /* Live-stream progress bar: a Laser sweep gliding along a Hair track.
