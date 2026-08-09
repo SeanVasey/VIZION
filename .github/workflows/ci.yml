@@ -34,6 +34,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Format check
+        # The tree was brought fully Prettier-clean in one mechanical commit
+        # (audit 04 fmt-01); this step keeps it from silently re-drifting —
+        # 128 files had drifted with nothing arresting it.
+        run: npm run format:check
+
       - name: Typecheck
         run: npm run typecheck
 

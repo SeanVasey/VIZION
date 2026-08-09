@@ -20,9 +20,9 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
   `npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run build`
 - **Narrower runs:** `npm run test` (Vitest, jsdom) · `npm run test:e2e`
   (Playwright — does its own `build:sw` + `next build` + `next start` on :3100)
-  · `npm run format:check` (advisory — it is in neither the §3 gate nor CI, and
-  the tree has drifted from Prettier; a wholesale reformat is a deliberate
-  standalone commit, never folded into other work)
+  · `npm run format:check` (a CI gate since the 2026-08-09 fmt-01 reformat —
+  the tree is fully Prettier-clean; keep it that way, and keep any wholesale
+  reformat a deliberate standalone commit, never folded into other work)
 - **Before e2e, once per machine:** `npx playwright install --with-deps webkit
 chromium` — the same line CI uses (the two engines the configured projects
   need; a bare `install` would add Firefox, which no project uses).
