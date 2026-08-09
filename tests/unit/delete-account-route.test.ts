@@ -74,9 +74,7 @@ describe("POST /auth/delete-account", () => {
     expect(adminMock.auth.admin.deleteUser).toHaveBeenCalledWith("u1");
     expect(supabaseMock.auth.signOut).toHaveBeenCalled();
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe(
-      "https://app.test/sign-in?account=deleted",
-    );
+    expect(res.headers.get("location")).toBe("https://app.test/sign-in?account=deleted");
   });
 
   it("reports failure without deleting anything further when an admin call throws", async () => {

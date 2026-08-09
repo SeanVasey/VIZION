@@ -65,9 +65,9 @@ describe("isKeyboardViewport — visual-viewport keyboard heuristic", () => {
 
 describe("keyboardInset — how far a fixed bar must lift", () => {
   it("is zero with no keyboard, so it doubles as the show/hide signal", () => {
-    expect(
-      keyboardInset({ layoutHeight: LAYOUT, visualHeight: LAYOUT, scale: 1 }),
-    ).toBe(0);
+    expect(keyboardInset({ layoutHeight: LAYOUT, visualHeight: LAYOUT, scale: 1 })).toBe(
+      0,
+    );
   });
 
   it("returns the occluded height for an open keyboard", () => {

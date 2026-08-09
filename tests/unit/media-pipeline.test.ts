@@ -43,11 +43,7 @@ describe("storeAttachment (reserve → upload → ready)", () => {
       ext: "jpg",
       role: "reference",
     });
-    expect(deps.uploadObject).toHaveBeenCalledWith(
-      "u1/x.jpg",
-      FILE.blob,
-      "image/jpeg",
-    );
+    expect(deps.uploadObject).toHaveBeenCalledWith("u1/x.jpg", FILE.blob, "image/jpeg");
     // The ready-flip is the measured commit (MED-001) — never a bare status
     // update, which would trust the client-declared size.
     expect(deps.commit).toHaveBeenCalledWith("a1");

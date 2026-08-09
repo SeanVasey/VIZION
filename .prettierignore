@@ -8,7 +8,7 @@ test-results
 pnpm-lock.yaml
 package-lock.json
 CHANGELOG.md
-# Authoritative source docs — never reformat.
+# Historical v1 planning docs (docs/history/ — CLAUDE.md §1) — preserve verbatim.
 VIZION FINAL PLAN v1.md
 VIZION-product-spec.md
 VIZION-style-guide.html

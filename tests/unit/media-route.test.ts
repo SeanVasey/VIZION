@@ -230,9 +230,9 @@ describe("POST /api/media — auto routing", () => {
         )
       ).status,
     ).toBe(400);
-    expect(
-      (await POST(request({ dataUrl: PNG_DATA_URL, auto: "yes" }))).status,
-    ).toBe(400);
+    expect((await POST(request({ dataUrl: PNG_DATA_URL, auto: "yes" }))).status).toBe(
+      400,
+    );
     expect(router.resolveAutoVisionTarget).not.toHaveBeenCalled();
   });
 

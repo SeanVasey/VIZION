@@ -7,7 +7,7 @@ import {
 
 /** A model facet as the library query returns it: an id the user's own
  *  prompts actually use, with how many use it. */
-export interface ModelFacet {
+interface ModelFacet {
   id: string;
   count: number;
 }
@@ -17,7 +17,7 @@ export interface FacetModel extends ModelFacet {
   developer: Developer | null;
 }
 
-export interface FacetGroup {
+interface FacetGroup {
   /** null for ids no longer in the roster — see the "Other" note below. */
   developer: Developer | null;
   label: string;

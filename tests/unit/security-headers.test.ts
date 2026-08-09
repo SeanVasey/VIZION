@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildSecurityHeaders,
-  staticCspHeader,
-  CSP_DIRECTIVES,
-} from "../../next.config";
+import { buildSecurityHeaders, staticCspHeader, CSP_DIRECTIVES } from "../../next.config";
 import { buildCsp, cspDirectives } from "@/lib/security/csp";
 
 /**

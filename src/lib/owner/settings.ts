@@ -11,7 +11,7 @@ import type { Database } from "@/lib/supabase/database.types";
  * row records WHO DID.
  */
 
-export interface AppSettings {
+interface AppSettings {
   ownerUserId: string | null;
   /** false = only the owner can register for or use the app. */
   openAccess: boolean;

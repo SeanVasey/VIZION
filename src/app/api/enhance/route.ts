@@ -127,17 +127,17 @@ export async function POST(request: NextRequest) {
     refine,
     mediaContext,
   } = (body ?? {}) as {
-      input?: unknown;
-      mode?: unknown;
-      target?: unknown;
-      auto?: unknown;
-      autoPreference?: unknown;
-      format?: unknown;
-      length?: unknown;
-      thinkingLevel?: unknown;
-      refine?: unknown;
-      mediaContext?: unknown;
-    };
+    input?: unknown;
+    mode?: unknown;
+    target?: unknown;
+    auto?: unknown;
+    autoPreference?: unknown;
+    format?: unknown;
+    length?: unknown;
+    thinkingLevel?: unknown;
+    refine?: unknown;
+    mediaContext?: unknown;
+  };
 
   if (typeof input !== "string" || input.trim() === "") {
     return err(400, "Provide a prompt to enhance.");

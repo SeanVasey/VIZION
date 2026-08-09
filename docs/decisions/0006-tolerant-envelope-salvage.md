@@ -14,7 +14,7 @@ JSON envelope (`{ "output": "…", "rationale": "…" }`) and a scanner extract 
 `output` string live so the user sees tokens as they arrive. That contract
 assumed a well-formed envelope at end-of-stream.
 
-In practice a provider occasionally closes the stream with a malformed *tail* —
+In practice a provider occasionally closes the stream with a malformed _tail_ —
 a trailing comma, an unterminated `rationale`, stray text after the closing
 brace — **after** the `output` string itself has demonstrably completed (its
 closing quote was already seen by the scanner). Strict `JSON.parse` of the whole

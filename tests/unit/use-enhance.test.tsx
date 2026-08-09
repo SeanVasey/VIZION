@@ -73,10 +73,13 @@ describe("useEnhance (streaming)", () => {
 
   it("maps a JSON gate failure to EnhanceError with its real status", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ error: "You've reached today's usage cap.", capReached: true }), {
-        status: 429,
-        headers: { "content-type": "application/json" },
-      }),
+      new Response(
+        JSON.stringify({ error: "You've reached today's usage cap.", capReached: true }),
+        {
+          status: 429,
+          headers: { "content-type": "application/json" },
+        },
+      ),
     );
 
     const { result } = renderHook(() => useEnhance(), { wrapper });

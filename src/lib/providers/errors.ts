@@ -76,7 +76,5 @@ export interface ProviderRequestOptions {
 export function toReasoningEffort(
   level: string | undefined,
 ): "low" | "medium" | "high" | undefined {
-  return level === "low" || level === "medium" || level === "high"
-    ? level
-    : undefined;
+  return level === "low" || level === "medium" || level === "high" ? level : undefined;
 }

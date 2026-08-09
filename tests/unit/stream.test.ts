@@ -217,8 +217,13 @@ describe("enhanceStream / enhance", () => {
     expect(events.at(-1)?.type).toBe("done");
     // The 4th argument is the per-request options object — the only path a
     // thinking selection takes from the route into a provider call.
-    expect(streamGoogle).toHaveBeenCalledWith(expect.any(String), "hi", "gemini-3.6-flash", {
-      thinkingLevel: "high",
-    });
+    expect(streamGoogle).toHaveBeenCalledWith(
+      expect.any(String),
+      "hi",
+      "gemini-3.6-flash",
+      {
+        thinkingLevel: "high",
+      },
+    );
   });
 });

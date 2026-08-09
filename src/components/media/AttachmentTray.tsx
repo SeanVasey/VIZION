@@ -15,13 +15,10 @@ import {
   type AttachmentRole,
   type MediaAttributes,
 } from "@/lib/media/types";
-import {
-  storeAttachment,
-  removeAsset,
-  type MediaStoreDeps,
-} from "@/lib/media/pipeline";
+import { storeAttachment, removeAsset, type MediaStoreDeps } from "@/lib/media/pipeline";
 import { buildMediaContext, sanitizeName } from "@/lib/media/context";
-import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
+import { type TargetModelId } from "@/lib/constants";
+import { MODEL_LABELS as MODEL_LABEL_MAP } from "@/lib/library/model-labels";
 import { StreamProgress } from "@/components/feedback/StreamProgress";
 import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
@@ -55,10 +52,6 @@ function UploadGlyph({ className }: { className?: string }) {
 /** Extraction pipeline flag (locked default: proxy, with on-device fallback). */
 const EXTRACTION =
   process.env.NEXT_PUBLIC_MEDIA_EXTRACTION === "ondevice" ? "ondevice" : "proxy";
-
-const MODEL_LABEL_MAP = new Map<string, string>(
-  TARGET_MODELS.map((m) => [m.id, m.label]),
-);
 
 /** Route intent per role ("generate" analyzes like a reference). */
 const ROLE_INTENT: Record<
@@ -288,11 +281,7 @@ function AttachmentTrayImpl({
     }
   }
 
-  async function processItem(
-    supabase: BrowserClient,
-    item: MediaItem,
-    file: File,
-  ) {
+  async function processItem(supabase: BrowserClient, item: MediaItem, file: File) {
     // 1 · Store (reserve → upload → ready), unless ephemeral.
     let assetId: string | undefined;
     if (!item.ephemeral) {
@@ -575,7 +564,6 @@ function AttachmentTrayImpl({
                 item.status,
               ) && (
                 <StreamProgress
-                  indeterminate
                   step={itemStepLabel(
                     item,
                     // Pre-resolution the destination is Auto's to pick, so
@@ -583,7 +571,7 @@ function AttachmentTrayImpl({
                     autoTarget
                       ? "Auto"
                       : (MODEL_LABEL_MAP.get(item.analysisTarget ?? targetModel) ??
-                        "the model"),
+                          "the model"),
                   )}
                 />
               )}
@@ -641,8 +629,7 @@ function AttachmentTrayImpl({
           role="status"
         >
           <WarningMark className="mr-1 inline-block h-[1em] w-[1em] align-[-0.125em]" />$
-          {capUsage.todayCost.toFixed(2)} of ${capUsage.capUsd.toFixed(2)} daily cap
-          used
+          {capUsage.todayCost.toFixed(2)} of ${capUsage.capUsd.toFixed(2)} daily cap used
         </p>
       )}
 
@@ -728,9 +715,7 @@ function AttachmentTrayImpl({
             }`}
           />
           <span>Originals</span>
-          <span className="text-text">
-            {mediaStoreByDefault ? "stored" : "not kept"}
-          </span>
+          <span className="text-text">{mediaStoreByDefault ? "stored" : "not kept"}</span>
         </button>
       </div>
       {helpOpen && (
@@ -738,8 +723,8 @@ function AttachmentTrayImpl({
           id={helpId}
           className="font-body mx-3 mb-2 rounded-xl border border-hair bg-surface px-3 py-2 text-[0.6875rem] leading-snug text-silver"
         >
-          Images are analyzed; video contributes its first frame; audio contributes
-          file metadata only.
+          Images are analyzed; video contributes its first frame; audio contributes file
+          metadata only.
         </p>
       )}
 
@@ -770,7 +755,9 @@ function AttachmentTrayImpl({
                     aria-pressed={active}
                     onClick={() => changeRole(roleItem, role)}
                     className={`flex w-full flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                      active ? "selected-ink bg-laser text-on-laser" : "glass text-text hover-hair"
+                      active
+                        ? "selected-ink bg-laser text-on-laser"
+                        : "glass text-text hover-hair"
                     } disabled:opacity-40`}
                   >
                     <span className="font-body text-sm font-medium">

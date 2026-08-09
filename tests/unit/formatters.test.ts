@@ -74,9 +74,7 @@ describe("buildSystemPrompt", () => {
         const p = buildSystemPrompt({ mode: mode.id, target: target.id });
         expect(p).toContain("THE OUTPUT IS THE PROMPT ITSELF");
         expect(p).toContain("Never produce role labels");
-        expect(p).toContain(
-          "Never write a system prompt, persona, or behavior spec",
-        );
+        expect(p).toContain("Never write a system prompt, persona, or behavior spec");
       }
     }
   });
@@ -110,15 +108,21 @@ describe("buildSystemPrompt", () => {
   });
 
   it("targets GPT idioms for the GPT target", () => {
-    expect(buildSystemPrompt({ mode: "reformat", target: "gpt_5_6_sol" })).toContain("GPT");
+    expect(buildSystemPrompt({ mode: "reformat", target: "gpt_5_6_sol" })).toContain(
+      "GPT",
+    );
   });
 
   it("targets Gemini idioms for the Gemini target", () => {
-    expect(buildSystemPrompt({ mode: "target", target: "gemini_3_6_flash" })).toContain("Gemini");
+    expect(buildSystemPrompt({ mode: "target", target: "gemini_3_6_flash" })).toContain(
+      "Gemini",
+    );
   });
 
   it("targets Fable idioms for the Fable target", () => {
-    expect(buildSystemPrompt({ mode: "expand", target: "fable_5" })).toContain("Claude Fable");
+    expect(buildSystemPrompt({ mode: "expand", target: "fable_5" })).toContain(
+      "Claude Fable",
+    );
   });
 
   it("targets Grok idioms for the Grok target", () => {
@@ -142,8 +146,14 @@ describe("buildSystemPrompt", () => {
   });
 
   it("appends a refinement pass only when requested", () => {
-    expect(buildSystemPrompt({ mode: "condense", target: "opus_5" })).not.toContain("REFINEMENT PASS");
-    const p = buildSystemPrompt({ mode: "condense", target: "opus_5", refine: { kind: "shorter" } });
+    expect(buildSystemPrompt({ mode: "condense", target: "opus_5" })).not.toContain(
+      "REFINEMENT PASS",
+    );
+    const p = buildSystemPrompt({
+      mode: "condense",
+      target: "opus_5",
+      refine: { kind: "shorter" },
+    });
     expect(p).toContain("REFINEMENT PASS");
     expect(p).toContain("meaningfully shorter");
   });
@@ -151,10 +161,14 @@ describe("buildSystemPrompt", () => {
   it("keeps the author's original OUT of the system role (SEC-003)", () => {
     // Client-controlled text in the privileged role could countermand the
     // envelope contract that follows it — the context rides the user message.
-    const p = buildSystemPrompt({ mode: "clarify", target: "opus_5", refine: {
-      kind: "tone",
-      baseInput: "my casual original words",
-    } });
+    const p = buildSystemPrompt({
+      mode: "clarify",
+      target: "opus_5",
+      refine: {
+        kind: "tone",
+        baseInput: "my casual original words",
+      },
+    });
     expect(p).toContain("inside <original> tags");
     expect(p).not.toContain("my casual original words");
   });
@@ -174,7 +188,11 @@ describe("buildSystemPrompt", () => {
   it("refinement never reintroduces role framing, any kind × mode", () => {
     for (const kind of REFINE_KINDS) {
       for (const mode of MODES) {
-        const p = buildSystemPrompt({ mode: mode.id, target: "gpt_5_6_sol", refine: { kind, baseInput: "x" } });
+        const p = buildSystemPrompt({
+          mode: mode.id,
+          target: "gpt_5_6_sol",
+          refine: { kind, baseInput: "x" },
+        });
         expect(p).toContain("THE OUTPUT IS THE PROMPT ITSELF");
         expect(p).not.toContain("system/user separation");
         expect(p).not.toContain("system-instruction block");
@@ -217,9 +235,7 @@ describe("parseEnhancePayload", () => {
 
   it("unwraps a markdown-fenced envelope", () => {
     for (const fence of ["```json", "```"]) {
-      const out = parseEnhancePayload(
-        `${fence}\n{"output":"o","rationale":"r"}\n\`\`\``,
-      );
+      const out = parseEnhancePayload(`${fence}\n{"output":"o","rationale":"r"}\n\`\`\``);
       expect(out.output).toBe("o");
       expect(out.rationale).toBe("r");
     }
@@ -250,9 +266,7 @@ describe("parseEnhancePayload", () => {
 
   it("recovers a renamed rationale from known aliases", () => {
     for (const alias of ["reasoning", "explanation", "notes"]) {
-      const out = parseEnhancePayload(
-        `{"output":"x","${alias}":" recovered why "}`,
-      );
+      const out = parseEnhancePayload(`{"output":"x","${alias}":" recovered why "}`);
       expect(out.rationale).toBe("recovered why");
     }
     // The canonical field wins over any alias when both are present.

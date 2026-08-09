@@ -20,7 +20,7 @@ import {
   type DraftCard,
 } from "@/lib/drafts/queries";
 
-export interface DraftResult {
+interface DraftResult {
   ok: boolean;
   draftId?: string;
   error?: string;
@@ -43,7 +43,7 @@ const LEVEL_IDS = new Set<string>(THINKING_LEVELS);
  *  comes back as a sentence rather than a constraint-violation message. */
 const MAX_BODY = 100_000;
 
-export interface DraftInput {
+interface DraftInput {
   body: string;
   target: TargetModelId;
   mode: ModeId;

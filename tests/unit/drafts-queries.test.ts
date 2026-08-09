@@ -26,7 +26,9 @@ function fakeSupabase(rows: unknown[] = []) {
   }
   return {
     calls,
-    client: { from: (table: string) => (calls.push({ fn: "from", args: [table] }), builder) },
+    client: {
+      from: (table: string) => (calls.push({ fn: "from", args: [table] }), builder),
+    },
   };
 }
 

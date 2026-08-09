@@ -21,7 +21,7 @@ import { TARGETS } from "@/lib/providers/config";
 /** Latency posture at default settings — light-tier jobs reward `fast`. */
 export type SpeedClass = "fast" | "standard" | "deliberate";
 
-export interface RoutingFacts {
+interface RoutingFacts {
   /** Editorial capability rank, 1–10 (10 = the strongest thing we route). */
   strength: number;
   speed: SpeedClass;

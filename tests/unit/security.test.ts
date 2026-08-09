@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { rateLimit } from "@/lib/security/rate-limit";
-import { MAX_OUTBOX_ATTEMPTS, flushOutbox, type OutboxItem, type OutboxStore } from "@/lib/pwa/outbox";
+import {
+  MAX_OUTBOX_ATTEMPTS,
+  flushOutbox,
+  type OutboxItem,
+  type OutboxStore,
+} from "@/lib/pwa/outbox";
 
 describe("rateLimit", () => {
   it("allows up to the limit, then blocks within the window", () => {
@@ -161,11 +166,7 @@ describe("flushOutbox", () => {
     const store = fakeStore([
       { id: "1", kind: "other", payload: "x", createdAt: 1, userId: OWNER },
     ]);
-    const res = await flushOutbox(
-      OWNER,
-      { save: async () => "done" as const },
-      store,
-    );
+    const res = await flushOutbox(OWNER, { save: async () => "done" as const }, store);
     expect(res.remaining).toBe(1);
   });
 

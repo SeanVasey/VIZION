@@ -62,9 +62,9 @@ describe("isOwnerUser (recorded claim first, env before/without one)", () => {
 
   it("recognises the env-named email before any claim exists", () => {
     vi.stubEnv("OWNER_EMAIL", "owner@example.com");
-    expect(
-      isOwnerUser({ id: "uid-2", email: "owner@example.com" }, settings(null)),
-    ).toBe(true);
+    expect(isOwnerUser({ id: "uid-2", email: "owner@example.com" }, settings(null))).toBe(
+      true,
+    );
   });
 
   it("rejects everyone else, and a missing user", () => {

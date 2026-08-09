@@ -18,7 +18,7 @@ Under [0003] Google wore a violet sourced from the Gemini mark
 product green (`#0ea480` ← `#10a37f`). The direction reassigns the green
 association and retires the violet.
 
-Nothing about 0003's method is in question, so this decision *reapplies* it:
+Nothing about 0003's method is in question, so this decision _reapplies_ it:
 the one-hex-per-developer luminance corridor (relative luminance between
 0.1995 and 0.2922, i.e. ≥3:1 against both composited card fills), the ΔE2000
 floors to the semantic roles co-present on the library list (20 to `--laser`,
@@ -46,7 +46,7 @@ eleven sourced entries. Chroma 0.150 is the palette's full-chroma norm (meta
 3.99:1 on the light card; floors laser 33.4 · flare 68.8/66.9 · amber 42.4 ·
 pulse 20.5.
 
-The tier flip also *improves* the property the tiers exist for: the wheel now
+The tier flip also _improves_ the property the tiers exist for: the wheel now
 runs mistral B (54°) → google A (148°) → perplexity B (210°), where the old
 violet slot sat B between two other Bs.
 
@@ -81,6 +81,6 @@ own tightest standing pair (10.6, deepseek~meta); floors laser 81.6 · flare
   measurements above; every constraint, floor, and construction in 0003 is
   untouched and was verified to hold for both new values.
 - `tests/unit/developer-accents.test.ts` needed no change: it pins the layer's
-  *constructions* (roster coverage, single-neutral, corridor for xAI, light
+  _constructions_ (roster coverage, single-neutral, corridor for xAI, light
   blocks, geometry pairs), not individual hexes — both new values satisfy it
   as-is.

@@ -1,0 +1,168 @@
+# VIZION conservative cleanup audit — 2026-08-09
+
+Dead-code removal, redundancy consolidation, and documentation-accuracy audit,
+run under an AUDIT_THEN_IMPLEMENT_VERIFIED_CHANGES contract: only conclusively
+verified, low-risk, behavior-preserving changes were applied autonomously;
+everything ambiguous, visible, or adjudication-adjacent is recorded below for
+owner approval instead. Prior-audit dispositions (`01-ledger.md` /
+`02-adjudication.md`, 2026-08-01) were honored — nothing resolved or
+deliberately retained there was re-litigated.
+
+Method: baseline gates first (all green, recorded below), then an 8-dimension
+read-only multi-agent fan-out (dead code · deps/CI · CSS/tokens · docs ·
+redundancy · PWA/assets · tests · env/config), every finding adversarially
+verified by an independent per-dimension skeptic agent (63/63 findings
+survived, several with amended — smaller — actions, which were the actions
+taken). Hunting ground weighted to the 112 commits since audit base `34a56db`.
+
+## Baseline (pre-change, this container)
+
+lint 0 · typecheck 0 · unit **1297/1297** (101 files) · e2e **61 passed,
+1 skipped** (the by-design WebKit SW skip; BOTH legs ran — WebKit `mobile-safari`
+
+- Chromium `mobile-chrome`) · production build clean · `npm audit --omit=dev`
+  **0** · full-tree `npm run audit:check` **0**. No pre-existing gate failures.
+
+Two pre-existing non-gate defects recorded, not introduced here:
+
+- **CI has never executed** (`ci-01`): live GitHub API shows 0 workflow runs
+  ever and 31 settings-generated runs stuck `queued` — Actions is disabled at
+  the ACCOUNT level (the 422 in `docs/runbooks/ci-enablement.md`). Owner
+  console action; no code fix exists. All local gates were run in lieu.
+- **`npm run format:check` is red on a clean tree** (`fmt-01`): 128 files have
+  drifted from Prettier (51 src, 49 tests, 21 docs + 7 singles). Not fixed
+  here — a wholesale reformat folded into a cleanup PR is exactly the
+  formatting-only-diff hazard this audit's contract forbids. Remediation is a
+  dedicated, purely mechanical `npm run format` commit, THEN a `format:check`
+  CI step so it cannot re-drift. AGENTS.md now says the script is advisory.
+
+## Implemented (all verified behavior-preserving; full gate green after)
+
+### Dead code removed
+
+| ID       | Change                                                                                                                                                                                                                                                                                                                                                                                                               | Evidence key                                                                                   |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| dead-03  | `export` keyword dropped on **42** module-internal symbols (6 values + 36 types across ~30 files) with zero out-of-file references — same class and disposition as resolved DEAD-004. Two list entries were conservatively SKIPPED on a word-boundary hit: `ActionResult` (lib/owner/actions.ts — a same-named type is a real export of `(auth)/actions.ts`) and `Reservation` (spend.ts — matched an error string). | two independent scans + per-symbol re-check at edit time; typecheck proves no importer existed |
+| dead-04  | `HoldSliderOverlay` un-exported; its "exported for tests" comment was **false** (all suites reach it via the `data-hold-slider-overlay` DOM hook) — comment now says so                                                                                                                                                                                                                                              | grep tests → 0 imports; 5 DOM-hook touchpoints                                                 |
+| redun-01 | StreamProgress's dormant usage row + `tokenIn`/`tokenOut`/`costUsd`/`indeterminate` props deleted — no caller ever passed tokens since f4d4350 moved the live ticker into StreamingResult's header; the row could never render. Header doc rewritten to the current truth.                                                                                                                                           | both call sites read; git history of f4d4350                                                   |
+| dead-02  | `hasLengthControl` re-implemented as `lengthOptions(mode) !== null`; the private duplicate `LENGTH_MODES` capability set deleted — one source of truth for which modes have the length dial                                                                                                                                                                                                                          | production gates on `lengthOptions` null-check; sets were identical                            |
+
+### Redundancy consolidated (byte-identical behavior)
+
+| ID          | Change                                                                                                                                                                                                                                                                                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| redun-02    | The four private id→label maps become one: `target-label.ts`, LibraryBrowser and AttachmentTray now read the designated shared `MODEL_LABELS` (lib/library/model-labels — the module created to end exactly this pattern)                                                                                                                                         |
+| redun-03    | `escapeLike` + `quoteOrValue` (SEC-004 escaping, duplicated verbatim in library/queries.ts and drafts/queries.ts) moved to the shared pure module `lib/library/paging.ts`; both queries import them — an escaping fix can no longer miss a copy                                                                                                                   |
+| redun-04    | vision.ts's eight `requireKey("…_API_KEY")` literals replaced with `requireKey(PROVIDER_KEY_ENV[cfg.provider])` — the map it already imported; the qwen→DASHSCOPE pairing can no longer drift                                                                                                                                                                     |
+| redun-06/07 | The picker pair's duplicated fallback trigger-class literal and byte-identical chevron SVG hoisted into `components/models/picker-trigger.tsx` (`PICKER_TRIGGER_FALLBACK_CLASS` + `PickerChevron`) — the "pair must match" contract now has one source. Per the verifier's amendment, `triggerClassName` was NOT made required (the unit suites render prop-less) |
+| redun-08    | The thrice-copied "validated stored thinking level" rule in EnhanceComposer hoisted into one `validThinkingLevel()` helper (composer rail, refine, answered re-run)                                                                                                                                                                                               |
+
+### Defects fixed
+
+| ID       | Change                                                                                                                                                                                                                                                             |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| tests-01 | Literal NUL/SOH control bytes in `tests/unit/media-context.test.ts:100` replaced with ` ` escapes (identical runtime string) — the file was "binary" to grep/diff and silently excluded from every repo-wide text search (two of this audit's own scans skipped it) |
+| tests-02 | The e2e "served with a no-store cache policy" test now also asserts `no-store` (it only checked `no-cache`, so dropping no-store from the config shipped green — SW-006 carry-forward)                                                                             |
+| pwa-02   | `public/offline.html` gets the same media-qualified theme-color pair as app documents (DSN-002): its single dark meta mis-tinted browser chrome in a light OS scheme against its own scheme-adaptive styles                                                        |
+| ci-04    | CI + AGENTS.md Playwright install narrowed to `--with-deps webkit chromium` (the two engines the configured projects use; the bare form also downloaded Firefox, which nothing launches)                                                                           |
+
+### Documentation corrected (drift against the shipped code)
+
+- **architecture.md**: GPT-5.6 Terra/Luna formatter bullets un-swapped (Terra =
+  balanced mid, Luna = small/fast — matching constants.ts/config.ts/formatters.ts).
+- **providers.md**: the stale "Note on cost" (pre-2026-08-08 prices, swapped
+  Terra/Luna, retired promo/unpublished-rate claims) rewritten to defer to
+  config.ts + the pinned-prices note; the `usage_window` cap description
+  replaced with the shipped ADR-0009 `spend_reserve` admission + burst limiter.
+- **hardening.md**: RLS checklist extended to all eleven tables (incl.
+  usage_reservations' deliberate no-policy shape); `usage_window` → ADR-0009;
+  "Edge/DDoS posture" bullet aligned with CLAUDE.md §7/§9's correction;
+  full-tree audit documented as blocking zero-exemption (it is); Lighthouse
+  command updated (the PWA category no longer exists in current Lighthouse).
+- **media.md**: vision fallback chain updated to the shipped 10-entry order,
+  text-only list corrected to DeepSeek V4 · GLM-5.2, auto-routing path noted.
+- **AGENTS.md**: the "e2e drives only the sign-in gate" claim corrected (the
+  suite drives the authed app via the stub Supabase); format:check marked
+  advisory; Playwright install line matches CI's narrowed form.
+- **README.md**: Inngest removed from Tech stack (never installed; D10 defers
+  it); phase-conditional setup phrasing retired.
+- **auth-setup.md**: service-role-key guidance updated (the "later phase" is
+  account deletion, ADR-0008, shipped).
+- **SECURITY.md**: CSP description updated to the shipped per-request nonce
+  policy (the "tightened during P6" framing was stale in the other direction).
+- **ADR-0001**: dated resolution note appended to the media-extraction open
+  question (shipped as the recorded default lean).
+- **.env.example**: `mistral-large-latest` → pinned `mistral-large-2512`.
+- **local-dev.md**: icon outputs corrected to the numbered convention
+  (`icon0.svg`/`icon1.png`/`apple-icon.png`).
+- **.prettierignore**: "Authoritative source docs" header corrected to the
+  CLAUDE.md §1 ruling (historical, docs/history/). Entries still match (bare
+  names match at any depth — verified live).
+- **Stale comments** brought to truth: tailwind.config's mesh-ground rationale
+  (reader died with NEBULA+; --void-2's real reader is HoldSlider, --lift has
+  none); three "mesh canvas + aurora" comments → NEBULA+ vocabulary; the
+  globals.css @import note no longer invites deleting the only mechanism that
+  loads tokens.css; tokens.css header no longer claims --flare is
+  theme-constant (its own light blocks override it — self-contradictory since
+  day one) and --lift carries a reserved-unreferenced note; profile/actions.ts
+  avatar-allowlist comment no longer claims CSP parity (CSP is narrower);
+  adapter.ts `enhance()` and safe-area.ts `contrastRatio()` note their
+  test-only consumers; vitest's src glob notes it permits future colocation;
+  next.config.ts cross-references vercel.json's duplicate /sw.js headers.
+- **CHANGELOG**: Security line added for the previously undocumented `nanoid`
+  override (GHSA-2v37-7h3g-55p8) — every other override was documented.
+
+## Approval-gated items — owner approved 2026-08-09 ("if you recommend it")
+
+The owner granted blanket approval for the held items this audit recommends.
+Dispositions, per that judgment:
+
+**Approved and implemented (same-day follow-up wave):**
+
+| ID           | What landed                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| doc-11       | CLAUDE.md §8 diagram corrected to the shipped tree (swatch/ and the never-created profile/ dropped, (app)/(auth) groups + real dirs shown)                                                                                                                                                                                                                                                                                                                     |
+| doc-13b      | CLAUDE.md §9 "Lighthouse PWA ✓" → a11y ✓ + manual installability check (PWA category retired upstream in v12)                                                                                                                                                                                                                                                                                                                                                  |
+| css-01       | Option (b): the shadowed `PROJECT_CLASSNAMES` allowlist deleted; the comment now records truthfully that the plugin's default CSS scan is the enforcement (it already was — proven by mutation test: a bogus class in TSX turns lint red, before and after). Chosen over option (a) because the list had already demonstrated its failure mode — ~13 classes behind while lint stayed green — and (a) would add recurring maintenance for no added enforcement |
+| redun-05     | Per the verifier's sequence: 12 characterization tests pinning every queued/error/offline branch of BOTH save() functions were written FIRST (all green against the duplicated code), then the flow was extracted into `lib/library/save-with-outbox.ts` and both surfaces became result-mappers — the pins stayed green unchanged through the refactor. A `source: action\|network` discriminator preserves the surfaces' exact fallback copy                 |
+| uncertain-01 | xai.ts mirrors openai.ts's effort-conditional ceiling (`max_tokens: high ? 32k : 16k`) — Grok reasons unconditionally and vision.ts already granted it the reasoning-class headroom; the flat 16k was drift, not decision. Comment records the provenance                                                                                                                                                                                                      |
+| pwa-04       | `icons/apple-touch-icon.png` dropped from the SW precache globs (10 → 9 entries, ~15.4 KiB per install); build-sw.mjs's comment now records why PERF-005's "offline-needed" clause was a mistaken carry-over                                                                                                                                                                                                                                                   |
+| ci-05        | `actions/upload-artifact` step (if: failure()) preserves playwright-report/ + test-results/ for 7 days                                                                                                                                                                                                                                                                                                                                                         |
+| ci-07        | PR template example titles are VIZION-domain; the CODEOWNERS mention (no CODEOWNERS exists) dropped                                                                                                                                                                                                                                                                                                                                                            |
+| fmt-01       | The dedicated mechanical `npm run format` commit + a `format:check` CI step so the tree cannot re-drift (shipped as its own commit, per the hazard this audit named)                                                                                                                                                                                                                                                                                           |
+
+**Approved in principle, still deferred — with the recommendation NOT to do
+them yet, and why:**
+
+| ID     | Why still deferred                                                                                                                                                                                                                                                                     |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ci-01  | Enabling GitHub Actions is an ACCOUNT-level console action only the owner can perform (the 422 in ci-enablement.md); re-probed at this wave — see the PR thread for current state. Everything repo-side (workflow_dispatch, the new artifact step, format:check) is ready for the flip |
+| pwa-05 | New splash device classes ship iOS-platform claims this environment cannot verify (ios-verification.md rule); needs a pass with on-device checking                                                                                                                                     |
+| pwa-01 | An env-flag parity check nobody can run while Actions is disabled would itself be dead code by this audit's own standard; queue it for right after ci-01                                                                                                                               |
+| ci-03  | `next lint` works on the pinned 15.x; the codemod migration belongs to the Next 16 upgrade, not a hygiene commit                                                                                                                                                                       |
+
+## Checked and deliberately unchanged (so the next pass doesn't re-open them)
+
+- The eight `overrides` entries (each re-verified purposeful, incl. the
+  per-major brace-expansion floors and the nanoid security floor).
+- `--lift` + `--void-2` tokens (locked role palette; --lift now carries its
+  reserved note), tailwind's `void`/`bg`/`current` color keys (set-completeness,
+  zero JIT cost).
+- vercel.json's /sw.js header duplication (byte-identical values, live at a
+  different layer; removal unverifiable from this environment) and its
+  manifest Content-Type rule (the only source of that header).
+- The reserved `thinking` SSE event (PRV-006), `enhance()` buffered drain and
+  `contrastRatio()` (test-contract surface), all ~29 test-seam exports, the
+  vitest src-glob, images.remotePatterns, DEAD-005's generated type aliases,
+  public/icons + public/splash (protected keeps), SKIP_WAITING plumbing
+  (SW-005 deferral honored), openai v4 pin (DEP-005 deferral honored).
+- Adapter architecture (openai/xai/mistral beside the compat factory) — the
+  separations are documented lessons, not drift.
+
+## Verification (post-change)
+
+Full gate re-run at the end of implementation — results in the PR body and
+CHANGELOG. Every batch also ran the narrowest relevant suites between edits
+(component suites after each consolidation; typecheck after each un-export
+wave). The `1297 → 1298` unit-count change is the file-scanning contract
+suites automatically covering the new `picker-trigger.tsx`.

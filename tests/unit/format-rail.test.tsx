@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
-import { FORMATS, FORMAT_INSTRUCTIONS, FORMAT_LABEL, isFormatId } from "@/lib/enhance/formats";
+import {
+  FORMATS,
+  FORMAT_INSTRUCTIONS,
+  FORMAT_LABEL,
+  isFormatId,
+} from "@/lib/enhance/formats";
 import { buildSystemPrompt } from "@/lib/providers/formatters";
 import { MODES } from "@/lib/constants";
 import type { EnhanceRequest } from "@/lib/enhance/use-enhance";
@@ -128,9 +133,9 @@ describe("format rail", () => {
       `repeat(${FORMATS.length}, minmax(0, 1fr))`,
     );
     for (const id of FORMATS) {
-      expect(
-        screen.getByRole("button", { name: FORMAT_LABEL[id] }).className,
-      ).toContain("whitespace-nowrap");
+      expect(screen.getByRole("button", { name: FORMAT_LABEL[id] }).className).toContain(
+        "whitespace-nowrap",
+      );
     }
   });
 

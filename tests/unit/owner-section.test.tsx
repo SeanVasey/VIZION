@@ -39,9 +39,9 @@ describe("OwnerSection (owner console)", () => {
     render(<OwnerSection openAccess={true} devAccentStrength={26} />);
     const slider = screen.getByLabelText(/developer accent/i) as HTMLInputElement;
     fireEvent.change(slider, { target: { value: "34" } });
-    expect(
-      document.documentElement.style.getPropertyValue("--dev-peak-user"),
-    ).toBe("34%");
+    expect(document.documentElement.style.getPropertyValue("--dev-peak-user")).toBe(
+      "34%",
+    );
     // No server write until the gesture ends…
     expect(updateOwnerSettingsAction).not.toHaveBeenCalled();
     fireEvent.pointerUp(slider);

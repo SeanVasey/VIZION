@@ -42,7 +42,9 @@ export function DraftsToolbar({
   const chip = (active: boolean) =>
     [
       "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
-      active ? "selected-ink bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
+      active
+        ? "selected-ink bg-laser text-on-laser"
+        : "glass text-silver hover:text-chalk",
     ].join(" ");
 
   return (
@@ -85,9 +87,7 @@ export function DraftsToolbar({
           <button
             type="button"
             aria-pressed={!filter.model}
-            onClick={() =>
-              router.push(libraryHref({ ...filter, model: undefined }))
-            }
+            onClick={() => router.push(libraryHref({ ...filter, model: undefined }))}
             className={chip(!filter.model)}
           >
             All models

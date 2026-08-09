@@ -322,12 +322,16 @@ export function PromptDetail({
             </p>
             {/* Quick copy — 44px tap target that doesn't inflate the header row. */}
             <PressableButton
-                            onClick={copyCurrent}
+              onClick={copyCurrent}
               aria-label={copied ? "Copied" : "Copy prompt text"}
               className="-my-2 -mr-1.5 flex h-11 w-11 items-center justify-center rounded-full text-silver hover:text-chalk focus-visible:text-chalk"
             >
               {copied ? (
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 text-accent">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5 text-accent"
+                >
                   <path
                     d="M20 6L9 17l-5-5"
                     fill="none"
@@ -538,8 +542,8 @@ export function PromptDetail({
                 change what Save stores — label the mismatch honestly. */}
             {reviseStale && (
               <p className="font-body mb-2 text-xs text-amber-ink" role="status">
-                Result from previous settings — re-enhance to match your edits.
-                Saving keeps the settings this result actually came from.
+                Result from previous settings — re-enhance to match your edits. Saving
+                keeps the settings this result actually came from.
               </p>
             )}
             {/* OUTPUT REGION: re-enhanced result body in mono (JetBrains). */}

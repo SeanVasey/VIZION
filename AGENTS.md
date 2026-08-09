@@ -20,10 +20,13 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
   `npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run build`
 - **Narrower runs:** `npm run test` (Vitest, jsdom) · `npm run test:e2e`
   (Playwright — does its own `build:sw` + `next build` + `next start` on :3100)
-  · `npm run format:check`
-- **Before e2e, once per machine:** `npx playwright install --with-deps` — the
-  same line CI uses.
-- **`npm run check:db-enum`** — a read-only preflight asking the *hosted*
+  · `npm run format:check` (a CI gate since the 2026-08-09 fmt-01 reformat —
+  the tree is fully Prettier-clean; keep it that way, and keep any wholesale
+  reformat a deliberate standalone commit, never folded into other work)
+- **Before e2e, once per machine:** `npx playwright install --with-deps webkit
+chromium` — the same line CI uses (the two engines the configured projects
+  need; a bare `install` would add Firefox, which no project uses).
+- **`npm run check:db-enum`** — a read-only preflight asking the _hosted_
   Postgres whether it actually has what the app expects: every `model_target`
   enum label, plus the columns and functions later migrations added. Worth
   knowing about because the static checks cannot catch what it catches —
@@ -38,8 +41,11 @@ Supabase and model-provider backends it talks to. Node ≥ 20 (CI uses 22).
   startup: with `NEXT_PUBLIC_SUPABASE_URL` / `..._ANON_KEY` unset,
   `src/lib/supabase/middleware.ts` fails closed — every protected route
   redirects to the public `/sign-in` gate and `/api/*` returns 401. So the
-  sign-in gate is the only surface you can exercise unconfigured, and it is
-  what the e2e suite drives.
+  sign-in gate is the only surface you can exercise on an unconfigured
+  `npm run dev`. The e2e suite goes further with no real secrets:
+  `npm run test:e2e` builds against the stateful stub Supabase
+  (`tests/e2e/support/supabase-stub.mjs`), so it drives the authed app —
+  real middleware, real `@supabase/ssr` clients, real sign-in form — too.
 - **Exercising the core flow needs real secrets**, none of which are in the
   repo: a Supabase project (`NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) **and** at least

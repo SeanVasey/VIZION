@@ -35,7 +35,7 @@ export const DETENT_SPACING_PX = 44;
 /** Inset from the capsule's rounded end to the first/last detent center. */
 export const TRACK_PAD_PX = 22;
 /** Rendered height of the overlay capsule. */
-export const TRACK_HEIGHT_PX = 48;
+const TRACK_HEIGHT_PX = 48;
 /** Minimum gap between the track and the viewport edges. */
 export const EDGE_MARGIN_PX = 16;
 
@@ -236,10 +236,7 @@ export function useHoldDrag({
       // it travelled, and a press this hook classified as not-a-tap must
       // not fall through and open the sheet (Codex review, PR #99 — the
       // same rule use-swipe-actions applies past the same threshold).
-      if (
-        Math.abs(e.clientX - p.x) > SLOP_PX ||
-        Math.abs(e.clientY - p.y) > SLOP_PX
-      ) {
+      if (Math.abs(e.clientX - p.x) > SLOP_PX || Math.abs(e.clientY - p.y) > SLOP_PX) {
         clearTimeout(timer.current);
         cancelled.current = true;
       }

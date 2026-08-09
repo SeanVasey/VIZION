@@ -20,10 +20,7 @@ function Trigger({ onUndo }: { onUndo?: () => void }) {
       <button type="button" onClick={() => toast({ text: "Second toast" })}>
         fire-second
       </button>
-      <button
-        type="button"
-        onClick={() => toast({ text: "Copy failed", tone: "error" })}
-      >
+      <button type="button" onClick={() => toast({ text: "Copy failed", tone: "error" })}>
         fire-error
       </button>
     </>

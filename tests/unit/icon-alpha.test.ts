@@ -26,12 +26,7 @@ async function raw(file: string) {
 
 function cornerAlphas(data: Buffer, width: number, height: number) {
   const px = (x: number, y: number) => data[(y * width + x) * 4 + 3];
-  return [
-    px(0, 0),
-    px(width - 1, 0),
-    px(0, height - 1),
-    px(width - 1, height - 1),
-  ];
+  return [px(0, 0), px(width - 1, 0), px(0, height - 1), px(width - 1, height - 1)];
 }
 
 function minAlpha(data: Buffer) {
@@ -44,9 +39,7 @@ function minAlpha(data: Buffer) {
 }
 
 describe("icon alpha contract (transparent any-matrix, opaque masked set)", () => {
-  const anyMatrix = readdirSync(ICONS).filter(
-    (f) => /^icon-\d+\.png$/.test(f),
-  );
+  const anyMatrix = readdirSync(ICONS).filter((f) => /^icon-\d+\.png$/.test(f));
 
   it("the any-matrix is present", () => {
     expect(anyMatrix.length).toBeGreaterThanOrEqual(13);
@@ -55,13 +48,9 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
   for (const file of anyMatrix) {
     it(`${file} keeps a transparent plate (alpha corners)`, async () => {
       const { meta, data, info } = await raw(join(ICONS, file));
-      expect(meta.hasAlpha, "any-matrix icons must carry an alpha channel").toBe(
-        true,
-      );
+      expect(meta.hasAlpha, "any-matrix icons must carry an alpha channel").toBe(true);
       for (const a of cornerAlphas(data, info.width, info.height)) {
-        expect(a, "corner pixels outside the rounded plate must be transparent").toBe(
-          0,
-        );
+        expect(a, "corner pixels outside the rounded plate must be transparent").toBe(0);
       }
     });
   }

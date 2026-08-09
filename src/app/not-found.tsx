@@ -21,8 +21,8 @@ export default function NotFound() {
             Nothing at this address
           </p>
           <p className="font-body mt-2 text-sm text-muted">
-            The page may have been deleted, or the link may be someone
-            else&apos;s. Your library and prompts are untouched.
+            The page may have been deleted, or the link may be someone else&apos;s. Your
+            library and prompts are untouched.
           </p>
           <Link
             href="/enhance"

@@ -18,7 +18,7 @@ type Polarity = "light-on-dark" | "dark-on-light";
 /** iOS `apple-mobile-web-app-status-bar-style` values we choose between. */
 type StatusBarStyle = "black-translucent" | "default";
 
-export interface SafeAreaPolarity {
+interface SafeAreaPolarity {
   /** Relative luminance of the surface, 0 (black) – 1 (white). */
   luminance: number;
   /** Whether the surface is "dark" (luminance below the 0.5 midpoint). */
@@ -65,7 +65,9 @@ export function relativeLuminance(hex: string): number {
   return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
 }
 
-/** WCAG contrast ratio between two hex colors (1–21). */
+/** WCAG contrast ratio between two hex colors (1–21). Production resolves
+ *  polarity via relativeLuminance alone; this is the unit suite's pin on the
+ *  §6 contrast guardrail (tests/unit/safe-area.test.ts). */
 export function contrastRatio(a: string, b: string): number {
   const la = relativeLuminance(a);
   const lb = relativeLuminance(b);

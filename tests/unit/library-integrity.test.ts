@@ -141,7 +141,9 @@ describe("the outbox is scoped to an account", () => {
 
   it("replays only this account's items", () => {
     expect(OUTBOX).toMatch(/export async function flushOutbox\(\s*userId: string,/);
-    expect(OUTBOX).toMatch(/\.filter\(\(item\) => item\.userId === userId && !item\.parked\)/);
+    expect(OUTBOX).toMatch(
+      /\.filter\(\(item\) => item\.userId === userId && !item\.parked\)/,
+    );
   });
 
   it("treats a duplicate as drained", () => {

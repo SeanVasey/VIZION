@@ -134,9 +134,7 @@ describe("Settings email (distinct verified workflow)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send confirmation" }));
     await vi.waitFor(() =>
-      expect(profileActions.updateEmailAction).toHaveBeenCalledWith(
-        "new@example.com",
-      ),
+      expect(profileActions.updateEmailAction).toHaveBeenCalledWith("new@example.com"),
     );
   });
 

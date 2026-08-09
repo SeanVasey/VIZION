@@ -61,7 +61,7 @@ class EnhanceError extends Error {
 
 /** Live progress of an in-flight enhance stream (transient per-run state —
  *  deliberately NOT in the persisted UI store). */
-export interface EnhanceStreamState {
+interface EnhanceStreamState {
   active: boolean;
   /** Current processing step / thinking label. */
   step: string;
@@ -174,7 +174,10 @@ export function useEnhance() {
 
         // Gate failures (auth, validation, rate/cost caps) are plain JSON
         // with real statuses — only a 200 carries the event stream.
-        if (!res.ok || !(res.headers.get("content-type") ?? "").includes("event-stream")) {
+        if (
+          !res.ok ||
+          !(res.headers.get("content-type") ?? "").includes("event-stream")
+        ) {
           const data = await res.json().catch(() => ({}));
           throw new EnhanceError(
             data.error ?? "Enhancement failed.",

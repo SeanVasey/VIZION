@@ -22,12 +22,12 @@ const INVALID_TEXT_REPRESENTATION = "22P02";
 const ENUM_MISMATCH_RE = /invalid input value for enum ([a-z_][a-z0-9_]*): "([^"]*)"/i;
 
 /** The shape both `PostgrestError` and a plain `{ message }` satisfy. */
-export interface DbWriteError {
+interface DbWriteError {
   code?: string | null;
   message?: string | null;
 }
 
-export interface EnumMismatch {
+interface EnumMismatch {
   /** The Postgres enum type that rejected the value, e.g. `model_target`. */
   enumName: string;
   /** The value the app sent, e.g. `gpt_5_6_terra`. */

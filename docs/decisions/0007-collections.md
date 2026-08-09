@@ -22,12 +22,12 @@ hierarchy. A 2026-07 UX audit deferred folders; the owner later called them in.
 enum surgery, no destructive coupling.**
 
 - `public.collections`: `id`, `user_id`, `name` (unique per owner, 1–60 chars),
-  timestamps. It is the first table these in-repo migrations *create* (the P2–P5
+  timestamps. It is the first table these in-repo migrations _create_ (the P2–P5
   base schema was applied directly to the hosted project), so its owner-only RLS
   policies (`collections_{select,insert,update,delete}_own`) ship in the same
   file, per CLAUDE.md §6 (never a table without a policy).
 - `prompts.collection_id` is **nullable** with `on delete set null`: deleting a
-  collection *releases* its prompts, never deletes them. A prompt belongs to at
+  collection _releases_ its prompts, never deletes them. A prompt belongs to at
   most one collection.
 - The existing owner policies on `prompts` already cover the new column; no
   policy change there.

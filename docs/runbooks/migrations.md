@@ -41,16 +41,16 @@ keeps the naming parseable and the ordering stable.
 
 **Stale cross-references inside applied migrations (audit `INV-008`).** Three
 comment breadcrumbs cite companion migrations by the hand-rounded timestamps the
-files carried *before* they were renamed to their ledger versions. The SQL is
+files carried _before_ they were renamed to their ledger versions. The SQL is
 unaffected — only the comments point at filenames that never shipped. Applied
 migrations are append-only, so the correction lives here, not in the files:
 
-| file (comment) | timestamp cited | actual file |
-| --- | --- | --- |
-| `20260730203605_atomic_spend_reservations.sql:123` | `20260730230000` | `20260730203737_fix_spend_reserve_ambiguity.sql` |
-| `20260730200124_usage_ledger_integrity.sql:32,63` · `…203605:248` | `20260730210000` | `20260730202138_usage_ledger_revoke.sql` |
+| file (comment)                                                    | timestamp cited  | actual file                                      |
+| ----------------------------------------------------------------- | ---------------- | ------------------------------------------------ |
+| `20260730203605_atomic_spend_reservations.sql:123`                | `20260730230000` | `20260730203737_fix_spend_reserve_ambiguity.sql` |
+| `20260730200124_usage_ledger_integrity.sql:32,63` · `…203605:248` | `20260730210000` | `20260730202138_usage_ledger_revoke.sql`         |
 
-The apply *order* those comments describe is correct; only the filenames they
+The apply _order_ those comments describe is correct; only the filenames they
 name are stale. `tests/unit/migrations.test.ts` pins the real ordering.
 
 ## Proving the directory can still build the database
@@ -88,10 +88,10 @@ columns would be noise.
 Three facts are recorded that no definition text carries, each of which would
 otherwise let a materially different schema compare equal:
 
-| fact                     | what the obvious comparison misses                                                                                                                                                                 |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| fact                     | what the obvious comparison misses                                                                                                                                                                  |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pg_policies.permissive` | RESTRICTIVE composes with `AND`, not `OR`. Flip one of the two `storage.objects` INSERT policies and every upload is denied — with both predicates, and every other field of the policy, unchanged. |
-| `pg_trigger.tgenabled`   | `pg_get_triggerdef` reconstructs the same `CREATE TRIGGER` whether or not it fires. A disabled `enforce_prompt_current_version` lets `prompts.current_ver` point at another prompt's version.        |
+| `pg_trigger.tgenabled`   | `pg_get_triggerdef` reconstructs the same `CREATE TRIGGER` whether or not it fires. A disabled `enforce_prompt_current_version` lets `prompts.current_ver` point at another prompt's version.       |
 | function owner           | On a SECURITY DEFINER routine the owner _is_ the privilege set the body runs with.                                                                                                                  |
 
 Table ownership is compared for `public` only — a table's owner bypasses its own

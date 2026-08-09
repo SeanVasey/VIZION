@@ -9,7 +9,7 @@ const OPEN_PX = 56;
 /** How far the row slides when open — the width of one action. */
 export const SWIPE_REVEAL_PX = 84;
 
-export type SwipeSide = "left" | "right" | null;
+type SwipeSide = "left" | "right" | null;
 
 /**
  * iOS-style swipe-to-reveal for a list row, without a gesture library.
@@ -65,7 +65,8 @@ export function useSwipeActions({ enabled = true }: { enabled?: boolean } = {}) 
       engaged.current = true;
     }
     // Clamp so a row can't be dragged clear off its own track.
-    const base = open === "left" ? SWIPE_REVEAL_PX : open === "right" ? -SWIPE_REVEAL_PX : 0;
+    const base =
+      open === "left" ? SWIPE_REVEAL_PX : open === "right" ? -SWIPE_REVEAL_PX : 0;
     setDx(Math.max(-SWIPE_REVEAL_PX, Math.min(SWIPE_REVEAL_PX, base + deltaX)));
   }
 

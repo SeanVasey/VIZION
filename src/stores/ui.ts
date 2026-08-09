@@ -97,8 +97,8 @@ interface UIState {
   /** Whether new attachments upload to storage (false = analyze without
    *  keeping — the ephemeral path never uploads). */
   mediaStoreByDefault: boolean;
-  /** Suppress the ambient effects (mesh canvas, auroras, shimmer) on this
-   *  device — a performance/comfort knob independent of reduced-motion. */
+  /** Suppress the ambient effects (NEBULA+ blooms, particle field, shimmer)
+   *  on this device — a performance/comfort knob independent of reduced-motion. */
   reducedEffects: boolean;
   /** Let the server pick the model per run. `targetModel` stays whatever the
    *  user last chose and rides along as the fallback — turning Auto off must

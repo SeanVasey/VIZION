@@ -98,7 +98,7 @@ function mergeAdjacent(segments: DiffSegment[]): DiffSegment[] {
 /** One reviewable change: a maximal run of non-equal segments (whitespace-only
  *  equal segments between them bridge the run). `removed`/`added` are the
  *  hunk's text on the input/output side, bridges included, for display. */
-export interface ChangeHunk {
+interface ChangeHunk {
   index: number;
   removed: string;
   added: string;

@@ -2680,7 +2680,7 @@ render identical; account change wipes storage before rehydrating (the
   portrait phone. Assert keyframe values directly; do not infer them from the
   element's box. `tests/unit/ambient-geometry.test.ts` now greps for exactly
   this.
-- **Verify a comment's claim about the PRIOR code against `git show
+- \*\*Verify a comment's claim about the PRIOR code against `git show
   <base>:<path>`, not against the code in front of you.** The comment shipped
   alongside that change asserted bloom C's drift "was already axis-correct —
   not vmax". It was reconstructed from the post-change code and was false —
@@ -2731,7 +2731,7 @@ render identical; account change wipes storage before rehydrating (the
   `finally` block correctly settles the ledger from `streamedChars` — those
   tokens really were spent upstream. So the adapter throwing away the partial on
   a length stop meant the user paid for output that was deliberately discarded.
-  When a failure path runs *after* money is committed, the question is not "did
+  When a failure path runs _after_ money is committed, the question is not "did
   it succeed" but "what did the spend buy, and are we keeping it".
 - **Never let a degraded-result flag borrow another's copy.** `salvaged` means
   "complete output, lost rationale" and its UI string promises "the prompt above
@@ -2748,9 +2748,9 @@ render identical; account change wipes storage before rehydrating (the
 - **A corridor with a lower bound is a visibility constraint, not a rulebook.**
   "Make OpenAI maroon" is unsatisfiable on a dark card and no amount of
   ΔE tuning changes it: `#800000` is 1.15:1 on `#2E352D`. The accent must be
-  *lighter* than the surface to exist at all. Worth computing and stating the
+  _lighter_ than the surface to exist at all. Worth computing and stating the
   measured number before proposing a compromise — the constraint that binds was
-  the corridor, while the one that *looked* binding (the `--flare` clearance)
+  the corridor, while the one that _looked_ binding (the `--flare` clearance)
   turned out to pass at 21.0/18.1 without amendment.
 - **An invariant asserted for one instance is not asserted.** The accent
   corridor was only ever checked against `xai`, so an out-of-corridor value for
@@ -2762,18 +2762,18 @@ render identical; account change wipes storage before rehydrating (the
 - **Two identical animations read as two indicators.** `.stream-live::after` and
   `.stream-progress-sweep` shared one keyframe, duration, gradient and glow —
   the CSS even said "one keyframe, two consumers" approvingly. Deduplicating a
-  *definition* is not the same as deduplicating a *signal*. When choosing which
+  _definition_ is not the same as deduplicating a _signal_. When choosing which
   to cut, the tiebreak was accessibility: the bar carried the `aria-live` step
   label and the edge light carried nothing.
 - **Playwright browsers are not provisioned in a fresh session.** `npm run
-  test:e2e` hard-fails in global-setup until
+test:e2e` hard-fails in global-setup until
   `npx playwright install --with-deps webkit chromium` has run (and
   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` must be overridden for it). Budget for it
   before claiming the gate is green — and note that a `... | tail` pipeline
-  returns *tail's* exit code, so a failed run can look like exit 0.
+  returns _tail's_ exit code, so a failed run can look like exit 0.
 - **A budget expressed as a duration will be re-armed at every layer.** PR #91
   took six review rounds to bound one provider call, and each round found the
-  *same* defect one layer further out: route preflight, then the header wait,
+  _same_ defect one layer further out: route preflight, then the header wait,
   then the stream body, then the SDK client's own `timeout`. Every fix
   RELOCATED the timer; none removed the ability to start a new one, because
   `PROVIDER_TOTAL_MS` stayed importable and `timeout: PROVIDER_TOTAL_MS` went
@@ -2815,7 +2815,7 @@ render identical; account change wipes storage before rehydrating (the
   request it knows it must kill. The money leaves at connect time; the guard
   belongs before it, not after.
 - **Ask the API to do the thing; the refusal names the cause.** `ci-enablement.md`
-  had spent two measurement rounds inferring *why* Actions never ran, from the
+  had spent two measurement rounds inferring _why_ Actions never ran, from the
   shape of what was missing — repo policy for "no record created", billing for
   "records stuck queued", two hypotheses for two symptoms. One dispatch attempt
   returned `422 Actions has been disabled for this user`, which is a single
@@ -2826,7 +2826,7 @@ render identical; account change wipes storage before rehydrating (the
   error before theorising about it.
 - **`playwright install` is not `playwright install-deps`.** The existing lesson
   said browsers are unprovisioned in a fresh session; the sharper form is that
-  the *system libraries* are too, and they fail differently. Missing browsers
+  the _system libraries_ are too, and they fail differently. Missing browsers
   fail in global-setup; missing WebKitGTK libs fail per-test at
   `browserType.launch` with 30 red tests that read exactly like a code
   regression. `install-deps` shells out to apt and needs root. On a repo where
@@ -2881,7 +2881,7 @@ render identical; account change wipes storage before rehydrating (the
 - **Routing data is capability data — put it where the audit said.** The
   smarter Auto needed strength, speed, price, vision, and availability per
   model; four of five already existed, scattered exactly as PROD-05 recorded.
-  Building the router meant *partially* delivering that manifest (routing
+  Building the router meant _partially_ delivering that manifest (routing
   facts only) and saying so in the file header — a full five-source
   consolidation bolted onto a feature PR would have doubled its blast radius
   for no user-visible gain.
@@ -2903,7 +2903,7 @@ render identical; account change wipes storage before rehydrating (the
 - **"Auto is not a fallback" needed its own line of code.** The media route
   reported `fallbackFrom` whenever the used target differed from the request's
   pinned target — under auto that's every run. The fix was naming what a
-  request was *aimed at* after routing (`aimedTarget`) and comparing against
+  request was _aimed at_ after routing (`aimedTarget`) and comparing against
   that, so a genuine mid-run retry still reports honestly.
 
 ## 2026-08-09 — Approval-gated design audit (report → CMCs → approved VAR wave)
@@ -2912,7 +2912,7 @@ render identical; account change wipes storage before rehydrating (the
   ledger entry said the selected-ink cue went "on every active Laser fill";
   a grep found four `aria-pressed` chip groups that never got it. When a
   finding is resolved across N sites, the disposition must enumerate them —
-  and the durable fix is a *scanning* guard, not an enumerated one.
+  and the durable fix is a _scanning_ guard, not an enumerated one.
 - **A comment asserting cascade behavior is a claim, not a fact.** The
   `.selected-ink` comment said ":focus-visible box-shadow REPLACES this";
   layer order (base < utilities) ran it exactly backwards, so focused
@@ -2994,3 +2994,42 @@ render identical; account change wipes storage before rehydrating (the
   assumes the click follows immediately; after Escape the finger can stay
   down for seconds, so mark cancelled and settle when the lift eventually
   fires.
+
+## 2026-08-09 — Conservative cleanup audit (dead code · redundancy · doc drift)
+
+- **A feature wave's cleanup debt is measurable one week later.** Every class
+  the 2026-08-01 audit closed had regrown by 2026-08-09: dead export keywords
+  (14 removed then; 42 new), a private id→label map (three consolidated then;
+  a fourth shipped with the hold-slider wave), stale keep-rationale comments
+  (DEAD-003's "the mesh gradient reads them" outlived the mesh by two days).
+  Cleanup is a recurring pass, not a milestone — and the cheapest form is
+  noticing at feature-review time ("does this wave re-declare something a
+  shared module already owns?").
+- **Copy the verifier's amendment, not the finder's proposal.** Three of the
+  actions taken here differ from what the finding proposed, because the
+  adversarial pass found the proposal itself would break the gate: making
+  `triggerClassName` required breaks the suites' prop-less renders (tsconfig
+  includes tests); the sr-only-string class of pins makes "obvious" renames
+  red; `ActionResult` exists twice, so un-exporting "by symbol name" would
+  have deleted a real export. Verify the FIX against the gate, not just the
+  finding against the code.
+- **Raw control bytes in one test file silently narrowed every repo-wide
+  search for a month.** grep reports "binary file matches" and shows nothing —
+  two of this audit's own scans skipped the file before the tests dimension
+  caught it. The `cat -v` lesson (2026-07-27) now has a sharper form: any
+  file that greps as binary is a defect in itself, whatever its content.
+- **When a dormant code path and its props survive a refactor, delete them at
+  the refactor, not at the next audit.** f4d4350 moved the usage ticker out
+  of StreamProgress and left the component's whole usage row + three props
+  reachable by nobody — with a header doc still advertising them. The next
+  reader (this audit's finder) had to re-derive from git that it was vestigial
+  rather than reserved. If a prop loses its last caller, its removal belongs
+  in the same commit, or a RESERVED note does (the `thinking` event shows the
+  honest way to keep a dormant path).
+- **An audit's own ledger can pin a mistake in place.** PERF-005's disposition
+  listed `icons/apple-touch-icon.png` among "assets the offline experience
+  actually uses" — no URL ever requests it (cache keys are full URLs; iOS
+  probes root, layout links /apple-icon.png). The entry was left un-groomed
+  here because re-litigating an adjudicated ruling autonomously is worse than
+  15 KiB of precache — but the general lesson stands: dispositions deserve
+  the same adversarial verification findings get.

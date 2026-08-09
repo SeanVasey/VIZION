@@ -12,8 +12,8 @@ POST /repos/SeanVasey/VIZION/actions/workflows/ci.yml/dispatches
 **"for this user" — not for this repository, and not for an organization.**
 The block is on the ACCOUNT, which is why the two symptoms below have one cause
 rather than the two this runbook previously inferred. Any run GitHub itself
-creates (CodeQL, Dependabot) is still *recorded*, because recording happens
-account-side of the block; nothing can ever be *picked up*.
+creates (CodeQL, Dependabot) is still _recorded_, because recording happens
+account-side of the block; nothing can ever be _picked up_.
 
 That correction matters for where to click. The old checklist opened with repo
 Settings → Actions → General, which cannot resolve an account-level disable —
@@ -34,7 +34,7 @@ runbook read them as two independent causes. The dispatch error above shows
 they are one:
 
 1. **`ci.yml` and `release.yml` have never produced a run record at all.**
-   Not queued — *absent*. Both are registered and `active` (CI is workflow id
+   Not queued — _absent_. Both are registered and `active` (CI is workflow id
    `295232069`), both are valid YAML on `main`, and `main` has taken repeated
    merges since they landed. A `push`-triggered workflow that creates no record
    was never dispatched, which is a different thing from one that was
@@ -74,17 +74,17 @@ dispatch endpoint refuses before it reaches the repository.
      routes the ticket correctly.
 2. **Repo (and org) Actions policy — confirm, do not assume.** GitHub → repo
    **Settings → Actions → General** → "Actions permissions" must allow runs
-   (e.g. *Allow all actions and reusable workflows*). If the repo lives in an
+   (e.g. _Allow all actions and reusable workflows_). If the repo lives in an
    organization, the org policy overrides the repo's; check both. This is a
    real prerequisite, but it is **not** the current blocker — see the 422.
-3. **Verify with a manual dispatch** — Actions tab → **CI** → *Run workflow*
+3. **Verify with a manual dispatch** — Actions tab → **CI** → _Run workflow_
    on `main` (the `workflow_dispatch` trigger exists for exactly this), or the
    API call at the top of this file. Read the outcome:
-   - *422 "disabled for this user"* → step 1 is still unresolved.
-   - *No run appears, no error* → step 2 is still unresolved.
-   - *A run appears and sits `queued`* → dispatch works; runner capacity or
+   - _422 "disabled for this user"_ → step 1 is still unresolved.
+   - _No run appears, no error_ → step 2 is still unresolved.
+   - _A run appears and sits `queued`_ → dispatch works; runner capacity or
      billing is still short.
-   - *A run appears and executes steps* → clear; proceed to step 4.
+   - _A run appears and executes steps_ → clear; proceed to step 4.
 4. **After the first green run**, re-check the branch-protection story: with
    CI actually executing, `verify` can become a required status check on
    `main`.

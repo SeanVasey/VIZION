@@ -224,8 +224,7 @@ export function SignInForm({
 
       {registrationClosed && (
         <p className="font-body text-center text-xs text-silver">
-          New registrations are currently closed. Existing accounts can still
-          sign in.
+          New registrations are currently closed. Existing accounts can still sign in.
         </p>
       )}
 

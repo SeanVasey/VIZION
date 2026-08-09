@@ -71,7 +71,9 @@ export async function* streamAnthropic(
   const effort = opts.thinkingLevel;
 
   try {
-    const stream = client.messages.stream(buildAnthropicParams(model, system, input, effort));
+    const stream = client.messages.stream(
+      buildAnthropicParams(model, system, input, effort),
+    );
     // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()
     // settles at the response headers, so it bounds nothing once the body
     // streams. Idle wall + absolute deadline both live in idle-timeout.ts.

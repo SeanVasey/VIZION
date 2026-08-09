@@ -23,12 +23,8 @@ import {
   isShapePreserving,
   type RefineKind,
 } from "@/lib/providers/formatters";
-import {
-  savePromptAction,
-  addVersionAction,
-  logShareAction,
-} from "@/lib/library/actions";
-import { enqueueOutbox } from "@/lib/pwa/outbox";
+import { addVersionAction, logShareAction } from "@/lib/library/actions";
+import { savePromptWithOutbox } from "@/lib/library/save-with-outbox";
 import { useUIStore } from "@/stores/ui";
 import { useCopy } from "@/components/ui/use-copy";
 import { CheckMark } from "@/components/ui/glyphs";
@@ -250,39 +246,18 @@ function TransformationDiffImpl({
       ...(result.title ? { title: result.title } : {}),
     };
     startSave(async () => {
-      // Offline → queue to the outbox; it flushes on reconnect/foreground.
-      // "Queued" is claimed only when the queue write actually landed AND had
-      // an owner to land under (SW-001/SW-002) — a rejecting IndexedDB put or
-      // a pre-hydration save must say so, not promise a sync that can't come.
-      if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        if (userId && (await enqueueOutbox(userId, "save-prompt", payload))) {
-          setQueued(true);
-        } else {
-          setSaveError(
-            "Couldn't queue this save on this device — copy the text before leaving.",
-          );
-        }
-        return;
-      }
-      try {
-        const res = await savePromptAction(payload);
-        if (res.ok && res.promptId) setSavedId(res.promptId);
-        else if (res.duplicate) setDuplicate(res.duplicate);
-        else setSaveError(res.error ?? "Couldn't save.");
-      } catch {
-        // Gated on being offline (the GenerateSheet shape): an ONLINE server
-        // failure is an error to report, not a queue to promise.
-        if (
-          typeof navigator !== "undefined" &&
-          navigator.onLine === false &&
-          userId &&
-          (await enqueueOutbox(userId, "save-prompt", payload))
-        ) {
-          setQueued(true);
-        } else {
-          setSaveError("Couldn't save — try again.");
-        }
-      }
+      // One shared control flow (SW-001/SW-002 hardened, audit 04 redun-05) —
+      // this surface only maps the result onto its own state and copy.
+      const res = await savePromptWithOutbox(userId, payload);
+      if (res.status === "saved") setSavedId(res.promptId);
+      else if (res.status === "duplicate") setDuplicate(res.duplicate);
+      else if (res.status === "queued") setQueued(true);
+      else if (res.status === "queue-failed")
+        setSaveError(
+          "Couldn't queue this save on this device — copy the text before leaving.",
+        );
+      else if (res.source === "action") setSaveError(res.message ?? "Couldn't save.");
+      else setSaveError("Couldn't save — try again.");
     });
   }
 
@@ -696,8 +671,8 @@ function TransformationDiffImpl({
         {result.truncated && (
           <p className="font-body mt-1 text-sm text-amber-ink" role="status">
             The model hit its output limit — the prompt above is incomplete. It&apos;s
-            kept because you were charged for it. Try a lower thinking level or a
-            shorter input to get a full one.
+            kept because you were charged for it. Try a lower thinking level or a shorter
+            input to get a full one.
           </p>
         )}
         <p className="font-body mt-3 flex items-center gap-1.5 text-xs tabular-nums text-silver">

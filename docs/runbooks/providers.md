@@ -25,15 +25,15 @@ targets keep working. Magic-link/profile features don't need these.
 
 Where to create the new keys:
 
-| Key | Console |
-| --- | --- |
-| `DEEPSEEK_API_KEY` | platform.deepseek.com → API keys |
-| `META_API_KEY` | developer.meta.com (Meta Model API) → API keys |
-| `MINIMAX_API_KEY` | platform.minimax.io → API keys (international region) |
-| `MOONSHOT_API_KEY` | platform.moonshot.ai → API keys (international region) |
-| `PERPLEXITY_API_KEY` | perplexity.ai → Settings → API |
-| `DASHSCOPE_API_KEY` | Alibaba Cloud Model Studio (international/Singapore region) |
-| `ZAI_API_KEY` | z.ai open platform → API keys |
+| Key                  | Console                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| `DEEPSEEK_API_KEY`   | platform.deepseek.com → API keys                            |
+| `META_API_KEY`       | developer.meta.com (Meta Model API) → API keys              |
+| `MINIMAX_API_KEY`    | platform.minimax.io → API keys (international region)       |
+| `MOONSHOT_API_KEY`   | platform.moonshot.ai → API keys (international region)      |
+| `PERPLEXITY_API_KEY` | perplexity.ai → Settings → API                              |
+| `DASHSCOPE_API_KEY`  | Alibaba Cloud Model Studio (international/Singapore region) |
+| `ZAI_API_KEY`        | z.ai open platform → API keys                               |
 
 The seven compat providers are all served through the shared OpenAI-compatible
 streaming adapter (`src/lib/providers/openai-compat.ts`) — region matters for
@@ -59,8 +59,8 @@ permissions"** — use an unrestricted key or grant the inference scope.
 > Diagnosed in production 2026-08: every Gemini run failed with
 > **"Gemini request failed: Your project has been denied access. Please
 > contact support."** That sentence is **Google's own 403 body**, relayed
-> verbatim by the adapter — it is *not* a VIZION capability limit, and
-> "support" means *Google's* support. Google returns it when the **Google
+> verbatim by the adapter — it is _not_ a VIZION capability limit, and
+> "support" means _Google's_ support. Google returns it when the **Google
 > Cloud project behind `GOOGLE_API_KEY`** has lost access to the Gemini API
 > (project flagged/denied by Google's abuse systems, API disabled or terms
 > unaccepted on that project, or a free-tier project in a state that now
@@ -70,6 +70,7 @@ permissions"** — use an unrestricted key or grant the inference scope.
 > it.
 >
 > Remediation, in order:
+>
 > 1. In Google AI Studio, create a **fresh API key under a different (or
 >    newly created) project** with the Gemini API enabled — and billing
 >    linked, if the account's tier requires it. Verify it with a one-off
@@ -79,7 +80,7 @@ permissions"** — use an unrestricted key or grant the inference scope.
 > 3. While there, confirm no stray `MODEL_GEMINI` override points at a
 >    preview/allowlisted id — an entitlement the project lacks surfaces the
 >    same way.
-> 4. If a fresh project is also denied, the *account* is flagged — that one
+> 4. If a fresh project is also denied, the _account_ is flagged — that one
 >    genuinely is "contact Google support" (or use a different Google
 >    account's key).
 >
@@ -139,7 +140,7 @@ refactor.
 > table cannot express. **A price change is a cost-cap change AND a routing
 > change**: Auto ranks candidates by the live `PRICE_*` values (see “Auto
 > routing” below), so after any repin check the deployed `PRICE_*` overrides
-> in Vercel — a stale override silently miscounts the daily cap *and* skews
+> in Vercel — a stale override silently miscounts the daily cap _and_ skews
 > which model Auto picks.
 
 > **A vendor's app picker is not its API model list.** Gemini's "Thinking" and
@@ -157,13 +158,13 @@ Reasoning depth is a **request option**, not a model string. The composer's
 (`src/lib/constants.ts`); the route validates the level and the adapter
 translates it onto the provider's parameter:
 
-| Targets | Wire parameter | Levels |
-| --- | --- | --- |
-| Fable 5 · Opus 5 · Sonnet 5 | `output_config.effort` | low · medium · high · xhigh · max |
-| GPT-5.6 Sol / Terra / Luna | `reasoning_effort` | low · medium · high |
-| Gemini 3.6 Flash | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high |
-| Qwen3.8 Max | `enable_thinking` + `thinking_budget` (tokens) | low · medium · high · xhigh · max |
-| Grok 4.5 | `reasoning_effort` | low · medium · high |
+| Targets                     | Wire parameter                                  | Levels                            |
+| --------------------------- | ----------------------------------------------- | --------------------------------- |
+| Fable 5 · Opus 5 · Sonnet 5 | `output_config.effort`                          | low · medium · high · xhigh · max |
+| GPT-5.6 Sol / Terra / Luna  | `reasoning_effort`                              | low · medium · high               |
+| Gemini 3.6 Flash            | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high     |
+| Qwen3.8 Max                 | `enable_thinking` + `thinking_budget` (tokens)  | low · medium · high · xhigh · max |
+| Grok 4.5                    | `reasoning_effort`                              | low · medium · high               |
 
 Notes that keep this working:
 
@@ -194,16 +195,13 @@ Notes that keep this working:
 
 Note on cost: Fable 5 lists at $10/$50 per 1M tokens (in/out) — noticeably pricier than
 the other targets, so users reach the daily cost cap sooner on it. At the other end,
-DeepSeek V4 (~$0.45/$0.90), MiniMax M3 (~$0.30/$1.20), and GPT-5.6 Terra
-(~$0.20/$0.80) barely dent the cap.
-Qwen3.8 Max defaults reflect the current 50%-promo rate ($1.25/$3.75, list $2.50/$7.50) —
-override `PRICE_QWEN_*` when the promo lapses. GLM-5.2 list rates were unpublished at
-launch — the defaults ($1.00/$3.20) are the GLM-5 reference rates; override
-`PRICE_GLM_*` when Z.ai publishes 5.2 pricing. Kimi K3 and MiniMax M3 launch
-defaults carry the K2.6/M2.7 list rates forward — override `PRICE_KIMI_*` /
-`PRICE_MINIMAX_*` if the published rates differ. GPT-5.6 Luna/Terra defaults
-($1.00/$4.00, $0.20/$0.80) follow the family tiering below Sol — override
-`PRICE_GPT_LUNA_*` / `PRICE_GPT_TERRA_*` to match your account's rates.
+DeepSeek V4 (~$0.435/$0.87), GPT-5.6 Luna ($0.20/$1.20), and MiniMax M3
+($0.30/$1.20) barely dent the cap. Every default was re-verified against its
+vendor's published rates on 2026-08-08 (the "Pinned ids & verified prices" note
+above); `src/lib/providers/config.ts` is the authoritative per-target list, and
+each row carries its `pricesVerifiedAt` date. Override the matching `PRICE_*_IN`
+/ `PRICE_*_OUT` env vars when your account's rates differ — and remember a price
+override re-ranks Auto routing as well as re-pricing the cap.
 
 ## Output ceilings (`max_tokens`)
 
@@ -211,7 +209,7 @@ The OpenAI-compatible factory sends **16k** by default, which keeps a runaway
 generation bounded without truncating a real answer. It is a per-API fact, not a
 preference: **DashScope caps `qwen-max` at 8192** and rejects anything higher
 with `400 InternalError.Algo.InvalidParameter: Range of max_tokens should be
-[1, 8192]` — which failed *every* Qwen run until the provider declared its own
+[1, 8192]` — which failed _every_ Qwen run until the provider declared its own
 `maxTokens`. When adding a compat provider, read its `max_tokens` range from the
 API reference rather than inheriting the default and hoping.
 
@@ -220,18 +218,18 @@ Qwen's 8192 is the tightest ceiling in the fleet and the `max` thinking budget
 is now `MAX_TOKENS_QWEN`-overridable: if Alibaba's model page publishes a higher
 range for **Qwen3.8 Max**, set the env var to that number rather than editing
 the adapter. Do not raise it on a guess — every value outside the published
-range 400s on *every* call, which trades an occasional truncation for total
+range 400s on _every_ call, which trades an occasional truncation for total
 failure.
 
 ## Connection policy: idle, not elapsed
 
 Every streaming adapter bounds itself on **silence**, not on total time.
 
-| constant | default | what it means |
-| --- | --- | --- |
-| `PROVIDER_IDLE_MS` | 60s | Time since the last token. The one that should ever fire. |
-| `PROVIDER_TOTAL_MS` | 285s | Absolute wall across the stream's lifetime. **Must stay under** the enhance route's `maxDuration` (300s). |
-| `MEDIA_TIMEOUT_MS` | 55s | `/api/media` only — a bounded one-shot under a `maxDuration=60` route. |
+| constant            | default | what it means                                                                                             |
+| ------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
+| `PROVIDER_IDLE_MS`  | 60s     | Time since the last token. The one that should ever fire.                                                 |
+| `PROVIDER_TOTAL_MS` | 285s    | Absolute wall across the stream's lifetime. **Must stay under** the enhance route's `maxDuration` (300s). |
+| `MEDIA_TIMEOUT_MS`  | 55s     | `/api/media` only — a bounded one-shot under a `maxDuration=60` route.                                    |
 
 ### What the SDK `timeout` option actually covers
 
@@ -294,9 +292,12 @@ PRICE_OPUS_IN= PRICE_OPUS_OUT= PRICE_GPT_IN= PRICE_GPT_OUT= PRICE_FABLE_IN=
 PRICE_FABLE_OUT= PRICE_GEMINI_IN= PRICE_GEMINI_OUT= PRICE_GROK_IN= PRICE_GROK_OUT=
 ```
 
-Both limits are enforced **before** any model call via the `usage_window` aggregate
-(RLS-scoped to the caller). Every successful enhance writes a `usage_events` row
-(tokens + cost) — the ledger backs both the rate window and the daily cost sum.
+Both limits — the per-minute rate window **and** the daily cost cap — are
+enforced atomically **before** any model call by the `spend_reserve` RPC under a
+per-user advisory lock (ADR-0009), fronted by a per-instance in-memory burst
+limiter (`src/lib/security/rate-limit.ts`). Every run settles into a
+`usage_events` row (tokens + cost) via `spend_settle` — that ledger is what the
+reservation math reads.
 
 ## Auto routing (`src/lib/enhance/auto-target.ts` + `src/lib/providers/manifest.ts`)
 
@@ -344,7 +345,7 @@ Six enhancement modes drive the transformation. `MODE_INSTRUCTIONS` carries the 
 instruction; `buildSystemPrompt` wraps it with the target's idioms:
 
 | Mode         | Intent                                                              |
-| ------------ | ------------------------------------------------------------------ |
+| ------------ | ------------------------------------------------------------------- |
 | **Clarify**  | Resolve ambiguity, sharpen the existing ask — no new requirements.  |
 | **Polish**   | Corrections only — spelling/grammar/word-order, stay near original. |
 | **Expand**   | Add structure, constraints, examples, acceptance criteria.          |

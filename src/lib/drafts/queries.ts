@@ -4,6 +4,8 @@ import {
   LIBRARY_PAGE_SIZE,
   decodeCursor,
   encodeCursor,
+  escapeLike,
+  quoteOrValue,
   type LibraryFilter,
 } from "@/lib/library/paging";
 
@@ -25,19 +27,6 @@ const UNDEFINED_TABLE = "PGRST205";
 
 export function isMissingDraftsTable(error: { code?: string | null } | null): boolean {
   return error?.code === UNDEFINED_TABLE;
-}
-
-/** Escape ilike wildcards in user input, so a literal % or _ in a search term
- *  matches itself instead of everything. Mirrors `library/queries.ts`. */
-function escapeLike(s: string): string {
-  return s.replace(/[\\%_]/g, (m) => `\\${m}`);
-}
-
-/** Quote a value for a PostgREST `or=()` expression. A search term can contain
- *  commas and parens, which would otherwise break the filter grammar and turn a
- *  harmless query into a 400 (or, worse, a different filter). */
-function quoteOrValue(v: string): string {
-  return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
 /** One Drafts-list row. Bodies are NOT fetched — the list renders the title
@@ -83,7 +72,9 @@ export async function queryDraftsPage(
 ): Promise<{ cards: DraftCard[]; nextCursor: string | null; unavailable: boolean }> {
   let q = supabase
     .from("drafts")
-    .select("id, title, body, target_model, mode, thinking_level, created_at, updated_at");
+    .select(
+      "id, title, body, target_model, mode, thinking_level, created_at, updated_at",
+    );
 
   // Search covers the BODY as well as the title. A draft's title is derived
   // from its first line, so title-only search (what the prompts library does,

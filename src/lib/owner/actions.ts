@@ -15,7 +15,7 @@ export interface ActionResult {
   error?: string;
 }
 
-export interface OwnerSettingsPatch {
+interface OwnerSettingsPatch {
   openAccess?: boolean;
   devAccentStrength?: number;
 }
@@ -40,8 +40,7 @@ export async function updateOwnerSettingsAction(
   }
 
   const settings = await getAppSettings(supabase);
-  const recordedOwner =
-    settings.ownerUserId !== null && settings.ownerUserId === user.id;
+  const recordedOwner = settings.ownerUserId !== null && settings.ownerUserId === user.id;
   if (!recordedOwner && !isOwnerEmail(user.email)) {
     return { ok: false, error: "Only the owner can change these settings." };
   }
@@ -73,9 +72,7 @@ export async function updateOwnerSettingsAction(
 
   // Bind (or confirm) the claim before writing. `false` means a DIFFERENT
   // account already holds the claim — surfaced, never silently rebound.
-  const { data: claimed, error: claimError } = await supabase.rpc(
-    "claim_app_ownership",
-  );
+  const { data: claimed, error: claimError } = await supabase.rpc("claim_app_ownership");
   if (claimError) return { ok: false, error: "Couldn't verify ownership." };
   if (!claimed) {
     return { ok: false, error: "Ownership is already held by another account." };

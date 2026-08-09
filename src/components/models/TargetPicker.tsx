@@ -8,6 +8,10 @@ import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { targetLabel } from "@/components/models/target-label";
 import {
+  PICKER_TRIGGER_FALLBACK_CLASS,
+  PickerChevron,
+} from "@/components/models/picker-trigger";
+import {
   AUTO_PREFERENCES,
   AUTO_PREFERENCE_LABEL,
   DEVELOPER_LABEL,
@@ -48,7 +52,6 @@ const GROUPS: { developer: Developer; models: TargetModel[] }[] = DEVELOPER_ORDE
     models: TARGET_MODELS.filter((m): m is TargetModel => m.developer === developer),
   }),
 ).filter((g) => g.models.length > 0);
-
 
 /** Auto's preference segments — a Segmented (toggle buttons), NOT more radios:
  *  nesting a second radiogroup inside the sheet's would break the roving
@@ -124,10 +127,7 @@ function TargetPickerImpl({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className={
-          triggerClassName ??
-          "font-body inline-flex min-h-[44px] items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-2.5 text-sm text-text"
-        }
+        className={triggerClassName ?? PICKER_TRIGGER_FALLBACK_CLASS}
       >
         <span className="sr-only">{label}: </span>
         {auto ? (
@@ -150,20 +150,7 @@ function TargetPickerImpl({
               : "Auto"
             : targetLabel(value)}
         </span>
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          className="h-4 w-4 shrink-0 text-silver"
-        >
-          <path
-            d="M8 10l4 4 4-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <PickerChevron />
       </button>
       <TargetPickerSheet
         open={open}

@@ -5,11 +5,7 @@ import {
   type TargetModelId,
 } from "@/lib/constants";
 import { isProviderConfigured } from "@/lib/providers/config";
-import {
-  TARGET_ROUTING,
-  blendedPrice,
-  type SpeedClass,
-} from "@/lib/providers/manifest";
+import { TARGET_ROUTING, blendedPrice, type SpeedClass } from "@/lib/providers/manifest";
 
 /**
  * Auto model routing — pick a target for the user when they'd rather not.
@@ -57,7 +53,7 @@ import {
  */
 export const LONG_INPUT_CHARS = 4_000;
 
-export type AutoTier = "light" | "heavy";
+type AutoTier = "light" | "heavy";
 
 /** Why routing landed where it did — reported back as `resolvedReason` so the
  *  result meta can say more than "Auto → X". Priority when several apply:
@@ -68,7 +64,7 @@ export type AutoRouteReason =
   | "long-input"
   | "media-context";
 
-export interface AutoRoute {
+interface AutoRoute {
   target: TargetModelId;
   tier: AutoTier;
   reason: AutoRouteReason;
@@ -171,9 +167,18 @@ export const AUTO_LADDERS: Record<
   AutoPreference,
   Record<AutoTier, readonly TargetModelId[]>
 > = {
-  quality: { light: buildLadder("quality", "light"), heavy: buildLadder("quality", "heavy") },
-  balanced: { light: buildLadder("balanced", "light"), heavy: buildLadder("balanced", "heavy") },
-  budget: { light: buildLadder("budget", "light"), heavy: buildLadder("budget", "heavy") },
+  quality: {
+    light: buildLadder("quality", "light"),
+    heavy: buildLadder("quality", "heavy"),
+  },
+  balanced: {
+    light: buildLadder("balanced", "light"),
+    heavy: buildLadder("balanced", "heavy"),
+  },
+  budget: {
+    light: buildLadder("budget", "light"),
+    heavy: buildLadder("budget", "heavy"),
+  },
 };
 
 function classify(

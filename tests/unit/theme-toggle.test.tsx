@@ -52,9 +52,7 @@ describe("ThemeToggle marks", () => {
   it("keeps the cycle and the spoken label: dark → light → system", () => {
     useUIStore.setState({ theme: "dark" });
     render(<ThemeToggle />);
-    expect(toggle().getAttribute("aria-label")).toBe(
-      "Theme: dark. Switch to light.",
-    );
+    expect(toggle().getAttribute("aria-label")).toBe("Theme: dark. Switch to light.");
     fireEvent.click(toggle());
     expect(useUIStore.getState().theme).toBe("light");
     fireEvent.click(toggle());

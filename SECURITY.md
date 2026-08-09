@@ -31,8 +31,10 @@ hours and to ship a fix or mitigation promptly.
 - **Parameterized queries** everywhere; no string-built SQL.
 - **`npm audit`** runs in CI on every PR and push to `main`.
 - **Security headers** (HSTS, `X-Content-Type-Options`, `Referrer-Policy`,
-  `X-Frame-Options`, `Permissions-Policy`) are set in `next.config.ts`; a nonce-based
-  CSP is tightened during P6 hardening.
+  `X-Frame-Options`, `Permissions-Policy`) are set in `next.config.ts`; documents
+  receive a per-request **nonce-based CSP** from the middleware (`script-src` has
+  no `'unsafe-inline'`; `style-src` retains it — see
+  `src/lib/security/csp.ts`).
 - **Console stripping** in production builds (keeping `error`/`warn`).
 - **Server is the source of truth.** Local storage is convenience only — never the
   only copy of user data, mitigating iOS ITP cache eviction.

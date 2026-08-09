@@ -9,6 +9,7 @@ import {
   TARGET_THINKING_LEVELS,
   THINKING_LEVEL_LABEL,
   type AutoPreference,
+  type TargetModelId,
   type ThinkingLevel,
 } from "@/lib/constants";
 import { NOT_CONFIGURED_MESSAGE, useEnhance } from "@/lib/enhance/use-enhance";
@@ -53,6 +54,18 @@ const LEVEL_TONE: Record<ThinkingLevel, Detent["tone"]> = {
 /** Auto rides the slider as the LEFTMOST detent — dragging fully left is the
  *  one-gesture route back to "send nothing, provider default applies". */
 const AUTO_DETENT: Detent = { id: "auto", label: "Auto", tone: "faint" };
+
+/** The stored thinking level for a target, validated against that target's
+ *  ladder — so a stale persisted level can never ride into a request. One
+ *  rule, three consumers (composer rail, refine, answered re-run). */
+function validThinkingLevel(
+  target: TargetModelId,
+  levels: Partial<Record<TargetModelId, ThinkingLevel>>,
+): ThinkingLevel | undefined {
+  const ladder = TARGET_THINKING_LEVELS[target];
+  const stored = levels[target];
+  return ladder && stored && ladder.includes(stored) ? stored : undefined;
+}
 
 function buildThinkingDetents(ladder: readonly ThinkingLevel[]): Detent[] {
   return [
@@ -116,14 +129,9 @@ export function EnhanceComposer() {
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
 
   // The selected target's thinking ladder (absent = no knob = no selector),
-  // and the stored choice — validated against the ladder so a stale
-  // persisted level can never ride into the request.
+  // and the stored choice — validated by validThinkingLevel above.
   const levelOptions = TARGET_THINKING_LEVELS[targetModel];
-  const storedLevel = thinkingLevels[targetModel];
-  const thinkingLevel =
-    levelOptions && storedLevel && levelOptions.includes(storedLevel)
-      ? storedLevel
-      : undefined;
+  const thinkingLevel = validThinkingLevel(targetModel, thinkingLevels);
 
   // The current mode's length dial, if it has one — and its stored value
   // re-validated against that mode's options, the same discipline the
@@ -307,9 +315,7 @@ export function EnhanceComposer() {
       // iteration would change voice mid-conversation, and `auto` is deliberately
       // not re-sent: the routing decision was already made for this result.
       const refineTarget = v.result.resolvedTarget ?? v.submitted.target;
-      const ladder = TARGET_THINKING_LEVELS[refineTarget];
-      const stored = thinkingLevels[refineTarget];
-      const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
+      const level = validThinkingLevel(refineTarget, thinkingLevels);
       runMutation(
         {
           input: currentOutput,
@@ -345,9 +351,7 @@ export function EnhanceComposer() {
         .map((q, i) => `Q: ${q}\nA: ${answers[i]?.trim() || "(no answer given)"}`)
         .join("\n\n");
       const answeredTarget = v.result.resolvedTarget ?? v.submitted.target;
-      const ladder = TARGET_THINKING_LEVELS[answeredTarget];
-      const stored = thinkingLevels[answeredTarget];
-      const level = ladder && stored && ladder.includes(stored) ? stored : undefined;
+      const level = validThinkingLevel(answeredTarget, thinkingLevels);
       runMutation(
         {
           input: v.submitted.input,
@@ -413,9 +417,7 @@ export function EnhanceComposer() {
   // A hold that silently flipped Auto on would be an invisible mode change
   // from a control that didn't advertise it, so plain-model mode stays a
   // pure tap trigger (the wrapper claims nothing while disabled).
-  const budgetSelectedIndex = BUDGET_DETENTS.findIndex(
-    (d) => d.id === autoPreference,
-  );
+  const budgetSelectedIndex = BUDGET_DETENTS.findIndex((d) => d.id === autoPreference);
   const onBudgetCommit = useCallback(
     (index: number) => {
       const detent = BUDGET_DETENTS[index];
@@ -423,10 +425,7 @@ export function EnhanceComposer() {
     },
     [setAutoPreference],
   );
-  const budgetLiveLabel = useCallback(
-    (detent: Detent) => `Auto · ${detent.label}`,
-    [],
-  );
+  const budgetLiveLabel = useCallback((detent: Detent) => `Auto · ${detent.label}`, []);
 
   // Persist Polish's revert decisions with the result they belong to — as
   // component state in the diff they died on navigation while the result now
@@ -500,9 +499,9 @@ export function EnhanceComposer() {
           every control lives within the one rounded-rectangle.
 
           `.glass-solid`, not `.glass`: this is the app's primary work surface,
-          and the translucent tier let the ambient mesh read through it — at
-          rest (a bright node bleeds through 72% alpha even blurred) and worse
-          during the scroll stand-down (both reported on device, 2026-08).
+          and the translucent tier let the ambient layer read through it — at
+          rest (a bright particle bleeds through 72% alpha even blurred) and
+          worse during the scroll stand-down (both reported on device, 2026-08).
           The opaque tier keeps the hairline/sheen/grain material language and
           guarantees nothing behind the draft ever shows through it. */}
       <div

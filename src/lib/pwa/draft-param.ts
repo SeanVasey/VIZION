@@ -19,7 +19,7 @@
  */
 export const MAX_DRAFT_PARAM_CHARS = 8_000;
 
-export type DraftParamOutcome =
+type DraftParamOutcome =
   /** Nothing to do — no param, or it was empty/oversized. */
   | { kind: "none" }
   /** Safe to apply directly: the editor was empty. */

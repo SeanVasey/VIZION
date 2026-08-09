@@ -19,6 +19,7 @@ import {
   type ModeId,
 } from "@/lib/constants";
 import { relativeTime } from "@/lib/library/util";
+import { MODEL_LABELS as MODEL_LABEL_MAP } from "@/lib/library/model-labels";
 import {
   countActiveFilters,
   libraryHref,
@@ -39,17 +40,20 @@ import { CollectionSheet } from "@/components/library/CollectionSheet";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useToast } from "@/components/ui/Toast";
-import { ArchiveMark, FolderMark, StarMark, UndoGlyph, XMark } from "@/components/ui/glyphs";
+import {
+  ArchiveMark,
+  FolderMark,
+  StarMark,
+  UndoGlyph,
+  XMark,
+} from "@/components/ui/glyphs";
 import { useSwipeActions } from "@/components/library/use-swipe-actions";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 
 export type { PromptCard } from "@/lib/library/queries";
 
-const MODEL_LABEL_MAP = new Map<string, string>(
-  TARGET_MODELS.map((m) => [m.id, m.label]),
-);
-
-/** Developer for a stored target id.  Tolerant like MODEL_LABEL_MAP above:
+/** Developer for a stored target id.  Tolerant like the shared MODEL_LABEL_MAP
+ *  (`MODEL_LABELS` in lib/library/model-labels):
  *  PromptCard.target_model is typed `string`, so a card can hold an id this
  *  build no longer knows, and DeveloperIcon destructures PATHS[developer] —
  *  which throws on an unknown key and would blank-screen the whole library.
@@ -128,32 +132,38 @@ export function LibraryBrowser({
   }
 
   /** Swipe-left delete: the same soft delete + Undo the ⋯ menu performs. */
-  const swipeDelete = useCallback((p: PromptCard) => {
-    void softDeletePromptAction(p.id).then((res) => {
-      if (!res.ok) {
-        setLoadError(res.error ?? "Couldn't delete.");
-        return;
-      }
-      refreshAfterMutation();
-      toast({
-        text: "Moved to Recently deleted",
-        action: {
-          label: "Undo",
-          onAction: () => {
-            void undoDeletePromptAction(p.id).then(() => refreshAfterMutation());
+  const swipeDelete = useCallback(
+    (p: PromptCard) => {
+      void softDeletePromptAction(p.id).then((res) => {
+        if (!res.ok) {
+          setLoadError(res.error ?? "Couldn't delete.");
+          return;
+        }
+        refreshAfterMutation();
+        toast({
+          text: "Moved to Recently deleted",
+          action: {
+            label: "Undo",
+            onAction: () => {
+              void undoDeletePromptAction(p.id).then(() => refreshAfterMutation());
+            },
           },
-        },
+        });
       });
-    });
-  }, [refreshAfterMutation, toast]);
+    },
+    [refreshAfterMutation, toast],
+  );
 
   /** Swipe-right favorite toggle. */
-  const swipeFavorite = useCallback((p: PromptCard) => {
-    void setFavoriteAction(p.id, !p.favorite).then((res) => {
-      if (!res.ok) setLoadError(res.error ?? "Couldn't update favorites.");
-      else refreshAfterMutation();
-    });
-  }, [refreshAfterMutation]);
+  const swipeFavorite = useCallback(
+    (p: PromptCard) => {
+      void setFavoriteAction(p.id, !p.favorite).then((res) => {
+        if (!res.ok) setLoadError(res.error ?? "Couldn't update favorites.");
+        else refreshAfterMutation();
+      });
+    },
+    [refreshAfterMutation],
+  );
 
   function loadMore() {
     if (!cursor) return;
@@ -272,9 +282,8 @@ export function LibraryBrowser({
               Nothing saved yet
             </p>
             <p className="mt-2 text-sm text-muted">
-              Enhance a prompt and tap{" "}
-              <span className="text-text">Save to library</span> — it lands here with
-              full version history.
+              Enhance a prompt and tap <span className="text-text">Save to library</span>{" "}
+              — it lands here with full version history.
             </p>
           </div>
         ) : (
@@ -471,9 +480,7 @@ function CardActionsSheet({
           <button
             type="button"
             disabled={pending}
-            onClick={() =>
-              run(() => setFavoriteAction(prompt.id, !prompt.favorite))
-            }
+            onClick={() => run(() => setFavoriteAction(prompt.id, !prompt.favorite))}
             className={itemClass}
           >
             {prompt.favorite ? "Remove from favorites" : "Add to favorites"}
@@ -607,9 +614,7 @@ const PromptRow = memo(function PromptRow({
       // because the config scans source text only, so `bg-[${hex}]` would
       // generate nothing.
       style={
-        developer
-          ? ({ "--dev": `var(--dev-${developer})` } as CSSProperties)
-          : undefined
+        developer ? ({ "--dev": `var(--dev-${developer})` } as CSSProperties) : undefined
       }
     >
       {/* Actions sit UNDER the card and are revealed by sliding it. They are
@@ -621,45 +626,45 @@ const PromptRow = memo(function PromptRow({
           through it: every row carried an olive left edge and a muddy red
           right edge, constant and model-independent. */}
       {!inTrash && (
-      <div aria-hidden={swipe.open === null} className={`${panel(leftOn)} left-0`}>
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={() => {
-            onFavorite(p);
-            swipe.close();
-          }}
-          className="flex w-[84px] items-center justify-center rounded-l-2xl bg-laser text-lg text-on-laser"
-        >
-          <StarMark className="h-5 w-5" />
-          <span className="sr-only">
-            {p.favorite ? `Remove ${p.title} from favorites` : `Favorite ${p.title}`}
-          </span>
-        </button>
-      </div>
+        <div aria-hidden={swipe.open === null} className={`${panel(leftOn)} left-0`}>
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => {
+              onFavorite(p);
+              swipe.close();
+            }}
+            className="flex w-[84px] items-center justify-center rounded-l-2xl bg-laser text-lg text-on-laser"
+          >
+            <StarMark className="h-5 w-5" />
+            <span className="sr-only">
+              {p.favorite ? `Remove ${p.title} from favorites` : `Favorite ${p.title}`}
+            </span>
+          </button>
+        </div>
       )}
       {!inTrash && (
-      <div aria-hidden={swipe.open === null} className={`${panel(rightOn)} right-0`}>
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={() => {
-            onDelete(p);
-            swipe.close();
-          }}
-          // --on-flare, not --on-laser: on the LIGHT theme's --flare #c81d10
-          // the Void ink measures 3.30:1, an AA fail for this glyph. Dark is
-          // byte-identical at 5.94:1; light flips to white at 5.77:1.
-          // Sanctioned --flare FILL (DSN-012 / ADR-0004): flare is text/border
-          // only everywhere else, but a full-bleed destructive swipe panel is
-          // the one place the fill IS the signal; --on-flare ink pairs at
-          // >=5.7:1 in both themes.
-          className="flex w-[84px] items-center justify-center rounded-r-2xl bg-flare text-lg text-[color:var(--on-flare)]"
-        >
-          <XMark className="h-5 w-5" />
-          <span className="sr-only">Delete {p.title}</span>
-        </button>
-      </div>
+        <div aria-hidden={swipe.open === null} className={`${panel(rightOn)} right-0`}>
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => {
+              onDelete(p);
+              swipe.close();
+            }}
+            // --on-flare, not --on-laser: on the LIGHT theme's --flare #c81d10
+            // the Void ink measures 3.30:1, an AA fail for this glyph. Dark is
+            // byte-identical at 5.94:1; light flips to white at 5.77:1.
+            // Sanctioned --flare FILL (DSN-012 / ADR-0004): flare is text/border
+            // only everywhere else, but a full-bleed destructive swipe panel is
+            // the one place the fill IS the signal; --on-flare ink pairs at
+            // >=5.7:1 in both themes.
+            className="flex w-[84px] items-center justify-center rounded-r-2xl bg-flare text-lg text-[color:var(--on-flare)]"
+          >
+            <XMark className="h-5 w-5" />
+            <span className="sr-only">Delete {p.title}</span>
+          </button>
+        </div>
       )}
       <div
         {...(inTrash ? {} : swipe.handlers)}
@@ -667,82 +672,82 @@ const PromptRow = memo(function PromptRow({
         style={swipe.style}
         className="relative transition-transform duration-150 ease-out motion-reduce:transition-none"
       >
-      <Link
-        href={`/library/${p.id}`}
-        className="glass hover-hair block rounded-2xl p-4 pr-12 transition-colors"
-      >
-        {/* gap-2 rather than gap-3 reclaims 4px of the 20px the mark costs the
+        <Link
+          href={`/library/${p.id}`}
+          className="glass hover-hair block rounded-2xl p-4 pr-12 transition-colors"
+        >
+          {/* gap-2 rather than gap-3 reclaims 4px of the 20px the mark costs the
             wrapping title column, so the net cost is 16px. The title has no
             truncate and no line-clamp, so nothing is lost — it reflows. */}
-        <div className="flex items-start justify-between gap-2">
-          <p className="font-body min-w-0 break-words text-base text-text">
-            {p.favorite && (
-              // --silver, not the Laser accent: the star is already redundant
-              // with the Favorites chip and the swipe action, and it was the
-              // only element competing with the developer mark for the same
-              // glance. The label is unchanged.
-              <span aria-label="Favorite" className="mr-1 text-silver">
-                <StarMark className="inline-block h-[0.8em] w-[0.8em] align-[-0.02em]" />
-              </span>
-            )}
-            {p.title}
-          </p>
-          {/* leading-6 gives this span a 24px first-line box to match the
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-body min-w-0 break-words text-base text-text">
+              {p.favorite && (
+                // --silver, not the Laser accent: the star is already redundant
+                // with the Favorites chip and the swipe action, and it was the
+                // only element competing with the developer mark for the same
+                // glance. The label is unchanged.
+                <span aria-label="Favorite" className="mr-1 text-silver">
+                  <StarMark className="inline-block h-[0.8em] w-[0.8em] align-[-0.02em]" />
+                </span>
+              )}
+              {p.title}
+            </p>
+            {/* leading-6 gives this span a 24px first-line box to match the
               title's, so a 16px mark centres against the title's cap line
               instead of floating above it in an items-start row. */}
-          <span className="font-body inline-flex shrink-0 items-center gap-1 text-xs leading-6 text-silver">
-            {developer && (
-              <DeveloperIcon
-                developer={developer}
-                className="dev-mark h-4 w-4 shrink-0"
-              />
-            )}
-            {MODEL_LABEL_MAP.get(p.target_model) ?? p.target_model}
-          </span>
-        </div>
-        {p.preview && (
-          <p className="font-body mt-1 line-clamp-2 text-xs leading-snug text-silver">
-            {p.preview}
-          </p>
-        )}
-        <p className="font-body mt-1 text-xs tabular-nums text-silver">
-          {p.mode ? `${MODE_LABEL[p.mode as ModeId] ?? p.mode} · ` : ""}
-          {relativeTime(p.updated_at)} · {p.versions} version
-          {p.versions === 1 ? "" : "s"}
-          {p.archived ? " · archived" : ""}
-          {collectionName ? (
-            <>
-              {" · "}
-              <FolderMark className="inline-block h-[1em] w-[1em] align-[-0.125em]" />{" "}
-              {collectionName}
-            </>
-          ) : (
-            ""
+            <span className="font-body inline-flex shrink-0 items-center gap-1 text-xs leading-6 text-silver">
+              {developer && (
+                <DeveloperIcon
+                  developer={developer}
+                  className="dev-mark h-4 w-4 shrink-0"
+                />
+              )}
+              {MODEL_LABEL_MAP.get(p.target_model) ?? p.target_model}
+            </span>
+          </div>
+          {p.preview && (
+            <p className="font-body mt-1 line-clamp-2 text-xs leading-snug text-silver">
+              {p.preview}
+            </p>
           )}
-          {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
-        </p>
-      </Link>
-      {/* Identity field + the card's focus ring, in one overlay. It has to be
+          <p className="font-body mt-1 text-xs tabular-nums text-silver">
+            {p.mode ? `${MODE_LABEL[p.mode as ModeId] ?? p.mode} · ` : ""}
+            {relativeTime(p.updated_at)} · {p.versions} version
+            {p.versions === 1 ? "" : "s"}
+            {p.archived ? " · archived" : ""}
+            {collectionName ? (
+              <>
+                {" · "}
+                <FolderMark className="inline-block h-[1em] w-[1em] align-[-0.125em]" />{" "}
+                {collectionName}
+              </>
+            ) : (
+              ""
+            )}
+            {p.tags.length > 0 ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
+          </p>
+        </Link>
+        {/* Identity field + the card's focus ring, in one overlay. It has to be
           a SIBLING of the <a> rather than a child: an inset box-shadow paints
           below its own element's descendants, so a ring drawn inside the card
           would sit under the card's text. `data-swiping` drops the field while
           a row is displaced, so the only chromatic signal on the trailing edge
           during a drag is the action colour. */}
-      <span
-        aria-hidden="true"
-        className="dev-edge"
-        data-swiping={displaced ? "" : undefined}
-      />
-      <button
-        type="button"
-        onClick={() => onMenu(p)}
-        aria-label={`Actions for ${p.title}`}
-        className="absolute bottom-1 right-1 flex h-11 w-11 items-center justify-center rounded-xl text-silver transition-colors hover:text-chalk"
-      >
-        <span aria-hidden="true" className="text-lg leading-none">
-          ⋯
-        </span>
-      </button>
+        <span
+          aria-hidden="true"
+          className="dev-edge"
+          data-swiping={displaced ? "" : undefined}
+        />
+        <button
+          type="button"
+          onClick={() => onMenu(p)}
+          aria-label={`Actions for ${p.title}`}
+          className="absolute bottom-1 right-1 flex h-11 w-11 items-center justify-center rounded-xl text-silver transition-colors hover:text-chalk"
+        >
+          <span aria-hidden="true" className="text-lg leading-none">
+            ⋯
+          </span>
+        </button>
       </div>
     </li>
   );
@@ -764,7 +769,9 @@ function QuickChip({
       aria-pressed={active}
       className={[
         "tap-44 font-body inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors",
-        active ? "selected-ink bg-laser text-on-laser" : "glass text-silver hover:text-chalk",
+        active
+          ? "selected-ink bg-laser text-on-laser"
+          : "glass text-silver hover:text-chalk",
       ].join(" ")}
     >
       {label}

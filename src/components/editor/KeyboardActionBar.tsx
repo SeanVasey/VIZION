@@ -57,8 +57,7 @@ function KeyboardActionBarImpl({
       style={{ bottom: `${inset}px` }}
     >
       <span className="font-body shrink-0 text-xs tabular-nums text-silver">
-        <span aria-hidden="true">⌁ </span>
-        ≈{tokens} tokens
+        <span aria-hidden="true">⌁ </span>≈{tokens} tokens
       </span>
       <button
         type="button"

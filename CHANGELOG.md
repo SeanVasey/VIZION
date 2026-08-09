@@ -6,6 +6,83 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Cleanup audit, approved wave (2026-08-09) — the held items land
+
+The owner approved the audit's held recommendations
+(`docs/audits/04-cleanup-audit-2026-08-09.md` § approval-gated items carries
+per-item dispositions, including four deliberately still deferred):
+
+- **Grok gets the reasoning headroom** — xai.ts mirrors openai.ts's
+  effort-conditional output ceiling (32k at high effort; Grok reasons
+  unconditionally and bills it against the ceiling), closing a sibling drift
+  the audit could not prove was intentional. The one behavior change of the
+  wave; it can only reduce truncation.
+- **The save-with-outbox flow lives once** — extracted to
+  `lib/library/save-with-outbox.ts` behind 12 new characterization tests that
+  pinned every queued/error/offline branch of both surfaces BEFORE the
+  refactor and stayed green through it (SW-001/SW-002 had to be fixed twice
+  precisely because this flow was copy-pasted).
+- **The eslint class allowlist retires** — the plugin's default CSS scan was
+  already the real enforcement (the list had silently fallen ~13 classes
+  behind while lint stayed green); the config now says so, and the rule was
+  mutation-tested to prove it still bites.
+- **SW precache drops `icons/apple-touch-icon.png`** (~15.4 KiB per install a
+  URL no document, manifest, or platform convention ever requests — grooming
+  PERF-005's mistaken carry-over clause with approval).
+- **CI**: e2e traces/reports now upload on failure; CLAUDE.md §8's structure
+  diagram matches the shipped tree and §9 drops the retired Lighthouse PWA
+  category; the PR template's examples are VIZION-domain.
+- **Formatting**: one dedicated, purely mechanical `npm run format` commit
+  brings the drifted tree (128 files) back to Prettier, and `format:check`
+  joins CI so it cannot re-drift.
+
+### Conservative cleanup audit (2026-08-09) — dead code, redundancy, doc drift
+
+An 8-dimension adversarially-verified cleanup pass
+(`docs/audits/04-cleanup-audit-2026-08-09.md` is the ledger of record — 63
+findings, what changed, what was held for approval, and what was checked and
+deliberately kept). Nothing user-visible changed except one defect fix. By
+category:
+
+- **Removed (dead):** the `export` keyword on 42 grep-verified module-internal
+  symbols (the resolved DEAD-004 class, regrown since the 2026-08-01 audit);
+  StreamProgress's dormant usage row + its never-passed token/cost props (the
+  2026-08-07 streaming console moved the live ticker into StreamingResult's
+  header and no caller ever passed tokens again); the duplicate `LENGTH_MODES`
+  capability set (`hasLengthControl` now derives from `lengthOptions`, the
+  record production already gates on).
+- **Consolidated (behavior-identical):** the four private model id→label maps
+  now all read the shared `MODEL_LABELS`; the SEC-004 PostgREST escaping
+  helpers (`escapeLike`/`quoteOrValue`) live once in `lib/library/paging.ts`
+  instead of verbatim in two query modules; vision.ts's eight hardcoded
+  `…_API_KEY` literals read `PROVIDER_KEY_ENV` (the map it already imported);
+  the Target/Thinking picker pair's duplicated fallback class + chevron SVG
+  live once in `picker-trigger.tsx`; EnhanceComposer's thrice-copied
+  thinking-level validation is one `validThinkingLevel()` helper.
+- **Fixed:** `public/offline.html` ships the same media-qualified theme-color
+  pair as app documents (DSN-002) — its single dark meta mis-tinted browser
+  chrome under a light OS scheme; the e2e SW cache test now asserts
+  `no-store`, not just `no-cache` (SW-006 — the old assertion let a no-store
+  regression ship green); `tests/unit/media-context.test.ts` no longer embeds
+  raw NUL/SOH bytes (identical `\uXXXX` string — the file was "binary" to
+  grep and silently excluded from repo-wide searches); CI + AGENTS.md install
+  only the two Playwright engines the projects use.
+- **Docs:** drifted claims corrected against the shipped code — the Terra/Luna
+  tier swap in architecture.md, providers.md's pre-refresh price note and
+  retired `usage_window` cap description (→ ADR-0009 `spend_reserve`),
+  hardening.md's seven-table RLS list (→ all eleven) and "advisory" full-tree
+  audit (it gates, zero-exemption), media.md's stale vision roster, README's
+  never-installed Inngest, `.env.example`'s unpinned Mistral default, stale
+  mesh-era comments (→ NEBULA+), and a dated resolution note on ADR-0001's
+  open question. tokens.css's header no longer claims `--flare` is
+  theme-constant (its own light blocks have overridden it since day one).
+
+### Security
+
+- The `nanoid` override (`^3.3.17`, GHSA-2v37-7h3g-55p8, sole consumer
+  postcss) is now changelog-documented like every other override — it landed
+  2026-08-08 with its rationale only in the commit message.
+
 ### Changed
 
 - **Theme toggle wears categorical marks** — sun (light), moon (dark),

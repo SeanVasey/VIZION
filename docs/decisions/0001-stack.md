@@ -24,3 +24,7 @@ Status: **Accepted (LOCKED)** · Mirrors the decision log in `docs/history/VIZIO
 **Open question (resolve before media GA):** media-detail extraction on-device (fast,
 private, limited) vs. via model proxy (richer, token cost). Default lean: proxy behind a
 flag with on-device fallback, decided after a latency/cost spike in Phase 5.
+
+> **Resolved (2026-07, P5 ship):** exactly the default lean — proxy behind
+> `NEXT_PUBLIC_MEDIA_EXTRACTION` (default `proxy`) with on-device fallback.
+> See `docs/runbooks/media.md`.

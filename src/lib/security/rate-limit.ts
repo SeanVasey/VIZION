@@ -15,7 +15,7 @@ interface Hit {
   resetAt: number;
 }
 
-export interface RateResult {
+interface RateResult {
   allowed: boolean;
   remaining: number;
   resetAt: number;

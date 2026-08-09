@@ -17,10 +17,10 @@ would go and this file is the note to revisit.
 
 Shortcuts app → **+** → add these actions:
 
-1. **Receive** — set "Shortcut Input" to accept **Text**, and set *"If there's
-   no input"* to **Ask For Text**. This is what makes it appear in the share
+1. **Receive** — set "Shortcut Input" to accept **Text**, and set _"If there's
+   no input"_ to **Ask For Text**. This is what makes it appear in the share
    sheet from any app that shares text.
-2. **URL Encode** — action: *Text* → *URL Encode*, input: **Shortcut Input**.
+2. **URL Encode** — action: _Text_ → _URL Encode_, input: **Shortcut Input**.
    Non-optional: an un-encoded `&`, `#`, or `+` in the prompt truncates or
    corrupts it.
 3. **Text** — build the address:
@@ -38,8 +38,8 @@ Siri triggers on the shortcut name.
 
 - **Empty composer** → the prompt is filled in, ready to run.
 - **Composer already has something** → VIZION does **not** overwrite it. A
-  banner appears above the composer showing the incoming prompt with *Replace
-  draft* / *Discard it*. It has **no timer** — it stays until you answer it,
+  banner appears above the composer showing the incoming prompt with _Replace
+  draft_ / _Discard it_. It has **no timer** — it stays until you answer it,
   and replacing is undoable to whatever the draft held at the moment you
   tapped. A Shortcut fired twice by accident can't destroy work in progress.
 - **The parameter is stripped once resolved.** After it applies (or after you
@@ -57,12 +57,12 @@ everything above just works.
 
 If your session has expired, the behaviour depends on how you sign back in:
 
-| Sign-in path | Prompt survives? |
-|---|---|
-| Already signed in | Yes |
-| Email + password | Yes — middleware carries the query to `/sign-in`, and the form carries it back to `/enhance` |
-| Magic link | **No** |
-| OAuth (GitHub / Google) | **No** |
+| Sign-in path            | Prompt survives?                                                                             |
+| ----------------------- | -------------------------------------------------------------------------------------------- |
+| Already signed in       | Yes                                                                                          |
+| Email + password        | Yes — middleware carries the query to `/sign-in`, and the form carries it back to `/enhance` |
+| Magic link              | **No**                                                                                       |
+| OAuth (GitHub / Google) | **No**                                                                                       |
 
 The last two leave the browser entirely: the link arrives in a mail client, or
 control passes to a provider's consent screen, and comes back through
@@ -82,4 +82,4 @@ https://vizion-io.vercel.app/enhance?draft=write%20a%20haiku%20about%20latency
 ```
 
 Then type something into the composer, run the same URL again, and confirm you
-get the *Replace draft* offer rather than a silent overwrite.
+get the _Replace draft_ offer rather than a silent overwrite.

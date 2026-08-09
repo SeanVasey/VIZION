@@ -13,7 +13,7 @@ product is sixteen target models across twelve developers, six modes (Polish
 arrived with its own migration), and "Target" renamed "Adapt".
 
 So the repo simultaneously ordered agents to treat those files as locked truth
-*and* stated a different roster and mode-count in the same `CLAUDE.md` section.
+_and_ stated a different roster and mode-count in the same `CLAUDE.md` section.
 Every audit cycle re-discovered the contradiction (`DOC-005`, `MOD-002`) and had
 no standing to resolve it, because "locked" forbade both editing them and
 ignoring them. This is the ruling that resolves it (audit question **Q2**, owner
@@ -38,7 +38,7 @@ accepted recommendation (a)).
 3. **Section citations survive the move.** Source comments cite the v1 spec and
    style guide by section (`product-spec §4.1`, `style-guide §1.4`) as
    historical rationale. Those citations are not path links and remain valid;
-   they are pointers to *why*, while the code and tokens remain the *what*.
+   they are pointers to _why_, while the code and tokens remain the _what_.
 
 ## Consequences
 
@@ -49,5 +49,5 @@ accepted recommendation (a)).
 - Future audits reconcile against the living canon above. A disagreement between
   a historical file and the code is **not** a finding — it is expected drift, by
   this decision.
-- If the product ever wants a *current* narrative spec, it is written fresh
+- If the product ever wants a _current_ narrative spec, it is written fresh
   against the code, not by editing the v1 files.

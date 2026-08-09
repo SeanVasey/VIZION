@@ -11,7 +11,7 @@ Status: accepted
 
 ## Context
 
-Both model routes decided admission by reading a usage window and *then* calling
+Both model routes decided admission by reading a usage window and _then_ calling
 a provider; the ledger row was written only when the call finished. The entire
 provider call sits between the read and the write, so N concurrent requests all
 read the same balance, all pass the daily cost cap, and all spend. The in-memory
@@ -25,7 +25,7 @@ posture", a claim CLAUDE.md §7/§9 explicitly retracted (audit `DOC-003`).
 as a concurrency guard.** In `supabase/migrations/20260730203605`:
 
 - `public.usage_reservations` holds pending reservations. RLS is **on with no
-  policies** (default-deny) *and* `revoke all … from anon, authenticated`, so a
+  policies** (default-deny) _and_ `revoke all … from anon, authenticated`, so a
   future blanket `grant` cannot quietly open it. The `spend_*` SECURITY DEFINER
   functions are the only access path.
 - `spend_reserve` takes a per-user advisory lock, sums pending holds plus settled
@@ -50,7 +50,7 @@ output ceilings, or roster changes.
 - The daily cost cap is enforced atomically; concurrent requests can no longer
   race past it. This is the §6 guardrail "cost cap on every model route" made
   real under concurrency.
-- The cap rejects on *real spend*, never on the reservation — the PR #62 failure
+- The cap rejects on _real spend_, never on the reservation — the PR #62 failure
   cannot recur by construction (the clamp).
 - Reservations are never client-writable; the functions are the sole path, and
   `pg-introspect` compares the `revoke … public` grants so an accidental

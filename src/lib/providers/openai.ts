@@ -85,7 +85,11 @@ export async function* streamOpenAI(
     if (error instanceof OpenAI.APIError) {
       // Keep the upstream status so callers can classify (401/403/404 are
       // deployment-shaped, not input-shaped) — same contract as vision.
-      throw new ProviderError("openai", `GPT request failed: ${error.message}`, error.status);
+      throw new ProviderError(
+        "openai",
+        `GPT request failed: ${error.message}`,
+        error.status,
+      );
     }
     throw new ProviderError(
       "openai",

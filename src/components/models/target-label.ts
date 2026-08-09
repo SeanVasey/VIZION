@@ -1,11 +1,11 @@
-import { TARGET_MODELS, type TargetModelId } from "@/lib/constants";
-
-const LABEL_BY_ID = new Map(TARGET_MODELS.map((m) => [m.id, m.label]));
+import type { TargetModelId } from "@/lib/constants";
+import { MODEL_LABELS } from "@/lib/library/model-labels";
 
 /** Display label for a target id — falls back to the raw id so a legacy or
  *  unknown persisted value still renders as *something* rather than blank.
  *  Shared by TargetPicker's trigger and the composer's hold-slider live
- *  label, so the two can never render one model under two names. */
+ *  label, so the two can never render one model under two names. Reads the
+ *  one shared id→label map (`MODEL_LABELS`) rather than building its own. */
 export function targetLabel(id: TargetModelId): string {
-  return LABEL_BY_ID.get(id) ?? id;
+  return MODEL_LABELS.get(id) ?? id;
 }

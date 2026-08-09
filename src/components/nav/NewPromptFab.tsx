@@ -142,7 +142,8 @@ export function NewPromptFab() {
           keyboardVisible ? "pointer-events-none opacity-0" : "opacity-100",
         ].join(" ")}
         style={{
-          bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + var(--float-gap))",
+          bottom:
+            "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + var(--float-gap))",
           // Anchored to the APP COLUMN's trailing edge, not the viewport
           // corner: every other floating surface (sheets, side pickers) holds
           // the max-w-screen-sm column, and `right-4` left this button 248px
@@ -196,8 +197,8 @@ export function NewPromptFab() {
         }
       >
         <p className="font-body text-sm text-muted">
-          Your composer has a prompt in progress. Save it to your library to come
-          back to it, or discard it and start fresh.
+          Your composer has a prompt in progress. Save it to your library to come back to
+          it, or discard it and start fresh.
         </p>
       </Sheet>
     </>

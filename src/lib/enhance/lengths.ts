@@ -18,12 +18,11 @@ import type { ModeId } from "@/lib/constants";
 export const LENGTHS = ["short", "medium", "long"] as const;
 export type LengthId = (typeof LENGTHS)[number];
 
-/** Modes the dial applies to. The same shape as SHAPE_PRESERVING — a
- *  mode-keyed capability set, checked rather than assumed. */
-const LENGTH_MODES = new Set<ModeId>(["condense", "expand"]);
-
+/** Whether the dial applies to a mode — derived from LENGTH_LABEL's keys so
+ *  the capability set has exactly one source of truth (the shipped UI gates
+ *  on `lengthOptions(mode) !== null`, which reads the same record). */
 export function hasLengthControl(mode: ModeId): boolean {
-  return LENGTH_MODES.has(mode);
+  return lengthOptions(mode) !== null;
 }
 
 /**
@@ -38,9 +37,7 @@ const LENGTH_LABEL: Partial<Record<ModeId, Record<LengthId, string>>> = {
 };
 
 /** Labels for a mode, or null when the mode has no dial. */
-export function lengthOptions(
-  mode: ModeId,
-): { id: LengthId; label: string }[] | null {
+export function lengthOptions(mode: ModeId): { id: LengthId; label: string }[] | null {
   const labels = LENGTH_LABEL[mode];
   if (!labels) return null;
   return LENGTHS.map((id) => ({ id, label: labels[id] }));
@@ -52,9 +49,7 @@ export function lengthOptions(
  * and a single sentence covering both would have to be vague enough to be
  * worthless.
  */
-export const LENGTH_INSTRUCTIONS: Partial<
-  Record<ModeId, Record<LengthId, string>>
-> = {
+export const LENGTH_INSTRUCTIONS: Partial<Record<ModeId, Record<LengthId, string>>> = {
   condense: {
     short:
       "LENGTH — TIGHT: Trim conservatively. Remove obvious redundancy, filler, and hedging, but keep the prompt's existing sentence structure and any instruction you are not certain is duplicated.",

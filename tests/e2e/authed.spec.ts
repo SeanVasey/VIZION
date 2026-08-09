@@ -187,13 +187,11 @@ test.describe("authenticated app", () => {
     // height tracked viewport width — a flat number has to be checked flat.
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 860 });
-      expect((await page.locator(".horizon").boundingBox())!.height).toBeCloseTo(
-        28,
+      expect((await page.locator(".horizon").boundingBox())!.height).toBeCloseTo(28, 1);
+      expect((await page.locator(".horizon-rule").boundingBox())!.height).toBeCloseTo(
+        1,
         1,
       );
-      expect(
-        (await page.locator(".horizon-rule").boundingBox())!.height,
-      ).toBeCloseTo(1, 1);
       // getComputedStyle, not boundingBox: the node is mid-breathe and
       // getBoundingClientRect() reports the SCALED box (up to 7.5px).
       const node = await page.locator(".horizon-node").evaluate((el) => ({
@@ -326,8 +324,9 @@ test.describe("thinking hold-slider", () => {
     await pill.click();
     const sheet = page.getByRole("dialog", { name: "Thinking depth" });
     await expect(sheet).toBeVisible();
-    await expect(
-      sheet.getByRole("radio", { name: "High", exact: true }),
-    ).toHaveAttribute("aria-checked", "true");
+    await expect(sheet.getByRole("radio", { name: "High", exact: true })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 });

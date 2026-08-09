@@ -91,7 +91,9 @@ export function Segmented<T extends string>({
                 : "px-3 text-sm",
               // selected-ink: the non-color cue that survives the light theme
               // (A11Y-003) — invisible on dark, a 5.5:1 boundary on light.
-              active ? "selected-ink bg-laser text-on-laser" : "text-silver hover:text-chalk",
+              active
+                ? "selected-ink bg-laser text-on-laser"
+                : "text-silver hover:text-chalk",
             ].join(" ")}
           >
             {o.label}

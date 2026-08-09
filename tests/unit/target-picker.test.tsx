@@ -258,11 +258,7 @@ describe("TargetPicker — Auto routing preference", () => {
     openWithPreference();
     const group = screen.getByRole("group", { name: /auto routing preference/i });
     const segments = within(group).getAllByRole("button");
-    expect(segments.map((s) => s.textContent)).toEqual([
-      "Quality",
-      "Balanced",
-      "Budget",
-    ]);
+    expect(segments.map((s) => s.textContent)).toEqual(["Quality", "Balanced", "Budget"]);
     expect(within(group).queryAllByRole("radio")).toHaveLength(0);
     const pressed = segments.filter((s) => s.getAttribute("aria-pressed") === "true");
     expect(pressed).toHaveLength(1);

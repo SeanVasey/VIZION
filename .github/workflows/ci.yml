@@ -34,6 +34,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Format check
+        # The tree was brought fully Prettier-clean in one mechanical commit
+        # (audit 04 fmt-01); this step keeps it from silently re-drifting —
+        # 128 files had drifted with nothing arresting it.
+        run: npm run format:check
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -47,15 +53,31 @@ jobs:
         run: npm run build
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        # Just the two engines the configured projects use (mobile-safari →
+        # WebKit, mobile-chrome → Chromium); a bare `install` adds Firefox too.
+        run: npx playwright install --with-deps webkit chromium
 
       - name: E2E tests
         run: npm run test:e2e
 
+      - name: Upload e2e traces on failure
+        # Retry traces (`trace: on-first-retry`) and the report otherwise die
+        # with the runner — a red e2e leg was undebuggable from the log alone
+        # (audit 04 ci-05).
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Security audit (production dependencies)
         # Audit what actually ships. Dev/build tooling (esbuild via vite/vitest)
         # carries advisories that only affect a running dev server / Deno, never
-        # the deployed runtime; a full-tree report is run separately as advisory.
+        # the deployed runtime; the full tree is gated by the next step.
         run: npm audit --omit=dev --audit-level=high
 
       - name: Security audit (full tree, gated)

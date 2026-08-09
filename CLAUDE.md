@@ -48,9 +48,9 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 If any step is red, fix it before committing. **No red commits.** `npm audit` runs in CI.
 
 **What green does not mean.** The e2e `mobile-safari` project is WebKitGTK on
-Linux, not Mobile Safari. It is evidence about the *rendering engine* — cascade
+Linux, not Mobile Safari. It is evidence about the _rendering engine_ — cascade
 layers, computed styles, layout — and is **not** evidence about the iOS
-*platform*: capability detection, touch-input semantics, storage eviction, or
+_platform_: capability detection, touch-input semantics, storage eviction, or
 Home Screen web-app behaviour. It diverges from iOS in both directions, so
 "missing in WebKit" does not mean "missing on iOS". Before writing an iOS claim
 into a comment, commit, or changelog, read
@@ -61,7 +61,7 @@ the rule. Two wrong claims have already shipped from getting this backwards.
 
 `.github/workflows/ci.yml` runs on PR + push to `main`:
 `lint · typecheck · icon generation · unit tests · build · Playwright e2e ·
-production `npm audit` (blocking) · full-tree `audit:check` (blocking)`.
+production `npm audit`(blocking) · full-tree`audit:check` (blocking)`.
 Preview deploy per PR on Vercel.
 `.github/workflows/release.yml` tags `v<version>` + publishes a GitHub Release
 (notes from `CHANGELOG.md`) when a `package.json` version bump lands on `main` —
@@ -106,16 +106,23 @@ the shape only).
 
 ```
 src/
-  app/            App Router routes — layout · (auth)/ · enhance/ · library/ · profile/
-                  · api/{enhance,media}/  (route handlers, P3+)
-  components/     nav/ · editor/ · diff/ · swatch/ · avatar-crop/ · profile/
-  lib/            supabase/ (P2) · providers/ (adapter + formatters, P3) · pwa/ · query/
+  app/            App Router routes — layout · (auth)/{sign-in,set-password} ·
+                  (app)/{enhance,library,profile} · auth/* (callback/confirm/
+                  sign-out/delete-account) · api/{enhance,media}/ · fonts/
+  components/     nav/ · editor/ · diff/ · library/ · media/ · models/ · auth/ ·
+                  avatar-crop/ · settings/ · ui/ · feedback/ · background/ · pwa/
+  lib/            supabase/ · providers/ (adapter + formatters) · enhance/ ·
+                  library/ · drafts/ · media/ · security/ · auth/ · owner/ ·
+                  profile/ · pwa/ · query/
   stores/         zustand UI state
-  styles/         tokens.css (the 7 roles) · globals.css
-public/           manifest.webmanifest · icons/ · splash/ · sw.js (built) · offline.html
-scripts/          build-sw.mjs · generate-icons.mjs
-tests/            unit/ · e2e/
-docs/             architecture.md · decisions/ · runbooks/
+  styles/         tokens.css (the 7 roles) · globals.css · dev-accents.css
+public/           manifest.webmanifest · icons/ · splash/ · brand/ · sw.js (built)
+                  · offline.html + offline.js · robots.txt
+scripts/          build-sw.mjs · generate-icons.mjs · check-audit.mjs ·
+                  check-model-enum.mjs · verify-migrations.mjs
+supabase/         migrations/ (the whole schema from nothing — see AGENTS.md)
+tests/            unit/ · e2e/ (+ e2e/support/ stub Supabase) · stubs/
+docs/             architecture.md · decisions/ · runbooks/ · audits/ · history/
 tasks/            lessons.md
 ```
 
@@ -127,7 +134,9 @@ tasks/            lessons.md
   in `spend_reserve` (§7), not an edge posture.
 - iOS storage-eviction recovery: `navigator.storage.persist()`, re-hydrate from
   Supabase on launch, IndexedDB outbox flushed on `visibilitychange`.
-- Full WCAG AA pass; Lighthouse PWA ✓.
+- Full WCAG AA pass; Lighthouse a11y ✓ + manual installability check (the
+  Lighthouse PWA category was retired upstream in v12 — see
+  `docs/runbooks/hardening.md`).
 
 ## 10. Workflow Orchestration
 

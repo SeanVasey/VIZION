@@ -1,4 +1,8 @@
-import { MEDIA_ALLOWED_MIME, type MediaAttributes, type MediaKind } from "@/lib/media/types";
+import {
+  MEDIA_ALLOWED_MIME,
+  type MediaAttributes,
+  type MediaKind,
+} from "@/lib/media/types";
 
 /**
  * On-device extraction (the "fast, private, limited" fallback per the locked

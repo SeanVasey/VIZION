@@ -83,10 +83,7 @@ describe("library card", () => {
     const input = screen.getByLabelText("Prompt name");
     fireEvent.change(input, { target: { value: "Q3 launch email" } });
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    expect(actions.updatePromptTitleAction).toHaveBeenCalledWith(
-      "p1",
-      "Q3 launch email",
-    );
+    expect(actions.updatePromptTitleAction).toHaveBeenCalledWith("p1", "Q3 launch email");
   });
 
   it("soft-deletes with an Undo toast that restores", async () => {
@@ -115,7 +112,6 @@ describe("library card", () => {
   });
 });
 
-
 describe("recently deleted (Q9 — persistent recovery)", () => {
   const TRASHED: PromptCard = { ...CARD, deleted: true, favorite: false };
 
@@ -138,15 +134,13 @@ describe("recently deleted (Q9 — persistent recovery)", () => {
     // The confirm sheet opens its own "Delete permanently" — the last one is
     // the confirmation.
     await vi.waitFor(() =>
-      expect(
-        screen.getAllByRole("button", { name: "Delete permanently" }).length,
-      ).toBe(2),
+      expect(screen.getAllByRole("button", { name: "Delete permanently" }).length).toBe(
+        2,
+      ),
     );
     const confirmBtns = screen.getAllByRole("button", { name: "Delete permanently" });
     fireEvent.click(confirmBtns[confirmBtns.length - 1]!);
-    await vi.waitFor(() =>
-      expect(actions.deletePromptAction).toHaveBeenCalledWith("p1"),
-    );
+    await vi.waitFor(() => expect(actions.deletePromptAction).toHaveBeenCalledWith("p1"));
   });
 });
 

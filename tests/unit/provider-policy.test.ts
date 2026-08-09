@@ -61,9 +61,7 @@ describe("provider key env correspondence (PRV-004)", () => {
       "zai",
     ] as const) {
       const env = PROVIDER_KEY_ENV[provider];
-      expect(src, `${provider} → ${env}`).toMatch(
-        new RegExp(`keyEnv:\\s*"${env}"`),
-      );
+      expect(src, `${provider} → ${env}`).toMatch(new RegExp(`keyEnv:\\s*"${env}"`));
     }
   });
 });
@@ -113,9 +111,7 @@ describe("uniform connection policy (PRV-002)", () => {
     // value sized for bounded calls can never again govern streaming ones.
     const opensConnection = sourceFiles(PROVIDER_DIR).filter((f) => {
       const src = read(f);
-      return (
-        /new (OpenAI|Anthropic)\(/.test(src) || /\bawait fetch\(/.test(src)
-      );
+      return /new (OpenAI|Anthropic)\(/.test(src) || /\bawait fetch\(/.test(src);
     });
     const offenders = opensConnection
       .filter((f) => !/vision\.ts$/.test(f))
@@ -262,7 +258,9 @@ describe("uniform connection policy (PRV-002)", () => {
       /const \{ deadline, timeoutMs \} = providerBudget\(\s*"google",\s*opts\.deadline,?\s*\)/,
     );
     // The total is cut from the wall, and the idle timer can never outlast it.
-    expect(src).toMatch(/setTimeout\(\s*\(\)\s*=>\s*controller\.abort\(\),\s*timeoutMs\)/);
+    expect(src).toMatch(
+      /setTimeout\(\s*\(\)\s*=>\s*controller\.abort\(\),\s*timeoutMs\)/,
+    );
     expect(src).toMatch(/Math\.min\(PROVIDER_IDLE_MS,\s*remainingMs\(deadline\)\)/);
     // Re-armed AFTER a successful read — an idle timer set once is just a
     // total deadline wearing a different name.

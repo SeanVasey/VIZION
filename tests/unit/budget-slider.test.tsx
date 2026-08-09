@@ -2,10 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
-import {
-  DETENT_SPACING_PX,
-  HOLD_MS,
-} from "@/components/ui/use-hold-drag";
+import { DETENT_SPACING_PX, HOLD_MS } from "@/components/ui/use-hold-drag";
 
 /**
  * The Target rail's budget hold-slider (ADR-0012).
@@ -50,10 +47,8 @@ function renderComposer() {
   );
 }
 
-const targetTrigger = () =>
-  screen.getByRole("button", { name: /^Target model:/ });
-const overlay = () =>
-  document.querySelector<HTMLElement>("[data-hold-slider-overlay]");
+const targetTrigger = () => screen.getByRole("button", { name: /^Target model:/ });
+const overlay = () => document.querySelector<HTMLElement>("[data-hold-slider-overlay]");
 
 const DOWN_X = 300;
 function holdAndDrag(steps: number) {
@@ -181,8 +176,6 @@ describe("budget hold-slider commits", () => {
   it("keeps a tap a tap — the Target sheet still opens", () => {
     renderComposer();
     fireEvent.click(targetTrigger());
-    expect(
-      screen.getByRole("dialog", { name: "Target model" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Target model" })).toBeInTheDocument();
   });
 });

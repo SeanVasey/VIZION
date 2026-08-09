@@ -31,7 +31,7 @@ Style-guide canon reads "1.5px on a 24px grid", but icons ship at nominal
 to their rendered box. This reads as deliberate optical correction (a 14px
 icon needs a heavier nominal stroke to hold the same visual weight as a 24px
 one), not drift. **Blessed as an optical-weight scale**: the canon is the
-*effective* ~1.5px at the rendered size, and the shared `Glyph` primitive
+_effective_ ~1.5px at the rendered size, and the shared `Glyph` primitive
 (`src/components/ui/glyphs.tsx`) uses 1.5px on its 24px viewBox as the
 reference. New icons follow the effective-weight rule, not a literal nominal
 1.5.
@@ -79,7 +79,7 @@ folding the viewfinder dim into the scrim system alongside `--scrim-panel`.
 `tokens.css` described `--flare` as "never a fill". The library delete-swipe
 panel fills with `bg-flare` and pairs it with an `--on-flare` ink verified at
 ≥5.7:1 in both themes. That is a **sanctioned exception**: a full-bleed
-destructive affordance where the fill *is* the signal. The rule stands
+destructive affordance where the fill _is_ the signal. The rule stands
 everywhere else (flare is text/border only); the one destructive-fill site is
 documented at its call site.
 

@@ -9,13 +9,16 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       // The real package throws outside React Server components; unit tests
       // exercise server modules in plain Node (see tests/stubs/server-only.ts).
-      "server-only": fileURLToPath(new URL("./tests/stubs/server-only.ts", import.meta.url)),
+      "server-only": fileURLToPath(
+        new URL("./tests/stubs/server-only.ts", import.meta.url),
+      ),
     },
   },
   test: {
     environment: "jsdom",
     globals: true,
     setupFiles: ["./tests/setup.ts"],
+    // The src glob matches nothing today; it permits colocated tests later.
     include: ["tests/unit/**/*.test.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
     // Playwright specs live under tests/e2e and are run by `test:e2e`.
     exclude: ["node_modules", ".next", "tests/e2e/**"],

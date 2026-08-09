@@ -2,8 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tokens are imported via the layout's metadata link order; kept here too so
-   global utility classes can resolve the vars during Tailwind processing. */
+/* These @imports are the ONLY way tokens.css / dev-accents.css reach the
+   build — nothing else links them; Next's CSS pipeline inlines them into the
+   emitted bundle. Do not remove as "redundant". */
 @import "./tokens.css";
 /* Additive layer — the twelve per-developer library accents.  Kept out of
    tokens.css because that file declares itself LOCKED; see its header. */
@@ -1291,7 +1292,9 @@
      cue — but layer order runs base < utilities, so the utility always won.)
      Compose, ring first, exactly as .glass / .glass-solid / .fab-glass do. */
   .selected-ink:focus-visible {
-    box-shadow: var(--focus-ring), inset 0 0 0 1.5px var(--accent-ink);
+    box-shadow:
+      var(--focus-ring),
+      inset 0 0 0 1.5px var(--accent-ink);
   }
 
   /* Live-stream progress bar: a Laser sweep gliding along a Hair track.

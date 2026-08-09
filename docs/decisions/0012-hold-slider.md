@@ -15,7 +15,7 @@ only: complete and accessible, but two taps and a reorientation for what is,
 on a phone, a one-thumb adjustment.
 
 [0004] already ruled that a slider is a distinct control class, exempt from
-the text-input recipe. That ruling covered *plain* sliders (native ranges:
+the text-input recipe. That ruling covered _plain_ sliders (native ranges:
 avatar zoom, the developer-accent dial). This decision covers a new member of
 the class with a stricter shape: a **pointer-only accelerator layered over an
 existing tap trigger**.

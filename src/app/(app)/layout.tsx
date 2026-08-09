@@ -35,11 +35,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             Access is closed
           </h1>
           <p className="font-body mt-3 text-sm text-silver">
-            The owner has temporarily closed VIZION to other accounts. Your
-            data is safe and will be here when access reopens.
+            The owner has temporarily closed VIZION to other accounts. Your data is safe
+            and will be here when access reopens.
           </p>
           <form action="/auth/sign-out" method="post" className="mt-5">
-            <button type="submit" className="btn-secondary min-h-[44px] w-full max-w-[260px]">
+            <button
+              type="submit"
+              className="btn-secondary min-h-[44px] w-full max-w-[260px]"
+            >
               Sign out
             </button>
           </form>

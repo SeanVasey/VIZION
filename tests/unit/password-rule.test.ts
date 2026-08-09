@@ -17,7 +17,9 @@ describe("password rule", () => {
   it("reports length before classes", () => {
     // "needs an uppercase letter" buries the actual problem when the password is
     // six characters long.
-    expect(validatePassword("abc")).toBe(`Use at least ${MIN_PASSWORD_LENGTH} characters.`);
+    expect(validatePassword("abc")).toBe(
+      `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
+    );
     expect(validatePassword("a".repeat(MIN_PASSWORD_LENGTH - 1))).toMatch(/at least/);
   });
 
@@ -81,7 +83,9 @@ describe("one definition of the rule", () => {
     for (const file of CALLERS) {
       const src = read(file);
       expect(src, `${file} still hardcodes minLength`).not.toMatch(/minLength=\{\d+\}/);
-      expect(src, `${file} still declares its own minimum`).not.toMatch(/MIN_PASSWORD\s*=/);
+      expect(src, `${file} still declares its own minimum`).not.toMatch(
+        /MIN_PASSWORD\s*=/,
+      );
     }
   });
 

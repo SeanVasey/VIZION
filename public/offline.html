@@ -6,7 +6,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#0F1012" />
+    <!-- Same media-qualified pair as the app documents (layout.tsx viewport
+         themeColor, DSN-002) — this page's own styles are scheme-adaptive,
+         so a single dark meta would mis-tint browser chrome in light. -->
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F1012" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#EEF0F4" />
     <!-- Precached (build-sw.mjs), so the tab icon resolves offline too. -->
     <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192" />
     <title>VIZION — Offline</title>

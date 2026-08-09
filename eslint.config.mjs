@@ -10,66 +10,6 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-/**
- * Class names this project defines itself, in `src/styles/*.css`.
- *
- * `no-custom-classname` flags any token Tailwind does not recognise, which is
- * the point — but these come from our own `@layer components` / `@layer
- * utilities` blocks, so they have to be declared or the rule buries its signal
- * under ~35 false positives.
- *
- * An explicit list rather than one parsed out of the CSS at lint time: a
- * generated allowlist would absorb a typo in the CSS too, and the whole point of
- * the rule is that a name nobody defined gets noticed.
- */
-const PROJECT_CLASSNAMES = [
-  // Ambient background layers.
-  "bg-nebula",
-  "bg-nebula-bloom",
-  "bg-nebula-bloom-a",
-  "bg-nebula-bloom-b",
-  "bg-nebula-bloom-c",
-  "bg-nebula-bloom-d",
-  "bg-nebula-ground",
-  "nebula-canvas",
-  // Buttons + surfaces (@layer components).
-  "ambient-scrim",
-  "btn-destructive",
-  "btn-laser",
-  "btn-secondary",
-  "glass",
-  "glass-chrome",
-  "glass-nav",
-  "hover-hair",
-  "pill",
-  // Chrome + motion.
-  "horizon",
-  "horizon-node",
-  "horizon-rule",
-  "nav-tab",
-  "pressable",
-  "result-shimmer",
-  "sheet-in",
-  "footer-fade-in",
-  "skeleton",
-  "spinner",
-  "stream-progress-sweep",
-  "stream-progress-track",
-  // Layout / behaviour utilities (@layer utilities).
-  "cap-trim",
-  "mono",
-  "no-pull-refresh",
-  "pb-safe",
-  "pl-safe",
-  "pr-safe",
-  "pt-safe",
-  "scroll-row",
-  "tap-44",
-  // Dev-only accents (dev-accents.css).
-  "dev-edge",
-  "dev-mark",
-];
-
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
@@ -95,6 +35,15 @@ const eslintConfig = [
    * would rewrite most of the codebase in one commit and bury real defects in
    * churn. This rule alone answers the question the gate could not: does this
    * class name mean anything?
+   *
+   * Project-defined classes (src/styles) are accepted by the plugin's default
+   * CSS scan (`cssFiles` covers every non-vendored .css at lint time), so a
+   * class is
+   * legal exactly when some stylesheet defines it — and a TSX typo that no
+   * stylesheet defines is still flagged. An explicit allowlist used to sit
+   * here claiming to be the mechanism; it had silently fallen ~13 classes
+   * behind while lint stayed green, because the scan was doing the work
+   * (cleanup audit 04, css-01 — retired 2026-08-09 with owner approval).
    */
   {
     files: ["src/**/*.{ts,tsx}"],
@@ -106,7 +55,6 @@ const eslintConfig = [
         // fails with "Could not resolve tailwindcss" even though the package is
         // right there.
         config: join(__dirname, "tailwind.config.ts"),
-        whitelist: PROJECT_CLASSNAMES,
       },
     },
     rules: {
