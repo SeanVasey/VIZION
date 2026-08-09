@@ -8,7 +8,7 @@
 
 ```bash
 npm install
-cp .env.example .env.local       # values needed only from P2 onward
+cp .env.example .env.local       # fill in to enable Supabase + provider calls
 npm run generate:icons           # transparent-PNG icon + iOS splash matrix
 npm run dev                      # http://localhost:3000  (opens on /enhance)
 ```
@@ -41,8 +41,9 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 ## Icons & splash
 
 - Regenerate with `npm run generate:icons` (uses `sharp`). Output under `public/icons/`
-  and `public/splash/`, plus `src/app/icon.png` / `src/app/apple-icon.png` (Next
-  auto-wires these as favicons). The final brand masters
+  and `public/splash/`, plus `src/app/icon0.svg` / `src/app/icon1.png` /
+  `src/app/apple-icon.png` (Next auto-wires these as favicons; the numbered
+  names make it link the scalable SVG first). The final brand masters
   (`public/brand/vizion-icon-token.svg` / `vizion-mark-token.svg`) drive
   generation — drop new artwork into those files and re-run, without touching
   the manifest references (DOC-010: no longer placeholders).

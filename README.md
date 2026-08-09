@@ -74,7 +74,7 @@ See [`docs/architecture.md`](./docs/architecture.md) and the locked decision log
 
 ```bash
 npm install
-cp .env.example .env.local      # fill in when wiring P2+ (no secrets committed)
+cp .env.example .env.local      # fill in to enable Supabase + providers (no secrets committed)
 npm run generate:icons          # produce the transparent-PNG icon + splash matrix
 npm run dev                     # http://localhost:3000
 ```
@@ -98,7 +98,7 @@ GitHub Release with the matching changelog section as notes. Full procedure:
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind + CSS-var tokens ·
 TanStack Query · Zustand · Workbox · Supabase (Postgres + RLS, Auth, Storage) ·
-Inngest (async, P5+) · Vercel.
+Vercel.
 
 ## Brand
 

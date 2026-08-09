@@ -6,6 +6,53 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Conservative cleanup audit (2026-08-09) — dead code, redundancy, doc drift
+
+An 8-dimension adversarially-verified cleanup pass
+(`docs/audits/04-cleanup-audit-2026-08-09.md` is the ledger of record — 63
+findings, what changed, what was held for approval, and what was checked and
+deliberately kept). Nothing user-visible changed except one defect fix. By
+category:
+
+- **Removed (dead):** the `export` keyword on 42 grep-verified module-internal
+  symbols (the resolved DEAD-004 class, regrown since the 2026-08-01 audit);
+  StreamProgress's dormant usage row + its never-passed token/cost props (the
+  2026-08-07 streaming console moved the live ticker into StreamingResult's
+  header and no caller ever passed tokens again); the duplicate `LENGTH_MODES`
+  capability set (`hasLengthControl` now derives from `lengthOptions`, the
+  record production already gates on).
+- **Consolidated (behavior-identical):** the four private model id→label maps
+  now all read the shared `MODEL_LABELS`; the SEC-004 PostgREST escaping
+  helpers (`escapeLike`/`quoteOrValue`) live once in `lib/library/paging.ts`
+  instead of verbatim in two query modules; vision.ts's eight hardcoded
+  `…_API_KEY` literals read `PROVIDER_KEY_ENV` (the map it already imported);
+  the Target/Thinking picker pair's duplicated fallback class + chevron SVG
+  live once in `picker-trigger.tsx`; EnhanceComposer's thrice-copied
+  thinking-level validation is one `validThinkingLevel()` helper.
+- **Fixed:** `public/offline.html` ships the same media-qualified theme-color
+  pair as app documents (DSN-002) — its single dark meta mis-tinted browser
+  chrome under a light OS scheme; the e2e SW cache test now asserts
+  `no-store`, not just `no-cache` (SW-006 — the old assertion let a no-store
+  regression ship green); `tests/unit/media-context.test.ts` no longer embeds
+  raw NUL/SOH bytes (identical `\uXXXX` string — the file was "binary" to
+  grep and silently excluded from repo-wide searches); CI + AGENTS.md install
+  only the two Playwright engines the projects use.
+- **Docs:** drifted claims corrected against the shipped code — the Terra/Luna
+  tier swap in architecture.md, providers.md's pre-refresh price note and
+  retired `usage_window` cap description (→ ADR-0009 `spend_reserve`),
+  hardening.md's seven-table RLS list (→ all eleven) and "advisory" full-tree
+  audit (it gates, zero-exemption), media.md's stale vision roster, README's
+  never-installed Inngest, `.env.example`'s unpinned Mistral default, stale
+  mesh-era comments (→ NEBULA+), and a dated resolution note on ADR-0001's
+  open question. tokens.css's header no longer claims `--flare` is
+  theme-constant (its own light blocks have overridden it since day one).
+
+### Security
+
+- The `nanoid` override (`^3.3.17`, GHSA-2v37-7h3g-55p8, sole consumer
+  postcss) is now changelog-documented like every other override — it landed
+  2026-08-08 with its rationale only in the commit message.
+
 ### Changed
 
 - **Theme toggle wears categorical marks** — sun (light), moon (dark),

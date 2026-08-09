@@ -13,8 +13,10 @@ NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...   # the publishable key is fine here
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` is **not** needed for P2 (all access is the user's session
-under RLS). Add it only when a later phase needs to bypass RLS server-side.
+`SUPABASE_SERVICE_ROLE_KEY` is needed by exactly one flow: account deletion
+(`/auth/delete-account` via `src/lib/supabase/admin.ts` — ADR-0008). All other
+access is the user's session under RLS. While the key is unset, deletion fails
+closed with `delete_error=unconfigured`; everything else works without it.
 
 ## 2. Auth → URL configuration (Supabase dashboard)
 

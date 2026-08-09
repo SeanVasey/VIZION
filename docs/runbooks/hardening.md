@@ -5,14 +5,21 @@
 - [x] **No DIY auth** — Supabase Auth only; JWT ≤ 7d + rotation (D7).
 - [x] **RLS on every table from creation** — `profiles`, `oauth_identities`,
       `usage_events`, `prompts`, `prompt_versions`, `activity_events`,
-      `media_assets`. `prompt_versions` has no update/delete policy (immutable).
+      `media_assets`, `collections`, `drafts`, `usage_reservations`,
+      `app_settings`. `prompt_versions` has no update/delete policy (immutable);
+      `usage_reservations` is deliberately default-deny with **no** policies —
+      the `spend_*` SECURITY DEFINER functions are its only access path
+      (ADR-0009); `app_settings` is readable by all authenticated users and
+      writable only by the owner allowlist.
 - [x] **Model keys server-side only** — provider modules import `server-only`;
       keys read only in `/api/{enhance,media}`. Never in the client bundle.
-- [x] **Rate limit + cost cap on every model route** — DB `usage_window` cap +
-      an in-memory burst limiter (`src/lib/security/rate-limit.ts`).
+- [x] **Rate limit + cost cap on every model route** — atomic `spend_reserve`
+      admission under a per-user advisory lock (ADR-0009) + an in-memory burst
+      limiter (`src/lib/security/rate-limit.ts`).
 - [x] **Parameterized queries** — all DB access is via the typed Supabase client.
 - [x] **`npm audit` in CI** — gates on `--omit=dev --audit-level=high` (prod
-      deps clean); full-tree report runs advisory-only.
+      deps) **and** the full-tree `npm run audit:check`, which is zero-exemption
+      and hard-fails on any advisory (DEP-002).
 - [x] **Security headers + CSP** — `next.config.ts`: HSTS, `X-Content-Type-Options`,
       `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and a CSP
       (`default-src 'self'`; Supabase in `connect/img/media`; `frame-ancestors`,
@@ -55,7 +62,9 @@
       Vercel project env; while unset the flow fails closed with
       `delete_error=unconfigured`.
 - [x] **Brand separation** — VASEY/AI only; zero VASEY.AUDIO crossover.
-- [x] **Edge/DDoS posture** — Vercel platform + per-user caps + the burst limiter.
+- [x] **Abuse posture** — Vercel platform + atomic per-user admission in
+      `spend_reserve` + the burst limiter (CLAUDE.md §7/§9: the routes run on
+      the Node runtime; there is no edge posture).
 
 Re-run `get_advisors` (security + performance) after any DDL — currently clean.
 
@@ -88,5 +97,7 @@ DB restore fully reconstitutes user state on next launch.
   `prefers-reduced-motion` disables transitions/animations.
 - Labels on all inputs; `aria-current` on the active nav tab; `role`/`aria-label`
   on landmarks and status regions.
-- Lighthouse: run `npx lighthouse <preview-url> --only-categories=pwa,accessibility`
-  against a deployed preview for the PWA ✓ + a11y score.
+- Lighthouse: run `npx lighthouse <preview-url> --only-categories=accessibility`
+  against a deployed preview for the a11y score. (Lighthouse ≥ 12 removed the
+  PWA category; verify installability manually via Chrome DevTools → Application
+  → Manifest, plus the repo's own e2e manifest + service-worker assertions.)

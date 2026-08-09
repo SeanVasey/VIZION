@@ -63,8 +63,8 @@ A single `enhance(input, mode, target)` interface fans out to model-specific for
 - **Opus 5** — XML-tagged sections, explicit system/user separation, CoT scaffolds.
 - **Sonnet 5** — clear direct instructions, XML sections for layered context, literal precision.
 - **GPT-5.6 Sol** — developer/system/user roles, JSON-mode / structured-output, tool schemas.
-- **GPT-5.6 Luna** — goal-first directive brief; the family's balanced mid tier.
-- **GPT-5.6 Terra** — short self-contained prompts, explicit format; the family's fast tier.
+- **GPT-5.6 Terra** — goal-first directive brief; the family's balanced mid tier.
+- **GPT-5.6 Luna** — short self-contained prompts, explicit format; the family's small, fast tier.
 - **Fable 5** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
 - **DeepSeek V4** — plain complete problem statement, reasoning left to the engine, explicit format.
 - **Gemini 3.6 Flash** — multimodal "parts", system-instruction conventions,

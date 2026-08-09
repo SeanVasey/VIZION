@@ -14,16 +14,21 @@ NEXT_PUBLIC_MEDIA_EXTRACTION=proxy   # default — vision via the model proxy
   `/api/media`, which runs a vision pass on the **selected target model** and returns
   attributes (subject, composition, palette, lighting, style, mood) plus the prose
   description. Needs that provider's key. `/api/media` is a model route — same auth +
-  rate limit + daily cost cap + usage logging as `/api/enhance`.
+  rate limit + daily cost cap + usage logging as `/api/enhance`. With Auto routing
+  on, the request carries `auto: true` and the route resolves the target itself
+  through the auto ladders filtered to vision-capable, configured targets
+  (`resolveAutoVisionTarget`) before the pass runs.
 - **provider fallback**: when the selected model fails for a _config-shaped_ reason —
   missing key, a key the provider rejects (401/403), or an unknown model string
   (404) — the route retries once on the first _other_ configured provider
   (Opus 5 first, then GPT-5.6 Sol · Gemini 3.6 Flash · Mistral Large 3 ·
-  Grok 4.5 · Muse Spark 1.1 · Kimi K3 · Sonar Pro). Targets whose flagship is
-  text-only (DeepSeek V4 · MiniMax M3 · Qwen3.8 Max · GLM-5.2) skip the
-  attempt and route straight to that same chain. The response carries
-  `fallbackFrom` + the real `usage.target`; usage is logged (and the chip credited)
-  against the model that actually analyzed, and the card shows a soft note.
+  Grok 4.5 · Muse Spark 1.1 · Kimi K3 · Qwen3.8 Max · MiniMax M3 · Sonar Pro —
+  `VISION_FALLBACK_ORDER` in `src/lib/providers/vision.ts`). Targets whose
+  flagship is text-only (DeepSeek V4 · GLM-5.2 — their vision models are
+  separate SKUs) skip the attempt and route straight to that same chain. The
+  response carries `fallbackFrom` + the real `usage.target`; usage is logged
+  (and the chip credited) against the model that actually analyzed, and the
+  card shows a soft note.
 - **on-device fallback** (also used for audio, when the flag is `ondevice`, or when the
   proxy is unconfigured/unreachable): canvas palette + dimensions for image/video, and
   duration for audio. No key, no network.

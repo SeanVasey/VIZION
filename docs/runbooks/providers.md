@@ -194,16 +194,13 @@ Notes that keep this working:
 
 Note on cost: Fable 5 lists at $10/$50 per 1M tokens (in/out) — noticeably pricier than
 the other targets, so users reach the daily cost cap sooner on it. At the other end,
-DeepSeek V4 (~$0.45/$0.90), MiniMax M3 (~$0.30/$1.20), and GPT-5.6 Terra
-(~$0.20/$0.80) barely dent the cap.
-Qwen3.8 Max defaults reflect the current 50%-promo rate ($1.25/$3.75, list $2.50/$7.50) —
-override `PRICE_QWEN_*` when the promo lapses. GLM-5.2 list rates were unpublished at
-launch — the defaults ($1.00/$3.20) are the GLM-5 reference rates; override
-`PRICE_GLM_*` when Z.ai publishes 5.2 pricing. Kimi K3 and MiniMax M3 launch
-defaults carry the K2.6/M2.7 list rates forward — override `PRICE_KIMI_*` /
-`PRICE_MINIMAX_*` if the published rates differ. GPT-5.6 Luna/Terra defaults
-($1.00/$4.00, $0.20/$0.80) follow the family tiering below Sol — override
-`PRICE_GPT_LUNA_*` / `PRICE_GPT_TERRA_*` to match your account's rates.
+DeepSeek V4 (~$0.435/$0.87), GPT-5.6 Luna ($0.20/$1.20), and MiniMax M3
+($0.30/$1.20) barely dent the cap. Every default was re-verified against its
+vendor's published rates on 2026-08-08 (the "Pinned ids & verified prices" note
+above); `src/lib/providers/config.ts` is the authoritative per-target list, and
+each row carries its `pricesVerifiedAt` date. Override the matching `PRICE_*_IN`
+/ `PRICE_*_OUT` env vars when your account's rates differ — and remember a price
+override re-ranks Auto routing as well as re-pricing the cap.
 
 ## Output ceilings (`max_tokens`)
 
@@ -294,9 +291,12 @@ PRICE_OPUS_IN= PRICE_OPUS_OUT= PRICE_GPT_IN= PRICE_GPT_OUT= PRICE_FABLE_IN=
 PRICE_FABLE_OUT= PRICE_GEMINI_IN= PRICE_GEMINI_OUT= PRICE_GROK_IN= PRICE_GROK_OUT=
 ```
 
-Both limits are enforced **before** any model call via the `usage_window` aggregate
-(RLS-scoped to the caller). Every successful enhance writes a `usage_events` row
-(tokens + cost) — the ledger backs both the rate window and the daily cost sum.
+Both limits — the per-minute rate window **and** the daily cost cap — are
+enforced atomically **before** any model call by the `spend_reserve` RPC under a
+per-user advisory lock (ADR-0009), fronted by a per-instance in-memory burst
+limiter (`src/lib/security/rate-limit.ts`). Every run settles into a
+`usage_events` row (tokens + cost) via `spend_settle` — that ledger is what the
+reservation math reads.
 
 ## Auto routing (`src/lib/enhance/auto-target.ts` + `src/lib/providers/manifest.ts`)
 

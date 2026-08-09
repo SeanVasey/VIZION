@@ -2994,3 +2994,42 @@ render identical; account change wipes storage before rehydrating (the
   assumes the click follows immediately; after Escape the finger can stay
   down for seconds, so mark cancelled and settle when the lift eventually
   fires.
+
+## 2026-08-09 — Conservative cleanup audit (dead code · redundancy · doc drift)
+
+- **A feature wave's cleanup debt is measurable one week later.** Every class
+  the 2026-08-01 audit closed had regrown by 2026-08-09: dead export keywords
+  (14 removed then; 42 new), a private id→label map (three consolidated then;
+  a fourth shipped with the hold-slider wave), stale keep-rationale comments
+  (DEAD-003's "the mesh gradient reads them" outlived the mesh by two days).
+  Cleanup is a recurring pass, not a milestone — and the cheapest form is
+  noticing at feature-review time ("does this wave re-declare something a
+  shared module already owns?").
+- **Copy the verifier's amendment, not the finder's proposal.** Three of the
+  actions taken here differ from what the finding proposed, because the
+  adversarial pass found the proposal itself would break the gate: making
+  `triggerClassName` required breaks the suites' prop-less renders (tsconfig
+  includes tests); the sr-only-string class of pins makes "obvious" renames
+  red; `ActionResult` exists twice, so un-exporting "by symbol name" would
+  have deleted a real export. Verify the FIX against the gate, not just the
+  finding against the code.
+- **Raw control bytes in one test file silently narrowed every repo-wide
+  search for a month.** grep reports "binary file matches" and shows nothing —
+  two of this audit's own scans skipped the file before the tests dimension
+  caught it. The `cat -v` lesson (2026-07-27) now has a sharper form: any
+  file that greps as binary is a defect in itself, whatever its content.
+- **When a dormant code path and its props survive a refactor, delete them at
+  the refactor, not at the next audit.** f4d4350 moved the usage ticker out
+  of StreamProgress and left the component's whole usage row + three props
+  reachable by nobody — with a header doc still advertising them. The next
+  reader (this audit's finder) had to re-derive from git that it was vestigial
+  rather than reserved. If a prop loses its last caller, its removal belongs
+  in the same commit, or a RESERVED note does (the `thinking` event shows the
+  honest way to keep a dormant path).
+- **An audit's own ledger can pin a mistake in place.** PERF-005's disposition
+  listed `icons/apple-touch-icon.png` among "assets the offline experience
+  actually uses" — no URL ever requests it (cache keys are full URLs; iOS
+  probes root, layout links /apple-icon.png). The entry was left un-groomed
+  here because re-litigating an adjudicated ruling autonomously is worse than
+  15 KiB of precache — but the general lesson stands: dispositions deserve
+  the same adversarial verification findings get.
