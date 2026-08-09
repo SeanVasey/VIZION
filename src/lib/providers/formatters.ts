@@ -16,9 +16,9 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
   gpt_5_6_sol:
     "Target engine: GPT. Favor terse, directive instructions; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
   gpt_5_6_luna:
-    "Target engine: GPT. Favor terse, directive instructions with the goal stated first; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt — this balanced tier follows a crisp brief without heavy scaffolding.",
+    "Target engine: GPT. Keep the prompt short and self-contained with the goal and expected output format stated explicitly — this small, fast tier rewards brevity and concrete instructions over elaborate scaffolding.",
   gpt_5_6_terra:
-    "Target engine: GPT. Keep the prompt short and self-contained with the goal and expected output format stated explicitly — this fast tier rewards brevity and concrete instructions over elaborate scaffolding.",
+    "Target engine: GPT. Favor terse, directive instructions with the goal stated first; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt — this balanced tier follows a crisp brief without heavy scaffolding.",
   fable_5:
     "Target engine: Claude Fable. State the goal, constraints, and what a finished answer looks like, and avoid over-prescriptive step-by-step scaffolding — this engine plans best from a clear brief. XML-tagged sections are welcome for long or layered context.",
   deepseek_v4:

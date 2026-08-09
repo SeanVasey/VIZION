@@ -70,6 +70,7 @@ beforeEach(() => {
   useUIStore.setState({
     editorDraft: "",
     autoTarget: false,
+    autoPreference: "balanced",
     targetModel: "opus_5",
     activeMode: "clarify",
   });
@@ -83,7 +84,21 @@ describe("Auto routing on the wire", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /enhance/i }));
     expect(requestAt(0).auto).toBeUndefined();
+    // The preference travels WITH the flag or not at all — sent alone it
+    // would be inert on the server, but it shouldn't ride at all.
+    expect(requestAt(0).autoPreference).toBeUndefined();
     expect(requestAt(0).target).toBe("opus_5");
+  });
+
+  it("sends the stored routing preference beside the auto flag", () => {
+    useUIStore.setState({ autoTarget: true, autoPreference: "budget" });
+    renderComposer();
+    fireEvent.change(screen.getByLabelText("Prompt input"), {
+      target: { value: "hello" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /enhance/i }));
+    expect(requestAt(0).auto).toBe(true);
+    expect(requestAt(0).autoPreference).toBe("budget");
   });
 
   it("sends auto BESIDE a real target, never instead of one", () => {
@@ -111,6 +126,9 @@ describe("Auto routing on the wire", () => {
     const refine = requestAt(1);
     expect(refine.target).toBe("sonnet_5");
     expect(refine.auto).toBeUndefined();
+    // The routing decision for this result was already made — a refine
+    // re-sends neither the flag nor the preference that shaped it.
+    expect(refine.autoPreference).toBeUndefined();
   });
 
   it("falls back to the submitted target when a run reports no routing", () => {
@@ -125,6 +143,29 @@ describe("Auto routing on the wire", () => {
     renderComposer();
     runAndSettle({ ...BASE_RESULT, resolvedTarget: "sonnet_5" });
     expect(screen.getByText(/Auto → Sonnet 5/)).toBeTruthy();
+  });
+
+  it("adds the routing reason when the server explains itself", () => {
+    useUIStore.setState({ autoTarget: true });
+    renderComposer();
+    runAndSettle({
+      ...BASE_RESULT,
+      resolvedTarget: "sonnet_5",
+      resolvedReason: "light-task",
+    });
+    expect(screen.getByText(/Auto → Sonnet 5 \(quick task\)/)).toBeTruthy();
+  });
+
+  it("renders an unknown reason as nothing — garnish, never load-bearing", () => {
+    useUIStore.setState({ autoTarget: true });
+    renderComposer();
+    runAndSettle({
+      ...BASE_RESULT,
+      resolvedTarget: "sonnet_5",
+      resolvedReason: "a-reason-this-build-never-heard-of",
+    });
+    const meta = screen.getByText(/Auto → Sonnet 5/);
+    expect(meta.textContent).not.toContain("(");
   });
 
   it("says nothing about routing on a run the user routed themselves", () => {

@@ -70,9 +70,12 @@ export const TARGET_MODELS = [
   { id: "fable_5", label: "Fable 5", developer: "anthropic" },
   { id: "opus_5", label: "Opus 5", developer: "anthropic" },
   { id: "sonnet_5", label: "Sonnet 5", developer: "anthropic" },
+  // Sol > Terra > Luna is OpenAI's own tiering (flagship / balanced mid /
+  // small) — the roster briefly had Terra and Luna's roles swapped, which the
+  // 2026-08 pricing re-verify corrected.
   { id: "gpt_5_6_sol", label: "GPT-5.6 Sol", developer: "openai" },
-  { id: "gpt_5_6_luna", label: "GPT-5.6 Luna", developer: "openai" },
   { id: "gpt_5_6_terra", label: "GPT-5.6 Terra", developer: "openai" },
+  { id: "gpt_5_6_luna", label: "GPT-5.6 Luna", developer: "openai" },
   { id: "deepseek_v4", label: "DeepSeek V4", developer: "deepseek" },
   { id: "gemini_3_6_flash", label: "Gemini 3.6 Flash", developer: "google" },
   { id: "muse_spark_1_1", label: "Muse Spark 1.1", developer: "meta" },
@@ -157,6 +160,20 @@ export const TARGET_THINKING_LEVELS: Partial<
   // target with no selector at all.
   qwen3_8_max: ["low", "medium", "high", "xhigh", "max"],
   grok_4_5: ["low", "medium", "high"],
+};
+
+/** Auto-routing preferences — how Auto weighs strength against price when it
+ *  picks the model. A wire vocabulary like the ids above: the client sends one
+ *  of these beside `auto: true`, the server validates against this list, and
+ *  the ladder each one selects lives server-side (lib/enhance/auto-target).
+ *  "balanced" is the default everywhere a preference is absent. */
+export const AUTO_PREFERENCES = ["quality", "balanced", "budget"] as const;
+export type AutoPreference = (typeof AUTO_PREFERENCES)[number];
+
+export const AUTO_PREFERENCE_LABEL: Record<AutoPreference, string> = {
+  quality: "Quality",
+  balanced: "Balanced",
+  budget: "Budget",
 };
 
 /** localStorage key for the UI store. Local cache is convenience only —

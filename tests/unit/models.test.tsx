@@ -12,6 +12,7 @@ import {
 } from "@/lib/constants";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { TARGETS } from "@/lib/providers/config";
+import { TARGET_ROUTING } from "@/lib/providers/manifest";
 
 describe("model roster ordering", () => {
   it("groups models by developer in the locked order (Anthropic, OpenAI, then alphabetical)", () => {
@@ -43,6 +44,15 @@ describe("model roster ordering", () => {
     }
   });
 
+  it("puts the best OpenAI tier first (Sol before Terra before Luna)", () => {
+    // OpenAI's own tiering: flagship / balanced mid / small. The roster
+    // briefly had Terra and Luna swapped — pinned so the picker's "best
+    // first within each developer" promise stays true.
+    const ids = TARGET_MODELS.map((m) => m.id);
+    expect(ids.indexOf("gpt_5_6_sol")).toBeLessThan(ids.indexOf("gpt_5_6_terra"));
+    expect(ids.indexOf("gpt_5_6_terra")).toBeLessThan(ids.indexOf("gpt_5_6_luna"));
+  });
+
   it("keeps the client-safe developer field in sync with the server provider config", () => {
     // TARGETS (server) and TARGET_MODELS.developer (client) are separate
     // records by design — this pins them together so they can't drift.
@@ -51,6 +61,30 @@ describe("model roster ordering", () => {
       expect(TARGETS[m.id].model).toBeTruthy();
       expect(TARGETS[m.id].priceIn).toBeGreaterThan(0);
       expect(TARGETS[m.id].priceOut).toBeGreaterThan(0);
+    }
+  });
+
+  it("stamps every price row with a parseable verification date (META-01)", () => {
+    // Presence + format only, deliberately NOT age: a test that starts
+    // failing by calendar time breaks "ship-ready every commit". Staleness is
+    // a runbook review item, not a build gate.
+    for (const m of TARGET_MODELS) {
+      const stamp = TARGETS[m.id].pricesVerifiedAt;
+      expect(typeof stamp).toBe("string");
+      expect(Number.isFinite(Date.parse(stamp))).toBe(true);
+    }
+  });
+
+  it("gives every roster model routing facts with a sane strength", () => {
+    // Belt-and-braces beside the Record type: the compiler catches a missing
+    // entry, this catches a nonsense one (strength outside the documented
+    // 1-10 editorial scale would silently warp every ladder).
+    for (const m of TARGET_MODELS) {
+      const facts = TARGET_ROUTING[m.id];
+      expect(facts).toBeDefined();
+      expect(Number.isInteger(facts.strength)).toBe(true);
+      expect(facts.strength).toBeGreaterThanOrEqual(1);
+      expect(facts.strength).toBeLessThanOrEqual(10);
     }
   });
 

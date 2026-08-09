@@ -53,6 +53,8 @@ export function EnhanceComposer() {
   const setActiveMode = useUIStore((s) => s.setActiveMode);
   const targetModel = useUIStore((s) => s.targetModel);
   const autoTarget = useUIStore((s) => s.autoTarget);
+  const autoPreference = useUIStore((s) => s.autoPreference);
+  const setAutoPreference = useUIStore((s) => s.setAutoPreference);
   const reformatFormat = useUIStore((s) => s.reformatFormat);
   const setReformatFormat = useUIStore((s) => s.setReformatFormat);
   const lengthByMode = useUIStore((s) => s.lengthByMode);
@@ -164,7 +166,9 @@ export function EnhanceComposer() {
         // target and reports it back. "auto" is never a target id: it has
         // nowhere to live in the model_target enum.
         target: targetModel,
-        ...(autoTarget ? { auto: true as const } : {}),
+        // The preference travels WITH the auto flag or not at all — a refine
+        // re-sends neither (the routing decision was already made).
+        ...(autoTarget ? { auto: true as const, autoPreference } : {}),
         ...(activeMode === "reformat" && reformatFormat
           ? { format: reformatFormat }
           : {}),
@@ -180,6 +184,7 @@ export function EnhanceComposer() {
     activeMode,
     targetModel,
     autoTarget,
+    autoPreference,
     reformatFormat,
     activeLength,
     thinkingLevel,
@@ -453,6 +458,8 @@ export function EnhanceComposer() {
             onChange={setTargetModel}
             auto={autoTarget}
             onAutoChange={setAutoTarget}
+            autoPreference={autoPreference}
+            onAutoPreferenceChange={setAutoPreference}
             triggerClassName={RAIL_TRIGGER_CLASS}
           />
         </div>

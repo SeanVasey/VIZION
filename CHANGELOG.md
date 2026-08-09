@@ -6,6 +6,70 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Added — Auto stops pretending sixteen models are two
+
+Auto routing used to be a two-outcome table: small tidy-up jobs went to
+Sonnet 5, everything else to Opus 5, and fourteen roster models — and the
+question of what anything cost — never entered into it. It could even resolve
+to a provider whose API key wasn't configured and hand the user a 503 for a
+model they never picked.
+
+Auto now routes the whole roster from a documented, precomputed policy: a
+server-side manifest holds an editorial strength rank and speed class per
+model, prices come live from the cost-cap table, and six ladders (Quality /
+Balanced / Budget × light / heavy jobs) are materialized once and walked
+top-to-bottom, **skipping any provider without a key** — availability is part
+of the policy, not a surprise after the run starts. Sonar Pro sits out of the
+pool on purpose (search-grounded answers and a per-request search fee make it
+a deliberate manual pick; it remains fully pickable). Routing is still free,
+instant, and explainable — no model call decides which model to call.
+
+The picker's Auto section gains a **Quality / Balanced / Budget** segmented
+row; tapping a preset stores it and turns Auto on in the same tap. The
+preference is device-local (the Reduced-effects idiom) and rides the request
+beside `auto: true`; refines still pin to the model that produced the result.
+Results now say *why* as well as *which*: "Auto → Sonnet 5 (quick task)".
+
+Media analysis routes too: with Auto on, `/api/media` resolves through the
+same ladders narrowed to vision-capable targets, instead of always defaulting
+to Opus. And that pool grew — **MiniMax M3 and Qwen3.8 Max analyze images
+now** (both flagships take image input natively; VIZION's capability set had
+rotted), leaving DeepSeek and GLM-5.2 as the only text-only flagships.
+
+### Changed — model pricing catches up with the vendors' August pages
+
+Every one of the sixteen price rows was re-verified against its vendor's own
+pricing page on 2026-08-08, and each `TARGETS` entry now carries a
+`pricesVerifiedAt` stamp (META-01, the lightweight form — presence and format
+are test-pinned, age deliberately is not). Eight rows moved:
+
+- **GPT-5.6 Sol** output was 2× under the published rate ($15 → $30/1M).
+- **GPT-5.6 Terra and Luna had their tier roles swapped** — Terra is OpenAI's
+  balanced mid tier ($2/$12, was $0.2/$0.8) and Luna the small tier
+  ($0.2/$1.2 after OpenAI's July 30 cut, was $1/$4). The roster order, tier
+  comments, and target-idiom prose now say so too.
+- **Mistral Large 3** dropped to $0.5/$1.5 (the old $2/$6 was Large 2.1's) —
+  and the deliberately floating `mistral-large-latest` is finally **pinned to
+  `mistral-large-2512`**, now that Mistral publishes the versioned id
+  (PRV-007 closed).
+- **Kimi K3**'s placeholder was ~5× under the real list price ($3/$15) and
+  **GLM-5.2**'s reference rate rose to $1.4/$4.4 — the last provisional rows
+  from PRV-008, now vendor-published.
+- **Grok 4.5** dropped to $2/$6 and **Qwen3.8 Max** rose to $2/$6 (the
+  Singapore/International region's rate; other regions run ~18% cheaper).
+
+Unchanged but now verified: Fable 5, Opus 5, Sonnet 5 (the standard $3/$15 —
+the intro $2/$10 expires 2026-08-31, and overcounting for three weeks beats
+undercounting forever), DeepSeek V4 (an official increase is pending),
+Gemini 3.6 Flash, Muse Spark 1.1, MiniMax M3 (a "permanent 50% off" list
+basis), and Sonar Pro (whose per-request search fee stays an accepted,
+documented undercount).
+
+**A price change is a cost-cap change — check the deployed `PRICE_*`
+overrides in Vercel**: a stale override silently miscounts the daily cap. And
+new with this cycle, **`PRICE_*` values also feed Auto's cost ranking**, so a
+stale override now skews which model Auto picks, not just the cap math.
+
 ### Condense stops wearing Expand's icon
 
 The two modes have rendered one glyph since mode icons first shipped:

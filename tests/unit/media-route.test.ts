@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { ProviderError } from "@/lib/providers/errors";
 
@@ -38,6 +38,14 @@ const vision = vi.hoisted(() => ({
   visionFallbackTarget: vi.fn(),
 }));
 vi.mock("@/lib/providers/vision", () => vision);
+
+// The routing policy has its own unit suite (auto-target.test.ts); here it is
+// a mock so these tests pin the ROUTE's contract — what gets resolved, what
+// gets validated, what 503s — not the ladder economics.
+const router = vi.hoisted(() => ({
+  resolveAutoVisionTarget: vi.fn(() => "opus_5" as const),
+}));
+vi.mock("@/lib/enhance/auto-target", () => router);
 
 import { POST } from "@/app/api/media/route";
 
@@ -201,5 +209,103 @@ describe("POST /api/media", () => {
     const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "deepseek_v4" }));
     expect(res.status).toBe(503);
     expect(spend.reserveSpend).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/media — auto routing", () => {
+  beforeEach(() => {
+    // clearAllMocks clears calls, not return values — re-pin the default so a
+    // test's mockReturnValue can't leak into its neighbours.
+    router.resolveAutoVisionTarget.mockReturnValue("opus_5" as never);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("400s an invented preference and a non-boolean auto flag", async () => {
+    expect(
+      (
+        await POST(
+          request({ dataUrl: PNG_DATA_URL, auto: true, autoPreference: "cheapest" }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await POST(request({ dataUrl: PNG_DATA_URL, auto: "yes" }))).status,
+    ).toBe(400);
+    expect(router.resolveAutoVisionTarget).not.toHaveBeenCalled();
+  });
+
+  it("a preference without auto is inert, not an error", async () => {
+    // The format/length convention: a stale client can't produce a request
+    // that argues with itself.
+    const res = await POST(
+      request({ dataUrl: PNG_DATA_URL, target: "opus_5", autoPreference: "budget" }),
+    );
+    expect(res.status).toBe(200);
+    expect(router.resolveAutoVisionTarget).not.toHaveBeenCalled();
+    expect((await res.json()).usage.target).toBe("opus_5");
+  });
+
+  it("resolves auto through the vision ladder and does NOT report it as a fallback", async () => {
+    vi.stubEnv("GOOGLE_API_KEY", "g-test");
+    router.resolveAutoVisionTarget.mockReturnValue("gemini_3_6_flash" as never);
+    const res = await POST(
+      request({
+        dataUrl: PNG_DATA_URL,
+        target: "deepseek_v4", // the pinned fallback rides, enhance-wire shape
+        auto: true,
+        autoPreference: "budget",
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(router.resolveAutoVisionTarget).toHaveBeenCalledWith(
+      "budget",
+      vision.supportsVision,
+    );
+    const body = await res.json();
+    expect(body.usage.target).toBe("gemini_3_6_flash");
+    // Routing is a choice, not a fallback — the client re-labels from
+    // usage.target without a fallback banner.
+    expect(body.fallbackFrom).toBeUndefined();
+  });
+
+  it("defaults an absent preference to balanced", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
+    const res = await POST(
+      request({ dataUrl: PNG_DATA_URL, target: "deepseek_v4", auto: true }),
+    );
+    expect(res.status).toBe(200);
+    expect(router.resolveAutoVisionTarget).toHaveBeenCalledWith(
+      "balanced",
+      vision.supportsVision,
+    );
+  });
+
+  it("503s before any hold when auto's pick has no key configured", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    router.resolveAutoVisionTarget.mockReturnValue("opus_5" as never);
+    const res = await POST(request({ dataUrl: PNG_DATA_URL, auto: true }));
+    expect(res.status).toBe(503);
+    expect(spend.reserveSpend).not.toHaveBeenCalled();
+  });
+
+  it("a runtime retry under auto reports fallbackFrom as the RESOLVED target", async () => {
+    // Not the client's pinned fallback: the request was aimed at what routing
+    // picked, so that is what the retry fell back FROM.
+    vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
+    router.resolveAutoVisionTarget.mockReturnValue("opus_5" as never);
+    vision.isVisionConfigError.mockReturnValue(true);
+    vision.visionFallbackTarget.mockReturnValue("gpt_5_6_sol");
+    vision.describeImage
+      .mockRejectedValueOnce(new ProviderError("anthropic", "key rejected", 403))
+      .mockResolvedValueOnce({ attrs: { source: "proxy" }, tokenIn: 10, tokenOut: 5 });
+    const res = await POST(
+      request({ dataUrl: PNG_DATA_URL, target: "deepseek_v4", auto: true }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.fallbackFrom).toBe("opus_5");
+    expect(body.usage.target).toBe("gpt_5_6_sol");
   });
 });

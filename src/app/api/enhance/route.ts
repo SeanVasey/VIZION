@@ -2,9 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { writeErrorLogLine } from "@/lib/supabase/errors";
 import {
+  AUTO_PREFERENCES,
   MODES,
   TARGET_MODELS,
   TARGET_THINKING_LEVELS,
+  type AutoPreference,
   type ModeId,
   type TargetModelId,
   type ThinkingLevel,
@@ -118,6 +120,7 @@ export async function POST(request: NextRequest) {
     mode,
     target,
     auto,
+    autoPreference,
     format,
     length,
     thinkingLevel,
@@ -128,6 +131,7 @@ export async function POST(request: NextRequest) {
       mode?: unknown;
       target?: unknown;
       auto?: unknown;
+      autoPreference?: unknown;
       format?: unknown;
       length?: unknown;
       thinkingLevel?: unknown;
@@ -150,6 +154,16 @@ export async function POST(request: NextRequest) {
   if (auto !== undefined && typeof auto !== "boolean") {
     return err(400, "Unknown routing mode.");
   }
+  // Legality only, like format/length: a preference without `auto` is inert
+  // rather than contradictory (a stale client can't produce a request that
+  // argues with itself), but an invented value never routes anything.
+  if (
+    autoPreference !== undefined &&
+    (typeof autoPreference !== "string" ||
+      !(AUTO_PREFERENCES as readonly string[]).includes(autoPreference))
+  ) {
+    return err(400, "Unknown routing preference.");
+  }
   const typedMode = mode as ModeId;
   // Auto routing resolves HERE — after the target gate that guarantees a real
   // fallback id, and before every gate below that reads the target. The
@@ -159,12 +173,16 @@ export async function POST(request: NextRequest) {
   // Routing only needs to know WHETHER media is attached, so the cheap shape
   // check is enough; the array's full validation still runs below and still
   // 400s, before any provider is called.
-  const typedTarget: TargetModelId = auto
+  const autoRoute = auto
     ? resolveAutoTarget(
         typedMode,
         input.length,
         Array.isArray(mediaContext) && mediaContext.length > 0,
+        (autoPreference as AutoPreference | undefined) ?? "balanced",
       )
+    : null;
+  const typedTarget: TargetModelId = autoRoute
+    ? autoRoute.target
     : (target as TargetModelId);
 
   // Optional per-request reasoning depth — only the exact values the target's
@@ -421,8 +439,11 @@ export async function POST(request: NextRequest) {
             ...(result.usageEstimated ? { usageEstimated: true } : {}),
             // Routing provenance — only on an auto-routed run, so its presence
             // is the signal. The client shouldn't have to diff the result
-            // against its own request to learn which model it actually got.
-            ...(auto ? { resolvedTarget: typedTarget } : {}),
+            // against its own request to learn which model it actually got,
+            // and the reason lets the meta say WHY in a word or two.
+            ...(autoRoute
+              ? { resolvedTarget: typedTarget, resolvedReason: autoRoute.reason }
+              : {}),
           },
         });
         if (result.salvaged) {

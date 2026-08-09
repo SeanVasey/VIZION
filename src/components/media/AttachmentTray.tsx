@@ -151,6 +151,8 @@ function AttachmentTrayImpl({
   intakeRef?: { current: ((files: File[] | FileList) => void) | null };
 }) {
   const targetModel = useUIStore((s) => s.targetModel);
+  const autoTarget = useUIStore((s) => s.autoTarget);
+  const autoPreference = useUIStore((s) => s.autoPreference);
   const editorDraft = useUIStore((s) => s.editorDraft);
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
   const mediaNoticeAcknowledged = useUIStore((s) => s.mediaNoticeAcknowledged);
@@ -348,6 +350,10 @@ function AttachmentTrayImpl({
               dataUrl,
               target: analysisTarget,
               intent: ROLE_INTENT[role],
+              // Auto rides beside the pinned fallback, the enhance-wire shape.
+              // The response's usage.target is already adopted as analyzedWith
+              // below, so the chip names whatever routing actually picked.
+              ...(autoTarget ? { auto: true as const, autoPreference } : {}),
             }),
           });
           const data = await res.json().catch(() => ({}));
@@ -378,10 +384,22 @@ function AttachmentTrayImpl({
               merged = { ...onDevice, ...data.attributes, description, source: "proxy" };
             }
             if (data.fallbackFrom) {
-              analysisNote = `${MODEL_LABEL_MAP.get(analysisTarget) ?? "The selected model"} couldn't analyze this — used ${MODEL_LABEL_MAP.get(analyzedWith) ?? "another model"} instead.`;
+              // Name what the request was AIMED at (the server's fallbackFrom)
+              // — under Auto that is the routed pick, not the pinned fallback,
+              // so interpolating analysisTarget here could claim "Opus
+              // couldn't analyze this — used Opus instead" (Codex, PR #96).
+              const failedLabel =
+                MODEL_LABEL_MAP.get(data.fallbackFrom) ??
+                MODEL_LABEL_MAP.get(analysisTarget) ??
+                "The selected model";
+              analysisNote = `${failedLabel} couldn't analyze this — used ${MODEL_LABEL_MAP.get(analyzedWith) ?? "another model"} instead.`;
             }
           } else if (data.notConfigured) {
-            analysisNote = `${MODEL_LABEL_MAP.get(analysisTarget) ?? "This model"} isn't configured for vision — used on-device analysis.`;
+            // Under Auto the 503 means the whole vision pool is keyless, not
+            // that the pinned model is — don't blame a model nobody aimed at.
+            analysisNote = autoTarget
+              ? "No vision model is configured — used on-device analysis."
+              : `${MODEL_LABEL_MAP.get(analysisTarget) ?? "This model"} isn't configured for vision — used on-device analysis.`;
           } else {
             analysisNote = `${data.error ?? "Analysis failed."} Used on-device analysis instead.`;
           }
@@ -477,14 +495,17 @@ function AttachmentTrayImpl({
       ?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
   }
 
-  /** Honest per-kind processing line (2026-07 capability-honesty fix). */
+  /** Honest per-kind processing line (2026-07 capability-honesty fix).
+   *  Under Auto the destination is unknown until the server resolves it, so
+   *  the pending label says "Auto" — the completed line already names the
+   *  real model from usage.target (Codex, PR #96). */
   function destinationLine(item: MediaItem): string {
     const model =
       item.usage?.target != null
         ? `Analyzed by ${MODEL_LABEL_MAP.get(item.usage.target)}`
         : item.status === "ready"
           ? "On-device analysis"
-          : `Analyzing with ${MODEL_LABEL_MAP.get(item.analysisTarget ?? targetModel)}`;
+          : `Analyzing with ${autoTarget ? "Auto" : MODEL_LABEL_MAP.get(item.analysisTarget ?? targetModel)}`;
     if (item.kind === "video") return `First-frame visual reference · ${model}`;
     if (item.kind === "audio") return "Audio file metadata only";
     return model;
@@ -557,8 +578,12 @@ function AttachmentTrayImpl({
                   indeterminate
                   step={itemStepLabel(
                     item,
-                    MODEL_LABEL_MAP.get(item.analysisTarget ?? targetModel) ??
-                      "the model",
+                    // Pre-resolution the destination is Auto's to pick, so
+                    // don't promise the pinned fallback (Codex, PR #96).
+                    autoTarget
+                      ? "Auto"
+                      : (MODEL_LABEL_MAP.get(item.analysisTarget ?? targetModel) ??
+                        "the model"),
                   )}
                 />
               )}
@@ -790,7 +815,13 @@ function AttachmentTrayImpl({
 
       <MediaPrivacySheet
         open={privacyOpen}
-        modelLabel={MODEL_LABEL_MAP.get(targetModel) ?? "your selected model"}
+        // The disclosure must not name a model Auto may not pick — under
+        // routing the honest destination is "the model Auto selects".
+        modelLabel={
+          autoTarget
+            ? "the model Auto selects"
+            : (MODEL_LABEL_MAP.get(targetModel) ?? "your selected model")
+        }
         onClose={() => {
           setPrivacyOpen(false);
           pendingFiles.current = null;

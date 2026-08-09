@@ -1,5 +1,6 @@
 import type { DiffSegment } from "@/lib/enhance/diff";
 import type { TargetModelId } from "@/lib/constants";
+import type { AutoRouteReason } from "@/lib/enhance/auto-target";
 
 /**
  * The SSE wire contract between /api/enhance and the streaming client.
@@ -58,6 +59,10 @@ export interface EnhanceResult {
    *  presence is itself the signal — the client never has to compare the
    *  result against what it asked for to know routing happened. */
   resolvedTarget?: TargetModelId;
+  /** WHY routing landed there (same presence rule as resolvedTarget) — lets
+   *  the result meta say "quick task" or "long input" instead of leaving the
+   *  pick unexplained. Display-only; unknown values render as nothing. */
+  resolvedReason?: AutoRouteReason;
 }
 
 export type EnhanceStreamEvent =
