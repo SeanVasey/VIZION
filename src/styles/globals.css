@@ -338,6 +338,22 @@
   [data-reduced-effects] .hold-slider-conceal {
     transition: none;
   }
+  /* Transitions are inventory too (twenty-first pass): this fade is the
+     one TRANSITION on backdrop content that activation itself triggers —
+     it ran beneath the just-mounted blur, re-filtering every frame of
+     var(--motion-quick) at every motion-enabled gesture start, which is
+     exactly the per-frame cost the static-backdrop mitigation exists to
+     avoid. Under the gesture the conceal snaps instead (the same
+     presentation the two stand-downs above already ship); the fade-BACK
+     keeps its motion — release removes the attribute and the blur in the
+     same teardown, so the return transition runs with no filter above
+     it. The eighteenth pass's sweep enumerated `animation:` declarations
+     only; backdrop TRANSITIONS triggered by gesture state are the same
+     inventory, and this is the only one (release-time fades are exempt
+     by construction — the blur is already gone). */
+  [data-hold-gesture] .hold-slider-conceal {
+    transition: none;
+  }
 
   /* The thumb's detent-to-detent glide — the same eased snap (and the same
      two stand-downs) as the fill it rides. */

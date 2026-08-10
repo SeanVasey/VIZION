@@ -3311,3 +3311,14 @@ test:e2e` hard-fails in global-setup until
   must name the condition that keeps each one exempt — "dialog-locked
   today, any non-dialog adopter joins the list" survives consumer
   drift; "sheets can't enter under a capsule" silently didn't.
+
+- **An inventory is only as complete as its dimensions.** The pause
+  list swept every `animation:` declaration (eighteenth pass), then a
+  shared class's consumers (twentieth) — and still missed a 150ms
+  backdrop mutation at EVERY gesture start, because the pill conceal is
+  a TRANSITION, not an animation, and time-based state (a toast's
+  dismissal countdown) is neither (twenty-first). When the invariant is
+  "the backdrop is static," the inventory is every source of change —
+  animations, transitions, clocks, mounts — not every instance of the
+  one source class the first sweep happened to use. Enumerate by the
+  invariant, not by the mechanism you found first.

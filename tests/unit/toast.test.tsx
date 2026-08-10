@@ -57,6 +57,67 @@ describe("Toast", () => {
     expect(screen.queryByText("Composer cleared")).toBeNull();
   });
 
+  describe("the lifetime pauses with the world (twenty-first pass)", () => {
+    afterEach(() => {
+      document.documentElement.removeAttribute("data-hold-gesture");
+    });
+
+    it("a toast raised under a live hold-gesture keeps its full window for release", async () => {
+      render(
+        <ToastProvider>
+          <Trigger />
+        </ToastProvider>,
+      );
+      document.documentElement.setAttribute("data-hold-gesture", "");
+      fireEvent.click(screen.getByText("fire"));
+      // The world is frozen and the entrance waits at its invisible first
+      // frame — pre-fix the dismissal timer counted anyway, so a long hold
+      // expired an error or Undo toast that was never once visible.
+      act(() => {
+        vi.advanceTimersByTime(7000);
+      });
+      expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+      document.documentElement.removeAttribute("data-hold-gesture");
+      await act(async () => {}); // the attribute observer's microtask
+      act(() => {
+        vi.advanceTimersByTime(5999);
+      });
+      expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+      act(() => {
+        vi.advanceTimersByTime(2);
+      });
+      expect(screen.queryByText("Composer cleared")).toBeNull();
+    });
+
+    it("a gesture engaging mid-lifetime suspends the countdown and resumes the remainder", async () => {
+      render(
+        <ToastProvider>
+          <Trigger />
+        </ToastProvider>,
+      );
+      fireEvent.click(screen.getByText("fire"));
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      document.documentElement.setAttribute("data-hold-gesture", "");
+      await act(async () => {});
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
+      expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+      document.documentElement.removeAttribute("data-hold-gesture");
+      await act(async () => {});
+      act(() => {
+        vi.advanceTimersByTime(2998);
+      });
+      expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+      act(() => {
+        vi.advanceTimersByTime(3);
+      });
+      expect(screen.queryByText("Composer cleared")).toBeNull();
+    });
+  });
+
   it("runs the action and dismisses on action click", () => {
     const onUndo = vi.fn();
     render(

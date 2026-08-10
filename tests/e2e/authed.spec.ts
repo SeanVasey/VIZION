@@ -362,6 +362,19 @@ test.describe("thinking hold-slider", () => {
         .locator("[data-e2e-sheet-in-probe]")
         .evaluate((el) => getComputedStyle(el).animationPlayState);
     await expect.poll(sheetInPlayState).toBe("paused");
+    // TRANSITIONS are inventory too (twenty-first pass): the pill's own
+    // conceal fade ran beneath the just-mounted blur, re-filtering every
+    // frame of var(--motion-quick) at every motion-enabled activation —
+    // the one transition on backdrop content the animation sweep never
+    // saw. Under the gesture the conceal snaps (the reduced-motion
+    // presentation); the fade-back on release keeps its motion, running
+    // only after the blur is gone.
+    const concealTransition = () =>
+      page
+        .locator(".hold-slider-conceal")
+        .first()
+        .evaluate((el) => getComputedStyle(el).transitionDuration);
+    await expect.poll(concealTransition).toBe("0s");
     // The pair is also the gesture's input SHIELD: a second pointer cannot
     // reach any control while the capsule is up — the Target pill fails
     // Playwright's receives-events actionability check because the scrim
@@ -380,6 +393,7 @@ test.describe("thinking hold-slider", () => {
     // …and thaws with the release, resuming where it stood.
     await expect.poll(horizonPlayState).toBe("running");
     await expect.poll(sheetInPlayState).toBe("running");
+    await expect.poll(concealTransition).toBe("0.15s");
     await expect(pill).toContainText("High");
     // The trailing click was swallowed — no sheet.
     await expect(page.getByRole("dialog")).toHaveCount(0);

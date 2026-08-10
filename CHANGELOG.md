@@ -82,6 +82,24 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **The world-pause gains its missing dimensions — the toast's clock
+  and the one backdrop transition** (ADR-0012, twenty-first pass, two
+  findings). The pause was spatial but not temporal: a toast arriving
+  mid-gesture waits invisibly at its first frame, but its dismissal
+  countdown kept running — a long hold could expire an error or Undo
+  toast that was never once visible. The countdown now suspends while
+  `data-hold-gesture` is present (an attribute observer in
+  `ToastProvider`; the attribute is the freeze's public contract) and
+  resumes the remainder on release, with the sr-only announcement
+  still immediate. And the inventory was animations-only: the pill's
+  own conceal fade — a 150ms opacity TRANSITION beneath the
+  just-mounted blur — re-filtered every frame at every motion-enabled
+  gesture start; under the gesture it now snaps (`transition: none`,
+  the presentation the stand-downs already ship), while the fade-back
+  keeps its motion since release drops the blur in the same teardown.
+  Pinned red→green: both countdown timelines in unit, the conceal snap
+  in both engines.
+
 - **A toast rising beneath the blur no longer breaks the static
   backdrop — the shared `.sheet-in` entrance joins the world-pause**
   (ADR-0012, twentieth pass; the second finding resolved as a

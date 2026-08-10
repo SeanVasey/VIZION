@@ -617,3 +617,31 @@ rule's comment recording that any non-dialog adopter must join the
 list. Pinned: the toast card's class coupling in unit, the cascade in a
 real engine via a `.sheet-in` probe under the gesture (paused, then
 running on release) beside the horizon and footer pins.
+
+The twenty-first pass landed two more corrections in the same domain,
+and together they widen the inventory's DIMENSIONS rather than its
+rows. First: the pause was spatial but not temporal. A toast arriving
+mid-gesture waits at its invisible first frame (twentieth pass) — but
+its dismissal countdown kept running, so a long hold could expire an
+error or Undo toast that was never once visible, and any hold shaved
+the action's window. The toast's clock now pauses with the world:
+`ToastProvider` watches `data-hold-gesture` (an attribute observer —
+the attribute is the freeze's public contract, the same one the CSS
+pause rules key off) and suspends the countdown while it is present,
+resuming the remainder on release; a toast born under a gesture starts
+suspended with its full window. The sr-only announcement remains
+immediate; only the visual card and its countdown defer. Second: the
+eighteenth pass's sweep enumerated `animation:` declarations only —
+TRANSITIONS on backdrop content were never inventory, and there was
+exactly one triggered by activation itself: the pill's own conceal
+fade, which ran beneath the just-mounted blur and re-filtered every
+frame of `var(--motion-quick)` at every motion-enabled gesture start.
+Under the gesture the conceal now snaps (`transition: none` — the same
+presentation the reduced-motion and reduced-effects stand-downs
+already ship); the fade-back keeps its motion, since release removes
+the attribute and the blur in the same teardown. Release-time fades
+are exempt by construction. Pinned red→green: the suspended and
+resumed countdown in unit (both the born-under-a-gesture and the
+suspended-mid-lifetime timelines), the conceal snap in both engines
+(computed transition-duration 0s under the gesture, 0.15s after
+release).

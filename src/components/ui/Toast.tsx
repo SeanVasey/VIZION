@@ -42,6 +42,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [current, setCurrent] = useState<(ToastOptions & { id: number }) | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const idRef = useRef(0);
+  /** When the armed dismissal would fire — lets a suspension compute the
+   *  remainder without asking the timer. */
+  const deadlineRef = useRef(0);
+  /** Non-null while the countdown is SUSPENDED under a live hold-gesture:
+   *  the milliseconds still owed, re-armed when the gesture releases. The
+   *  hold-slider freezes the world (`data-hold-gesture`) and pauses this
+   *  card's `.sheet-in` entrance with it — a toast arriving mid-gesture
+   *  waits invisibly at its first frame. The clock must wait WITH it
+   *  (twenty-first pass): pre-fix the dismissal timer kept counting, so a
+   *  long hold expired an error or Undo toast that was never once visible,
+   *  and any hold shaved the action's window. The sr-only announcement is
+   *  immediate either way; only the visual card and its countdown defer. */
+  const suspendedMsRef = useRef<number | null>(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -59,22 +72,56 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (id !== undefined && id !== idRef.current) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
+    suspendedMsRef.current = null;
     setCurrent(null);
   }, []);
 
   const toast = useCallback(
     (opts: ToastOptions) => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      suspendedMsRef.current = null;
       idRef.current += 1;
       const id = idRef.current;
       setCurrent({ ...opts, id });
-      timerRef.current = setTimeout(
-        () => dismiss(id),
-        opts.durationMs ?? DEFAULT_DURATION_MS,
-      );
+      const ms = opts.durationMs ?? DEFAULT_DURATION_MS;
+      // Born under a live gesture: start suspended with the full window
+      // (see suspendedMsRef) — the observer below arms it on release.
+      if (document.documentElement.hasAttribute("data-hold-gesture")) {
+        suspendedMsRef.current = ms;
+      } else {
+        deadlineRef.current = Date.now() + ms;
+        timerRef.current = setTimeout(() => dismiss(id), ms);
+      }
     },
     [dismiss],
   );
+
+  // Suspend/resume the countdown with the hold-gesture's world-freeze. An
+  // attribute observer, deliberately: the toast must not import gesture
+  // internals, and the attribute IS the freeze's public contract (the CSS
+  // pause rules key off the same thing).
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => {
+      if (root.hasAttribute("data-hold-gesture")) {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+          suspendedMsRef.current = Math.max(0, deadlineRef.current - Date.now());
+        }
+      } else if (suspendedMsRef.current !== null) {
+        const ms = suspendedMsRef.current;
+        suspendedMsRef.current = null;
+        const id = idRef.current;
+        deadlineRef.current = Date.now() + ms;
+        timerRef.current = setTimeout(() => dismiss(id), ms);
+      }
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-hold-gesture"] });
+    return () => observer.disconnect();
+  }, [dismiss]);
 
   // Clear any pending timer on unmount.
   useEffect(
