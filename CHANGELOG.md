@@ -96,9 +96,15 @@ All notable changes to VIZION are documented here. The format follows
   active phase a second pointer anywhere in the viewport dies on the
   pair, non-wrapped triggers included. The gesture itself cannot be
   stolen: its pointer is captured, and captured streams bypass
-  hit-testing. One residual two-finger race is accepted and recorded in
-  the ADR: a non-wrapped trigger tapped inside another pill's 300ms
-  pre-hold window — cosmetic and self-healing.
+  hit-testing. A tenth pass then closed the consumption's own carve-out:
+  it originally exempted the owner's claim, where a click can only be a
+  second input device on the same pill (a mouse inside a touch press's
+  pre-hold window, Enter mid-drag) opening the pill's OWN sheet — the
+  condition is now simply "consume while any claim is live", and the
+  plain tap survives by protocol order, since pointer-up releases the
+  claim before the click dispatches. One residual two-finger race is
+  accepted and recorded in the ADR: a non-wrapped trigger tapped inside
+  another pill's 300ms pre-hold window — cosmetic and self-healing.
 
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the

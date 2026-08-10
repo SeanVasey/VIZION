@@ -3212,3 +3212,13 @@ test:e2e` hard-fails in global-setup until
   activation; a second pointer type) — refuse the bundle, and prefer
   structural shields (a pointer-events surface the capture-holder is
   immune to) over enumerating event handlers.
+
+- **The exemption you write for yourself is the next review's hole.** The
+  ninth pass consumed clicks under a FOREIGN claim; the identity check
+  read as precision but was a carve-out — with your own claim live, a
+  same-pill click can only be a second input device. The correct
+  condition was simpler and had no identity in it at all: consume while
+  ANY claim is live, and let the legitimate tap survive by PROTOCOL ORDER
+  (the claim dies at pointer-up, before the click dispatches). Prefer
+  conditions anchored to event-order invariants over identity carve-outs
+  — the invariant holds for input devices you didn't think of.

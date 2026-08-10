@@ -375,3 +375,16 @@ pre-hold, twin harness; the composer's Target pill inert while a Thinking
 capsule is up, working again on release) and e2e (a trial click on the
 other pill fails Playwright's receives-events actionability check while
 the capsule is up — real hit-testing, which jsdom cannot exercise).
+
+The tenth pass closed the consumption's last carve-out: the ninth ate
+clicks only under a FOREIGN claim, which exempted the owner's own pill —
+and there a click can only be a second input device (a mouse click
+landing inside a touch press's 300ms pre-hold window, Enter activating
+the still-focused pill mid-drag), which opened the pill's OWN sheet under
+the arriving capsule. The condition collapsed to the simpler, stronger
+form: consume while ANY claim is live, no identity check at all. The
+plain tap survives by protocol order, not by exemption — pointer-up
+releases the claim synchronously before the browser dispatches the
+click, so a legitimate tap's click always arrives with no claim held.
+Unit-pinned: the owning pill's click consumed pre-hold and mid-drag, the
+gesture unbroken through both, and the ordinary tap untouched at rest.

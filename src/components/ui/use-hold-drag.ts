@@ -187,9 +187,13 @@ interface Press {
  * tap, and the ninth corrected it — on hybrid-input devices the "tap"
  * opened the other pill's sheet (z-70) under the live capsule (z-85),
  * recreating the sheet-mid-gesture state the admission guard exists to
- * make impossible. During the ACTIVE phase the focus pair additionally
- * shields the whole viewport (HoldSlider's pointer-events), so non-wrapped
- * triggers go inert too.
+ * make impossible. The consumption carries no self-exemption (tenth pass):
+ * while any press is live, a click on the OWNING pill can only be a second
+ * input device — a mouse inside a touch press's pre-hold window, Enter on
+ * the focused pill mid-drag — never the plain tap, which by protocol order
+ * arrives only after pointer-up has already released the claim. During the
+ * ACTIVE phase the focus pair additionally shields the whole viewport
+ * (HoldSlider's pointer-events), so non-wrapped triggers go inert too.
  */
 let gestureOwner: object | null = null;
 
@@ -472,15 +476,18 @@ export function useHoldDrag({
   }
 
   function onClickCapture(e: React.MouseEvent) {
-    // Two reasons to eat a click: this instance's own gesture just settled
-    // (suppressClick), or a FOREIGN gesture holds the app-wide claim — a
-    // press this hook refused at admission still synthesizes a click at its
-    // lift, and mid-gesture that click opened the other picker's sheet
-    // under the live capsule (Codex review, ninth pass). The claim check
-    // needs no bookkeeping and also covers a keyboard-activated pill while
-    // a drag is live. Released claims stop matching instantly, so a tap
-    // after the owner's release passes untouched.
-    if (suppressClick.current || (gestureOwner && gestureOwner !== ownerToken.current)) {
+    // Eat the click when this instance's own gesture just settled
+    // (suppressClick), or while ANY hold-slider press is live — foreign or
+    // our own, deliberately without a self-exemption. The ninth pass
+    // consumed only foreign-claim clicks; the tenth closed the carve-out:
+    // with our own claim live, a click on this pill can only be a SECOND
+    // input device (a mouse click landing inside a touch press's pre-hold
+    // window, Enter on the focused pill mid-drag), and it opened this
+    // pill's own sheet under the arriving capsule. The legitimate plain-tap
+    // click is safe by protocol order, not by identity: pointer-up releases
+    // the claim synchronously before the browser dispatches the click, so
+    // at click time gestureOwner is already null.
+    if (suppressClick.current || gestureOwner !== null) {
       e.preventDefault();
       e.stopPropagation();
     }

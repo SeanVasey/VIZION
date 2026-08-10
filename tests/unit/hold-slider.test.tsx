@@ -823,6 +823,36 @@ describe("one gesture at a time, app-wide", () => {
     expect(frozen()).toBe(false);
   });
 
+  it("consumes a second device's click on the pill that OWNS the press", () => {
+    // The ninth pass exempted the owner's own claim, and the tenth closed
+    // it: a mouse click can land inside a touch press's pre-hold window,
+    // and Enter can activate the focused pill mid-drag — with the claim
+    // live, a click on the owning pill is never its plain tap. The plain
+    // tap stays safe by protocol order, not identity: pointer-up releases
+    // the claim before the browser dispatches the click.
+    const onOpen = vi.fn();
+    const onCommit = vi.fn();
+    render(<Host onOpen={onOpen} onCommit={onCommit} />);
+    down();
+    fireEvent.click(pill()); // second device, inside the pre-hold window
+    expect(onOpen).not.toHaveBeenCalled();
+    hold(); // the press was untouched — the gesture engages as ever
+    expect(overlay()).not.toBeNull();
+    fireEvent.click(pill()); // Enter mid-drag
+    expect(onOpen).not.toHaveBeenCalled();
+    moveTo(DOWN_X + DETENT_SPACING_PX);
+    up(DOWN_X + DETENT_SPACING_PX);
+    expect(onCommit).toHaveBeenCalledWith(1);
+    act(() => {
+      vi.advanceTimersByTime(1); // settle() clears the commit's suppression
+    });
+    // At rest the ordinary tap path is untouched.
+    down();
+    up();
+    fireEvent.click(pill());
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
   it("releases the claim on unmount — a dead owner never bricks the surviving sliders", () => {
     const onCommitB = vi.fn();
     const { rerender } = render(<TwinHosts onCommitB={onCommitB} />);
