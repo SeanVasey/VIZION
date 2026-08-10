@@ -12,17 +12,26 @@ All notable changes to VIZION are documented here. The format follows
   alike** (ADR-0012 amendment, owner affordance pass). The press-and-hold
   gesture was invisible at rest — the sheet was deliberately the only
   discoverable path — so slider-wrapped pills now wear `HoldSliderHint`,
-  three detent dots in miniature at the trailing edge, rendered strictly
-  while the slider is live (the Target pill hints only under Auto routing;
-  Settings' picker, which has no slider, never hints; aria-hidden, so the
-  label stays the readout and the sheet stays the accessible path). And the
-  Thinking capsule now draws its detents as ascending bars — the DepthGlyph
-  meter's own vocabulary, so mid-drag it reads as the meter expanded, a
-  ladder — while the budget capsule keeps equal dots whose growing fill is
-  the spend readout. Distinction by form, not hue: bar height rides ladder
-  position, fill color stays keyed to the level's identity
-  (silver→laser→ultra), tokens stay locked, and the budget ramp's laser cap
-  stands.
+  three slim vertical ticks at the trailing edge (the Sheet grab-rail's
+  grip vocabulary; the first cut used dots, which read as a text ellipsis
+  promising a "more" menu), rendered strictly while the slider is live
+  (the Target pill hints only under Auto routing; Settings' picker, which
+  has no slider, never hints; aria-hidden, so the label stays the readout
+  and the sheet stays the accessible path). And the Thinking capsule now
+  draws its detents as ascending bars — the DepthGlyph meter's own
+  vocabulary, so mid-drag it reads as the meter expanded, a ladder — while
+  the budget capsule keeps equal dots whose growing fill is the spend
+  readout. Distinction by form, not hue: bar height rides ladder position,
+  fill color stays keyed to the level's identity (silver→laser→ultra),
+  tokens stay locked, and the budget ramp's laser cap stands. The owner's
+  second round tightened the capsule itself: the live readout rides a
+  glass-solid chip instead of bare text (it floats over whatever the
+  composer has at that y and used to collide with the neighbouring rail's
+  label), the wrapped pill fades out while its capsule is up so the track
+  visually replaces the control instead of letting its tail peek out
+  beside a narrower track, and reached dots go transparent under the fill
+  — dark dots in the laser read as sediment; the fill edge is the
+  position. Reached bars stay: a meter is its filled bars.
 
 ### Fixed
 

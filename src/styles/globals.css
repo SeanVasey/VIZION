@@ -323,6 +323,22 @@
     transition: none;
   }
 
+  /* The wrapped pill fades out while its overlay capsule is up — the capsule
+     visually REPLACES the control (the reference behaviour), instead of a
+     narrower track letting the pill's tail peek out beside it. Same two
+     stand-downs as the fill: presentation only, the gesture is unaffected. */
+  .hold-slider-conceal {
+    transition: opacity var(--motion-quick) ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-conceal {
+      transition: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-conceal {
+    transition: none;
+  }
+
   /* Ambient scrim — a FILL, deliberately NOT a member of the glass family.
      Secondary copy that sits directly on the ambient background, with no glass
      tier anywhere beneath it, still needs the NEBULA+ bloom and mote tint

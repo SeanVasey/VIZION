@@ -159,6 +159,22 @@ describe("tap vs hold", () => {
     expect(el!.className).toContain("pointer-events-none");
     // Portalled past the composer's overflow-hidden chassis.
     expect(el!.parentElement).toBe(document.body);
+    // The live readout is a chip on the track's own glass ground, never bare
+    // text colliding with whatever the composer has at that y.
+    const label = el!.querySelector("[data-hold-slider-label]")!;
+    expect(label.className).toContain("glass-solid");
+    expect(label.textContent).toBe("Fable 5 · Auto");
+  });
+
+  it("conceals the pill while the capsule is up — the track replaces it", () => {
+    render(<Host />);
+    const wrapper = pill().parentElement!;
+    expect(wrapper.className).not.toContain("opacity-0");
+    down();
+    hold();
+    expect(wrapper.className).toContain("opacity-0");
+    up();
+    expect(wrapper.className).not.toContain("opacity-0");
   });
 
   it("stands down when the press wanders vertically past slop before the hold", () => {
@@ -313,8 +329,8 @@ describe("drag, commit, and the trailing click", () => {
 });
 
 describe("detent marker vocabulary", () => {
-  it("renders equal dots by default", () => {
-    render(<Host />);
+  it("renders equal dots by default, visible only ahead of the fill", () => {
+    render(<Host selectedIndex={2} />);
     down();
     hold();
     const dots = overlay()!.querySelectorAll<HTMLElement>("[data-detent-dot]");
@@ -323,6 +339,13 @@ describe("detent marker vocabulary", () => {
     // Equal: dots carry no per-detent shape — the fill width is the readout.
     const sizes = new Set([...dots].map((d) => d.style.height));
     expect(sizes.size).toBe(1);
+    // Reached dots go transparent (dark dots in the laser fill read as
+    // sediment; the fill edge marks the position) but STAY in the DOM, so
+    // detent-id enumeration never depends on the drag position.
+    [...dots].forEach((d, i) => {
+      if (i <= 2) expect(d.className).toContain("opacity-0");
+      else expect(d.className).not.toContain("opacity-0");
+    });
     up();
   });
 
@@ -338,6 +361,8 @@ describe("detent marker vocabulary", () => {
     for (let i = 1; i < heights.length; i++) {
       expect(heights[i]!).toBeGreaterThan(heights[i - 1]!);
     }
+    // Unlike dots, reached bars stay visible: a meter IS its filled bars.
+    [...bars].forEach((b) => expect(b.className).not.toContain("opacity-0"));
     up();
   });
 });

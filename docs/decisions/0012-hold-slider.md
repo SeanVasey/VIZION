@@ -144,13 +144,16 @@ quality"), both resolved with FORM, never a new hue (tokens stay locked;
 the `--dev-*` corridor stays library-list-only per [0003]):
 
 1. **The gesture is no longer invisible at rest.** Acceptance shipped the
-   sheet as the only discoverable path. Now `HoldSliderHint` — three
-   detent dots in miniature, the capsule's own vocabulary — sits at the
-   trailing edge of a slider-wrapped pill, rendered by the pickers behind
-   an opt-in `holdHint` prop that mirrors the slider's `enabled` exactly
-   (Target hints only under Auto; Settings' picker, which has no slider,
-   never hints). aria-hidden decoration: the label stays the readout, the
-   sheet stays the accessible path.
+   sheet as the only discoverable path. Now `HoldSliderHint` — three slim
+   vertical ticks, the grip vocabulary the Sheet's grab rail already
+   speaks — sits at the trailing edge of a slider-wrapped pill, rendered
+   by the pickers behind an opt-in `holdHint` prop that mirrors the
+   slider's `enabled` exactly (Target hints only under Auto; Settings'
+   picker, which has no slider, never hints). aria-hidden decoration: the
+   label stays the readout, the sheet stays the accessible path. (The
+   first cut drew three DOTS; at hint scale a dot row reads as a text
+   ellipsis — a "more" menu promise, the wrong affordance — so the second
+   owner round replaced it with ticks.)
 2. **The two stacked capsules stopped dressing alike.** Budget and
    Thinking both drew equal dots, distinguishable mid-drag only by count.
    The overlay now takes `detentMarker`: the Thinking rail passes `bar`
@@ -161,3 +164,22 @@ the `--dev-*` corridor stays library-list-only per [0003]):
    untouched). Bar height rides the detent's ladder POSITION while the
    fill's color stays keyed to the level's IDENTITY — shape says higher,
    color says which tier; the DepthGlyph split of duties.
+
+The owner's second round ("not as clean as it could be") tightened the
+capsule's own presentation, all three repairs form-only:
+
+- **The live readout rides a glass-solid chip**, not bare text. The
+  overlay floats over whatever the composer has at that y, so an unbacked
+  line collided with the neighbouring rail's label instead of reading as
+  UI; the chip puts the tone ink on the track's own designed ground in
+  both themes.
+- **The wrapped pill conceals while its capsule is up** (opacity, layout
+  held, `.hold-slider-conceal` with the standard two motion stand-downs):
+  the capsule visually REPLACES the control — the reference behaviour —
+  where before a track narrower than the pill (budget's three detents)
+  left the pill's tail peeking out beside it.
+- **Reached dots go transparent under the fill** — dark dots swimming in
+  the laser fill read as sediment, and the fill edge already marks the
+  position. They stay in the DOM so detent-id hooks never depend on drag
+  position. Reached BARS stay visible: a meter is made of its filled
+  bars.

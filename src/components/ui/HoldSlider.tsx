@@ -57,12 +57,14 @@ const LABEL_CLASS: Record<Detent["tone"], string> = {
 export type DetentMarker = "dot" | "bar";
 
 /**
- * Resting affordance for the hold gesture — three detent dots at the pill's
- * trailing edge, the capsule's own vocabulary in miniature. ADR-0012 shipped
- * with the sheet as the only DISCOVERABLE path and the gesture invisible at
- * rest; the 2026-08-10 owner pass revisited that trade. Static, aria-hidden
- * decoration: the pill label stays the readout, the sheet stays the
- * accessible path, and the pickers render it only while their slider is
+ * Resting affordance for the hold gesture — three slim vertical ticks at the
+ * pill's trailing edge: the app's grip/detent vocabulary (the Sheet's grab
+ * rail is the same slim rounded bar), NOT dots, which at this size read as a
+ * text ellipsis and promised a "more" menu instead of a drag. ADR-0012
+ * shipped with the sheet as the only DISCOVERABLE path and the gesture
+ * invisible at rest; the 2026-08-10 owner pass revisited that trade. Static,
+ * aria-hidden decoration: the pill label stays the readout, the sheet stays
+ * the accessible path, and the pickers render it only while their slider is
  * actually enabled — a hint that outlived its gesture would be a lie.
  */
 export function HoldSliderHint() {
@@ -72,9 +74,9 @@ export function HoldSliderHint() {
       data-hold-hint=""
       className="inline-flex shrink-0 items-center gap-[3px]"
     >
-      <span className="h-[3px] w-[3px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
-      <span className="h-[3px] w-[3px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
-      <span className="h-[3px] w-[3px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
+      <span className="h-[7px] w-[2px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
+      <span className="h-[7px] w-[2px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
+      <span className="h-[7px] w-[2px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
     </span>
   );
 }
@@ -124,7 +126,14 @@ export function HoldSliderTrigger({
   const dragDetent = active ? detents[active.dragIndex] : undefined;
 
   return (
-    <span className="inline-flex" {...props}>
+    // While the capsule is up it visually REPLACES the pill (opacity, so
+    // layout holds and the pointer capture target stays painted-off, not
+    // gone) — without this, a track narrower than the pill left the pill's
+    // tail peeking out beside the capsule.
+    <span
+      className={`hold-slider-conceal inline-flex ${active ? "opacity-0" : ""}`}
+      {...props}
+    >
       {children}
       {/* Always mounted so the first commit's announcement is not dropped
           while the region registers (the A11Y-005 lesson). aria-live only,
@@ -202,10 +211,18 @@ function HoldSliderOverlay({
         height: geometry.height,
       }}
     >
-      <p
-        className={`font-body absolute inset-x-0 -top-8 truncate text-center text-sm font-medium ${LABEL_CLASS[tone]}`}
-      >
-        {label}
+      {/* The live readout rides in a chip of its own, not as bare text: the
+          overlay floats over whatever the composer has at that y (the
+          neighbouring rail's pill, the mode caption), and an unbacked line
+          collided with it instead of reading as UI. Same glass-solid ground
+          as the track, so the tone ink always sits on a designed surface. */}
+      <p className="absolute inset-x-0 -top-9 flex justify-center">
+        <span
+          data-hold-slider-label=""
+          className={`glass-solid font-body max-w-full truncate rounded-full px-3 py-1 text-sm font-medium ${LABEL_CLASS[tone]}`}
+        >
+          {label}
+        </span>
       </p>
       <div className="glass-solid relative h-full w-full overflow-hidden rounded-full border border-hair">
         <div
@@ -226,6 +243,12 @@ function HoldSliderOverlay({
           // Bars rise with the detent's ladder position — position, not the
           // tone's identity, deliberately: the SHAPE says "higher", the fill
           // color still says which tier (the DepthGlyph split of duties).
+          // Reached BARS stay visible inside the fill (a meter is made of
+          // its filled bars); reached DOTS go transparent instead — dark
+          // dots swimming in the laser fill read as sediment, and the fill
+          // edge already marks the position. They stay in the DOM so the
+          // detent hooks the suites (and this file's geometry) rely on
+          // never depend on the drag position.
           return marker === "bar" ? (
             <span
               key={detents[i]!.id}
@@ -243,7 +266,9 @@ function HoldSliderOverlay({
             <span
               key={detents[i]!.id}
               data-detent-dot={detents[i]!.id}
-              className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${reached}`}
+              className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${
+                i <= dragIndex ? "opacity-0" : ""
+              } ${reached}`}
               style={{ left: x, width: DOT_R * 2, height: DOT_R * 2 }}
             />
           );
