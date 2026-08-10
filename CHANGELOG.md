@@ -15,8 +15,10 @@ All notable changes to VIZION are documented here. The format follows
   under pinch zoom, per review, since the control preserves native zoom;
   unzoomed, the shell is a centered column, so viewport center is the
   composer's; when zoom leaves the region narrower than the track, the
-  placement biases to the selected detent so the thumb always spawns in
-  view), on the gesturing rail's row — the same spot for every
+  detent spacing compresses so the whole ladder fits and stays reachable —
+  zoom multiplies physical travel, so tighter detents cost no precision —
+  with a selected-detent-biased placement as the sub-floor fallback), on
+  the gesturing rail's row — the same spot for every
   press, where the first cut anchored the selected detent under
   the finger and landed wherever the press happened to be; the finger
   still maps relatively through dragOffset, so the press point never

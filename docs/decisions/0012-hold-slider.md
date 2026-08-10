@@ -233,11 +233,17 @@ Three changes, superseding two acceptance-era choices:
    control deliberately preserves native pinch zoom, and a fixed-position
    capsule centered on the layout viewport can open entirely outside a
    zoomed-in user's view; and when zoom leaves that region NARROWER than
-   the track, the overflow placement biases to the SELECTED detent (the
-   thumb spawns there), pulling it as close to the visible center as the
-   range allows — the fixed home holds whenever the track fits, and the
-   selection only steers placement when fixedness is geometrically
-   impossible.
+   the full-spacing track, the detent spacing COMPRESSES so the whole
+   ladder fits — still centered, still static for the gesture, every
+   detent reachable (a placement frozen around the selected detent kept
+   the spawn visible but let the drag walk the thumb out of the region;
+   and zoom multiplies physical travel, so compressed detents cost no
+   precision — at the ~3.7× zoom that reaches the 12px floor, one detent
+   is ≥44px of finger movement). Only below MIN_DETENT_SPACING_PX does
+   placement fall back to biasing the SELECTED detent (the thumb's spawn)
+   toward the visible center. The fixed home holds whenever the ladder
+   fits; the selection only steers placement when fixedness is
+   geometrically impossible.
 2. **A thumb rides the fill's leading edge** (`data-hold-slider-thumb`,
    28px, glass ground + hair ring, core disc tone-colored by the same
    FILL_CLASS ramp — text-free fills only). Position now reads as an

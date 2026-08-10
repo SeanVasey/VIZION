@@ -10,6 +10,7 @@ import {
   DETENT_SPACING_PX,
   EDGE_MARGIN_PX,
   HOLD_MS,
+  MIN_DETENT_SPACING_PX,
   SLOP_PX,
   TRACK_PAD_PX,
   computeTrackGeometry,
@@ -140,37 +141,62 @@ describe("track geometry (pure)", () => {
     expect(geo.left + geo.width).toBeLessThanOrEqual(500);
   });
 
-  it("keeps the SELECTED detent visible when the region is narrower than the track", () => {
-    // Codex review, second pass: a 264px six-detent track in a 200px visual
-    // region cannot fit — and the thumb spawns on the selected detent, so
-    // THAT is what the overflow placement must keep in view, pulled as
-    // close to the visible center as the range allows.
+  it("compresses the ladder to fit a narrow region — every detent reachable", () => {
+    // Codex review, third pass: a placement frozen around the selected
+    // detent kept the SPAWN visible but let the drag walk the thumb out of
+    // a region narrower than the track. Compressed spacing removes the
+    // edge entirely: the whole ladder fits, geometry stays static and
+    // centered, and zoom multiplies physical travel so the tighter detents
+    // cost no precision.
     const region = { left: 300, width: 200 };
-    const mid = computeTrackGeometry(rect, 6, 2, region);
-    // Selected center sits exactly on the visible center when reachable.
-    expect(mid.detentCenters[2]).toBe(400);
+    const geo = computeTrackGeometry(rect, 6, 0, region);
+    const spacing = geo.detentCenters[1]! - geo.detentCenters[0]!;
+    expect(spacing).toBeCloseTo(124 / 5, 5); // (200 - 2·16 - 2·22) / 5
+    expect(geo.width).toBeCloseTo(5 * spacing + 2 * TRACK_PAD_PX, 5);
+    expect(geo.left).toBeCloseTo(300 + (200 - geo.width) / 2, 5);
+    // Selection plays no part — the compressed home is still fixed.
+    expect(computeTrackGeometry(rect, 6, 5, region).left).toBeCloseTo(geo.left, 5);
+    // Every detent center sits inside the visible region…
+    for (const center of geo.detentCenters) {
+      expect(center).toBeGreaterThanOrEqual(300);
+      expect(center).toBeLessThanOrEqual(500);
+    }
+    // …and the nearest-detent mapping follows the geometry's own spacing.
+    expect(detentIndexForX(geo.detentCenters[3]! + 10, geo)).toBe(3);
+  });
+
+  it("falls back to selected-detent bias only below the compression floor", () => {
+    // A region too narrow for even MIN_DETENT_SPACING_PX cannot show the
+    // whole ladder; the thumb spawns on the selected detent, so THAT is
+    // what placement keeps in view, pulled as close to the visible center
+    // as the range allows (Codex review, second pass).
+    const region = { left: 300, width: 120 };
     const first = computeTrackGeometry(rect, 6, 0, region);
-    expect(first.left).toBe(300 + EDGE_MARGIN_PX); // left-aligned end of range
-    expect(first.detentCenters[0]).toBe(300 + EDGE_MARGIN_PX + TRACK_PAD_PX);
+    const spacing = first.detentCenters[1]! - first.detentCenters[0]!;
+    expect(spacing).toBe(MIN_DETENT_SPACING_PX);
+    expect(first.width).toBe(5 * MIN_DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
+    const mid = computeTrackGeometry(rect, 6, 2, region);
+    // Selected center sits on the visible center when the range allows.
+    expect(mid.detentCenters[2]).toBe(360);
     const last = computeTrackGeometry(rect, 6, 5, region);
     // Right-aligned end of range: the track's right edge keeps the margin.
-    expect(last.left + last.width).toBe(500 - EDGE_MARGIN_PX);
+    expect(last.left + last.width).toBe(420 - EDGE_MARGIN_PX);
     // In every case the selected detent's center is inside the region.
     for (const [i, geo] of [first, mid, last].entries()) {
       const center = geo.detentCenters[[0, 2, 5][i]!]!;
       expect(center).toBeGreaterThanOrEqual(300);
-      expect(center).toBeLessThanOrEqual(500);
+      expect(center).toBeLessThanOrEqual(420);
     }
   });
 
-  it("clamps to the visible left margin when centering cannot fit", () => {
-    // Wider than the visible region minus both margins, selection at the
-    // start — the left edge wins, INSIDE the region the user sees.
+  it("compresses on a narrow layout viewport too", () => {
+    // Eight detents on a 360px phone: full spacing would need 352px; the
+    // ladder compresses to fit inside the margins instead.
     const narrow = computeTrackGeometry(rect, 8, 0, wholeViewport(360));
-    expect(narrow.width).toBe(7 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
-    expect(narrow.left).toBe(EDGE_MARGIN_PX);
-    const zoomed = computeTrackGeometry(rect, 8, 0, { left: 300, width: 200 });
-    expect(zoomed.left).toBe(300 + EDGE_MARGIN_PX);
+    const spacing = narrow.detentCenters[1]! - narrow.detentCenters[0]!;
+    expect(spacing).toBeCloseTo((360 - 32 - 44) / 7, 5);
+    expect(narrow.width).toBeLessThanOrEqual(360 - 2 * EDGE_MARGIN_PX);
+    expect(narrow.left).toBeCloseTo((360 - narrow.width) / 2, 5);
   });
 
   it("sizes the track from the detent count", () => {

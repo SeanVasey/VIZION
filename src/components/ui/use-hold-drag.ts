@@ -47,6 +47,11 @@ export const HOLD_MS = 300;
 export const SLOP_PX = 10;
 /** Horizontal travel per detent — one 44px touch target each. */
 export const DETENT_SPACING_PX = 44;
+/** Compression floor for detent spacing when a pinch-zoomed visual region
+ *  is narrower than the full track. Ergonomics hold because zoom multiplies
+ *  PHYSICAL travel: at the ~3.7× zoom that drives spacing to this floor,
+ *  12 layout px is ≥44px of finger movement — the unzoomed target. */
+export const MIN_DETENT_SPACING_PX = 12;
 /** Inset from the capsule's rounded end to the first/last detent center. */
 export const TRACK_PAD_PX = 22;
 /** Rendered height of the overlay capsule. */
@@ -84,13 +89,19 @@ export interface TrackGeometry {
  * (Codex review, PR #103). Unzoomed, the shell is a centered
  * max-w-screen-sm column, so the visual center IS the composer's.
  *
- * When the track FITS (the normal case), the home is the visible region's
- * center and `selectedIndex` plays no part — same spot for every press.
- * When zoom leaves the region NARROWER than the track, a fixed home cannot
- * show everything, and what must stay visible is the SELECTED detent — the
- * thumb spawns there (Codex review, second pass): the overflow placement
- * pulls that detent as close to the visible center as the range allows,
- * clamped so whichever edge is being shown keeps its EDGE_MARGIN_PX.
+ * When the track FITS at full spacing (the normal case), the home is the
+ * visible region's center and `selectedIndex` plays no part — same spot
+ * for every press. When zoom leaves the region NARROWER than that, the
+ * spacing COMPRESSES so the whole ladder fits and every detent stays
+ * reachable — geometry is still static for the gesture, still centered,
+ * still selection-independent (Codex review, third pass: a placement
+ * frozen around the selected detent kept the SPAWN visible but let the
+ * drag walk the thumb out of the region; a track the region can hold has
+ * no such edge, and zoom multiplies physical travel, so compressed
+ * detents cost no precision). Only below MIN_DETENT_SPACING_PX — regions
+ * too narrow for even the compressed ladder — does placement fall back to
+ * biasing the SELECTED detent (the thumb's spawn) toward the visible
+ * center, whichever shown edge keeping its EDGE_MARGIN_PX.
  */
 export function computeTrackGeometry(
   anchorRect: { top: number; height: number },
@@ -98,17 +109,20 @@ export function computeTrackGeometry(
   selectedIndex: number,
   viewport: { left: number; width: number },
 ): TrackGeometry {
-  const span = (detentCount - 1) * DETENT_SPACING_PX;
-  const width = span + TRACK_PAD_PX * 2;
+  const steps = Math.max(detentCount - 1, 1);
+  const available = viewport.width - EDGE_MARGIN_PX * 2 - TRACK_PAD_PX * 2;
+  const spacing = Math.max(
+    MIN_DETENT_SPACING_PX,
+    Math.min(DETENT_SPACING_PX, available / steps),
+  );
+  const width = steps * spacing + TRACK_PAD_PX * 2;
   const fits = width <= viewport.width - EDGE_MARGIN_PX * 2;
   const left = fits
     ? viewport.left + (viewport.width - width) / 2
     : Math.max(
         viewport.left + viewport.width - EDGE_MARGIN_PX - width,
         Math.min(
-          viewport.left +
-            viewport.width / 2 -
-            (TRACK_PAD_PX + selectedIndex * DETENT_SPACING_PX),
+          viewport.left + viewport.width / 2 - (TRACK_PAD_PX + selectedIndex * spacing),
           viewport.left + EDGE_MARGIN_PX,
         ),
       );
@@ -119,18 +133,19 @@ export function computeTrackGeometry(
     top,
     width,
     height: TRACK_HEIGHT_PX,
-    detentCenters: Array.from(
-      { length: detentCount },
-      (_, i) => first + i * DETENT_SPACING_PX,
-    ),
+    detentCenters: Array.from({ length: detentCount }, (_, i) => first + i * spacing),
   };
 }
 
-/** Nearest detent to a pointer x, clamped to the track's ends. */
+/** Nearest detent to a pointer x, clamped to the track's ends. Spacing is
+ *  read from the geometry itself — under pinch-zoom compression it is
+ *  narrower than DETENT_SPACING_PX. */
 export function detentIndexForX(x: number, geometry: TrackGeometry): number {
-  const first = geometry.detentCenters[0]!;
-  const raw = Math.round((x - first) / DETENT_SPACING_PX);
-  return Math.max(0, Math.min(geometry.detentCenters.length - 1, raw));
+  const centers = geometry.detentCenters;
+  const first = centers[0]!;
+  const spacing = centers.length > 1 ? centers[1]! - first : DETENT_SPACING_PX;
+  const raw = Math.round((x - first) / spacing);
+  return Math.max(0, Math.min(centers.length - 1, raw));
 }
 
 interface Press {
