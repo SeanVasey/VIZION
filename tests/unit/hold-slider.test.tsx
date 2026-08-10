@@ -959,6 +959,104 @@ describe("one gesture at a time, app-wide", () => {
     expect(onOpenB).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a SAME-pill competing press refused even when the owner releases first", () => {
+    // The thirteenth pass carried a refusal past the owner's release for a
+    // FOREIGN pill and deliberately exempted the owner's own wrapper: the
+    // mid-claim window was covered by any-claim consumption, but the
+    // outlive-the-owner timeline was never re-run on this topology. Touch
+    // owns A, a mouse presses A mid-gesture (bare-rejected, no marker),
+    // A commits and releases — and the mouse's later lift-click passed
+    // every gate and popped the sheet right on the heels of the drag
+    // (nineteenth pass). Same mechanism as cross-pill now: marker +
+    // end-watch, on the owning wrapper too.
+    const onOpenA = vi.fn();
+    const onCommitA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} onCommitA={onCommitA} />);
+    downOn(pillA(), 1); // touch owns A
+    hold();
+    expect(overlays()).toHaveLength(1);
+    downOn(pillA(), 2); // a mouse presses the SAME pill — refused, marked
+    expect(overlays()).toHaveLength(1); // the live gesture is untouched
+    fireEvent.pointerMove(pillA(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    fireEvent.pointerUp(pillA(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(onCommitA).toHaveBeenCalledTimes(1);
+    expect(onCommitA).toHaveBeenCalledWith(1);
+    act(() => {
+      vi.advanceTimersByTime(1); // the owner's settle suppression expires
+    });
+    // The competing mouse lifts over the pill — pointer-derived click.
+    fireEvent.pointerUp(pillA(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1); // the end-watch clears the marker
+    });
+    // A fresh tap still opens — the refusal died with its stream.
+    downOn(pillA(), 3);
+    fireEvent.pointerUp(pillA(), { pointerId: 3, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("the owner's own settled click cannot strip the competitor's refusal", () => {
+    // The consume body used to clear the marker no matter which gate fired.
+    // Cross-pill that was harmless — the owner's clicks never route through
+    // the refused wrapper — but same-pill the owner's commit click and the
+    // competitor's lift-click cross the SAME capture handler, and a
+    // settle-consumed commit click would strip the competitor's marker
+    // before its own click arrived (nineteenth pass). The marker's
+    // lifecycle belongs to its end-watch, the next pointer-down's
+    // supersede, and unmount — consumption reads it, never writes it.
+    const onOpenA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillA(), 2); // refused, marked
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 }); // the owner's settle-window click
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1); // suppression expires; the marker must survive
+    });
+    fireEvent.pointerUp(pillA(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 }); // the competitor's lift-click
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    downOn(pillA(), 3);
+    fireEvent.pointerUp(pillA(), { pointerId: 3, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("a pending same-pill refusal never blocks keyboard activation", () => {
+    // The marker gates only pointer-derived clicks (detail ≥ 1). With the
+    // gesture over but the competing mouse still physically down somewhere,
+    // keyboard activation carries detail 0 and must land — the
+    // discriminator, not timing, keeps every marker source away from
+    // keyboard users (seventeenth pass, now including the same-pill one).
+    const onOpenA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillA(), 2); // refused, marked
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    fireEvent.click(pillA()); // keyboard/programmatic: detail 0
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
   it("stands down at activation when a sheet opened during the pre-hold window", () => {
     // The admission guard stops gestures BEGINNING over a sheet; this is
     // the symmetric half (thirteenth pass): the input shield mounts only at

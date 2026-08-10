@@ -82,6 +82,26 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **A same-pill competing press now stays refused through its click —
+  the refusal marker loses its cross-pill scope exemption** (ADR-0012,
+  nineteenth pass; the first finding resolved as a matrix-cell
+  correction). Touch owns a pill, a mouse presses the SAME pill
+  mid-gesture: the bare `press.current` reject set no marker, so when
+  the owner committed and released before the mouse lifted, the mouse's
+  click passed every gate — settle suppression expired on its
+  zero-timeout, the claim released at the owner's up — and the picker
+  sheet popped open uncommanded on the heels of the drag. Admission now
+  refuses on any live claim OR live press record, giving same-wrapper
+  competitors the thirteenth pass's own marker + end-watch; and the
+  consume body no longer writes the marker (it cleared it on any
+  consumed click — harmless cross-pill, but same-pill the owner's
+  settle-consumed commit click stripped the competitor's protection
+  before its own click arrived). Streams are told apart by gate, not
+  identity: the owner's commit click dies in its settle window, the
+  competitor's on the marker, keyboard passes by `detail 0`. Pinned
+  red→green in unit, including the settled-click-must-not-strip-the-
+  marker ordering.
+
 - **Nothing can fire under a live capsule — the gesture is now modal to
   input, not only to motion** (ADR-0012 amendment; Codex review, ninth
   pass). The single-gesture claim refused a second pill's press but let

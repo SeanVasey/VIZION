@@ -449,11 +449,16 @@ refused pill's suppressClick were clear at click time, and the press
 documented as refused whole opened its sheet after all. A per-instance
 `refusedPress` marker now survives the owner's release and dies with the
 refused stream's own click (or is superseded by the next pointer-down on
-that wrapper). The marker is deliberately NOT set for same-wrapper
+that wrapper). ~~The marker is deliberately NOT set for same-wrapper
 refusals: both streams share one wrapper there, and a boolean cannot
 tell the refused stream's click from the live press's legitimate one —
 the mid-claim consumption already covers that case, and its post-claim
-tail cannot recreate the sheet-under-capsule state (no capsule is live).
+tail cannot recreate the sheet-under-capsule state (no capsule is live).~~
+(Superseded by the nineteenth pass — the outlive-the-owner timeline this
+very paragraph fixes cross-pill was never re-run same-wrapper, and the
+rationale's second half judged the tail against the wrong harm: not
+sheet-under-capsule, but a sheet popping open uncommanded on the heels
+of the commit. See the matrix amendment below.)
 Pinned in unit, all red pre-fix: the refused-then-orphaned click
 consumed with the fresh tap working after; the synthetic-dialog
 stand-down with the world unfrozen and the lift swallowed; and at the
@@ -538,7 +543,7 @@ lift · SETTLE, the post-lift task):
 | Channel                          | Pre-hold                                                | Active                                                                                                                                                           | Tail                              |
 | -------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
 | Own pointer stream               | slop/axis rules + hold timer                            | capture; x-only drag                                                                                                                                             | capture retained; lift ends all   |
-| 2nd pointer, same wrapper        | refused (`press.current`); click dies via claim         | + shield                                                                                                                                                         | same                              |
+| 2nd pointer, same wrapper        | refused; marker + end-watch outlive the owner (19th)    | + shield                                                                                                                                                         | same                              |
 | 2nd pointer, other wrapper       | refused (claim); marker + end-watch outlive the owner   | + shield                                                                                                                                                         | same                              |
 | 2nd pointer, non-wrapped control | free until activation → dialog probe stands down        | shield                                                                                                                                                           | free (world visually at rest)     |
 | Keyboard                         | free (probe covers the sheet outcome at activation)     | unmodified keys die; Enter/Space die under any modifiers; Escape reverts                                                                                         | free                              |
@@ -552,12 +557,39 @@ click is suppressed (suppressClick / the refusal marker). Recorded
 acceptances, deliberate and bounded: assistive-tech-synthesized clicks
 on non-wrapped controls mid-drag (a hold-drag is a pointer gesture an AT
 user is not simultaneously performing; the sheet remains the complete
-path); mid-gesture geometry drift — a layout shift under the dim-only
+path); and mid-gesture geometry drift — a layout shift under the dim-only
 stream presentation, or pinch/rotate mid-drag — because geometry is
 deliberately static for the gesture and release re-anchors, with every
-lift caught wherever it lands; and the same-wrapper post-claim click
-tail (no capsule is live by then, so the guarded invariant cannot be
-violated). Any future finding in this control should first be located
+lift caught wherever it lands. (A third acceptance — the same-wrapper
+post-claim click tail, "no capsule is live by then, so the guarded
+invariant cannot be violated" — was withdrawn by the nineteenth pass
+below.) Any future finding in this control should first be located
 in this table — either a cell's mechanism is wrong (fix the mechanism)
 or a channel or phase is missing from the table (extend the table);
 cells are no longer discovered one review at a time.
+
+The nineteenth pass was the first finding located this way, and it was a
+wrong CELL plus a wrong acceptance, not a missing row: "2nd pointer,
+same wrapper" claimed its click dies via the claim, and the withdrawn
+acceptance had judged the post-claim tail only against
+sheet-under-capsule — missing the real harm. Touch owns the pill, a
+mouse presses the SAME pill mid-gesture (the bare `press.current` reject
+set no marker), the owner commits and releases, and the mouse's later
+lift-click passed every gate — suppressClick expired on its
+zero-timeout, the claim released at the owner's up — so the sheet popped
+open uncommanded on the heels of the drag. The repair is the thirteenth
+pass's own mechanism with its scope exemption deleted: admission now
+refuses on ANY live claim or press record (`gestureOwner !== null ||
+press.current`; the second half also keeps a live press record from
+ever being overwritten), so a same-wrapper competitor gets the same
+marker + end-watch, and the consume body no longer writes the marker at
+all — it used to clear it on any consumed click, harmless cross-pill,
+but same-pill the owner's settle-consumed commit click stripped the
+competitor's protection before its own click arrived. The two streams
+share one capture handler and are told apart by GATE, not identity: the
+owner's commit click dies in its settle window, the competitor's dies
+on the marker, keyboard stays exempt by `detail 0`. Single-slot
+semantics stand (a third simultaneous pointer on one wrapper resolves
+newest-wins), matching the cross-pill machinery. Pinned red→green in
+unit: the full owner-releases-first timeline, and the
+settled-click-must-not-strip-the-marker ordering specifically.

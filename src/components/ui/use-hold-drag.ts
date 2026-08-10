@@ -241,17 +241,21 @@ export function useHoldDrag({
   /** This instance's identity for the module-level exclusive-gesture claim. */
   const ownerToken = useRef<object>({});
 
-  /** A press this wrapper refused for a FOREIGN claim, whose click has not
-   *  yet arrived. The claim alone cannot carry the refusal to its end: the
-   *  owner can release before the refused pointer lifts, and at click time
-   *  both the claim and suppressClick are clear — the press documented as
-   *  refused whole then opened this pill's sheet (thirteenth pass).
-   *  Per-instance, so it can never collide with another wrapper's
-   *  legitimate clicks; reset by the next pointer-down on this wrapper
-   *  (a new stream supersedes), cleared when the refused click is eaten.
-   *  Deliberately NOT set for same-wrapper refusals (`press.current`): both
-   *  streams share this one wrapper, and a boolean cannot tell the refused
-   *  stream's click from the live press's own legitimate one. */
+  /** A press this wrapper refused, whose click has not yet arrived. The
+   *  claim alone cannot carry the refusal to its end: the owner can release
+   *  before the refused pointer lifts, and at click time both the claim and
+   *  suppressClick are clear — the press documented as refused whole then
+   *  opened this pill's sheet (thirteenth pass, cross-pill). Per-instance,
+   *  so it can never collide with another wrapper's legitimate clicks;
+   *  reset by the next pointer-down on this wrapper (a new stream
+   *  supersedes), cleared by the end-watch one task after its stream ends.
+   *  Set for SAME-wrapper refusals too (nineteenth pass): the thirteenth
+   *  scoped the marker cross-pill on the theory that one boolean cannot
+   *  tell the owner's click from the competitor's — but the two are told
+   *  apart by GATE, not identity: the owner's own commit click is consumed
+   *  by suppressClick in its settle window, and consumption never writes
+   *  the marker, so a mouse pressed on the owning pill mid-gesture stays
+   *  refused through its click even when the owner releases first. */
   const refusedPress = useRef(false);
 
   /** The refused stream's id and its end-watch. A refusal must not outlive
@@ -534,17 +538,21 @@ export function useHoldDrag({
   );
 
   function onPointerDown(e: React.PointerEvent) {
-    if (!enabled || press.current) return;
+    if (!enabled) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     // A new stream on this wrapper supersedes any still-pending refusal.
     refusedPress.current = false;
     disarmRefusedWatch();
-    // One gesture at a time, app-wide (see gestureOwner): while another
-    // pill's press or drag is live, this press is refused outright — and
-    // its eventual click dies in onClickCapture, marked here so the
+    // One gesture at a time, app-wide (see gestureOwner): while ANY press
+    // or drag is live — another pill's, or a competing second device on
+    // THIS pill (`press.current`; nineteenth pass, which removed the bare
+    // unmarked reject that stood here) — this press is refused outright,
+    // and its eventual click dies in onClickCapture, marked here so the
     // refusal survives even if the owner releases first. The end-watch
-    // bounds the marker to the refused stream's own lifetime.
-    if (gestureOwner && gestureOwner !== ownerToken.current) {
+    // bounds the marker to the refused stream's own lifetime. The
+    // `press.current` half also guards the invariant no claim state can:
+    // a live press record must never be overwritten mid-stream.
+    if (gestureOwner !== null || press.current) {
       refusedPress.current = true;
       refusedPointerId.current = e.pointerId;
       window.addEventListener("pointerup", onRefusedEnd);
@@ -703,12 +711,19 @@ export function useHoldDrag({
     // never touch a keyboard user, a later pointer stream clears it at its
     // own pointer-down, and the one click it exists to eat — its own
     // stream's — is pointer-derived by definition.
+    //
+    // Consumption READS the marker and never writes it (nineteenth pass —
+    // this body used to clear it on any consumed click). Cross-pill that
+    // was harmless, but a same-pill competitor shares this handler with
+    // the owner: the owner's settle-consumed commit click stripped the
+    // competitor's marker before its own click arrived. The marker's
+    // lifecycle has exactly three ends — the end-watch's zero-timeout, the
+    // next pointer-down's supersede, and unmount.
     if (
       suppressClick.current ||
       (refusedPress.current && e.detail > 0) ||
       gestureOwner !== null
     ) {
-      refusedPress.current = false;
       e.preventDefault();
       e.stopPropagation();
     }

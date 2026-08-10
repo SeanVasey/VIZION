@@ -3284,3 +3284,20 @@ test:e2e` hard-fails in global-setup until
   name every cell's mechanism or record its acceptance, close the empty
   ones in one commit, and put the table in the ADR so the next finding
   is a table lookup instead of a fifteenth round trip.
+
+- **A scope exemption is a claim about timelines — re-run the fixed
+  timeline through every topology the exemption distinguishes.** The
+  thirteenth pass fixed refusal-outlives-the-owner for cross-pill
+  presses and, in the same breath, recorded the same-wrapper exemption
+  ("a boolean cannot tell two streams' clicks apart") — and the
+  previous lesson on this page repeats that clause verbatim. Six passes
+  later the identical timeline — owner releases first, competitor's
+  click lands after — was still open on the exempted topology
+  (nineteenth pass). Two corrections worth keeping: the "cannot tell
+  apart" rationale confused identity with GATE (the owner's click is
+  already claimed by its settle window; precedence does the telling),
+  and the acceptance that covered the residue judged it against the
+  wrong harm (sheet-under-capsule, when the harm was an uncommanded
+  sheet-open after commit). When a lifecycle fix lands in one topology,
+  the exempted topologies inherit the burden of proof, not the benefit
+  of the doubt.
