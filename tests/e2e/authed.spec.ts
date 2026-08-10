@@ -314,6 +314,8 @@ test.describe("thinking hold-slider", () => {
     await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
     // Focus scrim rides the gesture: up with the capsule, gone on release.
     await expect(page.locator("[data-hold-slider-scrim]")).toBeVisible();
+    // So does the thumb — the moving object the reference control carries.
+    await expect(page.locator("[data-hold-slider-thumb]")).toBeVisible();
     // The thinking capsule wears rising bars (the DepthGlyph vocabulary),
     // six for Opus's ladder — the budget capsule keeps equal dots.
     await expect(
@@ -358,6 +360,36 @@ test.describe("thinking hold-slider", () => {
     // The row's own click landed: depth picked, sheet closed.
     await expect(sheet).toHaveCount(0);
     await expect(pill).toContainText("High");
+  });
+
+  test("the track expands in the same home for every press point", async ({ page }) => {
+    // ADR-0012 amendment 4: fixed-home geometry — the capsule must land in
+    // the identical spot whether the press began at the pill's left or
+    // right edge. Releasing without travel re-commits the anchor (Auto), so
+    // neither gesture changes state.
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const box = (await pill.boundingBox())!;
+    const y = box.y + box.height / 2;
+    const overlay = page.locator("[data-hold-slider-overlay]");
+
+    await page.mouse.move(box.x + 8, y);
+    await page.mouse.down();
+    await expect(overlay).toBeVisible();
+    const first = (await overlay.boundingBox())!;
+    await page.mouse.up();
+    await expect(overlay).toHaveCount(0);
+
+    await page.mouse.move(box.x + box.width - 8, y);
+    await page.mouse.down();
+    await expect(overlay).toBeVisible();
+    const second = (await overlay.boundingBox())!;
+    await page.mouse.up();
+    await expect(overlay).toHaveCount(0);
+
+    expect(Math.abs(first.x - second.x)).toBeLessThan(1);
+    expect(Math.abs(first.y - second.y)).toBeLessThan(1);
+    await expect(pill).toContainText("Auto");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   /**

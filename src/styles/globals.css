@@ -339,6 +339,20 @@
     transition: none;
   }
 
+  /* The thumb's detent-to-detent glide — the same eased snap (and the same
+     two stand-downs) as the fill it rides. */
+  .hold-slider-thumb {
+    transition: left var(--motion-quick) ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-thumb {
+      transition: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-thumb {
+    transition: none;
+  }
+
   /* The focus scrim behind an active hold-slider: while the capsule is up,
      everything else drops back so the eye holds only the track, the level
      chip, and its tone. A DIM, deliberately NOT a backdrop blur — a

@@ -66,25 +66,28 @@ export interface TrackGeometry {
 
 /**
  * Where the overlay track lands, PURE and exported: jsdom has no layout, so
- * detent mapping must derive from the pointer-down x and these constants,
- * never from measuring rendered dots. The currently-selected detent is
- * anchored under the finger — the hand is already on the value it chose, so
- * every reachable value is a relative move — then the whole track clamps to
- * the viewport with EDGE_MARGIN_PX to spare.
+ * geometry must derive from these constants and the few numbers passed in,
+ * never from measuring rendered dots. The track has a FIXED HOME — centered
+ * in the viewport (the app shell is a centered max-w-screen-sm column, so
+ * the viewport's center IS the composer's), on the gesturing rail's row —
+ * the same spot for every press (ADR-0012 amendment 4, from the owner's
+ * reference recording: a capsule that lands wherever the finger happened to
+ * be reads as floaty, and the first cut's anchor-under-finger placement did
+ * exactly that). The finger still maps RELATIVELY through dragOffset, so
+ * the press point never jumps the selection; only the capsule's home is
+ * fixed. EDGE_MARGIN_PX clamps the rare track wider than the viewport
+ * allows, left edge winning like the original clamp.
  */
 export function computeTrackGeometry(
-  pointerX: number,
   anchorRect: { top: number; height: number },
   detentCount: number,
-  selectedIndex: number,
   viewportWidth: number,
 ): TrackGeometry {
   const span = (detentCount - 1) * DETENT_SPACING_PX;
   const width = span + TRACK_PAD_PX * 2;
-  const ideal = pointerX - selectedIndex * DETENT_SPACING_PX - TRACK_PAD_PX;
   const left = Math.max(
     EDGE_MARGIN_PX,
-    Math.min(ideal, viewportWidth - EDGE_MARGIN_PX - width),
+    Math.min((viewportWidth - width) / 2, viewportWidth - EDGE_MARGIN_PX - width),
   );
   const top = anchorRect.top + anchorRect.height / 2 - TRACK_HEIGHT_PX / 2;
   const first = left + TRACK_PAD_PX;
@@ -121,7 +124,8 @@ export function useHoldDrag({
   onCommit,
 }: {
   detentCount: number;
-  /** The committed detent at gesture start — anchored under the finger. */
+  /** The committed detent at gesture start — the drag maps relative to it
+   *  (dragOffset), wherever in the fixed-home track it sits. */
   selectedIndex: number;
   /** False = fully inert: no timer, no axis claim, taps untouched. */
   enabled: boolean;
@@ -206,10 +210,8 @@ export function useHoldDrag({
       if (!p) return;
       const { detentCount: count, selectedIndex: selected } = latest.current;
       const geometry = computeTrackGeometry(
-        p.x,
         p.el.getBoundingClientRect(),
         count,
-        selected,
         window.innerWidth,
       );
       // Touch/pen are implicitly captured to the pointer-down target already;

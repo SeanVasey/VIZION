@@ -103,34 +103,46 @@ afterEach(() => {
 describe("track geometry (pure)", () => {
   const rect = { top: 500, height: 44 };
 
-  it("anchors the selected detent under the finger", () => {
-    const geo = computeTrackGeometry(DOWN_X, rect, 6, 2, 1024);
-    expect(geo.detentCenters[2]).toBe(DOWN_X);
+  it("lands in its fixed home — viewport-centered, on the rail's row", () => {
+    // ADR-0012 amendment 4: the first cut anchored the selected detent under
+    // the finger, so the capsule landed wherever the press happened to be.
+    // The home is now fixed: centered in the viewport (the shell is a
+    // centered column, so viewport center IS the composer's), rail's y.
+    const geo = computeTrackGeometry(rect, 6, 1024);
+    expect(geo.width).toBe(5 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
+    expect(geo.left).toBe((1024 - geo.width) / 2);
+    expect(geo.top).toBe(500 + rect.height / 2 - geo.height / 2);
     expect(geo.detentCenters).toHaveLength(6);
+    expect(geo.detentCenters[0]).toBe(geo.left + TRACK_PAD_PX);
     // Even spacing, ascending.
     expect(geo.detentCenters[3]! - geo.detentCenters[2]!).toBe(DETENT_SPACING_PX);
   });
 
-  it("clamps to the viewport edges instead of overflowing", () => {
-    // Finger near the left edge with the selection far right: the ideal
-    // placement would start off-screen; the clamp pins the margin instead.
-    const left = computeTrackGeometry(20, rect, 6, 5, 1024);
-    expect(left.left).toBe(EDGE_MARGIN_PX);
-    const right = computeTrackGeometry(1010, rect, 6, 0, 1024);
-    expect(right.left + right.width).toBe(1024 - EDGE_MARGIN_PX);
+  it("stays centered on a phone viewport", () => {
+    const geo = computeTrackGeometry(rect, 6, 390);
+    expect(geo.left).toBe((390 - geo.width) / 2);
+  });
+
+  it("clamps to the left margin when centering cannot fit", () => {
+    // Eight detents on a narrow phone: wider than the viewport minus both
+    // margins — the left edge wins, like the original clamp.
+    const geo = computeTrackGeometry(rect, 8, 360);
+    expect(geo.width).toBe(7 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
+    expect(geo.left).toBe(EDGE_MARGIN_PX);
   });
 
   it("sizes the track from the detent count", () => {
-    const geo = computeTrackGeometry(DOWN_X, rect, 4, 0, 1024);
+    const geo = computeTrackGeometry(rect, 4, 1024);
     expect(geo.width).toBe(3 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
   });
 
   it("maps x to the nearest detent, clamped at the ends", () => {
-    const geo = computeTrackGeometry(DOWN_X, rect, 6, 0, 1024);
-    expect(detentIndexForX(DOWN_X, geo)).toBe(0);
-    expect(detentIndexForX(DOWN_X + 2 * DETENT_SPACING_PX + 10, geo)).toBe(2);
-    expect(detentIndexForX(DOWN_X - 500, geo)).toBe(0);
-    expect(detentIndexForX(DOWN_X + 5000, geo)).toBe(5);
+    const geo = computeTrackGeometry(rect, 6, 1024);
+    const first = geo.detentCenters[0]!;
+    expect(detentIndexForX(first, geo)).toBe(0);
+    expect(detentIndexForX(first + 2 * DETENT_SPACING_PX + 10, geo)).toBe(2);
+    expect(detentIndexForX(first - 500, geo)).toBe(0);
+    expect(detentIndexForX(first + 5000, geo)).toBe(5);
   });
 });
 
@@ -190,6 +202,44 @@ describe("tap vs hold", () => {
     expect(wrapper.className).toContain("opacity-0");
     up();
     expect(wrapper.className).not.toContain("opacity-0");
+  });
+
+  it("expands in the same home regardless of where the press landed", () => {
+    render(<Host />);
+    down({ clientX: 100 });
+    hold();
+    const firstLeft = overlay()!.style.left;
+    fireEvent.pointerUp(pill(), { pointerId: 1, clientX: 100, clientY: 400 });
+    expect(overlay()).toBeNull();
+    fireEvent.pointerDown(pill(), {
+      pointerId: 1,
+      clientX: 800,
+      clientY: 400,
+      button: 0,
+    });
+    hold();
+    expect(overlay()!.style.left).toBe(firstLeft);
+    fireEvent.pointerUp(pill(), { pointerId: 1, clientX: 800, clientY: 400 });
+  });
+
+  it("rides a thumb on the dragged detent, tone in its core", () => {
+    render(<Host />);
+    down();
+    hold();
+    const thumb = () =>
+      overlay()!.querySelector<HTMLElement>("[data-hold-slider-thumb]")!;
+    const dots = () => overlay()!.querySelectorAll<HTMLElement>("[data-detent-dot]");
+    expect(thumb()).not.toBeNull();
+    expect(thumb().className).toContain("hold-slider-thumb");
+    // On the anchor (Auto, faint) — centered on detent 0's x.
+    expect(thumb().style.left).toBe(dots()[0]!.style.left);
+    moveTo(DOWN_X + 2 * DETENT_SPACING_PX);
+    expect(thumb().style.left).toBe(dots()[2]!.style.left);
+    expect(thumb().querySelector("span")!.className).toContain("bg-laser");
+    moveTo(DOWN_X + 4 * DETENT_SPACING_PX);
+    expect(thumb().querySelector("span")!.className).toContain("bg-ultra");
+    up(DOWN_X + 4 * DETENT_SPACING_PX);
+    expect(overlay()).toBeNull();
   });
 
   it("stands down when the press wanders vertically past slop before the hold", () => {
@@ -279,11 +329,12 @@ describe("drag, commit, and the trailing click", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it("keeps the drag relative to the finger when the clamp displaces the track", () => {
-    // A phone viewport with the pill near the right edge: the track clamps
-    // left, so the finger no longer starts over the selected detent. The
-    // first shipped cut mapped absolute x and teleported Auto → Max on the
-    // first move (caught by the e2e drag in mobile emulation).
+  it("keeps the drag relative to the finger from the fixed home", () => {
+    // The finger presses near the pill's edge while the track sits in its
+    // centered home, so the finger never starts over the selected detent.
+    // The first shipped cut mapped absolute x and teleported Auto → Max on
+    // the first move (caught by the e2e drag in mobile emulation);
+    // dragOffset keeps travel relative, wherever the home is.
     const onCommit = vi.fn();
     render(<Host onCommit={onCommit} />);
     const descriptor = Object.getOwnPropertyDescriptor(window, "innerWidth");

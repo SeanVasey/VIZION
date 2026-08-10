@@ -163,6 +163,9 @@ export function HoldSliderTrigger({
 const DOT_R = 4;
 /** Inset between the track's border and the fill capsule. */
 const FILL_INSET_PX = 6;
+/** Thumb diameter — the reference control's moving object. Rides the fill's
+ *  leading edge so position reads as a THING at a place, not only an edge. */
+const THUMB_PX = 28;
 /** Bar-marker geometry: 3px ticks rising from BAR_MIN to BAR_MAX across the
  *  track, so the ladder's shape is legible inside the 48px capsule. */
 const BAR_W_PX = 3;
@@ -174,8 +177,8 @@ const BAR_MAX_PX = 20;
  * through the `data-hold-slider-overlay` DOM hook, not an import. Portalled to
  * `document.body` because the composer chassis is `overflow-hidden`
  * (EnhanceComposer) and would clip a track wider than the rail; fixed
- * positioning comes from TrackGeometry, which already anchored the selected
- * detent under the finger and clamped to the viewport. `pointer-events:
+ * positioning comes from TrackGeometry's FIXED HOME — viewport-centered on
+ * the gesturing rail's row, the same spot for every press. `pointer-events:
  * none` keeps the capture on the wrapper — the overlay can never steal the
  * gesture it visualizes. z-[85] (track) over z-[84] (its focus scrim):
  * above the toast tier; a Sheet (z-[70]) can never be open mid-gesture —
@@ -292,6 +295,18 @@ function HoldSliderOverlay({
               />
             );
           })}
+          {/* The thumb (owner reference recording, ADR-0012 amendment 4):
+              a round object travelling the detents, easing between them with
+              the fill's own snap. Painted above the markers, glass ground +
+              hair ring, tone-cored via the same FILL_CLASS ramp — no text,
+              ever (the chip above is the readout). */}
+          <span
+            data-hold-slider-thumb=""
+            className="hold-slider-thumb glass-solid absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ left: centers[dragIndex], width: THUMB_PX, height: THUMB_PX }}
+          >
+            <span className={`absolute inset-1 rounded-full ${FILL_CLASS[tone]}`} />
+          </span>
         </div>
       </div>
     </>,
