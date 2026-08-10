@@ -180,17 +180,30 @@ describe("tap vs hold", () => {
     expect(label.textContent).toBe("Auto");
   });
 
-  it("drops a focus scrim behind the capsule, gone the moment it settles", () => {
+  it("drops the focus pair behind the capsule, gone the moment it settles", () => {
     render(<Host />);
     const scrim = () => document.querySelector("[data-hold-slider-scrim]");
+    const blur = () => document.querySelector("[data-hold-slider-blur]");
     expect(scrim()).toBeNull();
+    expect(blur()).toBeNull();
     down();
     hold();
     expect(scrim()).not.toBeNull();
     expect(scrim()!.getAttribute("aria-hidden")).toBe("true");
     expect(scrim()!.className).toContain("pointer-events-none");
+    // The blur layer is the static half of the pair: its class carries the
+    // backdrop-filter (stand-downs strip it in CSS), and it must precede
+    // the dim in the DOM so the fade rides ABOVE the filter, never on it.
+    expect(blur()).not.toBeNull();
+    expect(blur()!.getAttribute("aria-hidden")).toBe("true");
+    expect(blur()!.className).toContain("hold-slider-blur");
+    expect(blur()!.className).toContain("pointer-events-none");
+    expect(
+      blur()!.compareDocumentPosition(scrim()!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     up();
     expect(scrim()).toBeNull();
+    expect(blur()).toBeNull();
   });
 
   it("conceals the pill while the capsule is up — the track replaces it", () => {

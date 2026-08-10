@@ -206,11 +206,18 @@ function HoldSliderOverlay({
 
   return createPortal(
     <>
-      {/* Focus scrim: mid-gesture the composer drops back so the eye holds
-          only the track, the level chip, and its tone (owner direction,
-          2026-08-10). A dim, never a backdrop blur — see the class's note
-          on the input-queueing regression. z-[84]: under the track, over
-          everything else the overlay outranks. */}
+      {/* The focus pair (owner direction, 2026-08-10): mid-gesture the
+          composer drops back so the eye holds only the track, the thumb,
+          the level chip, and its tone. Blur below (STATIC — never animated;
+          the globals.css note carries the 2026-08-09 lesson), the dim above
+          it carrying the entrance fade. Both z-[84], DOM order stacks the
+          dim over the blur; the track rides z-[85]. Stand-downs drop the
+          blur and keep the dim — the pre-blur shipped look. */}
+      <div
+        aria-hidden="true"
+        data-hold-slider-blur=""
+        className="hold-slider-blur pointer-events-none fixed inset-0 z-[84]"
+      />
       <div
         aria-hidden="true"
         data-hold-slider-scrim=""

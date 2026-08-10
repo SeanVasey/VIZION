@@ -3130,3 +3130,27 @@ test:e2e` hard-fails in global-setup until
   lifecycle claim is load-bearing, find the line that makes the forbidden
   state impossible; a "can never" with no enforcing code is a defect
   awaiting its report.
+
+## 2026-08-10 — The reference recording round (fixed home · thumb · blur)
+
+- **When the owner supplies a recording of the reference control, diff
+  against it axis by axis before touching code.** "Fixed, focused slide"
+  decomposed into exactly three deltas — track position, position-as-object
+  (thumb), and blur — and everything else (guard, hints, vocabulary, chip)
+  survived untouched. The prompt that scoped this round listed the deltas
+  and the keep-list explicitly; the implementation then touched five files.
+- **Relative mapping is what makes geometry swappable.** Because the drag
+  has always been finger-RELATIVE (dragOffset), moving the track's home
+  from under-the-finger to viewport-center changed zero gesture semantics:
+  every drag/commit spec passed unchanged, and only the pure-geometry
+  tests — the ones that PIN placement — were rewritten. Separate "where
+  the control lives" from "how the finger maps" and each can move alone.
+- **"Never blur" was the wrong lesson; "never blur an animating layer" is
+  the right one.** The 2026-08-09 regression came from `filter` re-priced
+  per frame under animation. A STATIC backdrop-filter that mounts complete
+  and never transitions is a one-time cost — and the Event-Timing probe
+  (same instrument as the bloom investigation) showed no queueing under 4×
+  throttle (p95 17.3ms, budget 50ms). Generalize measured lessons by their
+  MECHANISM, not their keyword — and re-measure when the mechanism
+  differs, because the first "obvious" reading of the old lesson would
+  have banned the owner's ask outright.

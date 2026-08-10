@@ -3,8 +3,9 @@
 Date: 2026-08-09
 Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
 ruling, DSN-022); amended same day after the first on-device pass, and
-2026-08-10 for presses inside an open sheet + the owner's affordance pass —
-see below
+2026-08-10 three times — presses inside an open sheet, the owner's
+affordance pass, and the reference-geometry pass (fixed home · thumb ·
+measured blur) — see below
 
 ## Context
 
@@ -55,7 +56,10 @@ with these properties fixed:
 - **Detents are 44px apart** (one touch target each), the selected detent is
   anchored under the finger at expansion, and geometry is a pure function of
   the pointer-down x — which is what makes the gesture unit-testable in a
-  layoutless DOM.
+  layoutless DOM. _(Superseded by the 2026-08-10 reference-geometry
+  amendment: the track now expands in a fixed, viewport-centered home and
+  geometry is pure with no pointer input; the drag mapping stays
+  finger-relative.)_
 - **Tone ramp** rides the detent, keyed to the level's identity, never its
   ladder position: `faint`/`silver` (muted mixes) → `laser` (fill-safe both
   themes) → `ultra` (the xhigh/max violet the depth meter already wears).
@@ -205,3 +209,43 @@ gesture into a focus state:
   it in the chip stacked "Opus 5" beside "Opus 5". The commit
   announcement keeps the full sentence (`liveLabel` is now announce-only)
   — ears get the context, eyes get the level.
+
+## Amendment (2026-08-10): the reference geometry — fixed home, thumb, measured blur
+
+The owner supplied a screen recording of the reference control itself
+(ChatGPT iOS — the same recording lineage this ADR started from) with the
+direction "fixed, focused": the capsule must expand in the SAME place every
+time, carry a moving thumb, and drop the world behind it out of focus.
+Three changes, superseding two acceptance-era choices:
+
+1. **Fixed home supersedes anchor-under-finger.** `computeTrackGeometry`
+   no longer takes the pointer x or the selected index: the home is the
+   viewport's center (the shell is a centered `max-w-screen-sm` column, so
+   viewport center IS the composer's) on the gesturing rail's row, with the
+   original left-wins EDGE_MARGIN clamp. Anchor-under-finger optimized the
+   hand's reach but landed the capsule wherever the press happened to be —
+   measured against the reference it read as floaty, and predictability
+   won. The finger still maps RELATIVELY (dragOffset anchors the selected
+   detent to the press x), which is why the entire drag/commit suite
+   survived the migration untouched.
+2. **A thumb rides the fill's leading edge** (`data-hold-slider-thumb`,
+   28px, glass ground + hair ring, core disc tone-colored by the same
+   FILL_CLASS ramp — text-free fills only). Position now reads as an
+   OBJECT at a place, the reference's grammar; the fill below it keeps
+   carrying VIZION's color story. It glides with the fill's own eased
+   snap (`.hold-slider-thumb`, both stand-downs collapse to instant).
+3. **The focus scrim gained its blur half — measured, not assumed.** A
+   static `backdrop-filter: blur(14px)` layer mounts under the dim; the
+   dim above it carries the entrance fade so the filter layer NEVER
+   animates. That distinction is the whole 2026-08-09 bloom lesson: the
+   input-queueing regression was a filter re-priced every frame on an
+   animating layer; a static backdrop is filtered once. Probe (the bloom
+   investigation's Event-Timing methodology; Chromium, 4× CPU throttle,
+   pointer stream mid-drag, A/B via a backdrop-filter:none override):
+   blur ON p50 16.4ms / p95 17.3ms / max 17.8ms input delay; control OFF
+   run p50 34.3ms — both far inside the 50ms budget, the inversion is
+   run-to-run variance at n=8 per arm, and the conclusion is "no
+   measurable queueing", not "blur is faster". Both stand-downs drop the
+   blur entirely (dim-only — the previously shipped presentation).
+   WebKitGTK cannot answer the iOS half; blur cost and gesture feel on a
+   real device stay on `docs/runbooks/ios-verification.md`'s manual list.

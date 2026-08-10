@@ -8,6 +8,31 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Added
 
+- **The hold-slider becomes the reference control: fixed home, sliding
+  thumb, blurred focus** (ADR-0012 amendment 4; owner reference recording
+  of ChatGPT's iOS gauge). The capsule now expands in a FIXED HOME —
+  centered in the viewport (the shell is a centered column, so viewport
+  center is the composer's), on the gesturing rail's row — the same spot
+  for every press, where the first cut anchored the selected detent under
+  the finger and landed wherever the press happened to be; the finger
+  still maps relatively through dragOffset, so the press point never
+  jumps the selection and the whole drag/commit suite passed unchanged. A
+  28px glass thumb with a tone-cored disc (the existing
+  silver→laser→ultra ramp; text-free fills only) rides the fill's leading
+  edge and eases between detents with the fill's own snap. And the focus
+  scrim gained its missing half: a STATIC backdrop-blur layer
+  (blur(14px), never animated — the dim above it carries the entrance
+  fade) drops the whole composer into soft focus behind the capsule.
+  Static is the load-bearing word: the 2026-08-09 input-queueing
+  regression was a filter on an ANIMATING layer, priced every frame;
+  this one is filtered once. Measured with the same Event-Timing
+  instrument under 4× CPU throttle mid-drag: pointer input delay p50
+  16.4ms / p95 17.3ms / max 17.8ms with blur on (control run without:
+  p50 34.3ms; both far inside the 50ms budget, delta is run variance).
+  Both motion stand-downs drop the blur entirely and keep the instant
+  dim — the previously shipped look. Final feel and blur cost on real
+  iOS stay on the device pass (docs/runbooks/ios-verification.md).
+
 - **The hold-slider announces itself, and the two capsules stopped dressing
   alike** (ADR-0012 amendment, owner affordance pass). The press-and-hold
   gesture was invisible at rest — the sheet was deliberately the only

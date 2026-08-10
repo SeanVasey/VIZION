@@ -312,8 +312,9 @@ test.describe("thinking hold-slider", () => {
     await page.mouse.move(cx, cy);
     await page.mouse.down();
     await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
-    // Focus scrim rides the gesture: up with the capsule, gone on release.
+    // The focus pair rides the gesture: up with the capsule, gone on release.
     await expect(page.locator("[data-hold-slider-scrim]")).toBeVisible();
+    await expect(page.locator("[data-hold-slider-blur]")).toBeVisible();
     // So does the thumb — the moving object the reference control carries.
     await expect(page.locator("[data-hold-slider-thumb]")).toBeVisible();
     // The thinking capsule wears rising bars (the DepthGlyph vocabulary),
@@ -326,6 +327,7 @@ test.describe("thinking hold-slider", () => {
 
     await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
     await expect(page.locator("[data-hold-slider-scrim]")).toHaveCount(0);
+    await expect(page.locator("[data-hold-slider-blur]")).toHaveCount(0);
     await expect(pill).toContainText("High");
     // The trailing click was swallowed — no sheet.
     await expect(page.getByRole("dialog")).toHaveCount(0);

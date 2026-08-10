@@ -353,15 +353,34 @@
     transition: none;
   }
 
-  /* The focus scrim behind an active hold-slider: while the capsule is up,
-     everything else drops back so the eye holds only the track, the level
-     chip, and its tone. A DIM, deliberately NOT a backdrop blur — a
-     viewport-scale filter live during a pointer gesture is the exact
-     input-queueing regression the bloom bake just removed (2026-08-09,
-     "the ambient blur no longer queues input"). Mounts with the overlay and
-     unmounts with it: release returns the composer instantly, the picked
-     state readable with nothing lingering. The fade-in is presentation
-     only, so both stand-downs collapse it to an instant appearance. */
+  /* The focus pair behind an active hold-slider: while the capsule is up,
+     everything else drops back so the eye holds only the track, the thumb,
+     the level chip, and its tone; release returns the composer instantly.
+
+     Two layers, on purpose. The BLUR layer is static — it mounts complete,
+     carries no transition or animation, and nothing beneath it moves while
+     the gesture lives — so the backdrop is filtered once, not re-rastered
+     per frame. That distinction is the whole 2026-08-09 lesson ("the
+     ambient blur no longer queues input"): the regression was a filter on
+     an ANIMATING layer, priced every frame; a static backdrop-filter is a
+     one-time cost (measured: see ADR-0012 amendment 4). The DIM layer above
+     it carries the entrance fade, so the blur layer never animates. Both
+     stand-downs drop the blur entirely and make the dim instant — dim-only
+     is exactly the pre-blur shipped behaviour. */
+  .hold-slider-blur {
+    backdrop-filter: blur(14px) saturate(1.05);
+    -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-blur {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-blur {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
   .hold-slider-scrim {
     animation: hold-slider-scrim-in var(--motion-quick) ease-out;
   }
