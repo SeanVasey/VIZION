@@ -249,6 +249,7 @@ export function useHoldDrag({
     }
     window.removeEventListener("touchmove", onWindowTouchMove);
     window.removeEventListener("keydown", onWindowKeyDown);
+    document.documentElement.removeAttribute("data-hold-gesture");
     setActiveBoth(null);
   }, [onWindowTouchMove, onWindowKeyDown, setActiveBoth]);
   teardownRef.current = teardown;
@@ -284,6 +285,13 @@ export function useHoldDrag({
       // The active-phase axis claim — see the header. Non-passive on purpose.
       window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
       window.addEventListener("keydown", onWindowKeyDown);
+      // The world pauses under the gesture: this attribute freezes the
+      // ambient field (AmbientNebula's canvas gate + the blooms'
+      // animation-play-state), which is what makes the focus blur's
+      // one-time-filter claim TRUE — a backdrop that keeps animating
+      // beneath a backdrop-filter re-filters every frame (Codex review,
+      // sixth pass; the bloom lesson's mechanism). Removed in teardown().
+      document.documentElement.setAttribute("data-hold-gesture", "");
       dragOffset.current = p.x - geometry.detentCenters[selected]!;
       tap(8);
       setActiveBoth({

@@ -251,10 +251,16 @@ describe("tap vs hold", () => {
     render(<Host />);
     const scrim = () => document.querySelector("[data-hold-slider-scrim]");
     const blur = () => document.querySelector("[data-hold-slider-blur]");
+    const frozen = () => document.documentElement.hasAttribute("data-hold-gesture");
     expect(scrim()).toBeNull();
     expect(blur()).toBeNull();
+    expect(frozen()).toBe(false);
     down();
     hold();
+    // The world pauses under the gesture: this attribute is what freezes
+    // the ambient field (nebula canvas gate + bloom play-state), keeping
+    // the blur's backdrop static — the one-time-filter claim's enforcer.
+    expect(frozen()).toBe(true);
     expect(scrim()).not.toBeNull();
     expect(scrim()!.getAttribute("aria-hidden")).toBe("true");
     expect(scrim()!.className).toContain("pointer-events-none");
@@ -271,6 +277,7 @@ describe("tap vs hold", () => {
     up();
     expect(scrim()).toBeNull();
     expect(blur()).toBeNull();
+    expect(frozen()).toBe(false);
   });
 
   it("conceals the pill while the capsule is up — the track replaces it", () => {
@@ -621,6 +628,8 @@ describe("revert paths", () => {
     hold();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(overlay()).toBeNull();
+    // Escape's teardown also thaws the ambient field.
+    expect(document.documentElement.hasAttribute("data-hold-gesture")).toBe(false);
     // The finger lifts much later — no commit, and no phantom sheet-open.
     vi.advanceTimersByTime(2000);
     up();

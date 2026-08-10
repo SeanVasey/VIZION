@@ -359,14 +359,18 @@
 
      Two layers, on purpose. The BLUR layer is static — it mounts complete,
      carries no transition or animation, and nothing beneath it moves while
-     the gesture lives — so the backdrop is filtered once, not re-rastered
-     per frame. That distinction is the whole 2026-08-09 lesson ("the
-     ambient blur no longer queues input"): the regression was a filter on
-     an ANIMATING layer, priced every frame; a static backdrop-filter is a
-     one-time cost (measured: see ADR-0012 amendment 4). The DIM layer above
-     it carries the entrance fade, so the blur layer never animates. Both
-     stand-downs drop the blur entirely and make the dim instant — dim-only
-     is exactly the pre-blur shipped behaviour. */
+     the gesture lives: use-hold-drag stamps [data-hold-gesture] on <html>
+     for the gesture's lifetime, which freezes the ambient field (the
+     nebula canvas gate in AmbientNebula and the bloom pause below) — so
+     the backdrop is genuinely filtered once, not re-filtered per frame
+     behind an animating background (Codex review, PR #103 sixth pass).
+     That distinction is the whole 2026-08-09 lesson ("the ambient blur no
+     longer queues input"): the regression was per-frame filter work; a
+     static filter over a static backdrop is a one-time cost (measured:
+     see ADR-0012 amendment 4). The DIM layer above it carries the
+     entrance fade, so the blur layer never animates. Both stand-downs
+     drop the blur entirely and make the dim instant — dim-only is exactly
+     the pre-blur shipped behaviour. */
   .hold-slider-blur {
     backdrop-filter: blur(14px) saturate(1.05);
     -webkit-backdrop-filter: blur(14px) saturate(1.05);
@@ -396,6 +400,14 @@
   }
   [data-reduced-effects] .hold-slider-scrim {
     animation: none;
+  }
+
+  /* The world pauses under the gesture: the bloom drifts hold their frame
+     while [data-hold-gesture] is up (the canvas half of the freeze lives in
+     AmbientNebula's loop gate). Resuming is free — play-state, not a
+     restart, so the drift continues where it stood. */
+  [data-hold-gesture] .bg-nebula-bloom {
+    animation-play-state: paused;
   }
 
   /* Ambient scrim — a FILL, deliberately NOT a member of the glass family.

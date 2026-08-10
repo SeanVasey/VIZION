@@ -33,8 +33,14 @@ All notable changes to VIZION are documented here. The format follows
   fade) drops the whole composer into soft focus behind the capsule.
   Static is the load-bearing word: the 2026-08-09 input-queueing
   regression was a filter on an ANIMATING layer, priced every frame;
-  this one is filtered once. Measured with the same Event-Timing
-  instrument under 4× CPU throttle mid-drag: pointer input delay p50
+  this one is filtered once — enforced, per review, by the world
+  pausing under the gesture: a live hold stamps `data-hold-gesture` on
+  the root, freezing the NEBULA+ canvas on its last frame and pausing
+  the bloom drifts, so the blurred backdrop is genuinely static (and
+  the frozen field is also the reference recording's own look).
+  Measured with the same Event-Timing
+  instrument under 4× CPU throttle mid-drag — with the field still
+  animating, so the numbers are the worst case: pointer input delay p50
   16.4ms / p95 17.3ms / max 17.8ms with blur on (control run without:
   p50 34.3ms; both far inside the 50ms budget, delta is run variance).
   Both motion stand-downs drop the blur entirely and keep the instant

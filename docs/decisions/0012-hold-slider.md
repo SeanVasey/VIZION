@@ -278,3 +278,15 @@ Three changes, superseding two acceptance-era choices:
    blur entirely (dim-only — the previously shipped presentation).
    WebKitGTK cannot answer the iOS half; blur cost and gesture feel on a
    real device stay on `docs/runbooks/ios-verification.md`'s manual list.
+   The sixth review pass caught the claim's gap: the ambient field
+   (NEBULA+ canvas at 30fps, bloom drifts) kept animating BENEATH the
+   filter, so the backdrop re-filtered per frame regardless of the layer
+   being static. Repair adopted: a live gesture stamps
+   `data-hold-gesture` on `<html>` (set in activate, removed in
+   teardown), which the nebula's existing run-gate consults — the canvas
+   freezes holding its last frame, the blooms pause via
+   `animation-play-state`, and the one-time-filter claim becomes true by
+   construction. The probe's numbers were measured WITH the field
+   animating, so they stand as the worst case; the pause only improves
+   on them. The world stopping under focus is also the reference
+   recording's own look.
