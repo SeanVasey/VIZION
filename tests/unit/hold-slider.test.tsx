@@ -648,3 +648,140 @@ describe("revert paths", () => {
     expect(midGesture).toBe(false); // prevented
   });
 });
+
+describe("one gesture at a time, app-wide", () => {
+  /**
+   * The two composer rails sit adjacent and both can be enabled, so two
+   * fingers could otherwise run two gestures at once — stacked focus pairs,
+   * and a shared `data-hold-gesture` attribute whose FIRST teardown thawed
+   * the world under the survivor's blur (Codex review, seventh pass).
+   * Admission is exclusive at pointer-down: while any pill's press is live,
+   * a second pill's press is refused outright — no press record, no hold
+   * timer — and falls through as the plain tap it would otherwise be. The
+   * claim dies with the press that holds it: up, cancel, or unmount.
+   */
+  function TwinHosts({
+    onCommitA = () => {},
+    onCommitB = () => {},
+    onOpenB = () => {},
+    showA = true,
+  }: {
+    onCommitA?: (i: number) => void;
+    onCommitB?: (i: number) => void;
+    onOpenB?: () => void;
+    showA?: boolean;
+  }) {
+    return (
+      <>
+        {showA && (
+          <HoldSliderTrigger
+            detents={DETENTS}
+            selectedIndex={0}
+            liveLabel={liveLabel}
+            onCommit={onCommitA}
+            enabled
+          >
+            <button type="button">A</button>
+          </HoldSliderTrigger>
+        )}
+        <HoldSliderTrigger
+          detents={DETENTS}
+          selectedIndex={0}
+          liveLabel={liveLabel}
+          onCommit={onCommitB}
+          enabled
+        >
+          <button type="button" onClick={onOpenB}>
+            B
+          </button>
+        </HoldSliderTrigger>
+      </>
+    );
+  }
+  const pillA = () => screen.getByRole("button", { name: "A" });
+  const pillB = () => screen.getByRole("button", { name: "B" });
+  const overlays = () =>
+    document.querySelectorAll<HTMLElement>("[data-hold-slider-overlay]");
+  const frozen = () => document.documentElement.hasAttribute("data-hold-gesture");
+  const downOn = (el: HTMLElement, pointerId: number) =>
+    fireEvent.pointerDown(el, {
+      pointerId,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+
+  it("refuses a second pill's press while a gesture is live — and its release never thaws the survivor", () => {
+    const onCommitA = vi.fn();
+    const onCommitB = vi.fn();
+    const onOpenB = vi.fn();
+    render(<TwinHosts onCommitA={onCommitA} onCommitB={onCommitB} onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    expect(frozen()).toBe(true);
+    // A second finger presses the other pill mid-drag: refused at admission,
+    // so its own hold timer never even starts.
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    // The refused finger lifts. THE regression this guards: without
+    // exclusive admission, B's teardown stripped the shared attribute and
+    // the ambient field thawed beneath A's still-live blur.
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    expect(frozen()).toBe(true);
+    expect(overlays()).toHaveLength(1);
+    // No press was admitted, so no click suppression either — B's tap
+    // falls through to its own path (the sheet).
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+    // A's gesture is untouched throughout: drag one detent and commit.
+    fireEvent.pointerMove(pillA(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    fireEvent.pointerUp(pillA(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(onCommitA).toHaveBeenCalledTimes(1);
+    expect(onCommitA).toHaveBeenCalledWith(1);
+    expect(onCommitB).not.toHaveBeenCalled();
+    expect(overlays()).toHaveLength(0);
+    expect(frozen()).toBe(false);
+  });
+
+  it("releases the claim with the press — the other pill gestures normally afterward", () => {
+    const onCommitA = vi.fn();
+    const onCommitB = vi.fn();
+    render(<TwinHosts onCommitA={onCommitA} onCommitB={onCommitB} />);
+    downOn(pillA(), 1);
+    hold();
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    expect(onCommitA).toHaveBeenCalledTimes(1);
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    expect(onCommitB).toHaveBeenCalledTimes(1);
+    expect(frozen()).toBe(false);
+  });
+
+  it("releases the claim on unmount — a dead owner never bricks the surviving sliders", () => {
+    const onCommitB = vi.fn();
+    const { rerender } = render(<TwinHosts onCommitB={onCommitB} />);
+    downOn(pillA(), 1);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    rerender(<TwinHosts onCommitB={onCommitB} showA={false} />);
+    expect(overlays()).toHaveLength(0);
+    expect(frozen()).toBe(false);
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    expect(onCommitB).toHaveBeenCalledTimes(1);
+  });
+});

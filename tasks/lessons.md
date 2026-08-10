@@ -3154,3 +3154,18 @@ test:e2e` hard-fails in global-setup until
   MECHANISM, not their keyword — and re-measure when the mechanism
   differs, because the first "obvious" reading of the old lesson would
   have banned the owner's ask outright.
+
+## 2026-08-10 — The single-gesture claim (Codex pass 7)
+
+- **A fix that introduces global state owes the concurrency answer in the
+  same commit.** The ambient freeze (pass 6) stamped one shared
+  `data-hold-gesture` attribute on `<html>` from a per-instance hook; with
+  both rails enabled, two fingers meant first-teardown-wins — the world
+  thawed beneath the surviving gesture's blur. Whenever a repair writes to
+  a singleton (a root attribute, a module flag), ask "two instances live
+  at once — then what?" before shipping, not at the next review. And when
+  the concurrent state is design NONSENSE (stacked full-viewport focus
+  pairs over one composer), don't bookkeep it with reference counts —
+  refuse it at admission and let the second press fall through as the tap
+  it would otherwise be. The exclusivity is also the reference platform's
+  own behavior: the cheaper repair was the truer one.

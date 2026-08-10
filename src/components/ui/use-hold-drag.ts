@@ -171,6 +171,19 @@ interface Press {
   el: HTMLElement;
 }
 
+/**
+ * ONE live press/gesture across every hold-slider (module scope). The two
+ * composer rails sit adjacent and both can be enabled, so two fingers could
+ * otherwise run two gestures at once — stacked full-viewport focus pairs,
+ * crossed capsules, and a shared `data-hold-gesture` attribute whose first
+ * teardown thawed the world under the survivor's blur (Codex review,
+ * seventh pass). Exclusive ownership is also the reference platform's own
+ * semantic: a second pill's press is refused at admission and falls through
+ * as the plain tap it would otherwise be. Claimed at pointer-down, released
+ * wherever the press record dies (up, cancel, unmount).
+ */
+let gestureOwner: object | null = null;
+
 export function useHoldDrag({
   detentCount,
   selectedIndex,
@@ -211,6 +224,14 @@ export function useHoldDrag({
    *  closure in a window listener is not worth the bet). */
   const latest = useRef({ detentCount, selectedIndex, onCommit });
   latest.current = { detentCount, selectedIndex, onCommit };
+
+  /** This instance's identity for the module-level exclusive-gesture claim. */
+  const ownerToken = useRef<object>({});
+
+  /** Give up the exclusive claim — called wherever `press.current` dies. */
+  const releaseGesture = useCallback(() => {
+    if (gestureOwner === ownerToken.current) gestureOwner = null;
+  }, []);
 
   const setActiveBoth = useCallback(
     (next: { dragIndex: number; geometry: TrackGeometry } | null) => {
@@ -305,12 +326,23 @@ export function useHoldDrag({
     [onWindowKeyDown, onWindowTouchMove, setActiveBoth],
   );
 
-  // A gesture interrupted by unmount must not leave window listeners behind.
-  useEffect(() => teardown, [teardown]);
+  // A gesture interrupted by unmount must not leave window listeners — or
+  // the exclusive claim — behind.
+  useEffect(
+    () => () => {
+      teardown();
+      releaseGesture();
+    },
+    [teardown, releaseGesture],
+  );
 
   function onPointerDown(e: React.PointerEvent) {
     if (!enabled || press.current) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    // One gesture at a time, app-wide (see gestureOwner): while another
+    // pill's press or drag is live, this press is refused and falls
+    // through as the plain tap it would otherwise be.
+    if (gestureOwner && gestureOwner !== ownerToken.current) return;
     // Admission rule: a gesture may only begin in the wrapper's own DOM
     // subtree. The wrapped children include each picker's SHEET — a body
     // portal that React still bubbles up the COMPONENT tree — so without
@@ -323,6 +355,7 @@ export function useHoldDrag({
     // the press record here closes move/up/stand-down/suppress in one
     // place.
     if (!(e.target instanceof Node) || !e.currentTarget.contains(e.target)) return;
+    gestureOwner = ownerToken.current;
     cancelled.current = false;
     press.current = {
       pointerId: e.pointerId,
@@ -402,6 +435,7 @@ export function useHoldDrag({
     const p = press.current;
     if (!p || e.pointerId !== p.pointerId) return;
     press.current = null;
+    releaseGesture();
     clearTimeout(timer.current);
     const current = activeRef.current;
     if (current) {
@@ -421,6 +455,7 @@ export function useHoldDrag({
     const p = press.current;
     if (!p || e.pointerId !== p.pointerId) return;
     press.current = null;
+    releaseGesture();
     const wasActive = activeRef.current !== null;
     teardown();
     if (wasActive) settle();

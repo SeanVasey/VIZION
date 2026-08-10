@@ -82,6 +82,22 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **One hold-slider gesture at a time, app-wide** (ADR-0012 amendment;
+  Codex review, seventh pass). The two composer rails sit adjacent and
+  both can be enabled, so two fingers could run two gestures at once —
+  stacked focus pairs, crossed capsules, and one shared
+  `data-hold-gesture` attribute torn down by whichever gesture ended
+  first, thawing the ambient field beneath the survivor's still-live
+  blur. `useHoldDrag` now takes a module-level exclusive claim at
+  pointer-down and releases it wherever the press record dies (up,
+  cancel, unmount); while any pill's press is live a second pill's press
+  is refused at admission — no press record, no hold timer — and falls
+  through as the plain tap it would otherwise be, the reference
+  platform's own semantic. Refusing concurrency was chosen over
+  reference-counting the attribute: two full-viewport focus layers over
+  one composer is a nonsense state no matter how correctly it is
+  bookkept.
+
 - **An open picker sheet is now inert to the hold-slider** (ADR-0012
   amendment; owner screenshot: the budget capsule and its "Auto · Quality"
   label drawn across the open Target sheet). `HoldSliderTrigger` wraps each

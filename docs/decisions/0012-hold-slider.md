@@ -3,9 +3,9 @@
 Date: 2026-08-09
 Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
 ruling, DSN-022); amended same day after the first on-device pass, and
-2026-08-10 three times — presses inside an open sheet, the owner's
-affordance pass, and the reference-geometry pass (fixed home · thumb ·
-measured blur) — see below
+2026-08-10 four times — presses inside an open sheet, the owner's
+affordance pass, the reference-geometry pass (fixed home · thumb ·
+measured blur), and the single-gesture claim — see below
 
 ## Context
 
@@ -290,3 +290,23 @@ Three changes, superseding two acceptance-era choices:
    animating, so they stand as the worst case; the pause only improves
    on them. The world stopping under focus is also the reference
    recording's own look.
+
+## Amendment (2026-08-10): the single-gesture claim
+
+The seventh review pass (Codex, PR #103) pressed on the focus pair's
+multiplicity: the two composer rails sit adjacent and both can be enabled,
+so two fingers could run two gestures at once — stacked blur/scrim pairs,
+crossed capsules, and one shared `data-hold-gesture` attribute torn down by
+whichever gesture ended FIRST, thawing the ambient field beneath the
+survivor's still-live blur. Of the review's two offered repairs —
+reference-count the shared attribute, or prevent concurrency — counting
+would have bookkept a state with no design meaning: two full-viewport focus
+layers stacked over one composer is a nonsense frame however correctly its
+attribute survives. Adopted instead: a module-level exclusive claim
+(`gestureOwner` in `use-hold-drag.ts`), taken at pointer-down, released
+wherever the press record dies (up, cancel, unmount). While any
+hold-slider's press is live, a second pill's press is refused at admission
+— no press record, no hold timer — and falls through as the plain tap it
+would otherwise be, which is the reference platform's own semantic. The
+unit suite pins the refusal, the attribute surviving the refused finger's
+lift, and the claim's release on commit and on unmount.
