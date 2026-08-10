@@ -102,9 +102,19 @@ All notable changes to VIZION are documented here. The format follows
   pre-hold window, Enter mid-drag) opening the pill's OWN sheet — the
   condition is now simply "consume while any claim is live", and the
   plain tap survives by protocol order, since pointer-up releases the
-  claim before the click dispatches. One residual two-finger race is
-  accepted and recorded in the ADR: a non-wrapped trigger tapped inside
-  another pill's 300ms pre-hold window — cosmetic and self-healing.
+  claim before the click dispatches. An eleventh pass (the Vercel agent
+  reviewer flagged the same defect independently) fixed the one path
+  where the claim could genuinely leak: Escape mid-drag released pointer
+  capture while the press record stayed alive for the eventual lift, so
+  a lift landing away from the pill — mid-drag it usually does — was
+  hit-tested elsewhere, never reached the hook, and press + claim leaked
+  app-wide until remount. Capture now lives exactly as long as the press
+  (teardown no longer releases it; pointerup/pointercancel auto-release
+  per spec), pinned red→green in both real engines — jsdom has no
+  capture routing and hid the leak from the unit suite. One residual
+  two-finger race is accepted and recorded in the ADR: a non-wrapped
+  trigger tapped inside another pill's 300ms pre-hold window — cosmetic
+  and self-healing.
 
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the

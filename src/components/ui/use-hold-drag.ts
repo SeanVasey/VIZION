@@ -273,14 +273,18 @@ export function useHoldDrag({
 
   const teardown = useCallback(() => {
     clearTimeout(timer.current);
-    const p = press.current;
-    if (p) {
-      try {
-        p.el.releasePointerCapture(p.pointerId);
-      } catch {
-        /* never captured, or the pointer is already gone — both fine */
-      }
-    }
+    // Pointer capture is deliberately NOT released here (eleventh pass).
+    // Capture's lifetime is the PRESS's, not the overlay's: on the Escape
+    // path the press record outlives this teardown until the finger lifts,
+    // and the captured stream is the only thing that routes a lift landing
+    // far from the pill (mid-drag the pointer usually is) back to
+    // onPointerUp — which is where the press dies, the app-wide claim
+    // releases, and the trailing click is swallowed. Releasing early
+    // orphaned that lift in real browsers: press and claim leaked, and
+    // every wrapped pill went dead until remount (jsdom hid it — it has no
+    // capture routing, so the unit lift always "landed" on the pill). No
+    // explicit release is needed anywhere: pointerup and pointercancel
+    // auto-release capture per spec, and unmount disconnects the element.
     window.removeEventListener("touchmove", onWindowTouchMove);
     window.removeEventListener("keydown", onWindowKeyDown);
     document.documentElement.removeAttribute("data-hold-gesture");

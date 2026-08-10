@@ -3222,3 +3222,15 @@ test:e2e` hard-fails in global-setup until
   (the claim dies at pointer-up, before the click dispatches). Prefer
   conditions anchored to event-order invariants over identity carve-outs
   — the invariant holds for input devices you didn't think of.
+
+- **When correctness depends on event ROUTING, only a real engine can pin
+  it.** The Escape leak survived four review passes because jsdom has no
+  pointer-capture routing: the unit test's lift could only ever be
+  dispatched AT the pill, which is precisely the one place the bug
+  doesn't manifest. The e2e that finally caught it drives the pointer
+  150px away before the lift — the divergence between "the lift the test
+  can express" and "a real lift" was the bug's hiding place. Corollary:
+  a resource's lifetime should equal the STATE it serves (capture lives
+  as long as the press, not the overlay); when two lifetimes are meant
+  to be equal, end them at the same code sites instead of trusting two
+  paths to agree.

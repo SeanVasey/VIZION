@@ -314,6 +314,26 @@ so the refused pill is now inert for the claim's lifetime)_. The
 unit suite pins the refusal, the attribute surviving the refused finger's
 lift, and the claim's release on commit and on unmount.
 
+The eleventh pass (with the Vercel agent reviewer flagging the same
+defect independently) fixed the one path where "released wherever the
+press record dies" was not actually true in a real browser: Escape
+mid-drag. `teardown()` released pointer capture while the press record
+deliberately stayed alive for the eventual lift — but mid-drag the
+pointer sits over the track's center, far from the pill, so once capture
+was gone the lift was hit-tested elsewhere, never reached `onPointerUp`,
+and press and claim leaked app-wide until remount (after the tenth pass,
+that also meant every wrapped pill's click was consumed forever). The
+press-leak half predated the claim — the claim globalized it, and the
+click consumption weaponized it. Repair at the root: capture's lifetime
+is the PRESS's, not the overlay's — teardown no longer releases it, the
+captured stream routes the far-away lift back to the hook, and no
+explicit release is needed anywhere because pointerup/pointercancel
+auto-release capture per spec and unmount disconnects the element. jsdom
+hid this for four passes: it has no capture routing, so the unit suite's
+Escape lift always "landed" on the pill — the pin is e2e in both real
+engines (red pre-fix), driving the lift 150px from the pill and
+asserting the world lives on.
+
 ## Amendment (2026-08-10): the backdrop inventory
 
 The eighth review pass (Codex, PR #103) audited what the sixth pass's

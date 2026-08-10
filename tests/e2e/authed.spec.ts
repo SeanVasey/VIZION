@@ -413,6 +413,47 @@ test.describe("thinking hold-slider", () => {
 
     expect(Math.abs(first.x - second.x)).toBeLessThan(1);
     expect(Math.abs(first.y - second.y)).toBeLessThan(1);
+  });
+
+  test("Escape mid-drag cannot leak the claim — the world lives on after the far-away lift", async ({
+    page,
+  }) => {
+    // A real-engine pin on ROUTING, deliberately: mid-drag the pointer sits
+    // over the track's center, far from the pill, and after Escape the lift
+    // is only routed back to the hook by pointer CAPTURE. Pre-fix, teardown
+    // released capture at Escape, the lift was hit-tested elsewhere and
+    // never reached onPointerUp — the press record and the app-wide claim
+    // leaked, so every hold-slider press (and every wrapped pill's click)
+    // stayed dead until remount. jsdom cannot see any of this: it has no
+    // capture routing, so the unit suite's lift always lands on the pill.
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const box = (await pill.boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    const overlay = page.locator("[data-hold-slider-overlay]");
+
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await expect(overlay).toBeVisible();
+    // Drag off the pill toward the track's center, then revert.
+    await page.mouse.move(cx - 150, cy, { steps: 4 });
+    await page.keyboard.press("Escape");
+    await expect(overlay).toHaveCount(0);
+    // The lift lands 150px from the pill — the captured stream must still
+    // deliver it to the hook, where the press dies and the claim releases.
+    await page.mouse.up();
+
+    // Both halves of the control breathe again: a fresh hold engages…
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await expect(overlay).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    // …and the tap path still opens the sheet (the tenth pass's click
+    // consumption must have let go with the claim).
+    await pill.click();
+    await expect(page.getByRole("dialog", { name: "Thinking depth" })).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(pill).toContainText("Auto");
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
