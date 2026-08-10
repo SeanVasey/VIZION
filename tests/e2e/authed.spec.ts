@@ -334,6 +334,15 @@ test.describe("thinking hold-slider", () => {
         .locator(".horizon-node")
         .evaluate((el) => getComputedStyle(el).animationPlayState);
     await expect.poll(horizonPlayState).toBe("paused");
+    // One-shot entrances count too (eighteenth pass: the footer's delayed
+    // rise animated beneath the blur when a gesture engaged inside its
+    // first 1.6s) — the computed play-state reflects the declaration
+    // whether or not the animation is mid-flight, so this pins the rule.
+    const footerPlayState = () =>
+      page
+        .locator(".footer-fade-in")
+        .evaluate((el) => getComputedStyle(el).animationPlayState);
+    await expect.poll(footerPlayState).toBe("paused");
     // The pair is also the gesture's input SHIELD: a second pointer cannot
     // reach any control while the capsule is up — the Target pill fails
     // Playwright's receives-events actionability check because the scrim

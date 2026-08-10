@@ -165,7 +165,12 @@ All notable changes to VIZION are documented here. The format follows
   HOLDING (focus fired before the lift, and the abandoned stream's
   click opened the sheet after its revert). Keyboard and programmatic
   clicks carry `detail 0` and always pass; the one click the marker
-  exists to eat is pointer-derived by definition.
+  exists to eat is pointer-derived by definition. The world-pause list
+  also gained the footer's one-shot entrance (the audit's inventory
+  grepped `infinite` and missed entrances — a gesture engaging inside
+  the footer's first 1.6s had its rise animating beneath the blur), and
+  the pause rule's comment now records the full classification of every
+  animation declaration so the list is a swept outcome, not a drip.
 
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the
