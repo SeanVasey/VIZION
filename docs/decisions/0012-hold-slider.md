@@ -459,3 +459,86 @@ consumed with the fresh tap working after; the synthetic-dialog
 stand-down with the world unfrozen and the lift swallowed; and at the
 composer, the template sheet opened by a second device mid-press staying
 open and untouched while the capsule never mounts.
+
+The fourteenth pass closed the keyboard channel and a marker-staleness
+edge. The focus pair shields POINTERS — `pointer-events` never touches
+key dispatch — so a background control left keyboard-focused (or tabbed
+to mid-drag) still activated on Enter/Space and opened its sheet under
+the live capsule. While the capsule is up, activation keys now die at
+the window's capture phase, keydown and keyup both (native buttons
+activate Space on keyup); Escape stays the one designed key, and at rest
+every key passes untouched. Each input channel needs its own gate: the
+shield covers hit-testing, the claim covers wrapped-pill clicks, the
+key swallow covers focus-driven activation — synthesized assistive-tech
+clicks on background controls mid-drag remain out of scope, since a
+hold-drag is a pointer gesture an AT user is not simultaneously
+performing, and the sheet stays their complete path. In the same round
+the Vercel agent reviewer caught a staleness edge in the thirteenth
+pass's refusal marker: a refused pointer that releases OUTSIDE the
+wrapper never sends the click the marker waits for, and the stale
+marker ate the pill's next keyboard or programmatic click — an
+activation a keyboard user must never lose. The marker now carries an
+end-watch: the window hears the refused stream end anywhere, and the
+marker clears one task later — outliving exactly the one same-task
+click the lift can still deliver (the settle() ordering trick), pinned
+red→green in unit alongside the key swallow, and in a Chromium touch
+e2e (a focused template button, Enter under a live capsule).
+
+## Amendment (2026-08-10): the modality audit — the matrix, closed
+
+After the fourteenth review pass — the eighth consecutive finding in the
+same class — the owner directed that the remaining cells be enumerated
+and closed proactively rather than surrendered to passes fifteen through
+N. The audit below is that enumeration: every phase of the press × every
+input channel, each cell carrying its enforcing mechanism or its recorded
+acceptance. Three cells were still open and are closed in the same
+commit:
+
+1. **Concealment** — the one ending no pointer or key event can report.
+   An alt-tab, OS app switch, or locked phone mid-gesture delivers
+   nothing to this document; the mouse releases in another window, the
+   up never dispatches here, and press, claim, capsule, and world-freeze
+   would all sit leaked in a background tab — the passes-11/12 leak
+   class through the only channel with no event to net. Window `blur`
+   and `visibilitychange`→hidden now ride each press like the pointer
+   net and are treated exactly as pointercancel: revert, never commit.
+2. **The key list was itself a hole.** The fourteenth pass swallowed
+   Enter and Space — an enumeration. Arrows, PageUp/Down, Home and End
+   scroll the document beneath the frozen world; Tab wanders focus.
+   While the capsule is up, EVERY unmodified key except Escape now dies
+   at the window's capture phase; modifier chords belong to the browser
+   and pass.
+3. **Wheel.** Touch panning was blocked; a wheel or trackpad could still
+   glide the page under the capsule. Blocked in the active phase, the
+   same shape as the touchmove claim.
+
+The matrix, as now enforced (phases: REST · PRE-HOLD, pointer-down to
+classification · ACTIVE, capsule up · TAIL, cancelled press awaiting its
+lift · SETTLE, the post-lift task):
+
+| Channel                          | Pre-hold                                                | Active                                        | Tail                              |
+| -------------------------------- | ------------------------------------------------------- | --------------------------------------------- | --------------------------------- |
+| Own pointer stream               | slop/axis rules + hold timer                            | capture; x-only drag                          | capture retained; lift ends all   |
+| 2nd pointer, same wrapper        | refused (`press.current`); click dies via claim         | + shield                                      | same                              |
+| 2nd pointer, other wrapper       | refused (claim); marker + end-watch outlive the owner   | + shield                                      | same                              |
+| 2nd pointer, non-wrapped control | free until activation → dialog probe stands down        | shield                                        | free (world visually at rest)     |
+| Keyboard                         | free (probe covers the sheet outcome at activation)     | all unmodified keys die; Escape reverts       | free                              |
+| Scroll (touch / wheel / keys)    | `touch-action: pinch-zoom`                              | touchmove + wheel blocks + key swallow        | touch-action persists             |
+| Lift/end delivery                | wrapper handlers + window net + concealment revert      | + capture                                     | capture + net + concealment       |
+| Sheets                           | cannot start a gesture (admission); probe at activation | cannot open (shield + keys)                   | may open — legitimate, no capsule |
+| World motion                     | live                                                    | frozen ornaments; blur stands down mid-stream | live                              |
+
+At REST every channel is untouched, and in SETTLE only the one same-task
+click is suppressed (suppressClick / the refusal marker). Recorded
+acceptances, deliberate and bounded: assistive-tech-synthesized clicks
+on non-wrapped controls mid-drag (a hold-drag is a pointer gesture an AT
+user is not simultaneously performing; the sheet remains the complete
+path); mid-gesture geometry drift — a layout shift under the dim-only
+stream presentation, or pinch/rotate mid-drag — because geometry is
+deliberately static for the gesture and release re-anchors, with every
+lift caught wherever it lands; and the same-wrapper post-claim click
+tail (no capsule is live by then, so the guarded invariant cannot be
+violated). Any future finding in this control should first be located
+in this table — either a cell's mechanism is wrong (fix the mechanism)
+or a channel or phase is missing from the table (extend the table);
+cells are no longer discovered one review at a time.

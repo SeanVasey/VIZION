@@ -254,6 +254,32 @@ export function useHoldDrag({
    *  stream's click from the live press's own legitimate one. */
   const refusedPress = useRef(false);
 
+  /** The refused stream's id and its end-watch. A refusal must not outlive
+   *  its own stream (Vercel agent review, fourteenth round): a refused
+   *  pointer that releases OUTSIDE this wrapper never sends the click the
+   *  marker waits for, and the stale marker ate the pill's next keyboard or
+   *  programmatic click — an activation a keyboard user must never lose.
+   *  The window hears the stream end anywhere; the marker then clears on a
+   *  zero-timeout, outliving exactly the one same-task click the lift can
+   *  still deliver (the settle() ordering trick). */
+  const refusedPointerId = useRef<number | null>(null);
+  const refusedClear = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const onRefusedEnd = useCallback((e: PointerEvent) => {
+    if (e.pointerId !== refusedPointerId.current) return;
+    refusedPointerId.current = null;
+    window.removeEventListener("pointerup", onRefusedEnd);
+    window.removeEventListener("pointercancel", onRefusedEnd);
+    refusedClear.current = setTimeout(() => {
+      refusedPress.current = false;
+    }, 0);
+  }, []);
+  const disarmRefusedWatch = useCallback(() => {
+    refusedPointerId.current = null;
+    clearTimeout(refusedClear.current);
+    window.removeEventListener("pointerup", onRefusedEnd);
+    window.removeEventListener("pointercancel", onRefusedEnd);
+  }, [onRefusedEnd]);
+
   /** Give up the exclusive claim — called wherever `press.current` dies. */
   const releaseGesture = useCallback(() => {
     if (gestureOwner === ownerToken.current) gestureOwner = null;
@@ -272,16 +298,44 @@ export function useHoldDrag({
     if (activeRef.current) e.preventDefault();
   }, []);
 
+  /** Wheel is the pointer channel's scroll the shield cannot stop by
+   *  hit-testing alone (the scrim is not scrollable, but the page under a
+   *  wheel-scrolling cursor still is in some engines) and the touchmove
+   *  block never sees: under a live capsule the document must not glide
+   *  beneath the frozen world (modality audit). Non-passive, active phase
+   *  only — the same shape as the touchmove claim above. */
+  const onWindowWheel = useCallback((e: WheelEvent) => {
+    if (activeRef.current) e.preventDefault();
+  }, []);
+
   /** Escape and teardown reference each other; the ref breaks the cycle
    *  while keeping both listener identities stable for add/remove pairing. */
   const teardownRef = useRef<() => void>(() => {});
 
-  const onWindowKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key !== "Escape" || !activeRef.current) return;
-    // Revert: the finger may stay down for seconds yet, so the trailing
-    // click is suppressed at the eventual pointer-up, not on a timer here.
-    cancelled.current = true;
-    teardownRef.current();
+  const onWindowKey = useCallback((e: KeyboardEvent) => {
+    if (!activeRef.current) return;
+    if (e.type === "keydown" && e.key === "Escape") {
+      // Revert: the finger may stay down for seconds yet, so the trailing
+      // click is suppressed at the eventual pointer-up, not on a timer here.
+      cancelled.current = true;
+      teardownRef.current();
+      return;
+    }
+    // The focus pair shields POINTERS; keys are their own input channel
+    // (fourteenth pass, then widened in the modality audit): a background
+    // control left keyboard-focused — or tabbed to mid-drag — activated on
+    // Enter/Space and opened its sheet under the live capsule, and an
+    // enumeration of "activation keys" was itself the next hole (arrows,
+    // PageUp/Down, Home/End scroll the document beneath the frozen world;
+    // Tab wanders focus). While the capsule is up, EVERY unmodified key
+    // except Escape dies here at the window's capture phase, keydown and
+    // keyup both (native buttons activate Space on keyup). Modifier chords
+    // pass — they belong to the browser and the OS, not the page. Escape
+    // above stays the one designed key.
+    if (e.key !== "Escape" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }, []);
 
   const teardown = useCallback(() => {
@@ -299,10 +353,12 @@ export function useHoldDrag({
     // explicit release is needed anywhere: pointerup and pointercancel
     // auto-release capture per spec, and unmount disconnects the element.
     window.removeEventListener("touchmove", onWindowTouchMove);
-    window.removeEventListener("keydown", onWindowKeyDown);
+    window.removeEventListener("wheel", onWindowWheel);
+    window.removeEventListener("keydown", onWindowKey, true);
+    window.removeEventListener("keyup", onWindowKey, true);
     document.documentElement.removeAttribute("data-hold-gesture");
     setActiveBoth(null);
-  }, [onWindowTouchMove, onWindowKeyDown, setActiveBoth]);
+  }, [onWindowTouchMove, onWindowWheel, onWindowKey, setActiveBoth]);
   teardownRef.current = teardown;
 
   /** The pre-hold safety net for UNCAPTURED exits (twelfth pass). A mouse
@@ -332,11 +388,38 @@ export function useHoldDrag({
     [releaseGesture],
   );
 
-  /** Disarm the net wherever the press dies through the wrapper itself. */
+  /** The one ending no pointer or key event can report: the WINDOW leaves.
+   *  An alt-tab, an OS app switch, or a locked phone mid-gesture delivers
+   *  nothing at all to this document — the mouse button releases in some
+   *  other window, the up never dispatches here, and press, claim, capsule,
+   *  and the world-freeze would all sit leaked in a background tab (the
+   *  modality audit; the same leak class as the Escape and edge-exit
+   *  passes, through the only channel with no event to catch). Concealment
+   *  is treated exactly like pointercancel: revert, never commit. */
+  const onWindowConceal = useCallback(
+    (e: Event) => {
+      if (e.type === "visibilitychange" && document.visibilityState !== "hidden") {
+        return;
+      }
+      if (!press.current) return;
+      press.current = null;
+      releaseGesture();
+      teardownRef.current();
+      window.removeEventListener("pointerup", onWindowPointerEnd);
+      window.removeEventListener("pointercancel", onWindowPointerEnd);
+      window.removeEventListener("blur", onWindowConceal);
+      document.removeEventListener("visibilitychange", onWindowConceal);
+    },
+    [releaseGesture, onWindowPointerEnd],
+  );
+
+  /** Disarm the nets wherever the press dies through the wrapper itself. */
   const disarmWindowNet = useCallback(() => {
     window.removeEventListener("pointerup", onWindowPointerEnd);
     window.removeEventListener("pointercancel", onWindowPointerEnd);
-  }, [onWindowPointerEnd]);
+    window.removeEventListener("blur", onWindowConceal);
+    document.removeEventListener("visibilitychange", onWindowConceal);
+  }, [onWindowPointerEnd, onWindowConceal]);
 
   /** `currentX`: set when a pre-hold SLIDE engages the track — the finger
    *  has already travelled, so the first dragIndex maps its position now
@@ -395,7 +478,11 @@ export function useHoldDrag({
       }
       // The active-phase axis claim — see the header. Non-passive on purpose.
       window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
-      window.addEventListener("keydown", onWindowKeyDown);
+      window.addEventListener("wheel", onWindowWheel, { passive: false });
+      // Capture phase, both key events — see onWindowKey: keys must die
+      // before any focused control's own handlers see them.
+      window.addEventListener("keydown", onWindowKey, true);
+      window.addEventListener("keyup", onWindowKey, true);
       // The world pauses under the gesture: this attribute freezes the
       // ambient field (AmbientNebula's canvas gate + the blooms'
       // animation-play-state), which is what makes the focus blur's
@@ -413,7 +500,7 @@ export function useHoldDrag({
         geometry,
       });
     },
-    [onWindowKeyDown, onWindowTouchMove, setActiveBoth],
+    [onWindowKey, onWindowTouchMove, onWindowWheel, setActiveBoth],
   );
 
   // A gesture interrupted by unmount must not leave window listeners — or
@@ -422,23 +509,28 @@ export function useHoldDrag({
     () => () => {
       teardown();
       disarmWindowNet();
+      disarmRefusedWatch();
       releaseGesture();
     },
-    [teardown, disarmWindowNet, releaseGesture],
+    [teardown, disarmWindowNet, disarmRefusedWatch, releaseGesture],
   );
 
   function onPointerDown(e: React.PointerEvent) {
     if (!enabled || press.current) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    // A new stream on this wrapper supersedes any still-pending refusal
-    // marker (its click never arrived — the pointer released elsewhere).
+    // A new stream on this wrapper supersedes any still-pending refusal.
     refusedPress.current = false;
+    disarmRefusedWatch();
     // One gesture at a time, app-wide (see gestureOwner): while another
     // pill's press or drag is live, this press is refused outright — and
     // its eventual click dies in onClickCapture, marked here so the
-    // refusal survives even if the owner releases first.
+    // refusal survives even if the owner releases first. The end-watch
+    // bounds the marker to the refused stream's own lifetime.
     if (gestureOwner && gestureOwner !== ownerToken.current) {
       refusedPress.current = true;
+      refusedPointerId.current = e.pointerId;
+      window.addEventListener("pointerup", onRefusedEnd);
+      window.addEventListener("pointercancel", onRefusedEnd);
       return;
     }
     // Admission rule: a gesture may only begin in the wrapper's own DOM
@@ -461,9 +553,12 @@ export function useHoldDrag({
       y: e.clientY,
       el: e.currentTarget as HTMLElement,
     };
-    // The uncaptured-exit net rides the whole press — see its declaration.
+    // The uncaptured-exit net and the concealment revert both ride the
+    // whole press — see their declarations.
     window.addEventListener("pointerup", onWindowPointerEnd);
     window.addEventListener("pointercancel", onWindowPointerEnd);
+    window.addEventListener("blur", onWindowConceal);
+    document.addEventListener("visibilitychange", onWindowConceal);
     clearTimeout(timer.current);
     timer.current = setTimeout(activate, HOLD_MS);
   }

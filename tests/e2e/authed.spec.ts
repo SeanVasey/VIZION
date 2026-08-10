@@ -576,5 +576,34 @@ test.describe("thinking hold-slider", () => {
       await expect(page.getByRole("dialog", { name: "Thinking depth" })).toBeVisible();
       await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
     });
+
+    test("activation keys die under a live capsule — a focused control cannot open its sheet", async ({
+      page,
+    }) => {
+      // Touch never moves keyboard focus, so a background trigger can stay
+      // focused while a finger holds the pill — the hybrid pair the
+      // pointer-events shield cannot see (keys are their own channel,
+      // fourteenth pass). Pre-fix, Enter activated the focused template
+      // button and its sheet opened under the live capsule.
+      const template = page.getByRole("button", { name: /try a template/i });
+      await template.focus();
+      const { cx, cy } = await pillBox(page);
+      const touch = await touchSender(page);
+
+      await touch("touchStart", [{ x: cx, y: cy }]);
+      await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+      await page.keyboard.press("Enter");
+      await page.keyboard.press(" ");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await touch("touchEnd", []);
+      await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+
+      // At rest the keyboard is untouched. Refocus first — the UA may move
+      // focus during a touch interaction, and that is its business; the
+      // pin here is that the swallow ended with the gesture.
+      await template.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("dialog")).toBeVisible();
+    });
   });
 });

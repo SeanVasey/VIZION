@@ -128,7 +128,29 @@ All notable changes to VIZION are documented here. The format follows
   outlives its owner (a per-instance marker keeps a refused press's
   click consumed even when the owning gesture releases before the
   refused pointer lifts — the claim alone could not carry the refusal to
-  its end).
+  its end). A fourteenth pass gated the keyboard channel — the
+  pointer-events shield never touches key dispatch, so a background
+  control left keyboard-focused could still activate on Enter/Space and
+  open its sheet under the live capsule; activation keys now die at the
+  window's capture phase while the capsule is up (keydown and keyup
+  both; Escape stays the one designed key) — and bounded the refusal
+  marker to its own stream's lifetime (Vercel agent review: a refused
+  pointer releasing outside the wrapper never sends the click the
+  marker waited for, and the stale marker ate the pill's next keyboard
+  click — an end-watch now clears it one task after the stream ends, so
+  a keyboard user never loses an activation). The modality audit then
+  closed the remaining cells proactively instead of awaiting further
+  review passes: window blur / visibilitychange mid-gesture now reverts
+  like pointercancel (an alt-tab or locked phone delivers NO event to
+  the document — the one ending no pointer net can catch — and press,
+  claim, capsule, and world-freeze all leaked in the background tab);
+  the key swallow widened from an Enter/Space enumeration to every
+  unmodified key except Escape (arrows and paging keys scrolled the
+  document beneath the frozen world); and wheel scrolling is blocked in
+  the active phase alongside the existing touch block. The complete
+  phase × channel matrix — every cell's enforcing mechanism or recorded
+  acceptance — is now a section of ADR-0012, so future findings locate
+  in the table instead of arriving one review at a time.
 
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the

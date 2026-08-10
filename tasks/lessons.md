@@ -3260,3 +3260,27 @@ test:e2e` hard-fails in global-setup until
   per-stream memory. Scope such markers to where they cannot collide
   with legitimate events (per-instance, cross-pill only — a same-wrapper
   boolean cannot tell two streams' clicks apart).
+
+- **`pointer-events` is not input-events — every channel needs its own
+  gate.** The "input shield" metaphor quietly overclaimed: the pair
+  gates hit-testing only, and keyboard activation sailed through to a
+  focused background control. The modality now has one gate per channel
+  (shield → pointers, claim → wrapped clicks, window capture-phase
+  swallow → activation keys), each pinned separately. And the marker
+  lesson from the same round: state that waits for an event that may
+  never arrive needs its own expiry — the refusal marker waited for a
+  click a pointer released elsewhere would never send, and the stale
+  flag cost a keyboard user an activation until an end-watch bounded it
+  to the stream's own lifetime.
+
+- **The review cadence itself was the signal — after the second
+  same-class finding, enumerate the matrix yourself.** Eight consecutive
+  passes (7–14) each found one cell of the same input-modality space:
+  channel × phase, gate missing. Each fix was correct and each reply
+  well-reasoned, and the loop was still the wrong shape — the reviewer's
+  job is to find the FIRST hole, not to serve as the enumerator, and the
+  owner had to say so. The audit that should have followed pass 8 took
+  under an hour when finally done: list the phases, list the channels,
+  name every cell's mechanism or record its acceptance, close the empty
+  ones in one commit, and put the table in the ADR so the next finding
+  is a table lookup instead of a fifteenth round trip.

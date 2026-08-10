@@ -669,6 +669,45 @@ describe("revert paths", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it("swallows every unmodified key while the capsule is up — keyboard is a channel too", () => {
+    // The focus pair shields pointers; a background control left
+    // keyboard-focused still activated on Enter/Space and opened its sheet
+    // under the live capsule (fourteenth pass) — and an enumeration of
+    // "activation keys" was itself the next hole: arrows and paging keys
+    // scroll the document beneath the frozen world, Tab wanders focus
+    // (modality audit). While active, every unmodified key dies at the
+    // window's capture phase, keydown and keyup both; modifier chords
+    // belong to the browser and pass; Escape stays the one designed key;
+    // and at rest every key passes untouched.
+    render(<Host />);
+    expect(fireEvent.keyDown(document.body, { key: "Enter" })).toBe(true);
+    down();
+    hold();
+    expect(fireEvent.keyDown(document.body, { key: "Enter" })).toBe(false);
+    expect(fireEvent.keyUp(document.body, { key: " " })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: "ArrowDown" })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: "Tab" })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: "PageDown" })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: "c", ctrlKey: true })).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(overlay()).toBeNull();
+    up();
+    expect(fireEvent.keyDown(document.body, { key: "Enter" })).toBe(true);
+  });
+
+  it("blocks wheel scrolling while the capsule is up", () => {
+    // The scrim is not scrollable, but a wheel over it must not glide the
+    // document beneath the frozen world either (modality audit) — the
+    // same claim the touchmove block makes for fingers.
+    render(<Host />);
+    expect(fireEvent.wheel(window, { deltaY: 40 })).toBe(true);
+    down();
+    hold();
+    expect(fireEvent.wheel(window, { deltaY: 40 })).toBe(false);
+    up();
+    expect(fireEvent.wheel(window, { deltaY: 40 })).toBe(true);
+  });
+
   it("suppresses the context menu only while a gesture is live", () => {
     render(<Host />);
     const atRest = fireEvent.contextMenu(pill());
@@ -941,6 +980,58 @@ describe("one gesture at a time, app-wide", () => {
     hold();
     expect(overlay()).not.toBeNull();
     up();
+  });
+
+  it("a refusal dies with its own stream — a stale marker never eats a keyboard click", () => {
+    // A refused pointer that releases OUTSIDE this wrapper never sends the
+    // click the marker waits for; pre-fix the stale marker then ate the
+    // pill's next keyboard or programmatic click — an activation a
+    // keyboard user must never lose (Vercel agent review, fourteenth
+    // round). The window end-watch hears the stream end anywhere and the
+    // marker clears one task later.
+    const onOpenB = vi.fn();
+    render(<TwinHosts onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillB(), 2); // refused — marker armed
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    // The refused pointer releases far from B — no click will ever come.
+    fireEvent.pointerUp(document.body, { pointerId: 2, clientX: 500, clientY: 600 });
+    act(() => {
+      vi.advanceTimersByTime(1); // the end-watch's zero-timeout clears the marker
+    });
+    // The next activation is keyboard/programmatic: a bare click, no
+    // pointer-down to supersede anything. It must land.
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("reverts on window blur — the world never stays frozen in a background tab", () => {
+    // An alt-tab, app switch, or locked phone mid-gesture delivers NO
+    // event to this document: the mouse releases in another window and
+    // the up never dispatches here — the one ending no pointer net can
+    // catch (modality audit). Concealment is a pointercancel: revert,
+    // never commit, everything released.
+    const onCommitA = vi.fn();
+    const onOpenB = vi.fn();
+    render(<TwinHosts onCommitA={onCommitA} onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.blur(window);
+    expect(overlays()).toHaveLength(0);
+    expect(frozen()).toBe(false);
+    expect(onCommitA).not.toHaveBeenCalled();
+    // The claim died with the press: the other pill lives.
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
   });
 
   it("releases the claim on unmount — a dead owner never bricks the surviving sliders", () => {
