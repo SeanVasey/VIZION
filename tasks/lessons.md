@@ -3301,3 +3301,13 @@ test:e2e` hard-fails in global-setup until
   sheet-open after commit). When a lifecycle fix lands in one topology,
   the exempted topologies inherit the burden of proof, not the benefit
   of the doubt.
+
+- **Classify animations by CONSUMER, not by name.** The pause-list sweep
+  read `.sheet-in` as "sheet enter" because that is what the class is
+  called, and recorded it impossible under a capsule — while a Toast
+  card and the diff toolbar wore the same class with no dialog role and
+  none of the impossibility (twentieth pass). A shared class means the
+  classification must enumerate its consumers, and the exemption note
+  must name the condition that keeps each one exempt — "dialog-locked
+  today, any non-dialog adopter joins the list" survives consumer
+  drift; "sheets can't enter under a capsule" silently didn't.

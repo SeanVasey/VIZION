@@ -307,6 +307,15 @@ test.describe("thinking hold-slider", () => {
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
 
+    // A `.sheet-in` probe, appended before the press — the twentieth-pass
+    // scenario is a toast still rising as the gesture engages.
+    await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.setAttribute("data-e2e-sheet-in-probe", "");
+      probe.className = "sheet-in";
+      document.body.appendChild(probe);
+    });
+
     // Hold past HOLD_MS (300ms), then drag three detents right:
     // Auto → Low → Medium → High.
     await page.mouse.move(cx, cy);
@@ -343,6 +352,16 @@ test.describe("thinking hold-slider", () => {
         .locator(".footer-fade-in")
         .evaluate((el) => getComputedStyle(el).animationPlayState);
     await expect.poll(footerPlayState).toBe("paused");
+    // And the SHARED `.sheet-in` entrance (twentieth pass): toasts and the
+    // diff toolbar wear it with no role="dialog" for the probe, so a toast
+    // mid-rise as the slide engages kept recompositing the blurred
+    // backdrop. The probe node stands in for a toast: the class is the
+    // mechanism, and this pins its cascade in a real engine.
+    const sheetInPlayState = () =>
+      page
+        .locator("[data-e2e-sheet-in-probe]")
+        .evaluate((el) => getComputedStyle(el).animationPlayState);
+    await expect.poll(sheetInPlayState).toBe("paused");
     // The pair is also the gesture's input SHIELD: a second pointer cannot
     // reach any control while the capsule is up — the Target pill fails
     // Playwright's receives-events actionability check because the scrim
@@ -360,6 +379,7 @@ test.describe("thinking hold-slider", () => {
     await expect(page.locator("[data-hold-slider-blur]")).toHaveCount(0);
     // …and thaws with the release, resuming where it stood.
     await expect.poll(horizonPlayState).toBe("running");
+    await expect.poll(sheetInPlayState).toBe("running");
     await expect(pill).toContainText("High");
     // The trailing click was swallowed — no sheet.
     await expect(page.getByRole("dialog")).toHaveCount(0);

@@ -417,17 +417,30 @@
      parses, reads correctly, and silently loses. */
   [data-hold-gesture] .bg-nebula-bloom,
   [data-hold-gesture] .horizon[data-state] .horizon-node,
-  [data-hold-gesture] .footer-fade-in {
+  [data-hold-gesture] .footer-fade-in,
+  [data-hold-gesture] .sheet-in {
     animation-play-state: paused;
   }
   /* The pause list is the OUTCOME of a full sweep of every `animation:`
      declaration, not a drip (eighteenth pass caught the footer's one-shot
      0.8s entrance — the earlier inventory grepped `infinite` and missed
-     entrances). Classification of everything else: the overlay's own
+     entrances). `.sheet-in` is here because it is SHARED, not sheet-only
+     (twentieth pass): the Toast card and the diff's sticky toolbar wear
+     the same entrance, carry no role="dialog" for the activation probe,
+     and can be mid-rise as a slide engages (or mount under a live
+     capsule — the entrance then waits at its first frame, invisible, and
+     plays on release; the toast's sr-only announcement is a separate
+     node and is never delayed). For a true Sheet the pause is vacuous —
+     a sheet still cannot ENTER under a capsule (shield + probe) — it is
+     defense against exactly the consumer drift that put the other two
+     on this class. Classification of everything else: the overlay's own
      scrim entrance must keep running (exempt by omission); stream-time
      ornaments (sweep, beacon, caret, skeleton, spinner, tail) only ever
-     animate while dynamicBackdrop already stands the blur down; sheet
-     enter cannot coexist with a capsule (shield + probe), and sheet EXIT
+     animate while dynamicBackdrop already stands the blur down (the
+     composer's spinners render only while pending — re-verified,
+     twentieth pass); `.sheet-in-side` and `.scrim-in` stay exempt as
+     dialog-locked TODAY, and any non-dialog adopter must join this list
+     — that is precisely how `.sheet-in` got here; and sheet EXIT
      may overlap a new press by at most its 180ms self-terminating fade —
      pausing that would freeze a vanishing surface mid-fade for the whole
      gesture, a worse artifact than 180ms of re-filtering. */

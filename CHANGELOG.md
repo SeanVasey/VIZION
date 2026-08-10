@@ -82,6 +82,23 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **A toast rising beneath the blur no longer breaks the static
+  backdrop — the shared `.sheet-in` entrance joins the world-pause**
+  (ADR-0012, twentieth pass; the second finding resolved as a
+  matrix-cell correction). The pause-list sweep had classified
+  `.sheet-in` by NAME — "sheet enter, impossible under a capsule" — but
+  the class is shared: the Toast card and the diff's sticky toolbar
+  wear the same 200ms entrance and carry no `role="dialog"` for the
+  activation probe, so a toast still rising as a press-and-slide
+  engaged kept recompositing the blurred backdrop. The class now pauses
+  under `[data-hold-gesture]` (vacuous for a true Sheet, which still
+  cannot enter under a capsule; one mounting mid-gesture waits at its
+  invisible first frame and plays on release, with the sr-only
+  announcement never delayed), the rule's classification comment is
+  rewritten consumer-by-consumer with the re-verified exemptions, and
+  the coupling is pinned twice: the toast card's class in unit, the
+  cascade in a real engine via a probe under the gesture.
+
 - **A same-pill competing press now stays refused through its click —
   the refusal marker loses its cross-pill scope exemption** (ADR-0012,
   nineteenth pass; the first finding resolved as a matrix-cell

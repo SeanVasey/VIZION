@@ -540,17 +540,17 @@ The matrix, as now enforced (phases: REST · PRE-HOLD, pointer-down to
 classification · ACTIVE, capsule up · TAIL, cancelled press awaiting its
 lift · SETTLE, the post-lift task):
 
-| Channel                          | Pre-hold                                                | Active                                                                                                                                                           | Tail                              |
-| -------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| Own pointer stream               | slop/axis rules + hold timer                            | capture; x-only drag                                                                                                                                             | capture retained; lift ends all   |
-| 2nd pointer, same wrapper        | refused; marker + end-watch outlive the owner (19th)    | + shield                                                                                                                                                         | same                              |
-| 2nd pointer, other wrapper       | refused (claim); marker + end-watch outlive the owner   | + shield                                                                                                                                                         | same                              |
-| 2nd pointer, non-wrapped control | free until activation → dialog probe stands down        | shield                                                                                                                                                           | free (world visually at rest)     |
-| Keyboard                         | free (probe covers the sheet outcome at activation)     | unmodified keys die; Enter/Space die under any modifiers; Escape reverts                                                                                         | free                              |
-| Scroll (touch / wheel / keys)    | `touch-action: pinch-zoom`                              | touchmove + wheel blocks + key swallow                                                                                                                           | touch-action persists             |
-| Lift/end delivery                | wrapper handlers + window net + concealment revert      | + capture                                                                                                                                                        | capture + net + concealment       |
-| Sheets                           | cannot start a gesture (admission); probe at activation | cannot open (shield + keys)                                                                                                                                      | may open — legitimate, no capsule |
-| World motion                     | live                                                    | frozen ornaments incl. one-shot entrances; blur stands down mid-stream; sheet-exit fade may overlap ≤180ms (accepted — pausing would freeze a vanishing surface) | live                              |
+| Channel                          | Pre-hold                                                | Active                                                                                                                                                                                          | Tail                              |
+| -------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Own pointer stream               | slop/axis rules + hold timer                            | capture; x-only drag                                                                                                                                                                            | capture retained; lift ends all   |
+| 2nd pointer, same wrapper        | refused; marker + end-watch outlive the owner (19th)    | + shield                                                                                                                                                                                        | same                              |
+| 2nd pointer, other wrapper       | refused (claim); marker + end-watch outlive the owner   | + shield                                                                                                                                                                                        | same                              |
+| 2nd pointer, non-wrapped control | free until activation → dialog probe stands down        | shield                                                                                                                                                                                          | free (world visually at rest)     |
+| Keyboard                         | free (probe covers the sheet outcome at activation)     | unmodified keys die; Enter/Space die under any modifiers; Escape reverts                                                                                                                        | free                              |
+| Scroll (touch / wheel / keys)    | `touch-action: pinch-zoom`                              | touchmove + wheel blocks + key swallow                                                                                                                                                          | touch-action persists             |
+| Lift/end delivery                | wrapper handlers + window net + concealment revert      | + capture                                                                                                                                                                                       | capture + net + concealment       |
+| Sheets                           | cannot start a gesture (admission); probe at activation | cannot open (shield + keys)                                                                                                                                                                     | may open — legitimate, no capsule |
+| World motion                     | live                                                    | frozen ornaments incl. one-shot entrances (shared `.sheet-in` too, 20th); blur stands down mid-stream; sheet-exit fade may overlap ≤180ms (accepted — pausing would freeze a vanishing surface) | live                              |
 
 At REST every channel is untouched, and in SETTLE only the one same-task
 click is suppressed (suppressClick / the refusal marker). Recorded
@@ -593,3 +593,27 @@ semantics stand (a third simultaneous pointer on one wrapper resolves
 newest-wins), matching the cross-pill machinery. Pinned red→green in
 unit: the full owner-releases-first timeline, and the
 settled-click-must-not-strip-the-marker ordering specifically.
+
+The twentieth pass was the second matrix-located finding, again a wrong
+cell — the world-motion claim "frozen ornaments incl. one-shot
+entrances" — and the error class is worth naming: the eighteenth pass's
+sweep classified animations by NAME, not by consumer. `.sheet-in` read
+as "sheet enter, impossible under a capsule (shield + probe)," but the
+class is shared: the Toast card and the diff's sticky toolbar wear the
+same entrance, carry no `role="dialog"` for the activation probe, and a
+toast can be mid-rise as an x-dominant slide engages — its remaining
+≤200ms recomposited the blurred backdrop the whole mitigation exists to
+keep static. `.sheet-in` now joins the pause list: vacuous for a true
+Sheet (which still cannot enter under a capsule), live for the shared
+consumers; one mounting mid-gesture waits at its invisible first frame
+and plays on release, and the toast's sr-only announcement — a separate
+permanently-mounted node — is never delayed. Toast dismissal is a JS
+timer with instant unmount (no exit animation), so the entrance is the
+class's whole exposure. The re-sweep this pass forced re-verified the
+other classification lines by consumer (the composer's spinners render
+only while pending, so dynamicBackdrop genuinely covers them) and left
+`.sheet-in-side`/`.scrim-in` exempt as dialog-locked today, with the
+rule's comment recording that any non-dialog adopter must join the
+list. Pinned: the toast card's class coupling in unit, the cascade in a
+real engine via a `.sheet-in` probe under the gesture (paused, then
+running on release) beside the horizon and footer pins.

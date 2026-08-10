@@ -45,6 +45,12 @@ describe("Toast", () => {
     // The visible card shows the text; a permanently-mounted sr-only
     // aria-live region mirrors it (A11Y-004) — both carry "Composer cleared".
     expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+    // The card's entrance is the shared `.sheet-in`, and the hold-slider's
+    // world-pause rule pauses that class under `[data-hold-gesture]`
+    // (twentieth pass — a toast mid-rise beneath the blur recomposited the
+    // "static" backdrop). If the toast ever drops or renames the class,
+    // the pause detaches silently; this pin keeps them coupled.
+    expect(document.querySelector(".glass.sheet-in")).not.toBeNull();
     act(() => {
       vi.advanceTimersByTime(6100);
     });
