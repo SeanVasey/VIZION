@@ -82,6 +82,24 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **Nothing can fire under a live capsule — the gesture is now modal to
+  input, not only to motion** (ADR-0012 amendment; Codex review, ninth
+  pass). The single-gesture claim refused a second pill's press but let
+  its synthesized click fall through as a tap — and on hybrid-input
+  devices that tap opened the other picker's sheet (z-70) under the live
+  capsule (z-85), recreating the sheet-mid-gesture state the admission
+  guard exists to prevent. Two enforcers now close it: the hook consumes
+  any click while a foreign gesture holds the app-wide claim (covering
+  both rails for the claim's whole lifetime, pre-hold included, and a
+  keyboard-activated pill mid-drag), and the focus pair doubles as an
+  input shield — blur and dim are `pointer-events: auto`, so during the
+  active phase a second pointer anywhere in the viewport dies on the
+  pair, non-wrapped triggers included. The gesture itself cannot be
+  stolen: its pointer is captured, and captured streams bypass
+  hit-testing. One residual two-finger race is accepted and recorded in
+  the ADR: a non-wrapped trigger tapped inside another pill's 300ms
+  pre-hold window — cosmetic and self-healing.
+
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the
   nebula canvas and blooms but not everything that moves: the Horizon's

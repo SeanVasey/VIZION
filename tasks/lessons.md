@@ -3193,3 +3193,22 @@ test:e2e` hard-fails in global-setup until
   that comment predicted). Before gating a property on an element, find
   the rules that already SET it (`grep '\.the-class'`) and copy the
   winning gate's selector shape, prefix and all.
+
+## 2026-08-10 — Input modality under the gesture (Codex pass 9)
+
+- **When you borrow a semantic from a reference platform, verify it in the
+  borrowed STATE.** "A refused press falls through as the plain tap it
+  would otherwise be" was transcribed from how the reference control
+  behaves at rest — but the refusal only ever happens mid-claim, and mid-
+  drag the reference goes fully modal: second touches do nothing. The
+  mis-transcription shipped as a pass-7 "feature," celebrated in the
+  review reply, and came back two passes later as the bug it always was
+  (the fall-through tap opened a sheet under the live capsule). Ask of
+  every borrowed behavior: in WHICH of the reference's states does it
+  hold, and is that the state I'm implementing?
+- **A refusal that only covers your own event stream isn't a refusal.**
+  Denying the pointer-down left the synthesized click alive. Interaction
+  paths come in bundles (pointerdown → pointerup → click; keyboard
+  activation; a second pointer type) — refuse the bundle, and prefer
+  structural shields (a pointer-events surface the capture-holder is
+  immune to) over enumerating event handlers.

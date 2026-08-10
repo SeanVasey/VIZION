@@ -3,10 +3,10 @@
 Date: 2026-08-09
 Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
 ruling, DSN-022); amended same day after the first on-device pass, and
-2026-08-10 five times — presses inside an open sheet, the owner's
+2026-08-10 six times — presses inside an open sheet, the owner's
 affordance pass, the reference-geometry pass (fixed home · thumb ·
-measured blur), the single-gesture claim, and the backdrop inventory —
-see below
+measured blur), the single-gesture claim, the backdrop inventory, and
+input modality under the gesture — see below
 
 ## Context
 
@@ -308,7 +308,9 @@ attribute survives. Adopted instead: a module-level exclusive claim
 wherever the press record dies (up, cancel, unmount). While any
 hold-slider's press is live, a second pill's press is refused at admission
 — no press record, no hold timer — and falls through as the plain tap it
-would otherwise be, which is the reference platform's own semantic. The
+would otherwise be _(superseded by the input-modality amendment below:
+the fall-through reopened the sheet-under-capsule state on hybrid inputs,
+so the refused pill is now inert for the claim's lifetime)_. The
 unit suite pins the refusal, the attribute surviving the refused finger's
 lift, and the claim's release on commit and on unmount.
 
@@ -336,3 +338,40 @@ the reduced-effects presentation, already designed and already shipped.
 Pinned in unit (dim-only overlay under `dynamicBackdrop` and mid-flight
 at the composer, gesture semantics untouched) and e2e (the Horizon's
 computed play-state paused mid-gesture, running again on release).
+
+## Amendment (2026-08-10): input modality under the gesture
+
+The ninth review pass (Codex, PR #103) found the fifth amendment's tap
+fall-through half was a mis-transcription of the reference semantic: on a
+hybrid-input device, a second pointer's press mid-gesture was refused at
+admission but its synthesized CLICK still fired, opening the other
+picker's sheet (z-70) under the live capsule (z-85) — the exact
+sheet-mid-gesture state the admission guard exists to make impossible,
+now recreated from the other direction. At rest a refused press has no
+one to defer to, so a fall-through tap was the honest reading; mid-claim
+it never was — the reference control goes fully modal under a drag.
+
+Two enforcers, matching the review's two offered repairs. The hook
+consumes the click: `onClickCapture` eats any click while a FOREIGN claim
+is live — no new state, covers both wrapped pills for the claim's whole
+lifetime (the 300ms pre-hold window included) and a keyboard-activated
+pill mid-drag. The focus pair becomes the input shield: blur and dim flip
+to `pointer-events: auto`, so during the ACTIVE phase a second pointer
+anywhere in the viewport dies on the pair — non-wrapped triggers (the
+Format pill, the submit button, the nav) included. The gesture itself
+cannot be stolen: its pointer is captured at activation (implicitly for
+touch), and captured streams bypass hit-testing. The dim mounts in every
+presentation, so the shield holds under stand-downs and `dynamicBackdrop`
+alike.
+
+One residual window is accepted and recorded: a NON-wrapped trigger
+tapped by a second finger inside another pill's 300ms pre-hold window
+(before the shield mounts) can still open its sheet, and the capsule then
+draws over it. That is a two-finger race into a cosmetic, self-healing
+state — release restores the world and the sheet stays usable — and
+closing it would take a DOM-wide dialog probe at activation, a coupling
+this control does not want. Pinned in unit (consumed click mid-active and
+pre-hold, twin harness; the composer's Target pill inert while a Thinking
+capsule is up, working again on release) and e2e (a trial click on the
+other pill fails Playwright's receives-events actionability check while
+the capsule is up — real hit-testing, which jsdom cannot exercise).

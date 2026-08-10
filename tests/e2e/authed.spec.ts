@@ -334,6 +334,15 @@ test.describe("thinking hold-slider", () => {
         .locator(".horizon-node")
         .evaluate((el) => getComputedStyle(el).animationPlayState);
     await expect.poll(horizonPlayState).toBe("paused");
+    // The pair is also the gesture's input SHIELD: a second pointer cannot
+    // reach any control while the capsule is up — the Target pill fails
+    // Playwright's receives-events actionability check because the scrim
+    // intercepts the point (real hit-testing, which jsdom cannot pin).
+    await expect(
+      page
+        .getByRole("button", { name: /^Target model:/ })
+        .click({ trial: true, timeout: 800 }),
+    ).rejects.toThrow();
     await page.mouse.move(cx + 3 * 44, cy, { steps: 6 });
     await page.mouse.up();
 

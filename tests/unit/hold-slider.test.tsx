@@ -266,14 +266,18 @@ describe("tap vs hold", () => {
     expect(frozen()).toBe(true);
     expect(scrim()).not.toBeNull();
     expect(scrim()!.getAttribute("aria-hidden")).toBe("true");
-    expect(scrim()!.className).toContain("pointer-events-none");
+    // pointer-events AUTO: the pair doubles as the gesture's input shield —
+    // a second pointer mid-gesture dies on it instead of reaching a control
+    // beneath (ninth pass). The gesture's own pointer is captured, so the
+    // shield can never steal the drag it guards.
+    expect(scrim()!.className).toContain("pointer-events-auto");
     // The blur layer is the static half of the pair: its class carries the
     // backdrop-filter (stand-downs strip it in CSS), and it must precede
     // the dim in the DOM so the fade rides ABOVE the filter, never on it.
     expect(blur()).not.toBeNull();
     expect(blur()!.getAttribute("aria-hidden")).toBe("true");
     expect(blur()!.className).toContain("hold-slider-blur");
-    expect(blur()!.className).toContain("pointer-events-none");
+    expect(blur()!.className).toContain("pointer-events-auto");
     expect(
       blur()!.compareDocumentPosition(scrim()!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -684,8 +688,10 @@ describe("one gesture at a time, app-wide", () => {
    * the world under the survivor's blur (Codex review, seventh pass).
    * Admission is exclusive at pointer-down: while any pill's press is live,
    * a second pill's press is refused outright — no press record, no hold
-   * timer — and falls through as the plain tap it would otherwise be. The
-   * claim dies with the press that holds it: up, cancel, or unmount.
+   * timer — and refused WHOLE: its synthesized click is consumed for the
+   * claim's lifetime (ninth pass; the seventh's tap fall-through opened
+   * the other sheet under the live capsule on hybrid inputs). The claim
+   * dies with the press that holds it: up, cancel, or unmount.
    */
   function TwinHosts({
     onCommitA = () => {},
@@ -758,10 +764,12 @@ describe("one gesture at a time, app-wide", () => {
     fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
     expect(frozen()).toBe(true);
     expect(overlays()).toHaveLength(1);
-    // No press was admitted, so no click suppression either — B's tap
-    // falls through to its own path (the sheet).
+    // The refusal is WHOLE (ninth pass, superseding the seventh's tap
+    // fall-through): B's synthesized click is consumed while A's claim is
+    // live — on hybrid inputs that click otherwise opened B's sheet under
+    // A's capsule, the state the admission guard exists to prevent.
     fireEvent.click(pillB());
-    expect(onOpenB).toHaveBeenCalledTimes(1);
+    expect(onOpenB).not.toHaveBeenCalled();
     // A's gesture is untouched throughout: drag one detent and commit.
     fireEvent.pointerMove(pillA(), {
       pointerId: 1,
@@ -778,6 +786,25 @@ describe("one gesture at a time, app-wide", () => {
     expect(onCommitB).not.toHaveBeenCalled();
     expect(overlays()).toHaveLength(0);
     expect(frozen()).toBe(false);
+    // The claim died with A's press — B's tap now passes untouched.
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("consumes the other pill's click for the whole claim window — before the hold even fires", () => {
+    // The claim is taken at pointer-DOWN, so the consumption must cover the
+    // pre-hold window too: a second finger's tap inside A's 300ms would
+    // otherwise open B's sheet, and A's capsule then mounted over it.
+    const onOpenB = vi.fn();
+    render(<TwinHosts onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    fireEvent.click(pillB());
+    expect(onOpenB).not.toHaveBeenCalled();
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
   });
 
   it("releases the claim with the press — the other pill gestures normally afterward", () => {

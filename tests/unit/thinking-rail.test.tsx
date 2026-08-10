@@ -396,6 +396,35 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "low" });
   });
 
+  it("keeps every other picker shut while a capsule is up — no sheet under the gesture", () => {
+    // On hybrid-input devices a second pointer's synthesized click lands
+    // mid-drag; pre-fix it opened the Target sheet (z-70) under the live
+    // capsule (z-85) — the sheet-mid-gesture state both guards exist to
+    // prevent (Codex review, ninth pass). The refused pill is inert for
+    // the claim's whole lifetime and recovers the moment it ends.
+    renderComposer();
+    fireEvent.pointerDown(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    expect(overlay()).not.toBeNull();
+    fireEvent.click(targetTrigger());
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+    });
+    // Claim released — the Target pill is a working tap trigger again.
+    fireEvent.click(targetTrigger());
+    expect(screen.getByRole("dialog", { name: "Target model" })).toBeInTheDocument();
+  });
+
   it("stays out of its own open sheet — a held row is a tap, not a drag", () => {
     // This rail's slider is enabled unconditionally, so pre-guard it was the
     // worse half of the 2026-08-10 defect: the sheet is a body portal but a

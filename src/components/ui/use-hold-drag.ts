@@ -178,9 +178,18 @@ interface Press {
  * crossed capsules, and a shared `data-hold-gesture` attribute whose first
  * teardown thawed the world under the survivor's blur (Codex review,
  * seventh pass). Exclusive ownership is also the reference platform's own
- * semantic: a second pill's press is refused at admission and falls through
- * as the plain tap it would otherwise be. Claimed at pointer-down, released
- * wherever the press record dies (up, cancel, unmount).
+ * semantic. Claimed at pointer-down, released wherever the press record
+ * dies (up, cancel, unmount).
+ *
+ * A refused press is refused WHOLE: its admission is denied here and its
+ * synthesized click is consumed at onClickCapture for as long as the claim
+ * is held. The seventh pass first let that click fall through as a plain
+ * tap, and the ninth corrected it — on hybrid-input devices the "tap"
+ * opened the other pill's sheet (z-70) under the live capsule (z-85),
+ * recreating the sheet-mid-gesture state the admission guard exists to
+ * make impossible. During the ACTIVE phase the focus pair additionally
+ * shields the whole viewport (HoldSlider's pointer-events), so non-wrapped
+ * triggers go inert too.
  */
 let gestureOwner: object | null = null;
 
@@ -340,8 +349,9 @@ export function useHoldDrag({
     if (!enabled || press.current) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     // One gesture at a time, app-wide (see gestureOwner): while another
-    // pill's press or drag is live, this press is refused and falls
-    // through as the plain tap it would otherwise be.
+    // pill's press or drag is live, this press is refused outright — and
+    // its eventual click dies in onClickCapture, so the refused pill is
+    // fully inert rather than falling through as a tap.
     if (gestureOwner && gestureOwner !== ownerToken.current) return;
     // Admission rule: a gesture may only begin in the wrapper's own DOM
     // subtree. The wrapped children include each picker's SHEET — a body
@@ -462,7 +472,15 @@ export function useHoldDrag({
   }
 
   function onClickCapture(e: React.MouseEvent) {
-    if (suppressClick.current) {
+    // Two reasons to eat a click: this instance's own gesture just settled
+    // (suppressClick), or a FOREIGN gesture holds the app-wide claim — a
+    // press this hook refused at admission still synthesizes a click at its
+    // lift, and mid-gesture that click opened the other picker's sheet
+    // under the live capsule (Codex review, ninth pass). The claim check
+    // needs no bookkeeping and also covers a keyboard-activated pill while
+    // a drag is live. Released claims stop matching instantly, so a tap
+    // after the owner's release passes untouched.
+    if (suppressClick.current || (gestureOwner && gestureOwner !== ownerToken.current)) {
       e.preventDefault();
       e.stopPropagation();
     }

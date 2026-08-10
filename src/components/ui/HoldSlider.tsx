@@ -15,10 +15,14 @@ import { useHoldDrag, type TrackGeometry } from "@/components/ui/use-hold-drag";
  * track and the gesture drags between detents; release commits, Escape/cancel
  * reverts.
  *
- * The overlay is pointer-transparent, aria-hidden DECORATION: the pill label
- * stays the authoritative readout, the sheet stays the complete keyboard and
- * screen-reader path, and the committed value is announced through the
- * always-mounted polite live region below.
+ * The TRACK overlay is pointer-transparent, aria-hidden DECORATION: the pill
+ * label stays the authoritative readout, the sheet stays the complete
+ * keyboard and screen-reader path, and the committed value is announced
+ * through the always-mounted polite live region below. The focus PAIR
+ * beneath it is the opposite — an input shield: while a capsule is up, a
+ * second pointer anywhere in the viewport dies on it, so no control can
+ * fire under a live gesture (the gesture's own pointer is captured and
+ * bypasses hit-testing entirely).
  */
 
 /** One slider stop. `tone` keys the fill's color ramp and is the level's own
@@ -189,14 +193,18 @@ const BAR_MAX_PX = 20;
  * `document.body` because the composer chassis is `overflow-hidden`
  * (EnhanceComposer) and would clip a track wider than the rail; fixed
  * positioning comes from TrackGeometry's FIXED HOME — viewport-centered on
- * the gesturing rail's row, the same spot for every press. `pointer-events:
- * none` keeps the capture on the wrapper — the overlay can never steal the
- * gesture it visualizes. z-[85] (track) over z-[84] (its focus scrim):
- * above the toast tier; a Sheet (z-[70]) can never be open mid-gesture —
- * enforced, not assumed: useHoldDrag refuses a pointer-down whose target is
- * outside the wrapper's DOM subtree, and an open sheet's scrim covers the
- * pill, so no gesture can start while one is up (the 2026-08-10
- * capsule-over-the-sheet defect).
+ * the gesturing rail's row, the same spot for every press. The track is
+ * `pointer-events: none` — it can never steal the gesture it visualizes;
+ * second pointers pass through it onto the focus pair's shield beneath.
+ * z-[85] (track) over z-[84] (its focus pair): above the toast tier; a
+ * Sheet (z-[70]) can never be open mid-gesture — enforced, not assumed,
+ * from both directions: no gesture starts while a sheet is up (useHoldDrag
+ * refuses a pointer-down whose target is outside the wrapper's DOM
+ * subtree, and an open sheet's scrim covers the pill — the 2026-08-10
+ * capsule-over-the-sheet defect), and no sheet opens while a gesture is
+ * live (a refused press's click is consumed for the claim's lifetime, and
+ * during the active phase the pair shields every non-captured pointer —
+ * ninth pass).
  */
 function HoldSliderOverlay({
   detents,
@@ -230,18 +238,28 @@ function HoldSliderOverlay({
           world-pause (data-hold-gesture) freezes the idle ornaments, but a
           streaming run's surface keeps repainting, and a moving backdrop
           under a backdrop-filter re-filters every frame — so a declared
-          dynamicBackdrop stands the blur down instead. */}
+          dynamicBackdrop stands the blur down instead.
+
+          pointer-events AUTO, deliberately (Codex review, ninth pass): the
+          pair doubles as the gesture's input shield. A second pointer mid-
+          gesture otherwise reaches whatever it lands on — on hybrid-input
+          devices its synthesized click opened a picker sheet (z-70) under
+          the live capsule. The gesture's own pointer is captured at
+          activation (implicitly for touch), and captured streams bypass
+          hit-testing, so the shield can never steal the drag it guards.
+          The dim always mounts, so the shield holds in every presentation
+          — stand-downs and dynamicBackdrop included. */}
       {!dynamicBackdrop && (
         <div
           aria-hidden="true"
           data-hold-slider-blur=""
-          className="hold-slider-blur pointer-events-none fixed inset-0 z-[84]"
+          className="hold-slider-blur pointer-events-auto fixed inset-0 z-[84]"
         />
       )}
       <div
         aria-hidden="true"
         data-hold-slider-scrim=""
-        className="hold-slider-scrim pointer-events-none fixed inset-0 z-[84]"
+        className="hold-slider-scrim pointer-events-auto fixed inset-0 z-[84]"
         style={{
           backgroundColor: "color-mix(in srgb, var(--void) 62%, transparent)",
         }}
