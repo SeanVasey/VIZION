@@ -159,7 +159,7 @@ describe("budget hold-slider commits", () => {
     expect(useUIStore.getState().autoPreference).toBe("budget");
   });
 
-  it("shows the Auto-qualified live label while dragging", () => {
+  it("shows only the preference under the finger while dragging", () => {
     renderComposer();
     const trigger = targetTrigger();
     fireEvent.pointerDown(trigger, {
@@ -171,13 +171,17 @@ describe("budget hold-slider commits", () => {
     act(() => {
       vi.advanceTimersByTime(HOLD_MS);
     });
-    expect(overlay()!.textContent).toContain("Auto · Balanced");
+    // The chip never repeats "Auto ·" — that context lives on the pill at
+    // rest and in the commit announcement; mid-gesture the level IS the
+    // message (owner de-duplication, 2026-08-10).
+    expect(overlay()!.textContent).toContain("Balanced");
+    expect(overlay()!.textContent).not.toContain("Auto ·");
     fireEvent.pointerMove(trigger, {
       pointerId: 1,
       clientX: DOWN_X + DETENT_SPACING_PX,
       clientY: 400,
     });
-    expect(overlay()!.textContent).toContain("Auto · Quality");
+    expect(overlay()!.textContent).toContain("Quality");
     fireEvent.pointerCancel(trigger, { pointerId: 1 });
   });
 

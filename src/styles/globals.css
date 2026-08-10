@@ -339,6 +339,32 @@
     transition: none;
   }
 
+  /* The focus scrim behind an active hold-slider: while the capsule is up,
+     everything else drops back so the eye holds only the track, the level
+     chip, and its tone. A DIM, deliberately NOT a backdrop blur — a
+     viewport-scale filter live during a pointer gesture is the exact
+     input-queueing regression the bloom bake just removed (2026-08-09,
+     "the ambient blur no longer queues input"). Mounts with the overlay and
+     unmounts with it: release returns the composer instantly, the picked
+     state readable with nothing lingering. The fade-in is presentation
+     only, so both stand-downs collapse it to an instant appearance. */
+  .hold-slider-scrim {
+    animation: hold-slider-scrim-in var(--motion-quick) ease-out;
+  }
+  @keyframes hold-slider-scrim-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-scrim {
+      animation: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-scrim {
+    animation: none;
+  }
+
   /* Ambient scrim — a FILL, deliberately NOT a member of the glass family.
      Secondary copy that sits directly on the ambient background, with no glass
      tier anywhere beneath it, still needs the NEBULA+ bloom and mote tint

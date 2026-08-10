@@ -333,7 +333,11 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientY: 400,
     });
     expect(fill().getAttribute("data-tone")).toBe("ultra"); // max
-    expect(overlay()!.textContent).toContain("Opus 5 · Max");
+    // Chip says the level alone — "Opus 5" is already on the Target rail
+    // and in the commit announcement; the readout must not stack the model
+    // name beside itself (owner de-duplication, 2026-08-10).
+    expect(overlay()!.textContent).toContain("Max");
+    expect(overlay()!.textContent).not.toContain("Opus 5");
     fireEvent.pointerUp(trigger, {
       pointerId: 1,
       clientX: DOWN_X + 5 * DETENT_SPACING_PX,

@@ -183,3 +183,25 @@ capsule's own presentation, all three repairs form-only:
   position. They stay in the DOM so detent-id hooks never depend on drag
   position. Reached BARS stay visible: a meter is made of its filled
   bars.
+
+A third round (owner annotation: the readout "duplicating" the model name
+beside the Target pill, and a request for a focus treatment) reshaped the
+gesture into a focus state:
+
+- **A dim scrim rides the capsule** (`z-[84]`, under the `z-[85]` track;
+  mounts and unmounts with the overlay). While a capsule is up the whole
+  composer drops back, so the eye holds only the track, the level chip,
+  and its tone; release returns the picked state instantly. It is a color
+  fade on `--void`, DELIBERATELY never a `backdrop-filter` blur: a
+  viewport-scale filter live during a pointer gesture is the exact
+  input-queueing regression the bloom bake removed the day before
+  ("Taps respond immediately", 2026-08-09) — the dim buys the focus
+  without re-pricing pointermove.
+- **The chip's readout is the level alone** ("Max", "Quality"). This
+  deliberately narrows the acceptance-era "model-qualified live label"
+  (CHANGELOG: "Opus 5 · Extra High") for the VISUAL readout only: with
+  Auto routing, the thing being changed is the effort, never the model,
+  and the model/mode context is already on screen one rail up — printing
+  it in the chip stacked "Opus 5" beside "Opus 5". The commit
+  announcement keeps the full sentence (`liveLabel` is now announce-only)
+  — ears get the context, eyes get the level.

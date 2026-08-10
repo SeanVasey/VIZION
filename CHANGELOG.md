@@ -31,7 +31,15 @@ All notable changes to VIZION are documented here. The format follows
   visually replaces the control instead of letting its tail peek out
   beside a narrower track, and reached dots go transparent under the fill
   — dark dots in the laser read as sediment; the fill edge is the
-  position. Reached bars stay: a meter is its filled bars.
+  position. Reached bars stay: a meter is its filled bars. The third
+  round made the gesture a focus state: a dim scrim (a color fade,
+  deliberately never a backdrop blur — the 2026-08-09 input-queueing
+  lesson) drops the whole composer back while a capsule is up, so the eye
+  holds only the track, the level chip, and its tone, and release returns
+  the picked state instantly; and the chip now says the LEVEL alone
+  ("Max", "Quality") — the model/mode context is already on screen one
+  rail up and spoken in full by the commit announcement ("Opus 5 · Max"),
+  so the readout no longer stacks "Opus 5" beside "Opus 5" mid-drag.
 
 ### Fixed
 

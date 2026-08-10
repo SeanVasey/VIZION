@@ -160,10 +160,25 @@ describe("tap vs hold", () => {
     // Portalled past the composer's overflow-hidden chassis.
     expect(el!.parentElement).toBe(document.body);
     // The live readout is a chip on the track's own glass ground, never bare
-    // text colliding with whatever the composer has at that y.
+    // text colliding with whatever the composer has at that y — and it says
+    // only the LEVEL: the context is on screen already and in the commit
+    // announcement, so the chip never stacks "Fable 5" beside "Fable 5".
     const label = el!.querySelector("[data-hold-slider-label]")!;
     expect(label.className).toContain("glass-solid");
-    expect(label.textContent).toBe("Fable 5 · Auto");
+    expect(label.textContent).toBe("Auto");
+  });
+
+  it("drops a focus scrim behind the capsule, gone the moment it settles", () => {
+    render(<Host />);
+    const scrim = () => document.querySelector("[data-hold-slider-scrim]");
+    expect(scrim()).toBeNull();
+    down();
+    hold();
+    expect(scrim()).not.toBeNull();
+    expect(scrim()!.getAttribute("aria-hidden")).toBe("true");
+    expect(scrim()!.className).toContain("pointer-events-none");
+    up();
+    expect(scrim()).toBeNull();
   });
 
   it("conceals the pill while the capsule is up — the track replaces it", () => {
@@ -303,13 +318,16 @@ describe("drag, commit, and the trailing click", () => {
     expect(onCommit).toHaveBeenCalledExactlyOnceWith(3);
   });
 
-  it("shows the live label and tone for the detent under the finger", () => {
+  it("shows the level readout and tone for the detent under the finger", () => {
     render(<Host />);
     down();
     hold();
     moveTo(DOWN_X + 4 * DETENT_SPACING_PX);
     const el = overlay()!;
-    expect(el.textContent).toContain("Fable 5 · Extra High");
+    // Level only — the model qualifier belongs to the announce string, not
+    // to a chip floating next to the rail that already names the model.
+    expect(el.textContent).toContain("Extra High");
+    expect(el.textContent).not.toContain("Fable 5");
     expect(el.querySelector("[data-tone]")!.getAttribute("data-tone")).toBe("ultra");
   });
 
