@@ -14,7 +14,9 @@ All notable changes to VIZION are documented here. The format follows
   centered in the viewport the user is looking at (the VISUAL viewport
   under pinch zoom, per review, since the control preserves native zoom;
   unzoomed, the shell is a centered column, so viewport center is the
-  composer's), on the gesturing rail's row — the same spot for every
+  composer's; when zoom leaves the region narrower than the track, the
+  placement biases to the selected detent so the thumb always spawns in
+  view), on the gesturing rail's row — the same spot for every
   press, where the first cut anchored the selected detent under
   the finger and landed wherever the press happened to be; the finger
   still maps relatively through dragOffset, so the press point never

@@ -227,11 +227,17 @@ Three changes, superseding two acceptance-era choices:
    measured against the reference it read as floaty, and predictability
    won. The finger still maps RELATIVELY (dragOffset anchors the selected
    detent to the press x), which is why the entire drag/commit suite
-   survived the migration untouched. Review refinement (Codex, PR #103):
-   the center and clamp use the VISUAL viewport (`visualViewport`
-   offset/width, layout-viewport fallback) — this control deliberately
-   preserves native pinch zoom, and a fixed-position capsule centered on
-   the layout viewport can open entirely outside a zoomed-in user's view.
+   survived the migration untouched. Review refinements (Codex, PR #103,
+   two passes): the center and clamp use the VISUAL viewport
+   (`visualViewport` offset/width, layout-viewport fallback) — this
+   control deliberately preserves native pinch zoom, and a fixed-position
+   capsule centered on the layout viewport can open entirely outside a
+   zoomed-in user's view; and when zoom leaves that region NARROWER than
+   the track, the overflow placement biases to the SELECTED detent (the
+   thumb spawns there), pulling it as close to the visible center as the
+   range allows — the fixed home holds whenever the track fits, and the
+   selection only steers placement when fixedness is geometrically
+   impossible.
 2. **A thumb rides the fill's leading edge** (`data-hold-slider-thumb`,
    28px, glass ground + hair ring, core disc tone-colored by the same
    FILL_CLASS ramp — text-free fills only). Position now reads as an

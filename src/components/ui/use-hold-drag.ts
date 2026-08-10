@@ -83,23 +83,35 @@ export interface TrackGeometry {
  * on the LAYOUT viewport can open entirely outside a zoomed-in user's view
  * (Codex review, PR #103). Unzoomed, the shell is a centered
  * max-w-screen-sm column, so the visual center IS the composer's.
- * EDGE_MARGIN_PX clamps within the same visible region, left edge winning
- * like the original clamp.
+ *
+ * When the track FITS (the normal case), the home is the visible region's
+ * center and `selectedIndex` plays no part — same spot for every press.
+ * When zoom leaves the region NARROWER than the track, a fixed home cannot
+ * show everything, and what must stay visible is the SELECTED detent — the
+ * thumb spawns there (Codex review, second pass): the overflow placement
+ * pulls that detent as close to the visible center as the range allows,
+ * clamped so whichever edge is being shown keeps its EDGE_MARGIN_PX.
  */
 export function computeTrackGeometry(
   anchorRect: { top: number; height: number },
   detentCount: number,
+  selectedIndex: number,
   viewport: { left: number; width: number },
 ): TrackGeometry {
   const span = (detentCount - 1) * DETENT_SPACING_PX;
   const width = span + TRACK_PAD_PX * 2;
-  const left = Math.max(
-    viewport.left + EDGE_MARGIN_PX,
-    Math.min(
-      viewport.left + (viewport.width - width) / 2,
-      viewport.left + viewport.width - EDGE_MARGIN_PX - width,
-    ),
-  );
+  const fits = width <= viewport.width - EDGE_MARGIN_PX * 2;
+  const left = fits
+    ? viewport.left + (viewport.width - width) / 2
+    : Math.max(
+        viewport.left + viewport.width - EDGE_MARGIN_PX - width,
+        Math.min(
+          viewport.left +
+            viewport.width / 2 -
+            (TRACK_PAD_PX + selectedIndex * DETENT_SPACING_PX),
+          viewport.left + EDGE_MARGIN_PX,
+        ),
+      );
   const top = anchorRect.top + anchorRect.height / 2 - TRACK_HEIGHT_PX / 2;
   const first = left + TRACK_PAD_PX;
   return {
@@ -227,6 +239,7 @@ export function useHoldDrag({
       const geometry = computeTrackGeometry(
         p.el.getBoundingClientRect(),
         count,
+        selected,
         vv
           ? { left: vv.offsetLeft, width: vv.width }
           : { left: 0, width: window.innerWidth },
