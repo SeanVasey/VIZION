@@ -112,9 +112,16 @@ unaffected, and `developer-accents.test.ts` passes unmodified.
 was written. It is left as-is: an ADR is a dated record, and rewriting its
 measurements would falsify it. This decision supersedes the value.
 
-**`scripts/generate-icons.mjs` needs no edit.** Its `LASER = "#DFFA04"` already
-matched the artwork; it now also matches the token. It became correct by both
-measures without changing.
+**`scripts/generate-icons.mjs` now derives rather than restates.** Its `LASER`
+was a literal that happened to equal both the artwork and, after this decision,
+the token — correct by both measures without changing. That is precisely the
+condition this repo has been burned by before: agreement with `tokens.css` that
+nothing enforces, holding right up until someone retunes one and not the other.
+The script therefore reads `--laser` and `--void` out of `src/styles/tokens.css`
+(first match, i.e. the dark block — an app icon has no theme, it has an
+appearance). Regenerating after the change produced **byte-identical output
+across all 33 files**, which is the evidence that the derivatives already
+matched; the edit converts that from coincidence into construction.
 
 ## `#5b6600` is derived, not picked
 

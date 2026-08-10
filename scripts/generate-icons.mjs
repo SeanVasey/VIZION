@@ -63,13 +63,37 @@ const APP_DIR = path.join(repoRoot, "src", "app");
 
 const MASTER_SVG = path.join(BRAND_DIR, "vizion-glyph.svg");
 const MANIFEST = path.join(repoRoot, "public", "manifest.webmanifest");
+const TOKENS = path.join(repoRoot, "src", "styles", "tokens.css");
 
-// Colors mirror the committed brand SVGs byte-for-byte — the artwork is locked,
-// so these must not diverge. LASER is the glyph accent, VOID the dark plate
-// (and the manifest's theme_color/background_color), INK the glyph on light.
-const LASER = "#DFFA04";
-const VOID = "#0F1012";
-const INK = "#0F1012";
+/**
+ * Read a token's hex straight out of `src/styles/tokens.css`.
+ *
+ * The colours are NOT restated here. `tasks/lessons.md` records the failure
+ * that follows from restating them — icon art authored beside the token file
+ * instead of from it, drifting a full hue band before anyone noticed, because
+ * nothing connected the two. A literal in this script would be that same
+ * disconnection with a shorter fuse: it would agree with `tokens.css` exactly
+ * until the day someone retunes one and not the other.
+ *
+ * So the generator derives. Retune `--laser`, re-run `npm run generate:icons`,
+ * and every derivative follows by construction — the icons cannot disagree
+ * with the design system about what the brand green is.
+ *
+ * Only the DARK-block values are read (the first match), which is the whole
+ * palette this pipeline needs: an app icon has no theme, it has an appearance.
+ */
+const tokensCss = await fs.readFile(TOKENS, "utf8");
+function token(name) {
+  const m = tokensCss.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`));
+  if (!m) throw new Error(`tokens.css: --${name} not found (or is not a hex)`);
+  return m[1].toUpperCase();
+}
+
+// LASER is the glyph accent, VOID the dark plate (and the manifest's
+// theme_color/background_color), INK the glyph on a light plate.
+const LASER = token("laser");
+const VOID = token("void");
+const INK = VOID;
 
 // Base appearance for the name-agnostic derivatives (favicons, apple-touch,
 // App Router icons, maskable tiles). 'light' = Laser plate + Void ink, per the

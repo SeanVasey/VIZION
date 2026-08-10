@@ -130,24 +130,27 @@ show how the icon _appears_ once iOS has masked and glassified it. Rasterizing
 them would bake in the corners and gloss the OS applies at runtime, so the
 generator never reads them.
 
-In the app itself the rule inverts, because nothing masks an `<img>` in a web
-document:
+**In the app, no `public/brand/` file is rendered at all.** Both brand surfaces —
+the `ScreenHeader` mark and the sign-in hero — use `BrandMark`: the master glyph
+inlined as a single path on `currentColor`, paired with `text-accent` so it
+follows the theme. Never a hardcoded fill; brand Laser as ink on the light
+canvas is a 1.09:1 contrast FAIL. `tests/unit/brand-mark.test.ts` keeps the
+inlined geometry equal to the master.
 
-- **Header tile** (`ScreenHeader`) — serves the composed `vizion-icon-light.svg`
-  directly. Here the baked squircle and gradient are the point: they are what
-  the user already sees on the home screen. It carries no CSS `rounded-*`; the
-  artwork owns its corners.
-- **Sign-in hero** (`BrandMark`) — the master glyph inlined as a single path on
-  `currentColor`, paired with `text-accent` so it follows the theme. Never a
-  hardcoded fill: brand Laser as ink on the light canvas is a 1.09:1 contrast
-  FAIL. `tests/unit/brand-mark.test.ts` keeps the inlined geometry equal to the
-  master.
+The header used to serve the composed `vizion-icon-light.svg` as a plated tile.
+It no longer does, because that plate is a _gradient_
+(`#ECFF52 → #DFFA04 → #C2E000`): almost none of its area is the accent, so it
+measured `#C9E601`–`#D3EF02` beside a wordmark reading a flat `--accent-ink` and
+the two greens visibly disagreed. On `currentColor` the mark and the wordmark
+are the same token by construction and cannot drift apart.
 
 Artwork and design system share one green: `--laser` was retuned `#B7FF3C` →
 `#DFFA04` to meet the Liquid Glass set, which inverts the usual "art re-derives
 from the tokens" rule because this set is a brand refresh rather than a
-derivative — see
-[ADR-0013](./docs/decisions/0013-brand-green-retune.md).
+derivative — see [ADR-0013](./docs/decisions/0013-brand-green-retune.md). The
+generator closes the loop from the other side: it reads `--laser` and `--void`
+out of `tokens.css` rather than restating them, so the icons cannot disagree
+with the design system about what the brand green is.
 
 ## License
 

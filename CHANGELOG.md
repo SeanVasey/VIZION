@@ -6,6 +6,40 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The header wears the mark, not the tile — and one green survives the round trip
+
+Two follow-ups to the retune below, both aimed at the same seam: the accent in
+the app header still did not match the accent token, because the thing painting
+it was never the token.
+
+The header's app-icon tile served the composed `vizion-icon-light.svg`, whose
+plate is a **gradient** — `#ECFF52 → #DFFA04 → #C2E000`. Almost none of its area
+is the accent: sampled off the rendered document it measured `#C9E601`–`#D3EF02`
+next to a wordmark reading a flat `--accent-ink`, so retuning `--laser` moved the
+wordmark and left the tile behind. Two greens, still disagreeing, one retune
+later.
+
+So the tile is gone and the **glyph** takes its place, left of the wordmark, on
+`currentColor` + `text-accent` — the same `BrandMark` the sign-in hero uses.
+Mark and wordmark now resolve to one value by construction rather than by
+agreement: the header samples `#DFFA04` in dark and `#5B6600` in light, at
+identical pixel counts, and there is no third green left to drift. Sized 32px
+wide (≈27.9px tall on the 1024×892.8 aspect), chosen against 28/36/40px
+candidates rendered in place — 28 reads timid, 36 and up overpower the wordmark;
+32 puts the mark's mass on its cap height. `src/lib/brand-assets.ts` retires with
+the tile, its last consumer gone.
+
+The generator closes the same loop from the other side. `LASER` and `VOID` were
+literals that happened to equal the tokens; now `scripts/generate-icons.mjs`
+**reads them out of `src/styles/tokens.css`**. This is the standing lesson from
+`tasks/lessons.md` — art authored beside the token file instead of from it drifts
+a full hue band before anyone notices — applied to the pipeline rather than
+restated in it: a literal here would have agreed with `tokens.css` exactly until
+the day someone retuned one and not the other. Retune `--laser` now and every
+derivative follows on the next run. Regenerating produced **byte-identical**
+output across all 33 files, which is the proof the icons already matched: the
+change makes it structural, not coincidental.
+
 ### The accent green becomes one green — `--laser` follows the brand
 
 `--laser` moves `#b7ff3c` → `#dffa04` ([ADR-0013](docs/decisions/0013-brand-green-retune.md)),
