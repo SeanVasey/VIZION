@@ -62,7 +62,10 @@ export function AmbientNebula() {
     const FRAME_MS = 1000 / 30; // hard 30fps cap on mobile.
     const WRAP = 40; // wrap margin, px — particles re-enter on the far side.
     const ACCENT_COUNT = 9;
-    const LASER_RGB = "183, 255, 60";
+    // --laser's channels. A canvas cannot read a custom property, so this is a
+    // hand-kept mirror of tokens.css — retune both together (ADR-0013) or the
+    // background paints one green while the DOM paints another.
+    const LASER_RGB = "223, 250, 4";
     // Owner tune: core dots read too faint at the NEBULA+ table alphas.
     // Applied before the light-theme multiplier, so its clamps still bound.
     // On LIGHT the boost is therefore mostly notional: light already
@@ -100,7 +103,7 @@ export function AmbientNebula() {
 
     /* --- Theme-resolved palette (re-read when [data-theme] flips) --------- */
     let silverRgb = "185, 188, 197";
-    let accentRgb = "183, 255, 60";
+    let accentRgb = "223, 250, 4"; // --laser fallback until channelsOf() resolves it
     let isLight = false;
 
     function channelsOf(cssColor: string): string | null {

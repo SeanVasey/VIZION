@@ -6,6 +6,74 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The accent green becomes one green — `--laser` follows the brand
+
+`--laser` moves `#b7ff3c` → `#dffa04` ([ADR-0013](docs/decisions/0013-brand-green-retune.md)),
+so the artwork, the icons and the UI finally read the same hue. Until now they
+did not, and the seam was visible in one glance at the app header: the icon tile
+painting the brand's `#DFFA04` (66.6°) beside a wordmark "IO" painting the
+token's `#B7FF3C` (82.2°) — measured off the rendered document, not inferred.
+
+The interesting part is the direction. `tasks/lessons.md` already records this
+drift happening once, with the lesson drawn from it: *the icon must re-derive
+from the tokens, never approximate them* — written when previous icon art
+wandered to hue 64–74° against the token at 82°. The Liquid Glass set lands at
+66.6°, **inside that same band**. On the letter of the rule the artwork should
+move. It doesn't, because that rule governs derivative artwork and this is a
+brand refresh: a designed identity of which the green is a constituent, not an
+approximation of a palette that already existed. When the brand moves, the token
+is what has drifted. That inversion is the whole reason 0013 exists — without it
+the next reader of `lessons.md` reverts this on sight, correctly by the rule as
+written. The lesson entry now carries the boundary.
+
+Three derivatives encode the old hue as literals and move with it, and the third
+is the one that would have shipped the bug: `--laser-glow` spells the channels
+out because a shadow needs an alpha; the light theme's hand-derived
+`--accent-ink` sits in **two** blocks (`[data-theme="light"]` and the verbatim
+`@media (prefers-color-scheme: light)` copy — write one and a system-light user
+silently inherits dark values, the hazard documented in `dev-accents.css`); and
+`AmbientNebula.tsx` mirrors the channels twice more because a canvas cannot read
+a custom property. Retuning only `--laser` would have left the background canvas
+painting the old green behind a DOM painting the new one — the original
+incident's exact failure mode, relocated from an SVG to a canvas.
+
+`--accent-ink` is re-derived rather than left alone: Laser as *text* on a light
+surface is the 1.09:1 FAIL, so the light theme substitutes a deep same-hue tone,
+and a tone at the retired hue would have stranded the light theme at 82° while
+everything else read 66.6°. `#3f6b00` → `#5b6600` is the same construction at the
+new hue, tuned to hold the corridor *position* rather than merely pass — page
+5.50 / glass 6.12 / surface 6.06, against the retired value's 5.55 / 6.18 / 6.12.
+
+`--on-laser` does not move. `#0e1013` on the new Laser measures 16.16:1, up from
+15.77:1, so the §6 contrast law — buttons are `--on-laser` on `--laser` — holds
+and every button, chip and FAB keeps its ink. This is a hue change, not a
+polarity one.
+
+The check that mattered most was the one a green test suite could not give.
+[0003](docs/decisions/0003-developer-accents.md) sets a semantic-clearance floor
+of **20 ΔE2000 to `--laser`** for all twelve developer accents — but
+`developer-accents.test.ts` does not encode that floor, so 1361 passing tests
+said nothing about it. Recomputed directly (with a CIEDE2000 implementation
+self-checked against 0011's published 66.7 figure, which it reproduced exactly):
+all twelve clear the floor, the tightest being google at **37.0**, still nearly
+double. `--flare` (65.1 / 70.0, floor 18), `--amber` (24.0) and `--pulse` (27.2,
+floor 15) hold as well, so 0003 and 0011 stand unamended and their test passes
+untouched.
+
+Verified by rendering rather than reasoning, since nothing asserts colour
+appearance: the hero samples `#DFFA04` in dark and `#5B6600` in light, **and
+`#5B6600` again for a system-light user with no `data-theme` set** — the
+double-block trap, cleared. In the header, tile and wordmark now sample the same
+hue family.
+
+Deliberately untouched: `public/brand/` (already the target green),
+`scripts/generate-icons.mjs` (its `LASER` already matched the artwork and now
+matches the token too, correct by both measures without an edit), and the
+`#b7ff3c` occurrences in `media-{highlight,context}.test.ts` and `media.test.ts`
+— those are sample palette text inside generated prompts and raw RGB pixel bytes
+for an extraction test, arbitrary fixture data that a blanket replace would have
+corrupted.
+
 ### The icon set is the Liquid Glass mark, derived from one flat master
 
 Every favicon, PWA, apple-touch and splash derivative — 33 files — is

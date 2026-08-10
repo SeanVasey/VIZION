@@ -12,7 +12,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![PWA](https://img.shields.io/badge/PWA-installable-B7FF3C?logoColor=0F1012)](https://web.dev/progressive-web-apps/)
+[![PWA](https://img.shields.io/badge/PWA-installable-DFFA04?logoColor=0F1012)](https://web.dev/progressive-web-apps/)
 [![License](https://img.shields.io/badge/license-MIT-B9BCC5)](./LICENSE)
 
 </div>
@@ -143,9 +143,11 @@ document:
   FAIL. `tests/unit/brand-mark.test.ts` keeps the inlined geometry equal to the
   master.
 
-One known divergence: the artwork's Laser is `#DFFA04`, the design system's
-`--laser` token is `#B7FF3C`. Both appear in the header. Reconciling them is a
-design-system decision, not an icon one.
+Artwork and design system share one green: `--laser` was retuned `#B7FF3C` →
+`#DFFA04` to meet the Liquid Glass set, which inverts the usual "art re-derives
+from the tokens" rule because this set is a brand refresh rather than a
+derivative — see
+[ADR-0013](./docs/decisions/0013-brand-green-retune.md).
 
 ## License
 

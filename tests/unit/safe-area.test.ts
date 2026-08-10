@@ -8,7 +8,7 @@ import {
 
 const VOID = "#0F1012";
 const CHALK = "#F2F3F6";
-const LASER = "#B7FF3C";
+const LASER = "#DFFA04";
 
 describe("parseHex", () => {
   it("parses 6-digit hex", () => {

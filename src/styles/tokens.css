@@ -42,7 +42,13 @@
      baked into the rect so one token carries the whole intensity. */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E");
 
-  --laser: #b7ff3c; /* accent FILL + primary action     */
+  /* Retuned #b7ff3c → #dffa04 (ADR-0013): the brand's own green, hue 66.6°
+     against the retired 82.2°.  The Liquid Glass artwork is now the source and
+     the token follows it, which INVERTS the tasks/lessons.md rule that art
+     re-derives from tokens — read 0013 before reverting this. --on-laser does
+     NOT move: Void on the new Laser measures 16.15:1 (was 15.76:1), so the §6
+     contrast law and every button's ink are unchanged. */
+  --laser: #dffa04; /* accent FILL + primary action     */
   --on-laser: #0e1013; /* the dark ink that sits ON laser */
   /* Laser used AS TEXT/ICON: equals --laser on dark, but a deep laser-derived
      green on light so it never trips the laser-on-light contrast FAIL.  Laser
@@ -60,7 +66,10 @@
   --pulse-ink: var(--pulse);
   --amber-ink: var(--amber);
 
-  --laser-glow: rgba(183, 255, 60, 0.25);
+  /* The laser channels, spelled out because a shadow needs an alpha. Retuned
+     with --laser (ADR-0013) — leaving this on the old hue would tint every
+     focus ring and the FAB's bloom a green the accent no longer is. */
+  --laser-glow: rgba(223, 250, 4, 0.25);
 
   /* --- Font roles: self-hosted family (next/font/local var) first, then
      a system fallback stack.  Mono is scoped to the OUTPUT region only. --- */
@@ -109,11 +118,15 @@
   /* --laser / --on-laser unchanged (laser stays a fill).  Laser-as-text and
      flare-as-text switch to darker tones that pass WCAG AA on a light surface
      (flare is only ever used as text/border — never a fill). */
-  --accent-ink: #3f6b00;
+  --accent-ink: #5b6600;
   --flare: #c81d10;
   /* Same hue, deep enough to clear AA on all three light backdrops (page
      5.6:1 / glass 6.2:1 / surface 6.2:1 for amber; 5.4 / 6.0 / 5.9 for
-     pulse) — the corridor --accent-ink (6.2) and --flare (5.6) already sit in. */
+     pulse) — the corridor --accent-ink (6.1) and --flare (5.6) already sit in.
+     --accent-ink was re-derived #3f6b00 → #5b6600 with the --laser retune
+     (ADR-0013): same construction, moved to the new 66.6° hue and tuned to hold
+     the corridor position rather than merely pass — page 5.50 / glass 6.12 /
+     surface 6.06, against the retired value's 5.55 / 6.18 / 6.12. */
   --amber-ink: #8a5200;
   --pulse-ink: #0d7040;
 
@@ -138,7 +151,10 @@
     --glass-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.9);
     /* Dark noise on a near-white fill reads twice as loud — halve it. */
     --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.02'/%3E%3C/svg%3E");
-    --accent-ink: #3f6b00;
+    /* Mirror of the [data-theme="light"] block above — both must carry the
+       retuned --accent-ink (ADR-0013) or a system-light user inherits the dark
+       value. That double-write hazard is the one documented in dev-accents.css. */
+    --accent-ink: #5b6600;
     --flare: #c81d10;
     --amber-ink: #8a5200;
     --pulse-ink: #0d7040;
