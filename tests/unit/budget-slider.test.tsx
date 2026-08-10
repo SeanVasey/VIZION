@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useUIStore } from "@/stores/ui";
-import { DETENT_SPACING_PX, HOLD_MS } from "@/components/ui/use-hold-drag";
+import { DETENT_SPACING_PX, HOLD_MS, SLOP_PX } from "@/components/ui/use-hold-drag";
 
 /**
  * The Target rail's budget hold-slider (ADR-0012).
@@ -177,5 +177,84 @@ describe("budget hold-slider commits", () => {
     renderComposer();
     fireEvent.click(targetTrigger());
     expect(screen.getByRole("dialog", { name: "Target model" })).toBeInTheDocument();
+  });
+});
+
+describe("the open sheet is inert to the budget slider", () => {
+  /**
+   * The sheet is a body portal but a React CHILD of the wrapper, so its
+   * presses re-dispatch through the wrapper's handlers. Pre-guard, holding
+   * the Auto card grew the capsule across the open sheet (z-85 over its
+   * z-70), release committed a preference nobody chose, and the trailing-
+   * click suppression ate the row's own tap (2026-08-10).
+   */
+  const openSheet = () => {
+    fireEvent.click(targetTrigger());
+    return screen.getByRole("dialog", { name: "Target model" });
+  };
+  const press = (el: Element, opts: Record<string, unknown> = {}) =>
+    fireEvent.pointerDown(el, {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+      ...opts,
+    });
+  const lift = (el: Element, x = DOWN_X) =>
+    fireEvent.pointerUp(el, { pointerId: 1, clientX: x, clientY: 400 });
+  const hold = () =>
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+
+  it("a hold on the Auto card expands nothing and commits nothing", () => {
+    renderComposer();
+    openSheet();
+    const autoRow = screen.getByRole("radio", { name: /^Auto/ });
+    press(autoRow);
+    hold();
+    expect(overlay()).toBeNull();
+    lift(autoRow);
+    expect(useUIStore.getState().autoPreference).toBe("balanced");
+    // No suppression was armed, so the row's own tap still lands: Auto
+    // stays on and the sheet closes.
+    fireEvent.click(autoRow);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(useUIStore.getState().autoTarget).toBe(true);
+    // And the pill itself is not over-blocked: the real gesture still works.
+    holdAndDrag(1);
+    expect(useUIStore.getState().autoPreference).toBe("quality");
+  });
+
+  it("a press-and-slide on a segment stays a segment tap", () => {
+    renderComposer();
+    openSheet();
+    const seg = screen.getByRole("button", { name: "Budget" });
+    press(seg);
+    fireEvent.pointerMove(seg, {
+      pointerId: 1,
+      clientX: DOWN_X + SLOP_PX + 4,
+      clientY: 400,
+    });
+    expect(overlay()).toBeNull();
+    lift(seg, DOWN_X + SLOP_PX + 4);
+    expect(useUIStore.getState().autoPreference).toBe("balanced");
+    fireEvent.click(seg);
+    expect(useUIStore.getState().autoPreference).toBe("budget");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a hold on the scrim expands nothing, and its tap still closes", () => {
+    renderComposer();
+    const dialog = openSheet();
+    // Side anchor ancestry: panel → centering column → fixed scrim.
+    const scrim = dialog.parentElement!.parentElement as HTMLElement;
+    press(scrim);
+    hold();
+    expect(overlay()).toBeNull();
+    lift(scrim);
+    expect(useUIStore.getState().autoPreference).toBe("balanced");
+    fireEvent.click(scrim);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

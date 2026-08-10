@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { createPortal } from "react-dom";
 import { HoldSliderTrigger, type Detent } from "@/components/ui/HoldSlider";
 import {
   DETENT_SPACING_PX,
@@ -301,6 +302,91 @@ describe("drag, commit, and the trailing click", () => {
     moveTo(DOWN_X + 5 * DETENT_SPACING_PX);
     up(DOWN_X + 5 * DETENT_SPACING_PX);
     expect(region.textContent).toBe("Fable 5 · Max");
+  });
+});
+
+describe("portal-bubbled presses stay inert", () => {
+  /**
+   * The wrapper's children include each picker's SHEET, which portals to
+   * document.body — and React re-dispatches a portalled child's events up
+   * the COMPONENT tree, so a press anywhere in the open sheet reaches the
+   * wrapper's handlers too. A gesture may only begin in the wrapper's own
+   * DOM subtree; without that admission rule, holding the Target sheet's
+   * Auto card grew the capsule across the open sheet, release committed a
+   * preference nobody chose, and the trailing-click suppression ate the
+   * row's own tap (2026-08-10). The guard must be containment, not identity
+   * — every legitimate press targets the pill, a DOM descendant — or the
+   * pill-press suites above would go red.
+   */
+  function PortalHost({
+    onCommit = () => {},
+    onRow = () => {},
+  }: {
+    onCommit?: (i: number) => void;
+    onRow?: () => void;
+  }) {
+    return (
+      <HoldSliderTrigger
+        detents={DETENTS}
+        selectedIndex={0}
+        liveLabel={liveLabel}
+        onCommit={onCommit}
+        enabled
+      >
+        <button type="button">Pill</button>
+        {createPortal(
+          <button type="button" onClick={onRow}>
+            Row
+          </button>,
+          document.body,
+        )}
+      </HoldSliderTrigger>
+    );
+  }
+  const row = () => screen.getByRole("button", { name: "Row" });
+  const downOnRow = () =>
+    fireEvent.pointerDown(row(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+
+  it("never engages from a hold that began in a portalled child", () => {
+    const onCommit = vi.fn();
+    const onRow = vi.fn();
+    render(<PortalHost onCommit={onCommit} onRow={onRow} />);
+    downOnRow();
+    hold();
+    expect(overlay()).toBeNull();
+    fireEvent.pointerUp(row(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    expect(onCommit).not.toHaveBeenCalled();
+    // No press record was ever admitted, so no click suppression either —
+    // the row's own tap must land.
+    fireEvent.click(row());
+    expect(onRow).toHaveBeenCalledTimes(1);
+  });
+
+  it("never engages from a press-and-slide that began in a portalled child", () => {
+    const onCommit = vi.fn();
+    const onRow = vi.fn();
+    render(<PortalHost onCommit={onCommit} onRow={onRow} />);
+    downOnRow();
+    // X-dominant past slop — on the pill this engages at once.
+    fireEvent.pointerMove(row(), {
+      pointerId: 1,
+      clientX: DOWN_X + SLOP_PX + 4,
+      clientY: 400,
+    });
+    expect(overlay()).toBeNull();
+    fireEvent.pointerUp(row(), {
+      pointerId: 1,
+      clientX: DOWN_X + SLOP_PX + 4,
+      clientY: 400,
+    });
+    expect(onCommit).not.toHaveBeenCalled();
+    fireEvent.click(row());
+    expect(onRow).toHaveBeenCalledTimes(1);
   });
 });
 

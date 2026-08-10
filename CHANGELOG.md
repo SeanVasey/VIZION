@@ -8,6 +8,25 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **An open picker sheet is now inert to the hold-slider** (ADR-0012
+  amendment; owner screenshot: the budget capsule and its "Auto · Quality"
+  label drawn across the open Target sheet). `HoldSliderTrigger` wraps each
+  composer picker — the trigger pill AND its body-portalled Sheet — and
+  React re-dispatches a portal child's events up the component tree, so
+  pressing anything in the open sheet (the Auto card, a routing segment, a
+  model row, the scrim) reached the wrapper's handlers: after 300ms, or an
+  x-dominant slide, the capsule expanded straight across the open sheet
+  (z-85 over its z-70), release committed a preference that was never
+  chosen, the trailing-click suppression ate the row's own tap, and the
+  active-phase touchmove preventDefault pinned the sheet's scroll. Because
+  the budget ramp deliberately tops out at laser, the misfired capsule is
+  also what read as "the thinking slider's tint is missing" — the tinted
+  silver→laser→ultra ramp was never broken. `useHoldDrag` now refuses any
+  pointer-down whose target is not a DOM descendant of its wrapper; every
+  other path keys off the press record, so the one guard closes hold,
+  slide, stand-down capture, and click suppression together, and the
+  overlay's "a Sheet can never be open mid-gesture" invariant is enforced
+  rather than assumed.
 - **Taps respond immediately — the ambient blur no longer queues input**
   (owner report: "the time it takes for something to come up on the screen
   when clicking is very slow"). The NEBULA+ blooms carried

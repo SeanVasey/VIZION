@@ -125,8 +125,11 @@ const FILL_INSET_PX = 6;
  * positioning comes from TrackGeometry, which already anchored the selected
  * detent under the finger and clamped to the viewport. `pointer-events:
  * none` keeps the capture on the wrapper — the overlay can never steal the
- * gesture it visualizes. z-[85]: above the toast tier; a Sheet can never be
- * open mid-gesture.
+ * gesture it visualizes. z-[85]: above the toast tier; a Sheet (z-[70]) can
+ * never be open mid-gesture — enforced, not assumed: useHoldDrag refuses a
+ * pointer-down whose target is outside the wrapper's DOM subtree, and an
+ * open sheet's scrim covers the pill, so no gesture can start while one is
+ * up (the 2026-08-10 capsule-over-the-sheet defect).
  */
 function HoldSliderOverlay({
   detents,

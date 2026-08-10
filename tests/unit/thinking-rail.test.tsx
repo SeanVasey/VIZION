@@ -328,4 +328,31 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     fireEvent.click(thinkingTrigger());
     expect(screen.getByRole("radio", { name: "Max" })).toBeInTheDocument();
   });
+
+  it("stays out of its own open sheet — a held row is a tap, not a drag", () => {
+    // This rail's slider is enabled unconditionally, so pre-guard it was the
+    // worse half of the 2026-08-10 defect: the sheet is a body portal but a
+    // React child of the wrapper, so holding a depth row re-dispatched into
+    // the gesture — capsule over the open sheet, phantom commit, row tap
+    // eaten by the trailing-click suppression.
+    renderComposer();
+    fireEvent.click(thinkingTrigger());
+    const high = screen.getByRole("radio", { name: "High" });
+    fireEvent.pointerDown(high, {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    expect(overlay()).toBeNull();
+    fireEvent.pointerUp(high, { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    expect(useUIStore.getState().thinkingLevels).toEqual({});
+    // The row's own tap still lands and closes the sheet.
+    fireEvent.click(high);
+    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "high" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });

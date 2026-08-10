@@ -330,6 +330,28 @@ test.describe("thinking hold-slider", () => {
     );
   });
 
+  test("a press held inside the open sheet never grows the track", async ({ page }) => {
+    // The sheet is a body portal but a React child of the gesture wrapper,
+    // so its presses re-dispatch through the wrapper's handlers — pre-guard,
+    // holding a row here drew the capsule across the open sheet and the
+    // trailing-click suppression ate the row's own tap (2026-08-10).
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    await pill.click();
+    const sheet = page.getByRole("dialog", { name: "Thinking depth" });
+    await expect(sheet).toBeVisible();
+    const row = sheet.getByRole("radio", { name: "High", exact: true });
+    const box = (await row.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    // Well past HOLD_MS — the honest wait for an absence.
+    await page.waitForTimeout(400);
+    await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    await page.mouse.up();
+    // The row's own click landed: depth picked, sheet closed.
+    await expect(sheet).toHaveCount(0);
+    await expect(pill).toContainText("High");
+  });
+
   /**
    * The same control under REAL SYNTHESIZED TOUCH — Chromium only, because
    * touch synthesis rides CDP and WebKitGTK has no equivalent. This is the
