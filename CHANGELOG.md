@@ -6,8 +6,62 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The hold-slider announces itself, and the two capsules stopped dressing
+  alike** (ADR-0012 amendment, owner affordance pass). The press-and-hold
+  gesture was invisible at rest — the sheet was deliberately the only
+  discoverable path — so slider-wrapped pills now wear `HoldSliderHint`,
+  three slim vertical ticks at the trailing edge (the Sheet grab-rail's
+  grip vocabulary; the first cut used dots, which read as a text ellipsis
+  promising a "more" menu), rendered strictly while the slider is live
+  (the Target pill hints only under Auto routing; Settings' picker, which
+  has no slider, never hints; aria-hidden, so the label stays the readout
+  and the sheet stays the accessible path). And the Thinking capsule now
+  draws its detents as ascending bars — the DepthGlyph meter's own
+  vocabulary, so mid-drag it reads as the meter expanded, a ladder — while
+  the budget capsule keeps equal dots whose growing fill is the spend
+  readout. Distinction by form, not hue: bar height rides ladder position,
+  fill color stays keyed to the level's identity (silver→laser→ultra),
+  tokens stay locked, and the budget ramp's laser cap stands. The owner's
+  second round tightened the capsule itself: the live readout rides a
+  glass-solid chip instead of bare text (it floats over whatever the
+  composer has at that y and used to collide with the neighbouring rail's
+  label), the wrapped pill fades out while its capsule is up so the track
+  visually replaces the control instead of letting its tail peek out
+  beside a narrower track, and reached dots go transparent under the fill
+  — dark dots in the laser read as sediment; the fill edge is the
+  position. Reached bars stay: a meter is its filled bars. The third
+  round made the gesture a focus state: a dim scrim (a color fade,
+  deliberately never a backdrop blur — the 2026-08-09 input-queueing
+  lesson) drops the whole composer back while a capsule is up, so the eye
+  holds only the track, the level chip, and its tone, and release returns
+  the picked state instantly; and the chip now says the LEVEL alone
+  ("Max", "Quality") — the model/mode context is already on screen one
+  rail up and spoken in full by the commit announcement ("Opus 5 · Max"),
+  so the readout no longer stacks "Opus 5" beside "Opus 5" mid-drag.
+
 ### Fixed
 
+- **An open picker sheet is now inert to the hold-slider** (ADR-0012
+  amendment; owner screenshot: the budget capsule and its "Auto · Quality"
+  label drawn across the open Target sheet). `HoldSliderTrigger` wraps each
+  composer picker — the trigger pill AND its body-portalled Sheet — and
+  React re-dispatches a portal child's events up the component tree, so
+  pressing anything in the open sheet (the Auto card, a routing segment, a
+  model row, the scrim) reached the wrapper's handlers: after 300ms, or an
+  x-dominant slide, the capsule expanded straight across the open sheet
+  (z-85 over its z-70), release committed a preference that was never
+  chosen, the trailing-click suppression ate the row's own tap, and the
+  active-phase touchmove preventDefault pinned the sheet's scroll. Because
+  the budget ramp deliberately tops out at laser, the misfired capsule is
+  also what read as "the thinking slider's tint is missing" — the tinted
+  silver→laser→ultra ramp was never broken. `useHoldDrag` now refuses any
+  pointer-down whose target is not a DOM descendant of its wrapper; every
+  other path keys off the press record, so the one guard closes hold,
+  slide, stand-down capture, and click suppression together, and the
+  overlay's "a Sheet can never be open mid-gesture" invariant is enforced
+  rather than assumed.
 - **Taps respond immediately — the ambient blur no longer queues input**
   (owner report: "the time it takes for something to come up on the screen
   when clicking is very slow"). The NEBULA+ blooms carried

@@ -3,6 +3,7 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
+import { HoldSliderHint } from "@/components/ui/HoldSlider";
 import { Segmented } from "@/components/ui/Segmented";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
@@ -87,6 +88,7 @@ function TargetPickerImpl({
   label,
   triggerClassName,
   disabled,
+  holdHint,
   auto,
   onAutoChange,
   autoPreference,
@@ -98,6 +100,10 @@ function TargetPickerImpl({
   label: string;
   triggerClassName?: string;
   disabled?: boolean;
+  /** True while a HoldSliderTrigger around this pill is live — renders the
+   *  resting detent-dot affordance. The composer passes its slider's own
+   *  `enabled`; surfaces with no slider (Settings) omit it and stay clean. */
+  holdHint?: boolean;
   /**
    * Auto routing. Pass BOTH to offer it — omitting them hides the row
    * entirely, which is how Settings keeps `profiles.default_model` a real
@@ -150,6 +156,7 @@ function TargetPickerImpl({
               : "Auto"
             : targetLabel(value)}
         </span>
+        {holdHint && <HoldSliderHint />}
         <PickerChevron />
       </button>
       <TargetPickerSheet

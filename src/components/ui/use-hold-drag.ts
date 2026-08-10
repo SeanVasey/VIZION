@@ -13,7 +13,11 @@ import { tap } from "@/lib/haptics";
  * slop in the same unbroken press, which is how the reference control is
  * actually used — expands an overlay track and the same pointer drags
  * between detents; release commits. The overlay is pointer-transparent
- * decoration — this hook owns the whole gesture from the wrapper element.
+ * decoration — this hook owns the whole gesture from the wrapper element,
+ * and owns ONLY gestures that begin in the wrapper's own DOM subtree: the
+ * pickers' Sheets are body portals whose events still bubble up the React
+ * tree, and they are refused at pointer-down, so an open sheet is inert
+ * to the slider.
  *
  * The gesture is claimed in two phases, extending the axis-claim rule
  * (tasks/lessons.md, 2026-07): at rest the wrapper claims every
@@ -237,6 +241,18 @@ export function useHoldDrag({
   function onPointerDown(e: React.PointerEvent) {
     if (!enabled || press.current) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    // Admission rule: a gesture may only begin in the wrapper's own DOM
+    // subtree. The wrapped children include each picker's SHEET — a body
+    // portal that React still bubbles up the COMPONENT tree — so without
+    // this, a press anywhere in the open sheet (a row, a segment, the
+    // scrim) started a gesture here: after the hold, the capsule drew
+    // itself across the open sheet, release committed, and the trailing-
+    // click suppression ate the row's own tap (2026-08-10). Containment,
+    // not identity — every legitimate press targets the pill, a
+    // descendant. Every later path keys off `press.current`, so refusing
+    // the press record here closes move/up/stand-down/suppress in one
+    // place.
+    if (!(e.target instanceof Node) || !e.currentTarget.contains(e.target)) return;
     cancelled.current = false;
     press.current = {
       pointerId: e.pointerId,

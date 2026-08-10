@@ -2,8 +2,9 @@
 
 Date: 2026-08-09
 Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
-ruling, DSN-022); amended same day after the first on-device pass — see
-below
+ruling, DSN-022); amended same day after the first on-device pass, and
+2026-08-10 for presses inside an open sheet + the owner's affordance pass —
+see below
 
 ## Context
 
@@ -112,3 +113,95 @@ touch", Chromium-only. Which of the two defects the owner's device hit is
 not established and does not need to be; real-iOS confirmation of the
 repaired gesture stays on the manual list in
 `docs/runbooks/ios-verification.md`.
+
+## Amendment (2026-08-10): presses inside the open sheet
+
+The overlay's z-[85] rationale asserted "a Sheet can never be open
+mid-gesture" — true of gestures, but nothing enforced it for PRESSES.
+`HoldSliderTrigger` wraps the whole picker, pill and body-portalled Sheet
+alike, and React re-dispatches portal children's events up the COMPONENT
+tree: with the Target sheet open (Auto on), holding its Auto card, a
+routing segment, a model row, or the scrim engaged the slider — capsule
+drawn across the open sheet, an uninvited commit on release, the row's tap
+swallowed by the trailing-click suppression, sheet scrolling pinned by the
+active-phase touchmove preventDefault. (The Thinking rail, enabled
+unconditionally, was the worse half.) Repair: `useHoldDrag` starts a
+gesture only when the pointer-down target is a DOM descendant of the
+wrapper (`e.currentTarget.contains(e.target)`) — containment is the exact
+discriminator, since portalled children are React-tree but not DOM-tree
+descendants, and every legitimate press targets the pill, which is one.
+Every entry path keys off that single admission, so one guard closes all
+of them. The Sheet itself is unchanged: stopping pointer propagation in
+the app's one dialog primitive would mute presses for every ancestor of
+every sheet — too broad a lever for a contract that belongs to the gesture
+hook.
+
+## Amendment (2026-08-10): the owner's affordance pass
+
+Two of this decision's accepted trades were revisited on owner direction
+("thought through with consideration to user experience and aesthetic
+quality"), both resolved with FORM, never a new hue (tokens stay locked;
+the `--dev-*` corridor stays library-list-only per [0003]):
+
+1. **The gesture is no longer invisible at rest.** Acceptance shipped the
+   sheet as the only discoverable path. Now `HoldSliderHint` — three slim
+   vertical ticks, the grip vocabulary the Sheet's grab rail already
+   speaks — sits at the trailing edge of a slider-wrapped pill, rendered
+   by the pickers behind an opt-in `holdHint` prop that mirrors the
+   slider's `enabled` exactly (Target hints only under Auto; Settings'
+   picker, which has no slider, never hints). aria-hidden decoration: the
+   label stays the readout, the sheet stays the accessible path. (The
+   first cut drew three DOTS; at hint scale a dot row reads as a text
+   ellipsis — a "more" menu promise, the wrong affordance — so the second
+   owner round replaced it with ticks.)
+2. **The two stacked capsules stopped dressing alike.** Budget and
+   Thinking both drew equal dots, distinguishable mid-drag only by count.
+   The overlay now takes `detentMarker`: the Thinking rail passes `bar`
+   and its capsule draws ascending ticks — the DepthGlyph meter's
+   vocabulary, so mid-drag it reads as the meter expanded (a LADDER) —
+   while budget keeps equal `dot`s (equal choices; the fill width is the
+   spend readout, [0004]'s "fill width does the disambiguating" ruling
+   untouched). Bar height rides the detent's ladder POSITION while the
+   fill's color stays keyed to the level's IDENTITY — shape says higher,
+   color says which tier; the DepthGlyph split of duties.
+
+The owner's second round ("not as clean as it could be") tightened the
+capsule's own presentation, all three repairs form-only:
+
+- **The live readout rides a glass-solid chip**, not bare text. The
+  overlay floats over whatever the composer has at that y, so an unbacked
+  line collided with the neighbouring rail's label instead of reading as
+  UI; the chip puts the tone ink on the track's own designed ground in
+  both themes.
+- **The wrapped pill conceals while its capsule is up** (opacity, layout
+  held, `.hold-slider-conceal` with the standard two motion stand-downs):
+  the capsule visually REPLACES the control — the reference behaviour —
+  where before a track narrower than the pill (budget's three detents)
+  left the pill's tail peeking out beside it.
+- **Reached dots go transparent under the fill** — dark dots swimming in
+  the laser fill read as sediment, and the fill edge already marks the
+  position. They stay in the DOM so detent-id hooks never depend on drag
+  position. Reached BARS stay visible: a meter is made of its filled
+  bars.
+
+A third round (owner annotation: the readout "duplicating" the model name
+beside the Target pill, and a request for a focus treatment) reshaped the
+gesture into a focus state:
+
+- **A dim scrim rides the capsule** (`z-[84]`, under the `z-[85]` track;
+  mounts and unmounts with the overlay). While a capsule is up the whole
+  composer drops back, so the eye holds only the track, the level chip,
+  and its tone; release returns the picked state instantly. It is a color
+  fade on `--void`, DELIBERATELY never a `backdrop-filter` blur: a
+  viewport-scale filter live during a pointer gesture is the exact
+  input-queueing regression the bloom bake removed the day before
+  ("Taps respond immediately", 2026-08-09) — the dim buys the focus
+  without re-pricing pointermove.
+- **The chip's readout is the level alone** ("Max", "Quality"). This
+  deliberately narrows the acceptance-era "model-qualified live label"
+  (CHANGELOG: "Opus 5 · Extra High") for the VISUAL readout only: with
+  Auto routing, the thing being changed is the effort, never the model,
+  and the model/mode context is already on screen one rail up — printing
+  it in the chip stacked "Opus 5" beside "Opus 5". The commit
+  announcement keeps the full sentence (`liveLabel` is now announce-only)
+  — ears get the context, eyes get the level.

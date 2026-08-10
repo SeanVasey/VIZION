@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { HoldSliderTrigger, type Detent } from "@/components/ui/HoldSlider";
+import { createPortal } from "react-dom";
+import {
+  HoldSliderTrigger,
+  type Detent,
+  type DetentMarker,
+} from "@/components/ui/HoldSlider";
 import {
   DETENT_SPACING_PX,
   EDGE_MARGIN_PX,
@@ -43,11 +48,13 @@ function Host({
   selectedIndex = 0,
   onCommit = () => {},
   onOpen = () => {},
+  detentMarker,
 }: {
   enabled?: boolean;
   selectedIndex?: number;
   onCommit?: (i: number) => void;
   onOpen?: () => void;
+  detentMarker?: DetentMarker;
 }) {
   return (
     <HoldSliderTrigger
@@ -56,6 +63,7 @@ function Host({
       liveLabel={liveLabel}
       onCommit={onCommit}
       enabled={enabled}
+      detentMarker={detentMarker}
     >
       <button type="button" onClick={onOpen}>
         Pill
@@ -151,6 +159,37 @@ describe("tap vs hold", () => {
     expect(el!.className).toContain("pointer-events-none");
     // Portalled past the composer's overflow-hidden chassis.
     expect(el!.parentElement).toBe(document.body);
+    // The live readout is a chip on the track's own glass ground, never bare
+    // text colliding with whatever the composer has at that y — and it says
+    // only the LEVEL: the context is on screen already and in the commit
+    // announcement, so the chip never stacks "Fable 5" beside "Fable 5".
+    const label = el!.querySelector("[data-hold-slider-label]")!;
+    expect(label.className).toContain("glass-solid");
+    expect(label.textContent).toBe("Auto");
+  });
+
+  it("drops a focus scrim behind the capsule, gone the moment it settles", () => {
+    render(<Host />);
+    const scrim = () => document.querySelector("[data-hold-slider-scrim]");
+    expect(scrim()).toBeNull();
+    down();
+    hold();
+    expect(scrim()).not.toBeNull();
+    expect(scrim()!.getAttribute("aria-hidden")).toBe("true");
+    expect(scrim()!.className).toContain("pointer-events-none");
+    up();
+    expect(scrim()).toBeNull();
+  });
+
+  it("conceals the pill while the capsule is up — the track replaces it", () => {
+    render(<Host />);
+    const wrapper = pill().parentElement!;
+    expect(wrapper.className).not.toContain("opacity-0");
+    down();
+    hold();
+    expect(wrapper.className).toContain("opacity-0");
+    up();
+    expect(wrapper.className).not.toContain("opacity-0");
   });
 
   it("stands down when the press wanders vertically past slop before the hold", () => {
@@ -279,13 +318,16 @@ describe("drag, commit, and the trailing click", () => {
     expect(onCommit).toHaveBeenCalledExactlyOnceWith(3);
   });
 
-  it("shows the live label and tone for the detent under the finger", () => {
+  it("shows the level readout and tone for the detent under the finger", () => {
     render(<Host />);
     down();
     hold();
     moveTo(DOWN_X + 4 * DETENT_SPACING_PX);
     const el = overlay()!;
-    expect(el.textContent).toContain("Fable 5 · Extra High");
+    // Level only — the model qualifier belongs to the announce string, not
+    // to a chip floating next to the rail that already names the model.
+    expect(el.textContent).toContain("Extra High");
+    expect(el.textContent).not.toContain("Fable 5");
     expect(el.querySelector("[data-tone]")!.getAttribute("data-tone")).toBe("ultra");
   });
 
@@ -301,6 +343,130 @@ describe("drag, commit, and the trailing click", () => {
     moveTo(DOWN_X + 5 * DETENT_SPACING_PX);
     up(DOWN_X + 5 * DETENT_SPACING_PX);
     expect(region.textContent).toBe("Fable 5 · Max");
+  });
+});
+
+describe("detent marker vocabulary", () => {
+  it("renders equal dots by default, visible only ahead of the fill", () => {
+    render(<Host selectedIndex={2} />);
+    down();
+    hold();
+    const dots = overlay()!.querySelectorAll<HTMLElement>("[data-detent-dot]");
+    expect(dots).toHaveLength(DETENTS.length);
+    expect(overlay()!.querySelector("[data-detent-bar]")).toBeNull();
+    // Equal: dots carry no per-detent shape — the fill width is the readout.
+    const sizes = new Set([...dots].map((d) => d.style.height));
+    expect(sizes.size).toBe(1);
+    // Reached dots go transparent (dark dots in the laser fill read as
+    // sediment; the fill edge marks the position) but STAY in the DOM, so
+    // detent-id enumeration never depends on the drag position.
+    [...dots].forEach((d, i) => {
+      if (i <= 2) expect(d.className).toContain("opacity-0");
+      else expect(d.className).not.toContain("opacity-0");
+    });
+    up();
+  });
+
+  it("renders ascending bars under detentMarker='bar'", () => {
+    render(<Host detentMarker="bar" />);
+    down();
+    hold();
+    expect(overlay()!.querySelector("[data-detent-dot]")).toBeNull();
+    const bars = overlay()!.querySelectorAll<HTMLElement>("[data-detent-bar]");
+    expect(bars).toHaveLength(DETENTS.length);
+    const heights = [...bars].map((b) => parseFloat(b.style.height));
+    // Strictly ascending — the ladder's shape, legible in the ticks.
+    for (let i = 1; i < heights.length; i++) {
+      expect(heights[i]!).toBeGreaterThan(heights[i - 1]!);
+    }
+    // Unlike dots, reached bars stay visible: a meter IS its filled bars.
+    [...bars].forEach((b) => expect(b.className).not.toContain("opacity-0"));
+    up();
+  });
+});
+
+describe("portal-bubbled presses stay inert", () => {
+  /**
+   * The wrapper's children include each picker's SHEET, which portals to
+   * document.body — and React re-dispatches a portalled child's events up
+   * the COMPONENT tree, so a press anywhere in the open sheet reaches the
+   * wrapper's handlers too. A gesture may only begin in the wrapper's own
+   * DOM subtree; without that admission rule, holding the Target sheet's
+   * Auto card grew the capsule across the open sheet, release committed a
+   * preference nobody chose, and the trailing-click suppression ate the
+   * row's own tap (2026-08-10). The guard must be containment, not identity
+   * — every legitimate press targets the pill, a DOM descendant — or the
+   * pill-press suites above would go red.
+   */
+  function PortalHost({
+    onCommit = () => {},
+    onRow = () => {},
+  }: {
+    onCommit?: (i: number) => void;
+    onRow?: () => void;
+  }) {
+    return (
+      <HoldSliderTrigger
+        detents={DETENTS}
+        selectedIndex={0}
+        liveLabel={liveLabel}
+        onCommit={onCommit}
+        enabled
+      >
+        <button type="button">Pill</button>
+        {createPortal(
+          <button type="button" onClick={onRow}>
+            Row
+          </button>,
+          document.body,
+        )}
+      </HoldSliderTrigger>
+    );
+  }
+  const row = () => screen.getByRole("button", { name: "Row" });
+  const downOnRow = () =>
+    fireEvent.pointerDown(row(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+
+  it("never engages from a hold that began in a portalled child", () => {
+    const onCommit = vi.fn();
+    const onRow = vi.fn();
+    render(<PortalHost onCommit={onCommit} onRow={onRow} />);
+    downOnRow();
+    hold();
+    expect(overlay()).toBeNull();
+    fireEvent.pointerUp(row(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    expect(onCommit).not.toHaveBeenCalled();
+    // No press record was ever admitted, so no click suppression either —
+    // the row's own tap must land.
+    fireEvent.click(row());
+    expect(onRow).toHaveBeenCalledTimes(1);
+  });
+
+  it("never engages from a press-and-slide that began in a portalled child", () => {
+    const onCommit = vi.fn();
+    const onRow = vi.fn();
+    render(<PortalHost onCommit={onCommit} onRow={onRow} />);
+    downOnRow();
+    // X-dominant past slop — on the pill this engages at once.
+    fireEvent.pointerMove(row(), {
+      pointerId: 1,
+      clientX: DOWN_X + SLOP_PX + 4,
+      clientY: 400,
+    });
+    expect(overlay()).toBeNull();
+    fireEvent.pointerUp(row(), {
+      pointerId: 1,
+      clientX: DOWN_X + SLOP_PX + 4,
+      clientY: 400,
+    });
+    expect(onCommit).not.toHaveBeenCalled();
+    fireEvent.click(row());
+    expect(onRow).toHaveBeenCalledTimes(1);
   });
 });
 

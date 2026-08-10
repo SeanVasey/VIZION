@@ -312,10 +312,18 @@ test.describe("thinking hold-slider", () => {
     await page.mouse.move(cx, cy);
     await page.mouse.down();
     await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+    // Focus scrim rides the gesture: up with the capsule, gone on release.
+    await expect(page.locator("[data-hold-slider-scrim]")).toBeVisible();
+    // The thinking capsule wears rising bars (the DepthGlyph vocabulary),
+    // six for Opus's ladder — the budget capsule keeps equal dots.
+    await expect(
+      page.locator("[data-hold-slider-overlay] [data-detent-bar]"),
+    ).toHaveCount(6);
     await page.mouse.move(cx + 3 * 44, cy, { steps: 6 });
     await page.mouse.up();
 
     await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    await expect(page.locator("[data-hold-slider-scrim]")).toHaveCount(0);
     await expect(pill).toContainText("High");
     // The trailing click was swallowed — no sheet.
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -328,6 +336,28 @@ test.describe("thinking hold-slider", () => {
       "aria-checked",
       "true",
     );
+  });
+
+  test("a press held inside the open sheet never grows the track", async ({ page }) => {
+    // The sheet is a body portal but a React child of the gesture wrapper,
+    // so its presses re-dispatch through the wrapper's handlers — pre-guard,
+    // holding a row here drew the capsule across the open sheet and the
+    // trailing-click suppression ate the row's own tap (2026-08-10).
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    await pill.click();
+    const sheet = page.getByRole("dialog", { name: "Thinking depth" });
+    await expect(sheet).toBeVisible();
+    const row = sheet.getByRole("radio", { name: "High", exact: true });
+    const box = (await row.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    // Well past HOLD_MS — the honest wait for an absence.
+    await page.waitForTimeout(400);
+    await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    await page.mouse.up();
+    // The row's own click landed: depth picked, sheet closed.
+    await expect(sheet).toHaveCount(0);
+    await expect(pill).toContainText("High");
   });
 
   /**

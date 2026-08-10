@@ -3107,3 +3107,26 @@ test:e2e` hard-fails in global-setup until
   percent-stop set at every viewport — two reference bakes (393×852
   default, 1280×800 from 1024px up) hold both ends, and the deviation
   between them is documented where the stops live.
+
+## 2026-08-10 — The hold-slider fired through its own open sheet
+
+- **A portal escapes the DOM tree, not the React tree — a gesture wrapper
+  must check which tree a press arrived by.** `HoldSliderTrigger` wraps
+  each picker's pill AND its body-portalled Sheet, so every press inside
+  the open sheet re-dispatched through the wrapper's handlers: the hold
+  timer (or an x-dominant slide) drew the capsule across the open sheet,
+  release committed, and the click suppression ate the row's tap. The
+  discriminator is one line at gesture ENTRY —
+  `e.currentTarget.contains(e.target)` — and because every later path
+  (move, up, stand-down, suppressClick, context-menu) keys off the press
+  record, guarding admission guards everything. Read it synchronously
+  (currentTarget is only valid during dispatch), and by containment, never
+  identity — legitimate presses target the pill, a descendant.
+- **An invariant a comment asserts, code must enforce.** The overlay's
+  z-[85] justification said "a Sheet can never be open mid-gesture" —
+  written when the only imagined press was on the pill, which an open
+  sheet's scrim does cover. The presses the comment never imagined came
+  from the sheet itself, bubbling in from the portal. When a layering or
+  lifecycle claim is load-bearing, find the line that makes the forbidden
+  state impossible; a "can never" with no enforcing code is a defect
+  awaiting its report.
