@@ -45,10 +45,77 @@ describe("Toast", () => {
     // The visible card shows the text; a permanently-mounted sr-only
     // aria-live region mirrors it (A11Y-004) — both carry "Composer cleared".
     expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+    // The card's entrance is the shared `.sheet-in`, and the hold-slider's
+    // world-pause rule pauses that class under `[data-hold-gesture]`
+    // (twentieth pass — a toast mid-rise beneath the blur recomposited the
+    // "static" backdrop). If the toast ever drops or renames the class,
+    // the pause detaches silently; this pin keeps them coupled.
+    expect(document.querySelector(".glass.sheet-in")).not.toBeNull();
     act(() => {
       vi.advanceTimersByTime(6100);
     });
     expect(screen.queryByText("Composer cleared")).toBeNull();
+  });
+
+  describe("the lifetime pauses with the world (twenty-first pass)", () => {
+    afterEach(() => {
+      document.documentElement.removeAttribute("data-hold-gesture");
+    });
+
+    it("a toast raised under a live hold-gesture keeps its full window for release", async () => {
+      render(
+        <ToastProvider>
+          <Trigger />
+        </ToastProvider>,
+      );
+      document.documentElement.setAttribute("data-hold-gesture", "");
+      fireEvent.click(screen.getByText("fire"));
+      // The world is frozen and the entrance waits at its invisible first
+      // frame — pre-fix the dismissal timer counted anyway, so a long hold
+      // expired an error or Undo toast that was never once visible.
+      act(() => {
+        vi.advanceTimersByTime(7000);
+      });
+      expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+      document.documentElement.removeAttribute("data-hold-gesture");
+      await act(async () => {}); // the attribute observer's microtask
+      act(() => {
+        vi.advanceTimersByTime(5999);
+      });
+      expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+      act(() => {
+        vi.advanceTimersByTime(2);
+      });
+      expect(screen.queryByText("Composer cleared")).toBeNull();
+    });
+
+    it("a gesture engaging mid-lifetime suspends the countdown and resumes the remainder", async () => {
+      render(
+        <ToastProvider>
+          <Trigger />
+        </ToastProvider>,
+      );
+      fireEvent.click(screen.getByText("fire"));
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      document.documentElement.setAttribute("data-hold-gesture", "");
+      await act(async () => {});
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
+      expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+      document.documentElement.removeAttribute("data-hold-gesture");
+      await act(async () => {});
+      act(() => {
+        vi.advanceTimersByTime(2998);
+      });
+      expect(screen.getAllByText("Composer cleared").length).toBeGreaterThanOrEqual(1);
+      act(() => {
+        vi.advanceTimersByTime(3);
+      });
+      expect(screen.queryByText("Composer cleared")).toBeNull();
+    });
   });
 
   it("runs the action and dismisses on action click", () => {

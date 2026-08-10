@@ -15,10 +15,14 @@ import { useHoldDrag, type TrackGeometry } from "@/components/ui/use-hold-drag";
  * track and the gesture drags between detents; release commits, Escape/cancel
  * reverts.
  *
- * The overlay is pointer-transparent, aria-hidden DECORATION: the pill label
- * stays the authoritative readout, the sheet stays the complete keyboard and
- * screen-reader path, and the committed value is announced through the
- * always-mounted polite live region below.
+ * The TRACK overlay is pointer-transparent, aria-hidden DECORATION: the pill
+ * label stays the authoritative readout, the sheet stays the complete
+ * keyboard and screen-reader path, and the committed value is announced
+ * through the always-mounted polite live region below. The focus PAIR
+ * beneath it is the opposite — an input shield: while a capsule is up, a
+ * second pointer anywhere in the viewport dies on it, so no control can
+ * fire under a live gesture (the gesture's own pointer is captured and
+ * bypasses hit-testing entirely).
  */
 
 /** One slider stop. `tone` keys the fill's color ramp and is the level's own
@@ -88,6 +92,7 @@ export function HoldSliderTrigger({
   onCommit,
   enabled,
   detentMarker = "dot",
+  dynamicBackdrop = false,
   children,
 }: {
   detents: readonly Detent[];
@@ -106,6 +111,15 @@ export function HoldSliderTrigger({
   enabled: boolean;
   /** Detent glyph vocabulary — see DetentMarker. */
   detentMarker?: DetentMarker;
+  /** True while the content BEHIND the overlay cannot honestly hold still —
+   *  a streaming run repainting its surface as tokens arrive. The focus
+   *  blur's whole performance case is that it filters a STATIC backdrop
+   *  exactly once (the 2026-08-09 bloom lesson); the world-pause freezes
+   *  the idle ornaments, but a live stream is content, not ornament — it
+   *  must keep moving, so the overlay stands the blur down and ships the
+   *  dim alone (the reduced-effects presentation) for that gesture
+   *  (Codex review, eighth pass). */
+  dynamicBackdrop?: boolean;
   /** The existing trigger pill, rendered unchanged. */
   children: ReactNode;
 }) {
@@ -153,6 +167,7 @@ export function HoldSliderTrigger({
           dragIndex={active.dragIndex}
           geometry={active.geometry}
           marker={detentMarker}
+          dynamicBackdrop={dynamicBackdrop}
         />
       )}
     </span>
@@ -163,6 +178,9 @@ export function HoldSliderTrigger({
 const DOT_R = 4;
 /** Inset between the track's border and the fill capsule. */
 const FILL_INSET_PX = 6;
+/** Thumb diameter — the reference control's moving object. Rides the fill's
+ *  leading edge so position reads as a THING at a place, not only an edge. */
+const THUMB_PX = 28;
 /** Bar-marker geometry: 3px ticks rising from BAR_MIN to BAR_MAX across the
  *  track, so the ladder's shape is legible inside the 48px capsule. */
 const BAR_W_PX = 3;
@@ -174,26 +192,32 @@ const BAR_MAX_PX = 20;
  * through the `data-hold-slider-overlay` DOM hook, not an import. Portalled to
  * `document.body` because the composer chassis is `overflow-hidden`
  * (EnhanceComposer) and would clip a track wider than the rail; fixed
- * positioning comes from TrackGeometry, which already anchored the selected
- * detent under the finger and clamped to the viewport. `pointer-events:
- * none` keeps the capture on the wrapper — the overlay can never steal the
- * gesture it visualizes. z-[85] (track) over z-[84] (its focus scrim):
- * above the toast tier; a Sheet (z-[70]) can never be open mid-gesture —
- * enforced, not assumed: useHoldDrag refuses a pointer-down whose target is
- * outside the wrapper's DOM subtree, and an open sheet's scrim covers the
- * pill, so no gesture can start while one is up (the 2026-08-10
- * capsule-over-the-sheet defect).
+ * positioning comes from TrackGeometry's FIXED HOME — viewport-centered on
+ * the gesturing rail's row, the same spot for every press. The track is
+ * `pointer-events: none` — it can never steal the gesture it visualizes;
+ * second pointers pass through it onto the focus pair's shield beneath.
+ * z-[85] (track) over z-[84] (its focus pair): above the toast tier; a
+ * Sheet (z-[70]) can never be open mid-gesture — enforced, not assumed,
+ * from both directions: no gesture starts while a sheet is up (useHoldDrag
+ * refuses a pointer-down whose target is outside the wrapper's DOM
+ * subtree, and an open sheet's scrim covers the pill — the 2026-08-10
+ * capsule-over-the-sheet defect), and no sheet opens while a gesture is
+ * live (a refused press's click is consumed for the claim's lifetime, and
+ * during the active phase the pair shields every non-captured pointer —
+ * ninth pass).
  */
 function HoldSliderOverlay({
   detents,
   dragIndex,
   geometry,
   marker,
+  dynamicBackdrop,
 }: {
   detents: readonly Detent[];
   dragIndex: number;
   geometry: TrackGeometry;
   marker: DetentMarker;
+  dynamicBackdrop: boolean;
 }) {
   if (typeof document === "undefined") return null;
   const tone = detents[dragIndex]?.tone ?? "silver";
@@ -203,15 +227,39 @@ function HoldSliderOverlay({
 
   return createPortal(
     <>
-      {/* Focus scrim: mid-gesture the composer drops back so the eye holds
-          only the track, the level chip, and its tone (owner direction,
-          2026-08-10). A dim, never a backdrop blur — see the class's note
-          on the input-queueing regression. z-[84]: under the track, over
-          everything else the overlay outranks. */}
+      {/* The focus pair (owner direction, 2026-08-10): mid-gesture the
+          composer drops back so the eye holds only the track, the thumb,
+          the level chip, and its tone. Blur below (STATIC — never animated;
+          the globals.css note carries the 2026-08-09 lesson), the dim above
+          it carrying the entrance fade. Both z-[84], DOM order stacks the
+          dim over the blur; the track rides z-[85]. Stand-downs drop the
+          blur and keep the dim — the pre-blur shipped look, which is also
+          what ships when the backdrop itself cannot hold still: the
+          world-pause (data-hold-gesture) freezes the idle ornaments, but a
+          streaming run's surface keeps repainting, and a moving backdrop
+          under a backdrop-filter re-filters every frame — so a declared
+          dynamicBackdrop stands the blur down instead.
+
+          pointer-events AUTO, deliberately (Codex review, ninth pass): the
+          pair doubles as the gesture's input shield. A second pointer mid-
+          gesture otherwise reaches whatever it lands on — on hybrid-input
+          devices its synthesized click opened a picker sheet (z-70) under
+          the live capsule. The gesture's own pointer is captured at
+          activation (implicitly for touch), and captured streams bypass
+          hit-testing, so the shield can never steal the drag it guards.
+          The dim always mounts, so the shield holds in every presentation
+          — stand-downs and dynamicBackdrop included. */}
+      {!dynamicBackdrop && (
+        <div
+          aria-hidden="true"
+          data-hold-slider-blur=""
+          className="hold-slider-blur pointer-events-auto fixed inset-0 z-[84]"
+        />
+      )}
       <div
         aria-hidden="true"
         data-hold-slider-scrim=""
-        className="hold-slider-scrim pointer-events-none fixed inset-0 z-[84]"
+        className="hold-slider-scrim pointer-events-auto fixed inset-0 z-[84]"
         style={{
           backgroundColor: "color-mix(in srgb, var(--void) 62%, transparent)",
         }}
@@ -292,6 +340,18 @@ function HoldSliderOverlay({
               />
             );
           })}
+          {/* The thumb (owner reference recording, ADR-0012 amendment 4):
+              a round object travelling the detents, easing between them with
+              the fill's own snap. Painted above the markers, glass ground +
+              hair ring, tone-cored via the same FILL_CLASS ramp — no text,
+              ever (the chip above is the readout). */}
+          <span
+            data-hold-slider-thumb=""
+            className="hold-slider-thumb glass-solid absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ left: centers[dragIndex], width: THUMB_PX, height: THUMB_PX }}
+          >
+            <span className={`absolute inset-1 rounded-full ${FILL_CLASS[tone]}`} />
+          </span>
         </div>
       </div>
     </>,

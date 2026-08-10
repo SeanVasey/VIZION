@@ -548,12 +548,19 @@ export function EnhanceComposer() {
               on — disabled it claims nothing and the pill is a pure tap
               trigger. Same wrapper as the Thinking rail, so both pills carry
               the same affordance and the matched-pair contract holds. */}
+          {/* dynamicBackdrop while a run is in flight (either rail): the
+              stream surface, spinner and counters keep repainting beneath
+              the overlay — content, not ornament, so the world-pause cannot
+              freeze it — and the focus BLUR stands down to the dim-only
+              presentation for that gesture. The rails deliberately stay
+              enabled mid-run (dialing the NEXT run), so this state is real. */}
           <HoldSliderTrigger
             detents={BUDGET_DETENTS}
             selectedIndex={budgetSelectedIndex}
             liveLabel={budgetLiveLabel}
             onCommit={onBudgetCommit}
             enabled={autoTarget}
+            dynamicBackdrop={isPending || enhanceMutation.stream.active}
           >
             <TargetPicker
               label="Target model"
@@ -598,6 +605,7 @@ export function EnhanceComposer() {
               onCommit={onThinkingCommit}
               enabled
               detentMarker="bar"
+              dynamicBackdrop={isPending || enhanceMutation.stream.active}
             >
               <ThinkingPicker
                 label="Thinking depth"

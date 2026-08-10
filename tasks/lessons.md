@@ -3130,3 +3130,206 @@ test:e2e` hard-fails in global-setup until
   lifecycle claim is load-bearing, find the line that makes the forbidden
   state impossible; a "can never" with no enforcing code is a defect
   awaiting its report.
+
+## 2026-08-10 — The reference recording round (fixed home · thumb · blur)
+
+- **When the owner supplies a recording of the reference control, diff
+  against it axis by axis before touching code.** "Fixed, focused slide"
+  decomposed into exactly three deltas — track position, position-as-object
+  (thumb), and blur — and everything else (guard, hints, vocabulary, chip)
+  survived untouched. The prompt that scoped this round listed the deltas
+  and the keep-list explicitly; the implementation then touched five files.
+- **Relative mapping is what makes geometry swappable.** Because the drag
+  has always been finger-RELATIVE (dragOffset), moving the track's home
+  from under-the-finger to viewport-center changed zero gesture semantics:
+  every drag/commit spec passed unchanged, and only the pure-geometry
+  tests — the ones that PIN placement — were rewritten. Separate "where
+  the control lives" from "how the finger maps" and each can move alone.
+- **"Never blur" was the wrong lesson; "never blur an animating layer" is
+  the right one.** The 2026-08-09 regression came from `filter` re-priced
+  per frame under animation. A STATIC backdrop-filter that mounts complete
+  and never transitions is a one-time cost — and the Event-Timing probe
+  (same instrument as the bloom investigation) showed no queueing under 4×
+  throttle (p95 17.3ms, budget 50ms). Generalize measured lessons by their
+  MECHANISM, not their keyword — and re-measure when the mechanism
+  differs, because the first "obvious" reading of the old lesson would
+  have banned the owner's ask outright.
+
+## 2026-08-10 — The single-gesture claim (Codex pass 7)
+
+- **A fix that introduces global state owes the concurrency answer in the
+  same commit.** The ambient freeze (pass 6) stamped one shared
+  `data-hold-gesture` attribute on `<html>` from a per-instance hook; with
+  both rails enabled, two fingers meant first-teardown-wins — the world
+  thawed beneath the surviving gesture's blur. Whenever a repair writes to
+  a singleton (a root attribute, a module flag), ask "two instances live
+  at once — then what?" before shipping, not at the next review. And when
+  the concurrent state is design NONSENSE (stacked full-viewport focus
+  pairs over one composer), don't bookkeep it with reference counts —
+  refuse it at admission and let the second press fall through as the tap
+  it would otherwise be. The exclusivity is also the reference platform's
+  own behavior: the cheaper repair was the truer one.
+
+## 2026-08-10 — The backdrop inventory (Codex pass 8)
+
+- **"Static backdrop" is a claim about the CONTENT, not the layer — and it
+  needs an inventory, not an example.** The world-pause froze the two
+  things the sixth pass happened to look at (nebula canvas, blooms) and
+  missed the Horizon's idle breathe and the whole streaming surface; the
+  blur re-filtered per frame either way. Before claiming a filter runs
+  once, enumerate everything that can move beneath it (`grep infinite`,
+  plus the React surfaces that repaint from state), then split the repair
+  by what each mover IS: ornaments pause under the gesture attribute;
+  content that cannot honestly hold still — a token stream — stands the
+  BLUR down instead (the already-designed dim-only presentation), because
+  freezing live output to protect a decoration inverts the priorities.
+
+- **A documented specificity trap still bites if you don't grep for prior
+  gates on the same element.** globals.css already carried the warning —
+  the breathe's shorthand at (0,3,0) resets `animation-play-state`, so a
+  (0,2,0) pause "parses, reads correctly, and silently loses" — and the
+  world-pause rule walked into it anyway; only the real-browser
+  computed-style pin caught it (the unit greps stayed green, exactly as
+  that comment predicted). Before gating a property on an element, find
+  the rules that already SET it (`grep '\.the-class'`) and copy the
+  winning gate's selector shape, prefix and all.
+
+## 2026-08-10 — Input modality under the gesture (Codex pass 9)
+
+- **When you borrow a semantic from a reference platform, verify it in the
+  borrowed STATE.** "A refused press falls through as the plain tap it
+  would otherwise be" was transcribed from how the reference control
+  behaves at rest — but the refusal only ever happens mid-claim, and mid-
+  drag the reference goes fully modal: second touches do nothing. The
+  mis-transcription shipped as a pass-7 "feature," celebrated in the
+  review reply, and came back two passes later as the bug it always was
+  (the fall-through tap opened a sheet under the live capsule). Ask of
+  every borrowed behavior: in WHICH of the reference's states does it
+  hold, and is that the state I'm implementing?
+- **A refusal that only covers your own event stream isn't a refusal.**
+  Denying the pointer-down left the synthesized click alive. Interaction
+  paths come in bundles (pointerdown → pointerup → click; keyboard
+  activation; a second pointer type) — refuse the bundle, and prefer
+  structural shields (a pointer-events surface the capture-holder is
+  immune to) over enumerating event handlers.
+
+- **The exemption you write for yourself is the next review's hole.** The
+  ninth pass consumed clicks under a FOREIGN claim; the identity check
+  read as precision but was a carve-out — with your own claim live, a
+  same-pill click can only be a second input device. The correct
+  condition was simpler and had no identity in it at all: consume while
+  ANY claim is live, and let the legitimate tap survive by PROTOCOL ORDER
+  (the claim dies at pointer-up, before the click dispatches). Prefer
+  conditions anchored to event-order invariants over identity carve-outs
+  — the invariant holds for input devices you didn't think of.
+
+- **When correctness depends on event ROUTING, only a real engine can pin
+  it.** The Escape leak survived four review passes because jsdom has no
+  pointer-capture routing: the unit test's lift could only ever be
+  dispatched AT the pill, which is precisely the one place the bug
+  doesn't manifest. The e2e that finally caught it drives the pointer
+  150px away before the lift — the divergence between "the lift the test
+  can express" and "a real lift" was the bug's hiding place. Corollary:
+  a resource's lifetime should equal the STATE it serves (capture lives
+  as long as the press, not the overlay); when two lifetimes are meant
+  to be equal, end them at the same code sites instead of trusting two
+  paths to agree.
+
+- **When you patch a leak on one path, enumerate the WINDOWS, not the
+  paths.** The press's lifecycle has three unguarded intervals — pre-hold
+  (down → classification), stand-down (classification → lift), and
+  post-Escape (revert → lift) — and each leaked the same resources by the
+  same mechanism (an event the wrapper couldn't hear) in three different
+  review passes, years or hours apart. The 2026-07 stand-down capture,
+  the eleventh-pass capture retention, and the twelfth-pass window net
+  are one fix applied three times. The general move: for every resource
+  held across an interval, name the mechanism that guarantees the
+  interval ENDS — and check it is armed for the WHOLE interval, not from
+  the first event you happen to observe.
+
+- **An accepted residual is a standing invitation — re-price it when the
+  reviewer returns with a cheaper repair.** The ninth pass declined
+  closing the pre-hold sheet race because "a DOM-wide dialog probe" read
+  as unwanted coupling; the thirteenth re-raised it framed as "cancel
+  activation when another interaction wins," and the probe turned out to
+  be a web-platform semantic (`role="dialog"`, read through the
+  accessibility tree), not an internal selector. The decline had priced
+  the wrong repair. Corollary from the same pass: a refusal recorded
+  only in GLOBAL state (the claim) cannot outlive that state — if the
+  refused stream can end after the owner's, the refusal needs its own
+  per-stream memory. Scope such markers to where they cannot collide
+  with legitimate events (per-instance, cross-pill only — a same-wrapper
+  boolean cannot tell two streams' clicks apart).
+
+- **`pointer-events` is not input-events — every channel needs its own
+  gate.** The "input shield" metaphor quietly overclaimed: the pair
+  gates hit-testing only, and keyboard activation sailed through to a
+  focused background control. The modality now has one gate per channel
+  (shield → pointers, claim → wrapped clicks, window capture-phase
+  swallow → activation keys), each pinned separately. And the marker
+  lesson from the same round: state that waits for an event that may
+  never arrive needs its own expiry — the refusal marker waited for a
+  click a pointer released elsewhere would never send, and the stale
+  flag cost a keyboard user an activation until an end-watch bounded it
+  to the stream's own lifetime.
+
+- **The review cadence itself was the signal — after the second
+  same-class finding, enumerate the matrix yourself.** Eight consecutive
+  passes (7–14) each found one cell of the same input-modality space:
+  channel × phase, gate missing. Each fix was correct and each reply
+  well-reasoned, and the loop was still the wrong shape — the reviewer's
+  job is to find the FIRST hole, not to serve as the enumerator, and the
+  owner had to say so. The audit that should have followed pass 8 took
+  under an hour when finally done: list the phases, list the channels,
+  name every cell's mechanism or record its acceptance, close the empty
+  ones in one commit, and put the table in the ADR so the next finding
+  is a table lookup instead of a fifteenth round trip.
+
+- **A scope exemption is a claim about timelines — re-run the fixed
+  timeline through every topology the exemption distinguishes.** The
+  thirteenth pass fixed refusal-outlives-the-owner for cross-pill
+  presses and, in the same breath, recorded the same-wrapper exemption
+  ("a boolean cannot tell two streams' clicks apart") — and the
+  previous lesson on this page repeats that clause verbatim. Six passes
+  later the identical timeline — owner releases first, competitor's
+  click lands after — was still open on the exempted topology
+  (nineteenth pass). Two corrections worth keeping: the "cannot tell
+  apart" rationale confused identity with GATE (the owner's click is
+  already claimed by its settle window; precedence does the telling),
+  and the acceptance that covered the residue judged it against the
+  wrong harm (sheet-under-capsule, when the harm was an uncommanded
+  sheet-open after commit). When a lifecycle fix lands in one topology,
+  the exempted topologies inherit the burden of proof, not the benefit
+  of the doubt.
+
+- **Classify animations by CONSUMER, not by name.** The pause-list sweep
+  read `.sheet-in` as "sheet enter" because that is what the class is
+  called, and recorded it impossible under a capsule — while a Toast
+  card and the diff toolbar wore the same class with no dialog role and
+  none of the impossibility (twentieth pass). A shared class means the
+  classification must enumerate its consumers, and the exemption note
+  must name the condition that keeps each one exempt — "dialog-locked
+  today, any non-dialog adopter joins the list" survives consumer
+  drift; "sheets can't enter under a capsule" silently didn't.
+
+- **An inventory is only as complete as its dimensions.** The pause
+  list swept every `animation:` declaration (eighteenth pass), then a
+  shared class's consumers (twentieth) — and still missed a 150ms
+  backdrop mutation at EVERY gesture start, because the pill conceal is
+  a TRANSITION, not an animation, and time-based state (a toast's
+  dismissal countdown) is neither (twenty-first). When the invariant is
+  "the backdrop is static," the inventory is every source of change —
+  animations, transitions, clocks, mounts — not every instance of the
+  one source class the first sweep happened to use. Enumerate by the
+  invariant, not by the mechanism you found first.
+
+- **An acceptance must price the loser's guarantees.** "Single-slot,
+  newest wins" (nineteenth pass) named the resolution policy and
+  omitted what the loser loses: the elder refused stream kept physical
+  contact but lost its click protection the moment the newer stream
+  ended (twenty-second pass). Writing "newest wins" FELT like recording
+  a limitation; recording it honestly meant writing "an elder still-down
+  stream's click will open the sheet" — a sentence that would have been
+  fixed on sight. When accepting a conflict-resolution policy, write
+  the failure it permits from the loser's point of view, not the
+  policy's name from the winner's.

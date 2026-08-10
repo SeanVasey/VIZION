@@ -338,16 +338,69 @@
   [data-reduced-effects] .hold-slider-conceal {
     transition: none;
   }
+  /* Transitions are inventory too (twenty-first pass): this fade is the
+     one TRANSITION on backdrop content that activation itself triggers —
+     it ran beneath the just-mounted blur, re-filtering every frame of
+     var(--motion-quick) at every motion-enabled gesture start, which is
+     exactly the per-frame cost the static-backdrop mitigation exists to
+     avoid. Under the gesture the conceal snaps instead (the same
+     presentation the two stand-downs above already ship); the fade-BACK
+     keeps its motion — release removes the attribute and the blur in the
+     same teardown, so the return transition runs with no filter above
+     it. The eighteenth pass's sweep enumerated `animation:` declarations
+     only; backdrop TRANSITIONS triggered by gesture state are the same
+     inventory, and this is the only one (release-time fades are exempt
+     by construction — the blur is already gone). */
+  [data-hold-gesture] .hold-slider-conceal {
+    transition: none;
+  }
 
-  /* The focus scrim behind an active hold-slider: while the capsule is up,
-     everything else drops back so the eye holds only the track, the level
-     chip, and its tone. A DIM, deliberately NOT a backdrop blur — a
-     viewport-scale filter live during a pointer gesture is the exact
-     input-queueing regression the bloom bake just removed (2026-08-09,
-     "the ambient blur no longer queues input"). Mounts with the overlay and
-     unmounts with it: release returns the composer instantly, the picked
-     state readable with nothing lingering. The fade-in is presentation
-     only, so both stand-downs collapse it to an instant appearance. */
+  /* The thumb's detent-to-detent glide — the same eased snap (and the same
+     two stand-downs) as the fill it rides. */
+  .hold-slider-thumb {
+    transition: left var(--motion-quick) ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-thumb {
+      transition: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-thumb {
+    transition: none;
+  }
+
+  /* The focus pair behind an active hold-slider: while the capsule is up,
+     everything else drops back so the eye holds only the track, the thumb,
+     the level chip, and its tone; release returns the composer instantly.
+
+     Two layers, on purpose. The BLUR layer is static — it mounts complete,
+     carries no transition or animation, and nothing beneath it moves while
+     the gesture lives: use-hold-drag stamps [data-hold-gesture] on <html>
+     for the gesture's lifetime, which freezes the ambient field (the
+     nebula canvas gate in AmbientNebula and the bloom pause below) — so
+     the backdrop is genuinely filtered once, not re-filtered per frame
+     behind an animating background (Codex review, PR #103 sixth pass).
+     That distinction is the whole 2026-08-09 lesson ("the ambient blur no
+     longer queues input"): the regression was per-frame filter work; a
+     static filter over a static backdrop is a one-time cost (measured:
+     see ADR-0012 amendment 4). The DIM layer above it carries the
+     entrance fade, so the blur layer never animates. Both stand-downs
+     drop the blur entirely and make the dim instant — dim-only is exactly
+     the pre-blur shipped behaviour. */
+  .hold-slider-blur {
+    backdrop-filter: blur(14px) saturate(1.05);
+    -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-blur {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-blur {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
   .hold-slider-scrim {
     animation: hold-slider-scrim-in var(--motion-quick) ease-out;
   }
@@ -364,6 +417,49 @@
   [data-reduced-effects] .hold-slider-scrim {
     animation: none;
   }
+
+  /* The world pauses under the gesture: the bloom drifts and the Horizon's
+     idle breathe hold their frame while [data-hold-gesture] is up (the
+     canvas half of the freeze lives in AmbientNebula's loop gate). This
+     pause covers the ORNAMENTS that animate at rest beneath the focus blur
+     — the full idle inventory, so the filtered backdrop is genuinely
+     static. Stream-time motion (sweep, beacon, caret, spinner, the arriving
+     tokens themselves) is content, not ornament: it is not paused, and the
+     blur stands down instead (HoldSlider's dynamicBackdrop). Resuming is
+     free — play-state, not a restart, so the drift continues where it
+     stood. The horizon selector carries the `.horizon[data-state]` prefix
+     for the same reason the reduced-effects gate below does: the breathe's
+     SHORTHAND at (0,3,0) resets play-state to running, so a (0,2,0) pause
+     parses, reads correctly, and silently loses. */
+  [data-hold-gesture] .bg-nebula-bloom,
+  [data-hold-gesture] .horizon[data-state] .horizon-node,
+  [data-hold-gesture] .footer-fade-in,
+  [data-hold-gesture] .sheet-in {
+    animation-play-state: paused;
+  }
+  /* The pause list is the OUTCOME of a full sweep of every `animation:`
+     declaration, not a drip (eighteenth pass caught the footer's one-shot
+     0.8s entrance — the earlier inventory grepped `infinite` and missed
+     entrances). `.sheet-in` is here because it is SHARED, not sheet-only
+     (twentieth pass): the Toast card and the diff's sticky toolbar wear
+     the same entrance, carry no role="dialog" for the activation probe,
+     and can be mid-rise as a slide engages (or mount under a live
+     capsule — the entrance then waits at its first frame, invisible, and
+     plays on release; the toast's sr-only announcement is a separate
+     node and is never delayed). For a true Sheet the pause is vacuous —
+     a sheet still cannot ENTER under a capsule (shield + probe) — it is
+     defense against exactly the consumer drift that put the other two
+     on this class. Classification of everything else: the overlay's own
+     scrim entrance must keep running (exempt by omission); stream-time
+     ornaments (sweep, beacon, caret, skeleton, spinner, tail) only ever
+     animate while dynamicBackdrop already stands the blur down (the
+     composer's spinners render only while pending — re-verified,
+     twentieth pass); `.sheet-in-side` and `.scrim-in` stay exempt as
+     dialog-locked TODAY, and any non-dialog adopter must join this list
+     — that is precisely how `.sheet-in` got here; and sheet EXIT
+     may overlap a new press by at most its 180ms self-terminating fade —
+     pausing that would freeze a vanishing surface mid-fade for the whole
+     gesture, a worse artifact than 180ms of re-filtering. */
 
   /* Ambient scrim — a FILL, deliberately NOT a member of the glass family.
      Secondary copy that sits directly on the ambient background, with no glass

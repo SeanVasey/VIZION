@@ -271,14 +271,26 @@ export function AmbientNebula() {
       return document.documentElement.hasAttribute("data-reduced-effects");
     }
 
+    // A live hold-slider gesture stamps this (use-hold-drag's activate):
+    // the field must FREEZE while the focus blur is up, or the animating
+    // backdrop forces the full-viewport backdrop-filter to re-filter every
+    // frame — the exact per-frame cost the blur's static-layer design
+    // exists to avoid (Codex review, PR #103 sixth pass).
+    function holdGestureActive() {
+      return document.documentElement.hasAttribute("data-hold-gesture");
+    }
+
     // The single gate on the loop: animate only when motion is allowed, the
-    // tab is visible, and reduced-effects is off.
+    // tab is visible, reduced-effects is off, and no hold-slider gesture is
+    // freezing the world.
     function canRun() {
-      return !reduce.matches && !document.hidden && !effectsReduced();
+      return (
+        !reduce.matches && !document.hidden && !effectsReduced() && !holdGestureActive()
+      );
     }
 
     // Reconcile the loop with the gate. Idempotent, so any signal (reduce,
-    // visibility, or the data-reduced-effects mutation) can call it.
+    // visibility, or an observed attribute mutation) can call it.
     function sync() {
       if (canRun()) {
         if (!running) {
@@ -288,7 +300,10 @@ export function AmbientNebula() {
         }
       } else if (running) {
         stop();
-        g.clearRect(0, 0, w, h);
+        // A gesture pause keeps the last frame — the frozen field is what
+        // the focus blur softens. Every other stop blanks the canvas (it
+        // is hidden or the tab is away; stale pixels would flash on wake).
+        if (!holdGestureActive()) g.clearRect(0, 0, w, h);
       }
     }
 
@@ -312,7 +327,7 @@ export function AmbientNebula() {
     });
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-theme", "data-reduced-effects"],
+      attributeFilter: ["data-theme", "data-reduced-effects", "data-hold-gesture"],
     });
     const scheme = window.matchMedia("(prefers-color-scheme: dark)");
     scheme.addEventListener("change", resolvePalette);

@@ -307,23 +307,93 @@ test.describe("thinking hold-slider", () => {
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
 
+    // A `.sheet-in` probe, appended before the press — the twentieth-pass
+    // scenario is a toast still rising as the gesture engages.
+    await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.setAttribute("data-e2e-sheet-in-probe", "");
+      probe.className = "sheet-in";
+      document.body.appendChild(probe);
+    });
+
     // Hold past HOLD_MS (300ms), then drag three detents right:
     // Auto → Low → Medium → High.
     await page.mouse.move(cx, cy);
     await page.mouse.down();
     await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
-    // Focus scrim rides the gesture: up with the capsule, gone on release.
+    // The focus pair rides the gesture: up with the capsule, gone on release.
     await expect(page.locator("[data-hold-slider-scrim]")).toBeVisible();
+    await expect(page.locator("[data-hold-slider-blur]")).toBeVisible();
+    // So does the thumb — the moving object the reference control carries.
+    await expect(page.locator("[data-hold-slider-thumb]")).toBeVisible();
     // The thinking capsule wears rising bars (the DepthGlyph vocabulary),
     // six for Opus's ladder — the budget capsule keeps equal dots.
     await expect(
       page.locator("[data-hold-slider-overlay] [data-detent-bar]"),
     ).toHaveCount(6);
+    // The world pauses under the gesture: every idle ornament beneath the
+    // blur holds its frame — the Horizon's breathe included, not only the
+    // nebula blooms — so the filtered backdrop is genuinely static. A real
+    // browser, deliberately: the breathe's shorthand at (0,3,0) resets
+    // play-state, so an under-specified pause rule parses and silently
+    // loses (the reduced-effects test above pins the same trap). Polled,
+    // not read once — style recompute lags the attribute under load.
+    const horizonPlayState = () =>
+      page
+        .locator(".horizon-node")
+        .evaluate((el) => getComputedStyle(el).animationPlayState);
+    await expect.poll(horizonPlayState).toBe("paused");
+    // One-shot entrances count too (eighteenth pass: the footer's delayed
+    // rise animated beneath the blur when a gesture engaged inside its
+    // first 1.6s) — the computed play-state reflects the declaration
+    // whether or not the animation is mid-flight, so this pins the rule.
+    const footerPlayState = () =>
+      page
+        .locator(".footer-fade-in")
+        .evaluate((el) => getComputedStyle(el).animationPlayState);
+    await expect.poll(footerPlayState).toBe("paused");
+    // And the SHARED `.sheet-in` entrance (twentieth pass): toasts and the
+    // diff toolbar wear it with no role="dialog" for the probe, so a toast
+    // mid-rise as the slide engages kept recompositing the blurred
+    // backdrop. The probe node stands in for a toast: the class is the
+    // mechanism, and this pins its cascade in a real engine.
+    const sheetInPlayState = () =>
+      page
+        .locator("[data-e2e-sheet-in-probe]")
+        .evaluate((el) => getComputedStyle(el).animationPlayState);
+    await expect.poll(sheetInPlayState).toBe("paused");
+    // TRANSITIONS are inventory too (twenty-first pass): the pill's own
+    // conceal fade ran beneath the just-mounted blur, re-filtering every
+    // frame of var(--motion-quick) at every motion-enabled activation —
+    // the one transition on backdrop content the animation sweep never
+    // saw. Under the gesture the conceal snaps (the reduced-motion
+    // presentation); the fade-back on release keeps its motion, running
+    // only after the blur is gone.
+    const concealTransition = () =>
+      page
+        .locator(".hold-slider-conceal")
+        .first()
+        .evaluate((el) => getComputedStyle(el).transitionDuration);
+    await expect.poll(concealTransition).toBe("0s");
+    // The pair is also the gesture's input SHIELD: a second pointer cannot
+    // reach any control while the capsule is up — the Target pill fails
+    // Playwright's receives-events actionability check because the scrim
+    // intercepts the point (real hit-testing, which jsdom cannot pin).
+    await expect(
+      page
+        .getByRole("button", { name: /^Target model:/ })
+        .click({ trial: true, timeout: 800 }),
+    ).rejects.toThrow();
     await page.mouse.move(cx + 3 * 44, cy, { steps: 6 });
     await page.mouse.up();
 
     await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
     await expect(page.locator("[data-hold-slider-scrim]")).toHaveCount(0);
+    await expect(page.locator("[data-hold-slider-blur]")).toHaveCount(0);
+    // …and thaws with the release, resuming where it stood.
+    await expect.poll(horizonPlayState).toBe("running");
+    await expect.poll(sheetInPlayState).toBe("running");
+    await expect.poll(concealTransition).toBe("0.15s");
     await expect(pill).toContainText("High");
     // The trailing click was swallowed — no sheet.
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -358,6 +428,103 @@ test.describe("thinking hold-slider", () => {
     // The row's own click landed: depth picked, sheet closed.
     await expect(sheet).toHaveCount(0);
     await expect(pill).toContainText("High");
+  });
+
+  test("the track expands in the same home for every press point", async ({ page }) => {
+    // ADR-0012 amendment 4: fixed-home geometry — the capsule must land in
+    // the identical spot whether the press began at the pill's left or
+    // right edge. Releasing without travel re-commits the anchor (Auto), so
+    // neither gesture changes state.
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const box = (await pill.boundingBox())!;
+    const y = box.y + box.height / 2;
+    const overlay = page.locator("[data-hold-slider-overlay]");
+
+    await page.mouse.move(box.x + 8, y);
+    await page.mouse.down();
+    await expect(overlay).toBeVisible();
+    const first = (await overlay.boundingBox())!;
+    await page.mouse.up();
+    await expect(overlay).toHaveCount(0);
+
+    await page.mouse.move(box.x + box.width - 8, y);
+    await page.mouse.down();
+    await expect(overlay).toBeVisible();
+    const second = (await overlay.boundingBox())!;
+    await page.mouse.up();
+    await expect(overlay).toHaveCount(0);
+
+    expect(Math.abs(first.x - second.x)).toBeLessThan(1);
+    expect(Math.abs(first.y - second.y)).toBeLessThan(1);
+  });
+
+  test("Escape mid-drag cannot leak the claim — the world lives on after the far-away lift", async ({
+    page,
+  }) => {
+    // A real-engine pin on ROUTING, deliberately: mid-drag the pointer sits
+    // over the track's center, far from the pill, and after Escape the lift
+    // is only routed back to the hook by pointer CAPTURE. Pre-fix, teardown
+    // released capture at Escape, the lift was hit-tested elsewhere and
+    // never reached onPointerUp — the press record and the app-wide claim
+    // leaked, so every hold-slider press (and every wrapped pill's click)
+    // stayed dead until remount. jsdom cannot see any of this: it has no
+    // capture routing, so the unit suite's lift always lands on the pill.
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const box = (await pill.boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    const overlay = page.locator("[data-hold-slider-overlay]");
+
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await expect(overlay).toBeVisible();
+    // Drag off the pill toward the track's center, then revert.
+    await page.mouse.move(cx - 150, cy, { steps: 4 });
+    await page.keyboard.press("Escape");
+    await expect(overlay).toHaveCount(0);
+    // The lift lands 150px from the pill — the captured stream must still
+    // deliver it to the hook, where the press dies and the claim releases.
+    await page.mouse.up();
+
+    // Both halves of the control breathe again: a fresh hold engages…
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await expect(overlay).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    // …and the tap path still opens the sheet (the tenth pass's click
+    // consumption must have let go with the claim).
+    await pill.click();
+    await expect(page.getByRole("dialog", { name: "Thinking depth" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(pill).toContainText("Auto");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("an edge press that escapes the wrapper cannot activate a phantom capsule", async ({
+    page,
+  }) => {
+    // A mouse is not implicitly captured: press 2px inside the pill's
+    // edge, jump out in ONE move (no intermediate point lands inside), and
+    // release far away — the wrapper hears none of it. Pre-fix the hold
+    // timer fired on the stale press: a phantom capsule, freeze, and input
+    // shield with no pointer down, dead until remount. The window net now
+    // hears the outside lift and clears the timer (twelfth pass).
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const box = (await pill.boundingBox())!;
+    const cy = box.y + box.height / 2;
+    await page.mouse.move(box.x + 2, cy);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 200, cy);
+    await page.mouse.up();
+    // Past HOLD_MS — the honest wait for an absence.
+    await page.waitForTimeout(400);
+    await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    // Nothing leaked: a fresh hold on the same pill engages normally.
+    await page.mouse.move(box.x + box.width / 2, cy);
+    await page.mouse.down();
+    await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+    await page.mouse.up();
   });
 
   /**
@@ -451,6 +618,35 @@ test.describe("thinking hold-slider", () => {
       // The resting axis claim must not cost the synthesized click.
       await expect(page.getByRole("dialog", { name: "Thinking depth" })).toBeVisible();
       await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    });
+
+    test("activation keys die under a live capsule — a focused control cannot open its sheet", async ({
+      page,
+    }) => {
+      // Touch never moves keyboard focus, so a background trigger can stay
+      // focused while a finger holds the pill — the hybrid pair the
+      // pointer-events shield cannot see (keys are their own channel,
+      // fourteenth pass). Pre-fix, Enter activated the focused template
+      // button and its sheet opened under the live capsule.
+      const template = page.getByRole("button", { name: /try a template/i });
+      await template.focus();
+      const { cx, cy } = await pillBox(page);
+      const touch = await touchSender(page);
+
+      await touch("touchStart", [{ x: cx, y: cy }]);
+      await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+      await page.keyboard.press("Enter");
+      await page.keyboard.press(" ");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await touch("touchEnd", []);
+      await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+
+      // At rest the keyboard is untouched. Refocus first — the UA may move
+      // focus during a touch interaction, and that is its business; the
+      // pin here is that the swallow ended with the gesture.
+      await template.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("dialog")).toBeVisible();
     });
   });
 });

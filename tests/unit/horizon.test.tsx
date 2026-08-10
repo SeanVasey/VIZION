@@ -33,7 +33,10 @@ describe("Horizon", () => {
     // The global reduced-motion collapse ends the animation after one 0.01ms
     // iteration; with no fill-mode the node falls back to these BASE values.
     // That is the whole reduced-motion contract, so pin both halves of it.
-    const node = /\.horizon-node\s*\{([^}]*)\}/.exec(CSS);
+    // Anchored to the BARE selector at rule start: `.horizon-node` also
+    // appears last in grouped selectors (the world-pause rule), and an
+    // unanchored match would read that block instead of the base one.
+    const node = /(?:^|\n)\s*\.horizon-node\s*\{([^}]*)\}/.exec(CSS);
     expect(node).not.toBeNull();
     expect(node![1]).toMatch(/opacity:\s*0?\.9\s*;/);
     expect(CSS).not.toMatch(/\.horizon[^{]*\{[^}]*animation-fill-mode/);

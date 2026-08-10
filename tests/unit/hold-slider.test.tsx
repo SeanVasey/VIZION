@@ -7,6 +7,7 @@ import {
   type DetentMarker,
 } from "@/components/ui/HoldSlider";
 import {
+  CENTER_INSET_PX,
   DETENT_SPACING_PX,
   EDGE_MARGIN_PX,
   HOLD_MS,
@@ -49,12 +50,14 @@ function Host({
   onCommit = () => {},
   onOpen = () => {},
   detentMarker,
+  dynamicBackdrop,
 }: {
   enabled?: boolean;
   selectedIndex?: number;
   onCommit?: (i: number) => void;
   onOpen?: () => void;
   detentMarker?: DetentMarker;
+  dynamicBackdrop?: boolean;
 }) {
   return (
     <HoldSliderTrigger
@@ -64,6 +67,7 @@ function Host({
       onCommit={onCommit}
       enabled={enabled}
       detentMarker={detentMarker}
+      dynamicBackdrop={dynamicBackdrop}
     >
       <button type="button" onClick={onOpen}>
         Pill
@@ -103,34 +107,112 @@ afterEach(() => {
 describe("track geometry (pure)", () => {
   const rect = { top: 500, height: 44 };
 
-  it("anchors the selected detent under the finger", () => {
-    const geo = computeTrackGeometry(DOWN_X, rect, 6, 2, 1024);
-    expect(geo.detentCenters[2]).toBe(DOWN_X);
+  const wholeViewport = (width: number) => ({ left: 0, width });
+
+  it("lands in its fixed home — viewport-centered, on the rail's row", () => {
+    // ADR-0012 amendment 4: the first cut anchored the selected detent under
+    // the finger, so the capsule landed wherever the press happened to be.
+    // The home is now fixed: centered in the viewport (the shell is a
+    // centered column, so viewport center IS the composer's), rail's y.
+    const geo = computeTrackGeometry(rect, 6, wholeViewport(1024));
+    expect(geo.width).toBe(5 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
+    expect(geo.left).toBe((1024 - geo.width) / 2);
+    expect(geo.top).toBe(500 + rect.height / 2 - geo.height / 2);
     expect(geo.detentCenters).toHaveLength(6);
+    expect(geo.detentCenters[0]).toBe(geo.left + TRACK_PAD_PX);
     // Even spacing, ascending.
     expect(geo.detentCenters[3]! - geo.detentCenters[2]!).toBe(DETENT_SPACING_PX);
+    // The selection cannot steer placement in ANY mode: it is not even an
+    // input to the geometry — that is what keeps the home fixed.
   });
 
-  it("clamps to the viewport edges instead of overflowing", () => {
-    // Finger near the left edge with the selection far right: the ideal
-    // placement would start off-screen; the clamp pins the margin instead.
-    const left = computeTrackGeometry(20, rect, 6, 5, 1024);
-    expect(left.left).toBe(EDGE_MARGIN_PX);
-    const right = computeTrackGeometry(1010, rect, 6, 0, 1024);
-    expect(right.left + right.width).toBe(1024 - EDGE_MARGIN_PX);
+  it("stays centered on a phone viewport", () => {
+    const geo = computeTrackGeometry(rect, 6, wholeViewport(390));
+    expect(geo.left).toBe((390 - geo.width) / 2);
+  });
+
+  it("centers in the VISUAL viewport under pinch zoom", () => {
+    // The control preserves native pinch zoom, and a fixed-position capsule
+    // centered on the LAYOUT viewport can open entirely outside a zoomed-in
+    // user's view (Codex review, PR #103). The caller passes the visual
+    // viewport's offset/width; the home must sit inside that region.
+    const geo = computeTrackGeometry(rect, 3, { left: 300, width: 200 });
+    expect(geo.width).toBe(2 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
+    expect(geo.left).toBe(300 + (200 - geo.width) / 2);
+    expect(geo.left).toBeGreaterThanOrEqual(300);
+    expect(geo.left + geo.width).toBeLessThanOrEqual(500);
+  });
+
+  it("compresses the ladder to fit a narrow region — every detent reachable", () => {
+    // Codex review, third pass: a placement frozen around the selected
+    // detent kept the SPAWN visible but let the drag walk the thumb out of
+    // a region narrower than the track. Compressed spacing removes the
+    // edge entirely: the whole ladder fits, geometry stays static and
+    // centered, and zoom multiplies physical travel so the tighter detents
+    // cost no precision.
+    const region = { left: 300, width: 200 };
+    const geo = computeTrackGeometry(rect, 6, region);
+    const spacing = geo.detentCenters[1]! - geo.detentCenters[0]!;
+    expect(spacing).toBeCloseTo(124 / 5, 5); // (200 - 2·16 - 2·22) / 5
+    expect(geo.width).toBeCloseTo(5 * spacing + 2 * TRACK_PAD_PX, 5);
+    expect(geo.left).toBeCloseTo(300 + (200 - geo.width) / 2, 5);
+    // Every detent center sits inside the visible region…
+    for (const center of geo.detentCenters) {
+      expect(center).toBeGreaterThanOrEqual(300);
+      expect(center).toBeLessThanOrEqual(500);
+    }
+    // …and the nearest-detent mapping follows the geometry's own spacing.
+    expect(detentIndexForX(geo.detentCenters[3]! + 10, geo)).toBe(3);
+  });
+
+  it("sheds the capsule's chrome below the floor — centers stay reachable", () => {
+    // Codex review, fourth pass, exact scenario: a 320px phone at 400% zoom
+    // exposes an 80px region. Reserving pads and margins would leave far
+    // detents beyond any possible pointer travel; instead the geometry
+    // constrains only the detent SPAN — the rounded ends may overflow the
+    // region (the overlay is pointer-transparent decoration) while every
+    // CENTER compresses into the region minus CENTER_INSET_PX.
+    const region = { left: 300, width: 80 };
+    const geo = computeTrackGeometry(rect, 6, region);
+    const spacing = geo.detentCenters[1]! - geo.detentCenters[0]!;
+    expect(spacing).toBeCloseTo((80 - 2 * CENTER_INSET_PX) / 5, 5);
+    // All six centers inside the region, extremes inset from its edges…
+    expect(geo.detentCenters[0]).toBeCloseTo(300 + CENTER_INSET_PX, 5);
+    expect(geo.detentCenters[5]).toBeCloseTo(380 - CENTER_INSET_PX, 5);
+    for (const center of geo.detentCenters) {
+      expect(center).toBeGreaterThanOrEqual(300);
+      expect(center).toBeLessThanOrEqual(380);
+    }
+    // …so the full ladder needs 64px of travel inside an 80px region.
+    expect(geo.detentCenters[5]! - geo.detentCenters[0]!).toBeLessThan(80);
+    // The capsule's chrome is what overflows, by design.
+    expect(geo.left).toBeLessThan(300);
+    // Mapping still follows the geometry's own spacing.
+    expect(detentIndexForX(geo.detentCenters[4]! + spacing / 4, geo)).toBe(4);
+  });
+
+  it("compresses on a narrow layout viewport too", () => {
+    // Eight detents on a 360px phone: full spacing would need 352px; the
+    // ladder compresses to fit inside the margins instead.
+    const narrow = computeTrackGeometry(rect, 8, wholeViewport(360));
+    const spacing = narrow.detentCenters[1]! - narrow.detentCenters[0]!;
+    expect(spacing).toBeCloseTo((360 - 32 - 44) / 7, 5);
+    expect(narrow.width).toBeLessThanOrEqual(360 - 2 * EDGE_MARGIN_PX);
+    expect(narrow.left).toBeCloseTo((360 - narrow.width) / 2, 5);
   });
 
   it("sizes the track from the detent count", () => {
-    const geo = computeTrackGeometry(DOWN_X, rect, 4, 0, 1024);
+    const geo = computeTrackGeometry(rect, 4, wholeViewport(1024));
     expect(geo.width).toBe(3 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
   });
 
   it("maps x to the nearest detent, clamped at the ends", () => {
-    const geo = computeTrackGeometry(DOWN_X, rect, 6, 0, 1024);
-    expect(detentIndexForX(DOWN_X, geo)).toBe(0);
-    expect(detentIndexForX(DOWN_X + 2 * DETENT_SPACING_PX + 10, geo)).toBe(2);
-    expect(detentIndexForX(DOWN_X - 500, geo)).toBe(0);
-    expect(detentIndexForX(DOWN_X + 5000, geo)).toBe(5);
+    const geo = computeTrackGeometry(rect, 6, wholeViewport(1024));
+    const first = geo.detentCenters[0]!;
+    expect(detentIndexForX(first, geo)).toBe(0);
+    expect(detentIndexForX(first + 2 * DETENT_SPACING_PX + 10, geo)).toBe(2);
+    expect(detentIndexForX(first - 500, geo)).toBe(0);
+    expect(detentIndexForX(first + 5000, geo)).toBe(5);
   });
 });
 
@@ -168,17 +250,65 @@ describe("tap vs hold", () => {
     expect(label.textContent).toBe("Auto");
   });
 
-  it("drops a focus scrim behind the capsule, gone the moment it settles", () => {
+  it("drops the focus pair behind the capsule, gone the moment it settles", () => {
     render(<Host />);
     const scrim = () => document.querySelector("[data-hold-slider-scrim]");
+    const blur = () => document.querySelector("[data-hold-slider-blur]");
+    const frozen = () => document.documentElement.hasAttribute("data-hold-gesture");
     expect(scrim()).toBeNull();
+    expect(blur()).toBeNull();
+    expect(frozen()).toBe(false);
     down();
     hold();
+    // The world pauses under the gesture: this attribute is what freezes
+    // the ambient field (nebula canvas gate + bloom play-state), keeping
+    // the blur's backdrop static — the one-time-filter claim's enforcer.
+    expect(frozen()).toBe(true);
     expect(scrim()).not.toBeNull();
     expect(scrim()!.getAttribute("aria-hidden")).toBe("true");
-    expect(scrim()!.className).toContain("pointer-events-none");
+    // pointer-events AUTO: the pair doubles as the gesture's input shield —
+    // a second pointer mid-gesture dies on it instead of reaching a control
+    // beneath (ninth pass). The gesture's own pointer is captured, so the
+    // shield can never steal the drag it guards.
+    expect(scrim()!.className).toContain("pointer-events-auto");
+    // The blur layer is the static half of the pair: its class carries the
+    // backdrop-filter (stand-downs strip it in CSS), and it must precede
+    // the dim in the DOM so the fade rides ABOVE the filter, never on it.
+    expect(blur()).not.toBeNull();
+    expect(blur()!.getAttribute("aria-hidden")).toBe("true");
+    expect(blur()!.className).toContain("hold-slider-blur");
+    expect(blur()!.className).toContain("pointer-events-auto");
+    expect(
+      blur()!.compareDocumentPosition(scrim()!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     up();
     expect(scrim()).toBeNull();
+    expect(blur()).toBeNull();
+    expect(frozen()).toBe(false);
+  });
+
+  it("stands the blur down over a declared dynamic backdrop — dim only", () => {
+    // The blur's performance case is a STATIC backdrop filtered once. The
+    // world-pause freezes the idle ornaments, but a streaming run's surface
+    // is content that must keep repainting — so the consumer declares the
+    // backdrop dynamic and the gesture ships the dim alone (the stand-down
+    // presentation), rather than a filter re-priced every frame (Codex
+    // review, eighth pass; the 2026-08-09 bloom mechanism).
+    const onCommit = vi.fn();
+    render(<Host dynamicBackdrop onCommit={onCommit} />);
+    down();
+    hold();
+    expect(document.querySelector("[data-hold-slider-blur]")).toBeNull();
+    expect(document.querySelector("[data-hold-slider-scrim]")).not.toBeNull();
+    expect(overlay()).not.toBeNull();
+    // The freeze attribute still stamps — the idle-ornament pause is
+    // independent of whether the blur shipped.
+    expect(document.documentElement.hasAttribute("data-hold-gesture")).toBe(true);
+    // The gesture itself is untouched: drag and commit as ever.
+    moveTo(DOWN_X + DETENT_SPACING_PX);
+    up(DOWN_X + DETENT_SPACING_PX);
+    expect(onCommit).toHaveBeenCalledWith(1);
+    expect(document.querySelector("[data-hold-slider-scrim]")).toBeNull();
   });
 
   it("conceals the pill while the capsule is up — the track replaces it", () => {
@@ -190,6 +320,44 @@ describe("tap vs hold", () => {
     expect(wrapper.className).toContain("opacity-0");
     up();
     expect(wrapper.className).not.toContain("opacity-0");
+  });
+
+  it("expands in the same home regardless of where the press landed", () => {
+    render(<Host />);
+    down({ clientX: 100 });
+    hold();
+    const firstLeft = overlay()!.style.left;
+    fireEvent.pointerUp(pill(), { pointerId: 1, clientX: 100, clientY: 400 });
+    expect(overlay()).toBeNull();
+    fireEvent.pointerDown(pill(), {
+      pointerId: 1,
+      clientX: 800,
+      clientY: 400,
+      button: 0,
+    });
+    hold();
+    expect(overlay()!.style.left).toBe(firstLeft);
+    fireEvent.pointerUp(pill(), { pointerId: 1, clientX: 800, clientY: 400 });
+  });
+
+  it("rides a thumb on the dragged detent, tone in its core", () => {
+    render(<Host />);
+    down();
+    hold();
+    const thumb = () =>
+      overlay()!.querySelector<HTMLElement>("[data-hold-slider-thumb]")!;
+    const dots = () => overlay()!.querySelectorAll<HTMLElement>("[data-detent-dot]");
+    expect(thumb()).not.toBeNull();
+    expect(thumb().className).toContain("hold-slider-thumb");
+    // On the anchor (Auto, faint) — centered on detent 0's x.
+    expect(thumb().style.left).toBe(dots()[0]!.style.left);
+    moveTo(DOWN_X + 2 * DETENT_SPACING_PX);
+    expect(thumb().style.left).toBe(dots()[2]!.style.left);
+    expect(thumb().querySelector("span")!.className).toContain("bg-laser");
+    moveTo(DOWN_X + 4 * DETENT_SPACING_PX);
+    expect(thumb().querySelector("span")!.className).toContain("bg-ultra");
+    up(DOWN_X + 4 * DETENT_SPACING_PX);
+    expect(overlay()).toBeNull();
   });
 
   it("stands down when the press wanders vertically past slop before the hold", () => {
@@ -279,11 +447,12 @@ describe("drag, commit, and the trailing click", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it("keeps the drag relative to the finger when the clamp displaces the track", () => {
-    // A phone viewport with the pill near the right edge: the track clamps
-    // left, so the finger no longer starts over the selected detent. The
-    // first shipped cut mapped absolute x and teleported Auto → Max on the
-    // first move (caught by the e2e drag in mobile emulation).
+  it("keeps the drag relative to the finger from the fixed home", () => {
+    // The finger presses near the pill's edge while the track sits in its
+    // centered home, so the finger never starts over the selected detent.
+    // The first shipped cut mapped absolute x and teleported Auto → Max on
+    // the first move (caught by the e2e drag in mobile emulation);
+    // dragOffset keeps travel relative, wherever the home is.
     const onCommit = vi.fn();
     render(<Host onCommit={onCommit} />);
     const descriptor = Object.getOwnPropertyDescriptor(window, "innerWidth");
@@ -490,12 +659,57 @@ describe("revert paths", () => {
     hold();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(overlay()).toBeNull();
+    // Escape's teardown also thaws the ambient field.
+    expect(document.documentElement.hasAttribute("data-hold-gesture")).toBe(false);
     // The finger lifts much later — no commit, and no phantom sheet-open.
     vi.advanceTimersByTime(2000);
     up();
     fireEvent.click(pill());
     expect(onCommit).not.toHaveBeenCalled();
     expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("swallows every unmodified key while the capsule is up — keyboard is a channel too", () => {
+    // The focus pair shields pointers; a background control left
+    // keyboard-focused still activated on Enter/Space and opened its sheet
+    // under the live capsule (fourteenth pass) — and an enumeration of
+    // "activation keys" was itself the next hole: arrows and paging keys
+    // scroll the document beneath the frozen world, Tab wanders focus
+    // (modality audit). While active, every unmodified key dies at the
+    // window's capture phase, keydown and keyup both; modifier chords
+    // belong to the browser and pass; Escape stays the one designed key;
+    // and at rest every key passes untouched.
+    render(<Host />);
+    expect(fireEvent.keyDown(document.body, { key: "Enter" })).toBe(true);
+    down();
+    hold();
+    expect(fireEvent.keyDown(document.body, { key: "Enter" })).toBe(false);
+    expect(fireEvent.keyUp(document.body, { key: " " })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: "ArrowDown" })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: "Tab" })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: "PageDown" })).toBe(false);
+    // Chords pass — except on the activation keys, which still run a
+    // focused button's native activation under Ctrl/Meta (fifteenth pass).
+    expect(fireEvent.keyDown(document.body, { key: "c", ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(document.body, { key: "Enter", ctrlKey: true })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: " ", metaKey: true })).toBe(false);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(overlay()).toBeNull();
+    up();
+    expect(fireEvent.keyDown(document.body, { key: "Enter" })).toBe(true);
+  });
+
+  it("blocks wheel scrolling while the capsule is up", () => {
+    // The scrim is not scrollable, but a wheel over it must not glide the
+    // document beneath the frozen world either (modality audit) — the
+    // same claim the touchmove block makes for fingers.
+    render(<Host />);
+    expect(fireEvent.wheel(window, { deltaY: 40 })).toBe(true);
+    down();
+    hold();
+    expect(fireEvent.wheel(window, { deltaY: 40 })).toBe(false);
+    up();
+    expect(fireEvent.wheel(window, { deltaY: 40 })).toBe(true);
   });
 
   it("suppresses the context menu only while a gesture is live", () => {
@@ -506,5 +720,571 @@ describe("revert paths", () => {
     hold();
     const midGesture = fireEvent.contextMenu(pill());
     expect(midGesture).toBe(false); // prevented
+  });
+});
+
+describe("one gesture at a time, app-wide", () => {
+  /**
+   * The two composer rails sit adjacent and both can be enabled, so two
+   * fingers could otherwise run two gestures at once — stacked focus pairs,
+   * and a shared `data-hold-gesture` attribute whose FIRST teardown thawed
+   * the world under the survivor's blur (Codex review, seventh pass).
+   * Admission is exclusive at pointer-down: while any pill's press is live,
+   * a second pill's press is refused outright — no press record, no hold
+   * timer — and refused WHOLE: its synthesized click is consumed for the
+   * claim's lifetime (ninth pass; the seventh's tap fall-through opened
+   * the other sheet under the live capsule on hybrid inputs). The claim
+   * dies with the press that holds it: up, cancel, or unmount.
+   */
+  function TwinHosts({
+    onCommitA = () => {},
+    onCommitB = () => {},
+    onOpenA = () => {},
+    onOpenB = () => {},
+    showA = true,
+  }: {
+    onCommitA?: (i: number) => void;
+    onCommitB?: (i: number) => void;
+    onOpenA?: () => void;
+    onOpenB?: () => void;
+    showA?: boolean;
+  }) {
+    return (
+      <>
+        {showA && (
+          <HoldSliderTrigger
+            detents={DETENTS}
+            selectedIndex={0}
+            liveLabel={liveLabel}
+            onCommit={onCommitA}
+            enabled
+          >
+            <button type="button" onClick={onOpenA}>
+              A
+            </button>
+          </HoldSliderTrigger>
+        )}
+        <HoldSliderTrigger
+          detents={DETENTS}
+          selectedIndex={0}
+          liveLabel={liveLabel}
+          onCommit={onCommitB}
+          enabled
+        >
+          <button type="button" onClick={onOpenB}>
+            B
+          </button>
+        </HoldSliderTrigger>
+      </>
+    );
+  }
+  const pillA = () => screen.getByRole("button", { name: "A" });
+  const pillB = () => screen.getByRole("button", { name: "B" });
+  const overlays = () =>
+    document.querySelectorAll<HTMLElement>("[data-hold-slider-overlay]");
+  const frozen = () => document.documentElement.hasAttribute("data-hold-gesture");
+  const downOn = (el: HTMLElement, pointerId: number) =>
+    fireEvent.pointerDown(el, {
+      pointerId,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+
+  it("refuses a second pill's press while a gesture is live — and its release never thaws the survivor", () => {
+    const onCommitA = vi.fn();
+    const onCommitB = vi.fn();
+    const onOpenB = vi.fn();
+    render(<TwinHosts onCommitA={onCommitA} onCommitB={onCommitB} onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    expect(frozen()).toBe(true);
+    // A second finger presses the other pill mid-drag: refused at admission,
+    // so its own hold timer never even starts.
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    // The refused finger lifts. THE regression this guards: without
+    // exclusive admission, B's teardown stripped the shared attribute and
+    // the ambient field thawed beneath A's still-live blur.
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    expect(frozen()).toBe(true);
+    expect(overlays()).toHaveLength(1);
+    // The refusal is WHOLE (ninth pass, superseding the seventh's tap
+    // fall-through): B's synthesized click is consumed while A's claim is
+    // live — on hybrid inputs that click otherwise opened B's sheet under
+    // A's capsule, the state the admission guard exists to prevent.
+    fireEvent.click(pillB());
+    expect(onOpenB).not.toHaveBeenCalled();
+    // A's gesture is untouched throughout: drag one detent and commit.
+    fireEvent.pointerMove(pillA(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    fireEvent.pointerUp(pillA(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(onCommitA).toHaveBeenCalledTimes(1);
+    expect(onCommitA).toHaveBeenCalledWith(1);
+    expect(onCommitB).not.toHaveBeenCalled();
+    expect(overlays()).toHaveLength(0);
+    expect(frozen()).toBe(false);
+    // The claim died with A's press — B's tap now passes untouched.
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("consumes the other pill's click for the whole claim window — before the hold even fires", () => {
+    // The claim is taken at pointer-DOWN, so the consumption must cover the
+    // pre-hold window too: a second finger's tap inside A's 300ms would
+    // otherwise open B's sheet, and A's capsule then mounted over it.
+    const onOpenB = vi.fn();
+    render(<TwinHosts onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    fireEvent.click(pillB());
+    expect(onOpenB).not.toHaveBeenCalled();
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases the claim with the press — the other pill gestures normally afterward", () => {
+    const onCommitA = vi.fn();
+    const onCommitB = vi.fn();
+    render(<TwinHosts onCommitA={onCommitA} onCommitB={onCommitB} />);
+    downOn(pillA(), 1);
+    hold();
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    expect(onCommitA).toHaveBeenCalledTimes(1);
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    expect(onCommitB).toHaveBeenCalledTimes(1);
+    expect(frozen()).toBe(false);
+  });
+
+  it("consumes a second device's click on the pill that OWNS the press", () => {
+    // The ninth pass exempted the owner's own claim, and the tenth closed
+    // it: a mouse click can land inside a touch press's pre-hold window,
+    // and Enter can activate the focused pill mid-drag — with the claim
+    // live, a click on the owning pill is never its plain tap. The plain
+    // tap stays safe by protocol order, not identity: pointer-up releases
+    // the claim before the browser dispatches the click.
+    const onOpen = vi.fn();
+    const onCommit = vi.fn();
+    render(<Host onOpen={onOpen} onCommit={onCommit} />);
+    down();
+    fireEvent.click(pill()); // second device, inside the pre-hold window
+    expect(onOpen).not.toHaveBeenCalled();
+    hold(); // the press was untouched — the gesture engages as ever
+    expect(overlay()).not.toBeNull();
+    fireEvent.click(pill()); // Enter mid-drag
+    expect(onOpen).not.toHaveBeenCalled();
+    moveTo(DOWN_X + DETENT_SPACING_PX);
+    up(DOWN_X + DETENT_SPACING_PX);
+    expect(onCommit).toHaveBeenCalledWith(1);
+    act(() => {
+      vi.advanceTimersByTime(1); // settle() clears the commit's suppression
+    });
+    // At rest the ordinary tap path is untouched.
+    down();
+    up();
+    fireEvent.click(pill());
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends the press on a lift the wrapper never hears — no phantom activation", () => {
+    // A mouse is not implicitly captured: an edge press can leave the
+    // wrapper inside the slop window, and every later event — the lift
+    // included — dispatches elsewhere. Pre-fix the hold timer fired on the
+    // stale press: a phantom overlay, freeze, and input shield with no
+    // pointer down, and the claim held until remount (twelfth pass). The
+    // window net hears the outside lift and ends the press cleanly.
+    const onCommitA = vi.fn();
+    const onOpenB = vi.fn();
+    render(<TwinHosts onCommitA={onCommitA} onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    fireEvent.pointerUp(document.body, {
+      pointerId: 1,
+      clientX: 500,
+      clientY: 600,
+    });
+    hold(); // the timer must already be dead
+    expect(overlays()).toHaveLength(0);
+    expect(frozen()).toBe(false);
+    expect(onCommitA).not.toHaveBeenCalled();
+    // The claim died with the press: the other pill gestures and taps.
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a refused press refused even when the owner releases first", () => {
+    // The claim alone cannot carry the refusal to its end: touch owns A,
+    // mouse-down on B is refused, then A commits and releases the claim
+    // BEFORE the mouse lifts — at B's click time both the claim and B's
+    // suppressClick were clear, and the press documented as refused whole
+    // opened B's sheet (thirteenth pass). The per-instance marker survives
+    // the owner's release and dies with the refused stream's own click.
+    const onOpenB = vi.fn();
+    render(<TwinHosts onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillB(), 2); // refused — foreign claim
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1); // A's settle clears A's own suppression
+    });
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    // The refused stream's own click is pointer-derived (detail ≥ 1).
+    fireEvent.click(pillB(), { detail: 1 });
+    expect(onOpenB).not.toHaveBeenCalled();
+    // The refusal ended with its stream: a fresh tap on B works.
+    downOn(pillB(), 2);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a SAME-pill competing press refused even when the owner releases first", () => {
+    // The thirteenth pass carried a refusal past the owner's release for a
+    // FOREIGN pill and deliberately exempted the owner's own wrapper: the
+    // mid-claim window was covered by any-claim consumption, but the
+    // outlive-the-owner timeline was never re-run on this topology. Touch
+    // owns A, a mouse presses A mid-gesture (bare-rejected, no marker),
+    // A commits and releases — and the mouse's later lift-click passed
+    // every gate and popped the sheet right on the heels of the drag
+    // (nineteenth pass). Same mechanism as cross-pill now: marker +
+    // end-watch, on the owning wrapper too.
+    const onOpenA = vi.fn();
+    const onCommitA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} onCommitA={onCommitA} />);
+    downOn(pillA(), 1); // touch owns A
+    hold();
+    expect(overlays()).toHaveLength(1);
+    downOn(pillA(), 2); // a mouse presses the SAME pill — refused, marked
+    expect(overlays()).toHaveLength(1); // the live gesture is untouched
+    fireEvent.pointerMove(pillA(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    fireEvent.pointerUp(pillA(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(onCommitA).toHaveBeenCalledTimes(1);
+    expect(onCommitA).toHaveBeenCalledWith(1);
+    act(() => {
+      vi.advanceTimersByTime(1); // the owner's settle suppression expires
+    });
+    // The competing mouse lifts over the pill — pointer-derived click.
+    fireEvent.pointerUp(pillA(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1); // the end-watch clears the marker
+    });
+    // A fresh tap still opens — the refusal died with its stream.
+    downOn(pillA(), 3);
+    fireEvent.pointerUp(pillA(), { pointerId: 3, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("the owner's own settled click cannot strip the competitor's refusal", () => {
+    // The consume body used to clear the marker no matter which gate fired.
+    // Cross-pill that was harmless — the owner's clicks never route through
+    // the refused wrapper — but same-pill the owner's commit click and the
+    // competitor's lift-click cross the SAME capture handler, and a
+    // settle-consumed commit click would strip the competitor's marker
+    // before its own click arrived (nineteenth pass). The marker's
+    // lifecycle belongs to its end-watch, the next pointer-down's
+    // supersede, and unmount — consumption reads it, never writes it.
+    const onOpenA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillA(), 2); // refused, marked
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 }); // the owner's settle-window click
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1); // suppression expires; the marker must survive
+    });
+    fireEvent.pointerUp(pillA(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 }); // the competitor's lift-click
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    downOn(pillA(), 3);
+    fireEvent.pointerUp(pillA(), { pointerId: 3, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("a pending same-pill refusal never blocks keyboard activation", () => {
+    // The marker gates only pointer-derived clicks (detail ≥ 1). With the
+    // gesture over but the competing mouse still physically down somewhere,
+    // keyboard activation carries detail 0 and must land — the
+    // discriminator, not timing, keeps every marker source away from
+    // keyboard users (seventeenth pass, now including the same-pill one).
+    const onOpenA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillA(), 2); // refused, marked
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    fireEvent.click(pillA()); // keyboard/programmatic: detail 0
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains every refused pointer until its own end — a sibling never un-protects the elder", () => {
+    // Twenty-second pass, re-pricing the nineteenth's "newest wins" slot:
+    // touch owns A; a mouse AND a second touch press B while the claim is
+    // live. The single slot let the later refusal REPLACE the earlier —
+    // the newer stream's end cleared the whole marker, and the elder
+    // mouse's later click opened B's sheet right after the owning drag.
+    // Refusals now accumulate per-stream and each ends with its own.
+    const onOpenB = vi.fn();
+    render(<TwinHosts onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillB(), 2); // refused — the elder
+    downOn(pillB(), 3); // refused — the sibling that used to steal the slot
+    // The sibling ends first, far away; its removal must not clear the elder.
+    fireEvent.pointerUp(document.body, { pointerId: 3, clientX: 500, clientY: 600 });
+    act(() => {
+      vi.advanceTimersByTime(1); // the sibling's zero-timeout removal
+    });
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1); // the owner's settle suppression expires
+    });
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB(), { detail: 1 }); // the elder's own click
+    expect(onOpenB).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // Every refusal ended with its stream — a fresh tap works.
+    downOn(pillB(), 4);
+    fireEvent.pointerUp(pillB(), { pointerId: 4, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("same-pill sibling refusals are each retained through their own click", () => {
+    // The same accumulation on the OWNING wrapper (nineteenth pass's
+    // topology): both competitors' clicks must die with their own streams,
+    // in either lift order, even after the owner commits and releases.
+    const onOpenA = vi.fn();
+    const onCommitA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} onCommitA={onCommitA} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillA(), 2); // refused — the elder
+    downOn(pillA(), 3); // refused — the sibling
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    expect(onCommitA).toHaveBeenCalledTimes(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // The later-refused lifts first over the pill…
+    fireEvent.pointerUp(pillA(), { pointerId: 3, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // …and the elder's click STILL dies with its own stream.
+    fireEvent.pointerUp(pillA(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    downOn(pillA(), 4);
+    fireEvent.pointerUp(pillA(), { pointerId: 4, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("stands down at activation when a sheet opened during the pre-hold window", () => {
+    // The admission guard stops gestures BEGINNING over a sheet; this is
+    // the symmetric half (thirteenth pass): the input shield mounts only at
+    // activation, so a second device can open a sheet through a
+    // non-wrapped trigger inside the 300ms window. The sheet is senior —
+    // the hold stands down like a y-dominant scroll instead of mounting
+    // the capsule over it.
+    const onCommit = vi.fn();
+    const onOpen = vi.fn();
+    render(<Host onCommit={onCommit} onOpen={onOpen} />);
+    down();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    document.body.appendChild(dialog);
+    hold(); // the timer fires into the probe
+    expect(overlay()).toBeNull();
+    expect(document.documentElement.hasAttribute("data-hold-gesture")).toBe(false);
+    up();
+    fireEvent.click(pill());
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled(); // the lift's click is swallowed
+    dialog.remove();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // Sheet gone — the control is fresh.
+    down();
+    hold();
+    expect(overlay()).not.toBeNull();
+    up();
+  });
+
+  it("a refusal dies with its own stream — a stale marker never eats a keyboard click", () => {
+    // A refused pointer that releases OUTSIDE this wrapper never sends the
+    // click the marker waits for; pre-fix the stale marker then ate the
+    // pill's next keyboard or programmatic click — an activation a
+    // keyboard user must never lose (Vercel agent review, fourteenth
+    // round). The window end-watch hears the stream end anywhere and the
+    // marker clears one task later.
+    const onOpenB = vi.fn();
+    render(<TwinHosts onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillB(), 2); // refused — marker armed
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    // The refused pointer releases far from B — no click will ever come.
+    fireEvent.pointerUp(document.body, { pointerId: 2, clientX: 500, clientY: 600 });
+    act(() => {
+      vi.advanceTimersByTime(1); // the end-watch's zero-timeout clears the marker
+    });
+    // The next activation is keyboard/programmatic: a bare click, no
+    // pointer-down to supersede anything. It must land.
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("reverts on window blur — the world never stays frozen in a background tab", () => {
+    // An alt-tab, app switch, or locked phone mid-gesture delivers NO
+    // event to this document: the mouse releases in another window and
+    // the up never dispatches here — the one ending no pointer net can
+    // catch (modality audit). Concealment is a pointercancel: revert,
+    // never commit, everything released.
+    const onCommitA = vi.fn();
+    const onOpenA = vi.fn();
+    const onOpenB = vi.fn();
+    render(<TwinHosts onCommitA={onCommitA} onOpenA={onOpenA} onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.blur(window);
+    expect(overlays()).toHaveLength(0);
+    expect(frozen()).toBe(false);
+    expect(onCommitA).not.toHaveBeenCalled();
+    // The concealed stream is abandoned, not finished: the user returns
+    // and lifts over the pill — capture survived, the click synthesizes
+    // minutes later (pointer-derived, detail ≥ 1), and it must die with
+    // ITS stream, not open the sheet after a revert (fifteenth pass).
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // The claim died with the press: the other pill lives…
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+    // …and so does the concealed pill itself, on its next fresh tap.
+    downOn(pillA(), 1);
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA());
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("a marker stranded by an outside death can never eat a keyboard click", () => {
+    // The concealed stream's end-watch waits for a pointerup that a
+    // release in another application never sends — so the marker CAN sit
+    // stranded, and every timing-based expiry had a hole (sixteenth and
+    // seventeenth passes). The discriminator is the click itself: keyboard
+    // and programmatic activation carry detail 0 and always pass the
+    // marker, stranded or not.
+    const onOpenA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} />);
+    downOn(pillA(), 1);
+    hold();
+    fireEvent.blur(window); // conceal: revert + marker + watch
+    expect(overlays()).toHaveLength(0);
+    // The pointer releases in the other app — no event ever arrives, the
+    // marker is stranded. The keyboard activation (detail 0) lands anyway.
+    fireEvent.click(pillA());
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("returning STILL HOLDING and lifting over the pill cannot open its sheet", () => {
+    // The seventeenth pass's scenario, which broke the foreground-expiry
+    // repair: alt-tab away holding the button, come back (focus fires),
+    // and only then lift over the pill. The lift's click is
+    // pointer-derived (detail ≥ 1) — the marker consumes it regardless of
+    // when focus fired, because the discriminator carries no timing.
+    const onOpenA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} />);
+    downOn(pillA(), 1);
+    hold();
+    fireEvent.blur(window); // conceal: revert + marker + watch
+    fireEvent.focus(window); // the user returns, button still down
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 }); // the abandoned stream's lift-click
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // A fresh pointer tap works — the marker died with its stream.
+    downOn(pillA(), 1);
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases the claim on unmount — a dead owner never bricks the surviving sliders", () => {
+    const onCommitB = vi.fn();
+    const { rerender } = render(<TwinHosts onCommitB={onCommitB} />);
+    downOn(pillA(), 1);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    rerender(<TwinHosts onCommitB={onCommitB} showA={false} />);
+    expect(overlays()).toHaveLength(0);
+    expect(frozen()).toBe(false);
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    expect(onCommitB).toHaveBeenCalledTimes(1);
   });
 });

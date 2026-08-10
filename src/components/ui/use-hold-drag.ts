@@ -47,6 +47,16 @@ export const HOLD_MS = 300;
 export const SLOP_PX = 10;
 /** Horizontal travel per detent — one 44px touch target each. */
 export const DETENT_SPACING_PX = 44;
+/** Mode boundary for compression: while compressed spacing stays at or
+ *  above this, the whole capsule (pads and edge margins included) fits the
+ *  visible region; below it, the geometry stops reserving the capsule's
+ *  chrome and constrains only the detent SPAN — see computeTrackGeometry.
+ *  Ergonomics hold either way because zoom multiplies PHYSICAL travel. */
+export const MIN_DETENT_SPACING_PX = 12;
+/** Span-mode inset: the extreme detent centers keep this much clearance
+ *  from the visible region's edges, so the first and last stops are never
+ *  razor-edge pointer targets. */
+export const CENTER_INSET_PX = 8;
 /** Inset from the capsule's rounded end to the first/last detent center. */
 export const TRACK_PAD_PX = 22;
 /** Rendered height of the overlay capsule. */
@@ -66,45 +76,92 @@ export interface TrackGeometry {
 
 /**
  * Where the overlay track lands, PURE and exported: jsdom has no layout, so
- * detent mapping must derive from the pointer-down x and these constants,
- * never from measuring rendered dots. The currently-selected detent is
- * anchored under the finger — the hand is already on the value it chose, so
- * every reachable value is a relative move — then the whole track clamps to
- * the viewport with EDGE_MARGIN_PX to spare.
+ * geometry must derive from these constants and the few numbers passed in,
+ * never from measuring rendered dots. The track has a FIXED HOME — centered
+ * in the viewport the user is LOOKING AT, on the gesturing rail's row —
+ * the same spot for every press (ADR-0012 amendment 4, from the owner's
+ * reference recording: a capsule that lands wherever the finger happened to
+ * be reads as floaty, and the first cut's anchor-under-finger placement did
+ * exactly that). The finger still maps RELATIVELY through dragOffset, so
+ * the press point never jumps the selection; only the capsule's home is
+ * fixed.
+ *
+ * `viewport` is the VISUAL viewport in layout-viewport coordinates —
+ * {left: 0, width: innerWidth} unzoomed, `visualViewport`'s offset/width
+ * under pinch zoom. This control deliberately preserves native pinch zoom
+ * (the resting `pinch-zoom` claim), and a fixed-position capsule centered
+ * on the LAYOUT viewport can open entirely outside a zoomed-in user's view
+ * (Codex review, PR #103). Unzoomed, the shell is a centered
+ * max-w-screen-sm column, so the visual center IS the composer's.
+ *
+ * The home is the visible region's CENTER in every mode — placement never
+ * depends on the selection, so the same rail always expands in the same
+ * spot. What adapts is the spacing (Codex review, third and fourth
+ * passes: a placement frozen around the selected detent kept the SPAWN
+ * visible but let the drag walk the thumb out of the region, and any
+ * placement that hides a center makes that value unreachable, because the
+ * pointer cannot travel past the region's edge):
+ *
+ * - FULL: the 44px ladder plus capsule chrome fits inside the margins —
+ *   spacing stays DETENT_SPACING_PX.
+ * - COMPRESSED: spacing shrinks toward MIN_DETENT_SPACING_PX so capsule,
+ *   pads, and margins all still fit.
+ * - SPAN-ONLY: below that, the geometry stops reserving the capsule's
+ *   chrome — the rounded ends and margins may overflow the region (the
+ *   overlay is pointer-transparent decoration) while the detent CENTERS
+ *   compress into the region minus CENTER_INSET_PX. Every stop stays
+ *   visible; zoom multiplies physical travel, so the tighter detents
+ *   cost no precision.
+ *
+ * Single-GESTURE reach is bounded by where the press began — a finger
+ * cannot travel past the screen's edge, at any zoom, under any geometry
+ * (the original anchor-under-finger placement had the same physics for
+ * the top tiers on an unzoomed phone, and so does the reference
+ * control). That bound is answered by COMPOSITION, not by gain: release
+ * re-anchors, so the next hold starts from the new selection with fresh
+ * travel room — any value is at most two centered gestures away — and
+ * the sheet remains the complete single-tap path (WCAG 2.5.7). Drag gain
+ * is deliberately constant and side-symmetric: the finger owns the
+ * thumb 1:1, in both directions, always.
  */
 export function computeTrackGeometry(
-  pointerX: number,
   anchorRect: { top: number; height: number },
   detentCount: number,
-  selectedIndex: number,
-  viewportWidth: number,
+  viewport: { left: number; width: number },
 ): TrackGeometry {
-  const span = (detentCount - 1) * DETENT_SPACING_PX;
-  const width = span + TRACK_PAD_PX * 2;
-  const ideal = pointerX - selectedIndex * DETENT_SPACING_PX - TRACK_PAD_PX;
-  const left = Math.max(
-    EDGE_MARGIN_PX,
-    Math.min(ideal, viewportWidth - EDGE_MARGIN_PX - width),
-  );
+  const steps = Math.max(detentCount - 1, 1);
+  const chromeSpacing = (viewport.width - EDGE_MARGIN_PX * 2 - TRACK_PAD_PX * 2) / steps;
+  const spacing =
+    chromeSpacing >= MIN_DETENT_SPACING_PX
+      ? Math.min(DETENT_SPACING_PX, chromeSpacing)
+      : Math.max(
+          1,
+          Math.min(DETENT_SPACING_PX, (viewport.width - CENTER_INSET_PX * 2) / steps),
+        );
+  const width = steps * spacing + TRACK_PAD_PX * 2;
+  // Both modes center the SPAN on the region's center; centering the span
+  // and centering the capsule are the same thing (symmetric pads).
+  const first = viewport.left + (viewport.width - steps * spacing) / 2;
+  const left = first - TRACK_PAD_PX;
   const top = anchorRect.top + anchorRect.height / 2 - TRACK_HEIGHT_PX / 2;
-  const first = left + TRACK_PAD_PX;
   return {
     left,
     top,
     width,
     height: TRACK_HEIGHT_PX,
-    detentCenters: Array.from(
-      { length: detentCount },
-      (_, i) => first + i * DETENT_SPACING_PX,
-    ),
+    detentCenters: Array.from({ length: detentCount }, (_, i) => first + i * spacing),
   };
 }
 
-/** Nearest detent to a pointer x, clamped to the track's ends. */
+/** Nearest detent to a pointer x, clamped to the track's ends. Spacing is
+ *  read from the geometry itself — under pinch-zoom compression it is
+ *  narrower than DETENT_SPACING_PX. */
 export function detentIndexForX(x: number, geometry: TrackGeometry): number {
-  const first = geometry.detentCenters[0]!;
-  const raw = Math.round((x - first) / DETENT_SPACING_PX);
-  return Math.max(0, Math.min(geometry.detentCenters.length - 1, raw));
+  const centers = geometry.detentCenters;
+  const first = centers[0]!;
+  const spacing = centers.length > 1 ? centers[1]! - first : DETENT_SPACING_PX;
+  const raw = Math.round((x - first) / spacing);
+  return Math.max(0, Math.min(centers.length - 1, raw));
 }
 
 interface Press {
@@ -114,6 +171,32 @@ interface Press {
   el: HTMLElement;
 }
 
+/**
+ * ONE live press/gesture across every hold-slider (module scope). The two
+ * composer rails sit adjacent and both can be enabled, so two fingers could
+ * otherwise run two gestures at once — stacked full-viewport focus pairs,
+ * crossed capsules, and a shared `data-hold-gesture` attribute whose first
+ * teardown thawed the world under the survivor's blur (Codex review,
+ * seventh pass). Exclusive ownership is also the reference platform's own
+ * semantic. Claimed at pointer-down, released wherever the press record
+ * dies (up, cancel, unmount).
+ *
+ * A refused press is refused WHOLE: its admission is denied here and its
+ * synthesized click is consumed at onClickCapture for as long as the claim
+ * is held. The seventh pass first let that click fall through as a plain
+ * tap, and the ninth corrected it — on hybrid-input devices the "tap"
+ * opened the other pill's sheet (z-70) under the live capsule (z-85),
+ * recreating the sheet-mid-gesture state the admission guard exists to
+ * make impossible. The consumption carries no self-exemption (tenth pass):
+ * while any press is live, a click on the OWNING pill can only be a second
+ * input device — a mouse inside a touch press's pre-hold window, Enter on
+ * the focused pill mid-drag — never the plain tap, which by protocol order
+ * arrives only after pointer-up has already released the claim. During the
+ * ACTIVE phase the focus pair additionally shields the whole viewport
+ * (HoldSlider's pointer-events), so non-wrapped triggers go inert too.
+ */
+let gestureOwner: object | null = null;
+
 export function useHoldDrag({
   detentCount,
   selectedIndex,
@@ -121,7 +204,8 @@ export function useHoldDrag({
   onCommit,
 }: {
   detentCount: number;
-  /** The committed detent at gesture start — anchored under the finger. */
+  /** The committed detent at gesture start — the drag maps relative to it
+   *  (dragOffset), wherever in the fixed-home track it sits. */
   selectedIndex: number;
   /** False = fully inert: no timer, no axis claim, taps untouched. */
   enabled: boolean;
@@ -154,6 +238,72 @@ export function useHoldDrag({
   const latest = useRef({ detentCount, selectedIndex, onCommit });
   latest.current = { detentCount, selectedIndex, onCommit };
 
+  /** This instance's identity for the module-level exclusive-gesture claim. */
+  const ownerToken = useRef<object>({});
+
+  /** Streams this wrapper refused, whose clicks have not yet arrived (or
+   *  been proven never coming). The claim alone cannot carry a refusal to
+   *  its end: the owner can release before a refused pointer lifts, and at
+   *  click time both the claim and suppressClick are clear — the press
+   *  documented as refused whole then opened this pill's sheet (thirteenth
+   *  pass cross-pill; nineteenth same-wrapper, told apart from the owner's
+   *  own settle-window click by GATE, not identity). Per-instance, so it
+   *  can never collide with another wrapper's legitimate clicks. A SET,
+   *  not a slot (twenty-second pass): two competing streams can be refused
+   *  concurrently, and the newest-wins slot un-protected the elder — the
+   *  newer stream's end cleared the whole marker while the elder was still
+   *  down, and its click opened the sheet right after the owning drag.
+   *  Each refusal is retained until ITS OWN stream ends: the window hears
+   *  the end anywhere (a refusal must not outlive its stream — the stale
+   *  marker ate a keyboard activation, fourteenth round), and the ended id
+   *  leaves one task later, outliving exactly the one same-task click its
+   *  lift can still deliver (the settle() ordering trick). Clicks are
+   *  consumed while ANY refusal is pending; consumption reads the set and
+   *  never writes it (nineteenth pass). Only an ADMITTED-path pointer-down
+   *  clears the set wholesale — that reset exists for STRANDED ids (a
+   *  stream that ended where no event reports it, whose staleness only a
+   *  fresh legitimate interaction can prove); the boundary it keeps is
+   *  recorded in the ADR. */
+  const refusedIds = useRef<Set<number>>(new Set());
+  const refusedClears = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const onRefusedEnd = useCallback((e: PointerEvent) => {
+    const id = e.pointerId;
+    if (!refusedIds.current.has(id) || refusedClears.current.has(id)) return;
+    refusedClears.current.set(
+      id,
+      setTimeout(() => {
+        refusedIds.current.delete(id);
+        refusedClears.current.delete(id);
+        if (refusedIds.current.size === 0) {
+          window.removeEventListener("pointerup", onRefusedEnd);
+          window.removeEventListener("pointercancel", onRefusedEnd);
+        }
+      }, 0),
+    );
+  }, []);
+  const armRefusedWatch = useCallback(
+    (pointerId: number) => {
+      refusedIds.current.add(pointerId);
+      // Duplicate adds of the same handler are spec'd no-ops, so arming is
+      // idempotent while any refusal is pending.
+      window.addEventListener("pointerup", onRefusedEnd);
+      window.addEventListener("pointercancel", onRefusedEnd);
+    },
+    [onRefusedEnd],
+  );
+  const disarmRefusedWatch = useCallback(() => {
+    refusedIds.current.clear();
+    for (const t of refusedClears.current.values()) clearTimeout(t);
+    refusedClears.current.clear();
+    window.removeEventListener("pointerup", onRefusedEnd);
+    window.removeEventListener("pointercancel", onRefusedEnd);
+  }, [onRefusedEnd]);
+
+  /** Give up the exclusive claim — called wherever `press.current` dies. */
+  const releaseGesture = useCallback(() => {
+    if (gestureOwner === ownerToken.current) gestureOwner = null;
+  }, []);
+
   const setActiveBoth = useCallback(
     (next: { dragIndex: number; geometry: TrackGeometry } | null) => {
       activeRef.current = next;
@@ -167,33 +317,143 @@ export function useHoldDrag({
     if (activeRef.current) e.preventDefault();
   }, []);
 
+  /** Wheel is the pointer channel's scroll the shield cannot stop by
+   *  hit-testing alone (the scrim is not scrollable, but the page under a
+   *  wheel-scrolling cursor still is in some engines) and the touchmove
+   *  block never sees: under a live capsule the document must not glide
+   *  beneath the frozen world (modality audit). Non-passive, active phase
+   *  only — the same shape as the touchmove claim above. */
+  const onWindowWheel = useCallback((e: WheelEvent) => {
+    if (activeRef.current) e.preventDefault();
+  }, []);
+
   /** Escape and teardown reference each other; the ref breaks the cycle
    *  while keeping both listener identities stable for add/remove pairing. */
   const teardownRef = useRef<() => void>(() => {});
 
-  const onWindowKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key !== "Escape" || !activeRef.current) return;
-    // Revert: the finger may stay down for seconds yet, so the trailing
-    // click is suppressed at the eventual pointer-up, not on a timer here.
-    cancelled.current = true;
-    teardownRef.current();
+  const onWindowKey = useCallback((e: KeyboardEvent) => {
+    if (!activeRef.current) return;
+    if (e.type === "keydown" && e.key === "Escape") {
+      // Revert: the finger may stay down for seconds yet, so the trailing
+      // click is suppressed at the eventual pointer-up, not on a timer here.
+      cancelled.current = true;
+      teardownRef.current();
+      return;
+    }
+    // The focus pair shields POINTERS; keys are their own input channel
+    // (fourteenth pass, then widened in the modality audit): a background
+    // control left keyboard-focused — or tabbed to mid-drag — activated on
+    // Enter/Space and opened its sheet under the live capsule, and an
+    // enumeration of "activation keys" was itself the next hole (arrows,
+    // PageUp/Down, Home/End scroll the document beneath the frozen world;
+    // Tab wanders focus). While the capsule is up, every unmodified key
+    // except Escape dies here at the window's capture phase, keydown and
+    // keyup both (native buttons activate Space on keyup) — and the
+    // activation keys die REGARDLESS of modifiers, because Ctrl/Meta+Enter
+    // still runs a focused button's native activation (fifteenth pass:
+    // the modifier exemption was scoped for browser chords like copy and
+    // reload, and page-level activation rode through it). Escape above
+    // stays the one designed key.
+    const isActivationKey = e.key === "Enter" || e.key === " ";
+    if (
+      e.key !== "Escape" &&
+      (isActivationKey || (!e.ctrlKey && !e.metaKey && !e.altKey))
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }, []);
 
   const teardown = useCallback(() => {
     clearTimeout(timer.current);
-    const p = press.current;
-    if (p) {
-      try {
-        p.el.releasePointerCapture(p.pointerId);
-      } catch {
-        /* never captured, or the pointer is already gone — both fine */
-      }
-    }
+    // Pointer capture is deliberately NOT released here (eleventh pass).
+    // Capture's lifetime is the PRESS's, not the overlay's: on the Escape
+    // path the press record outlives this teardown until the finger lifts,
+    // and the captured stream is the only thing that routes a lift landing
+    // far from the pill (mid-drag the pointer usually is) back to
+    // onPointerUp — which is where the press dies, the app-wide claim
+    // releases, and the trailing click is swallowed. Releasing early
+    // orphaned that lift in real browsers: press and claim leaked, and
+    // every wrapped pill went dead until remount (jsdom hid it — it has no
+    // capture routing, so the unit lift always "landed" on the pill). No
+    // explicit release is needed anywhere: pointerup and pointercancel
+    // auto-release capture per spec, and unmount disconnects the element.
     window.removeEventListener("touchmove", onWindowTouchMove);
-    window.removeEventListener("keydown", onWindowKeyDown);
+    window.removeEventListener("wheel", onWindowWheel);
+    window.removeEventListener("keydown", onWindowKey, true);
+    window.removeEventListener("keyup", onWindowKey, true);
+    document.documentElement.removeAttribute("data-hold-gesture");
     setActiveBoth(null);
-  }, [onWindowTouchMove, onWindowKeyDown, setActiveBoth]);
+  }, [onWindowTouchMove, onWindowWheel, onWindowKey, setActiveBoth]);
   teardownRef.current = teardown;
+
+  /** The pre-hold safety net for UNCAPTURED exits (twelfth pass). A mouse
+   *  is not implicitly captured, so a press starting near the pill's edge
+   *  can leave the wrapper inside the slop window — every later move and
+   *  the lift itself then dispatch elsewhere, the wrapper hears nothing,
+   *  and the hold timer fired on a stale press: a phantom overlay, freeze,
+   *  and input shield with no pointer down, and the app-wide claim held
+   *  until remount (the same lesson the y-dominant stand-down learned in
+   *  2026-07, one window earlier). Window-scoped and armed only while a
+   *  press is live; the wrapper's own handlers run first (target before
+   *  window), so this acts only on lifts the wrapper never saw — and an
+   *  outside lift synthesizes no click in the wrapper's subtree, so there
+   *  is nothing to suppress. Chosen over capturing the mouse at admission,
+   *  which would have changed edge-press semantics (a drag-away would
+   *  engage or commit where today nothing happens). */
+  const onWindowPointerEnd = useCallback(
+    (e: PointerEvent) => {
+      const p = press.current;
+      if (!p || e.pointerId !== p.pointerId) return;
+      press.current = null;
+      releaseGesture();
+      teardownRef.current();
+      window.removeEventListener("pointerup", onWindowPointerEnd);
+      window.removeEventListener("pointercancel", onWindowPointerEnd);
+    },
+    [releaseGesture],
+  );
+
+  /** The one ending no pointer or key event can report: the WINDOW leaves.
+   *  An alt-tab, an OS app switch, or a locked phone mid-gesture delivers
+   *  nothing at all to this document — the mouse button releases in some
+   *  other window, the up never dispatches here, and press, claim, capsule,
+   *  and the world-freeze would all sit leaked in a background tab (the
+   *  modality audit; the same leak class as the Escape and edge-exit
+   *  passes, through the only channel with no event to catch). Concealment
+   *  is treated exactly like pointercancel: revert, never commit. */
+  const onWindowConceal = useCallback(
+    (e: Event) => {
+      if (e.type === "visibilitychange" && document.visibilityState !== "hidden") {
+        return;
+      }
+      if (!press.current) return;
+      const concealed = press.current;
+      press.current = null;
+      releaseGesture();
+      teardownRef.current();
+      window.removeEventListener("pointerup", onWindowPointerEnd);
+      window.removeEventListener("pointercancel", onWindowPointerEnd);
+      window.removeEventListener("blur", onWindowConceal);
+      document.removeEventListener("visibilitychange", onWindowConceal);
+      // The concealed stream is not finished — only abandoned. Capture can
+      // survive into the user's return, so the eventual lift over the pill
+      // still synthesizes a click, minutes after the revert and far outside
+      // settle()'s same-task window (fifteenth pass). The refused-stream
+      // machinery is exactly this shape: mark the stream, watch for its
+      // true end anywhere, clear one task later so only its own click dies.
+      armRefusedWatch(concealed.pointerId);
+    },
+    [releaseGesture, onWindowPointerEnd, armRefusedWatch],
+  );
+
+  /** Disarm the nets wherever the press dies through the wrapper itself. */
+  const disarmWindowNet = useCallback(() => {
+    window.removeEventListener("pointerup", onWindowPointerEnd);
+    window.removeEventListener("pointercancel", onWindowPointerEnd);
+    window.removeEventListener("blur", onWindowConceal);
+    document.removeEventListener("visibilitychange", onWindowConceal);
+  }, [onWindowPointerEnd, onWindowConceal]);
 
   /** `currentX`: set when a pre-hold SLIDE engages the track — the finger
    *  has already travelled, so the first dragIndex maps its position now
@@ -204,13 +464,44 @@ export function useHoldDrag({
     (currentX?: number) => {
       const p = press.current;
       if (!p) return;
+      // No capsule over an open sheet, enforced from the second direction
+      // (thirteenth pass): the admission guard stops gestures BEGINNING over
+      // a sheet, but during the pre-hold window the input shield is not yet
+      // mounted, so a second input device can open one through a non-wrapped
+      // trigger (the template button, a confirm) before the timer fires.
+      // The sheet is the senior surface — activation stands down exactly
+      // like a y-dominant scroll: cancelled, captured so the lift routes
+      // back, click swallowed, the sheet untouched. role="dialog" is the
+      // web-platform contract every sheet announces; probed once, at this
+      // single moment, honoring the accessibility tree: an EXITING sheet
+      // stays mounted for its animation under an aria-hidden wrapper, and
+      // hidden means closed — it is inert and vanishing, so a hold begun
+      // as it closes still engages. (This reverses the ninth pass's
+      // recorded "accepted residual" — the probe is a platform semantic,
+      // not the DOM coupling that decline priced in.)
+      const dialogOpen = Array.from(document.querySelectorAll('[role="dialog"]')).some(
+        (d) => !d.closest('[aria-hidden="true"]'),
+      );
+      if (dialogOpen) {
+        cancelled.current = true;
+        try {
+          p.el.setPointerCapture(p.pointerId);
+        } catch {
+          /* jsdom, or a pointer already ended */
+        }
+        return;
+      }
       const { detentCount: count, selectedIndex: selected } = latest.current;
+      // The visual viewport, so a pinch-zoomed user gets the capsule inside
+      // the region they are looking at; jsdom (and old engines) fall back to
+      // the layout viewport, where the two are the same thing.
+      const vv = window.visualViewport;
       const geometry = computeTrackGeometry(
-        p.x,
         p.el.getBoundingClientRect(),
         count,
-        selected,
-        window.innerWidth,
+        vv
+          ? { left: vv.offsetLeft, width: vv.width }
+          : { left: 0, width: window.innerWidth },
       );
       // Touch/pen are implicitly captured to the pointer-down target already;
       // this is for a mouse outrunning the wrapper. try/catch for jsdom.
@@ -221,7 +512,18 @@ export function useHoldDrag({
       }
       // The active-phase axis claim — see the header. Non-passive on purpose.
       window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
-      window.addEventListener("keydown", onWindowKeyDown);
+      window.addEventListener("wheel", onWindowWheel, { passive: false });
+      // Capture phase, both key events — see onWindowKey: keys must die
+      // before any focused control's own handlers see them.
+      window.addEventListener("keydown", onWindowKey, true);
+      window.addEventListener("keyup", onWindowKey, true);
+      // The world pauses under the gesture: this attribute freezes the
+      // ambient field (AmbientNebula's canvas gate + the blooms'
+      // animation-play-state), which is what makes the focus blur's
+      // one-time-filter claim TRUE — a backdrop that keeps animating
+      // beneath a backdrop-filter re-filters every frame (Codex review,
+      // sixth pass; the bloom lesson's mechanism). Removed in teardown().
+      document.documentElement.setAttribute("data-hold-gesture", "");
       dragOffset.current = p.x - geometry.detentCenters[selected]!;
       tap(8);
       setActiveBoth({
@@ -232,15 +534,47 @@ export function useHoldDrag({
         geometry,
       });
     },
-    [onWindowKeyDown, onWindowTouchMove, setActiveBoth],
+    [onWindowKey, onWindowTouchMove, onWindowWheel, setActiveBoth],
   );
 
-  // A gesture interrupted by unmount must not leave window listeners behind.
-  useEffect(() => teardown, [teardown]);
+  // A gesture interrupted by unmount must not leave window listeners — or
+  // the exclusive claim — behind.
+  useEffect(
+    () => () => {
+      teardown();
+      disarmWindowNet();
+      disarmRefusedWatch();
+      releaseGesture();
+    },
+    [teardown, disarmWindowNet, disarmRefusedWatch, releaseGesture],
+  );
 
   function onPointerDown(e: React.PointerEvent) {
-    if (!enabled || press.current) return;
+    if (!enabled) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    // One gesture at a time, app-wide (see gestureOwner): while ANY press
+    // or drag is live — another pill's, or a competing second device on
+    // THIS pill (`press.current`; nineteenth pass, which removed the bare
+    // unmarked reject that stood here) — this press is refused outright,
+    // and its eventual click dies in onClickCapture, marked here so the
+    // refusal survives even if the owner releases first. The end-watch
+    // bounds each refusal to its own stream's lifetime. Refusals
+    // ACCUMULATE (twenty-second pass): a sibling refusal joins the set
+    // instead of stealing the slot, so the newer stream's end can never
+    // un-protect an elder still down. The `press.current` half also
+    // guards the invariant no claim state can: a live press record must
+    // never be overwritten mid-stream.
+    if (gestureOwner !== null || press.current) {
+      armRefusedWatch(e.pointerId);
+      return;
+    }
+    // Only an ADMITTED-path stream supersedes pending refusals. This reset
+    // exists for STRANDED ids — a refused stream that ended where no event
+    // reports it (released in another app) would otherwise eat this new
+    // stream's own legitimate tap-click. A fresh press reaching admission
+    // is the one proof of staleness available; the boundary this keeps is
+    // recorded in the ADR (twenty-second pass).
+    disarmRefusedWatch();
     // Admission rule: a gesture may only begin in the wrapper's own DOM
     // subtree. The wrapped children include each picker's SHEET — a body
     // portal that React still bubbles up the COMPONENT tree — so without
@@ -253,6 +587,7 @@ export function useHoldDrag({
     // the press record here closes move/up/stand-down/suppress in one
     // place.
     if (!(e.target instanceof Node) || !e.currentTarget.contains(e.target)) return;
+    gestureOwner = ownerToken.current;
     cancelled.current = false;
     press.current = {
       pointerId: e.pointerId,
@@ -260,6 +595,12 @@ export function useHoldDrag({
       y: e.clientY,
       el: e.currentTarget as HTMLElement,
     };
+    // The uncaptured-exit net and the concealment revert both ride the
+    // whole press — see their declarations.
+    window.addEventListener("pointerup", onWindowPointerEnd);
+    window.addEventListener("pointercancel", onWindowPointerEnd);
+    window.addEventListener("blur", onWindowConceal);
+    document.addEventListener("visibilitychange", onWindowConceal);
     clearTimeout(timer.current);
     timer.current = setTimeout(activate, HOLD_MS);
   }
@@ -332,6 +673,8 @@ export function useHoldDrag({
     const p = press.current;
     if (!p || e.pointerId !== p.pointerId) return;
     press.current = null;
+    releaseGesture();
+    disarmWindowNet();
     clearTimeout(timer.current);
     const current = activeRef.current;
     if (current) {
@@ -351,13 +694,53 @@ export function useHoldDrag({
     const p = press.current;
     if (!p || e.pointerId !== p.pointerId) return;
     press.current = null;
+    releaseGesture();
+    disarmWindowNet();
     const wasActive = activeRef.current !== null;
     teardown();
     if (wasActive) settle();
   }
 
   function onClickCapture(e: React.MouseEvent) {
-    if (suppressClick.current) {
+    // Eat the click when this instance's own gesture just settled
+    // (suppressClick), while ANY hold-slider press is live — foreign or
+    // our own, deliberately without a self-exemption — or when it belongs
+    // to a stream this wrapper refused whose owner has since released
+    // (refusedIds; thirteenth pass). The ninth pass consumed only
+    // foreign-claim clicks; the tenth closed the self-carve-out: with our
+    // own claim live, a click on this pill can only be a SECOND input
+    // device (a mouse click landing inside a touch press's pre-hold
+    // window, Enter on the focused pill mid-drag), and it opened this
+    // pill's own sheet under the arriving capsule. The legitimate plain-tap
+    // click is safe by protocol order, not by identity: pointer-up releases
+    // the claim synchronously before the browser dispatches the click, so
+    // at click time gestureOwner is already null.
+    //
+    // Refusals gate only POINTER-DERIVED clicks (detail ≥ 1): keyboard and
+    // programmatic activation carry detail 0 and always pass. This is the
+    // discriminator the refusal lifecycle turned out to need (fourteenth,
+    // sixteenth, seventeenth passes): an id whose stream ended where no
+    // event reports it — released in another app — can sit stranded, and
+    // every timing-based expiry had a hole (the foreground-clear let a
+    // user who returned STILL HOLDING lift into an un-suppressed click).
+    // detail needs no timing: a stranded id can never touch a keyboard
+    // user, the next ADMITTED pointer stream clears it at its own
+    // pointer-down, and the clicks the set exists to eat — its own
+    // streams' — are pointer-derived by definition.
+    //
+    // Consumption READS the set and never writes it (nineteenth pass —
+    // this body used to clear the old boolean on any consumed click).
+    // Cross-pill that was harmless, but a same-pill competitor shares
+    // this handler with the owner: the owner's settle-consumed commit
+    // click stripped the competitor's protection before its own click
+    // arrived. Each id's lifecycle has exactly three ends — its own
+    // end-watch zero-timeout, an admitted pointer-down's supersede, and
+    // unmount.
+    if (
+      suppressClick.current ||
+      (refusedIds.current.size > 0 && e.detail > 0) ||
+      gestureOwner !== null
+    ) {
       e.preventDefault();
       e.stopPropagation();
     }

@@ -3,8 +3,10 @@
 Date: 2026-08-09
 Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
 ruling, DSN-022); amended same day after the first on-device pass, and
-2026-08-10 for presses inside an open sheet + the owner's affordance pass —
-see below
+2026-08-10 six times — presses inside an open sheet, the owner's
+affordance pass, the reference-geometry pass (fixed home · thumb ·
+measured blur), the single-gesture claim, the backdrop inventory, and
+input modality under the gesture — see below
 
 ## Context
 
@@ -55,7 +57,10 @@ with these properties fixed:
 - **Detents are 44px apart** (one touch target each), the selected detent is
   anchored under the finger at expansion, and geometry is a pure function of
   the pointer-down x — which is what makes the gesture unit-testable in a
-  layoutless DOM.
+  layoutless DOM. _(Superseded by the 2026-08-10 reference-geometry
+  amendment: the track now expands in a fixed, viewport-centered home and
+  geometry is pure with no pointer input; the drag mapping stays
+  finger-relative.)_
 - **Tone ramp** rides the detent, keyed to the level's identity, never its
   ladder position: `faint`/`silver` (muted mixes) → `laser` (fill-safe both
   themes) → `ultra` (the xhigh/max violet the depth meter already wears).
@@ -205,3 +210,469 @@ gesture into a focus state:
   it in the chip stacked "Opus 5" beside "Opus 5". The commit
   announcement keeps the full sentence (`liveLabel` is now announce-only)
   — ears get the context, eyes get the level.
+
+## Amendment (2026-08-10): the reference geometry — fixed home, thumb, measured blur
+
+The owner supplied a screen recording of the reference control itself
+(ChatGPT iOS — the same recording lineage this ADR started from) with the
+direction "fixed, focused": the capsule must expand in the SAME place every
+time, carry a moving thumb, and drop the world behind it out of focus.
+Three changes, superseding two acceptance-era choices:
+
+1. **Fixed home supersedes anchor-under-finger.** `computeTrackGeometry`
+   no longer takes the pointer x or the selected index: the home is the
+   viewport's center (the shell is a centered `max-w-screen-sm` column, so
+   viewport center IS the composer's) on the gesturing rail's row, with the
+   original left-wins EDGE_MARGIN clamp. Anchor-under-finger optimized the
+   hand's reach but landed the capsule wherever the press happened to be —
+   measured against the reference it read as floaty, and predictability
+   won. The finger still maps RELATIVELY (dragOffset anchors the selected
+   detent to the press x), which is why the entire drag/commit suite
+   survived the migration untouched. Review refinements (Codex, PR #103,
+   two passes): the center and clamp use the VISUAL viewport
+   (`visualViewport` offset/width, layout-viewport fallback) — this
+   control deliberately preserves native pinch zoom, and a fixed-position
+   capsule centered on the layout viewport can open entirely outside a
+   zoomed-in user's view; and when zoom leaves that region NARROWER than
+   the full-spacing track, the detent spacing COMPRESSES — still
+   centered, still static for the gesture, every detent reachable (a
+   placement frozen around the selected detent kept the spawn visible
+   but let the drag walk the thumb out of the region; and zoom
+   multiplies physical travel, so compressed detents cost no precision).
+   Below MIN_DETENT_SPACING_PX the geometry stops reserving the
+   capsule's chrome entirely: the rounded ends and margins may overflow
+   the region (the overlay is pointer-transparent decoration) while the
+   detent CENTERS compress into the region minus CENTER_INSET_PX — the
+   fourth review pass showed any placement that hides a center makes
+   that value unreachable, since the pointer cannot travel past the
+   region's edge. Placement never depends on the selection in any mode;
+   the home is the visible region's center, always. One bound is
+   accepted deliberately (fifth review pass): single-GESTURE reach from
+   a given press point is limited by the screen edge — true of every
+   fixed-gain drag including the original anchor-under-finger placement
+   on an unzoomed phone and the reference control itself. The answer is
+   composition, not variable gain: release re-anchors, so the next hold
+   starts from the new selection with fresh travel room (any value is at
+   most two centered gestures away), and the sheet stays the complete
+   single-tap path. Per-side gain normalization was declined — it
+   decouples the finger from the thumb and makes the two directions
+   drag at different speeds, trading the control's 1:1 feel for a
+   single-gesture guarantee it never promised.
+2. **A thumb rides the fill's leading edge** (`data-hold-slider-thumb`,
+   28px, glass ground + hair ring, core disc tone-colored by the same
+   FILL_CLASS ramp — text-free fills only). Position now reads as an
+   OBJECT at a place, the reference's grammar; the fill below it keeps
+   carrying VIZION's color story. It glides with the fill's own eased
+   snap (`.hold-slider-thumb`, both stand-downs collapse to instant).
+3. **The focus scrim gained its blur half — measured, not assumed.** A
+   static `backdrop-filter: blur(14px)` layer mounts under the dim; the
+   dim above it carries the entrance fade so the filter layer NEVER
+   animates. That distinction is the whole 2026-08-09 bloom lesson: the
+   input-queueing regression was a filter re-priced every frame on an
+   animating layer; a static backdrop is filtered once. Probe (the bloom
+   investigation's Event-Timing methodology; Chromium, 4× CPU throttle,
+   pointer stream mid-drag, A/B via a backdrop-filter:none override):
+   blur ON p50 16.4ms / p95 17.3ms / max 17.8ms input delay; control OFF
+   run p50 34.3ms — both far inside the 50ms budget, the inversion is
+   run-to-run variance at n=8 per arm, and the conclusion is "no
+   measurable queueing", not "blur is faster". Both stand-downs drop the
+   blur entirely (dim-only — the previously shipped presentation).
+   WebKitGTK cannot answer the iOS half; blur cost and gesture feel on a
+   real device stay on `docs/runbooks/ios-verification.md`'s manual list.
+   The sixth review pass caught the claim's gap: the ambient field
+   (NEBULA+ canvas at 30fps, bloom drifts) kept animating BENEATH the
+   filter, so the backdrop re-filtered per frame regardless of the layer
+   being static. Repair adopted: a live gesture stamps
+   `data-hold-gesture` on `<html>` (set in activate, removed in
+   teardown), which the nebula's existing run-gate consults — the canvas
+   freezes holding its last frame, the blooms pause via
+   `animation-play-state`, and the one-time-filter claim becomes true by
+   construction. The probe's numbers were measured WITH the field
+   animating, so they stand as the worst case; the pause only improves
+   on them. The world stopping under focus is also the reference
+   recording's own look.
+
+## Amendment (2026-08-10): the single-gesture claim
+
+The seventh review pass (Codex, PR #103) pressed on the focus pair's
+multiplicity: the two composer rails sit adjacent and both can be enabled,
+so two fingers could run two gestures at once — stacked blur/scrim pairs,
+crossed capsules, and one shared `data-hold-gesture` attribute torn down by
+whichever gesture ended FIRST, thawing the ambient field beneath the
+survivor's still-live blur. Of the review's two offered repairs —
+reference-count the shared attribute, or prevent concurrency — counting
+would have bookkept a state with no design meaning: two full-viewport focus
+layers stacked over one composer is a nonsense frame however correctly its
+attribute survives. Adopted instead: a module-level exclusive claim
+(`gestureOwner` in `use-hold-drag.ts`), taken at pointer-down, released
+wherever the press record dies (up, cancel, unmount). While any
+hold-slider's press is live, a second pill's press is refused at admission
+— no press record, no hold timer — and falls through as the plain tap it
+would otherwise be _(superseded by the input-modality amendment below:
+the fall-through reopened the sheet-under-capsule state on hybrid inputs,
+so the refused pill is now inert for the claim's lifetime)_. The
+unit suite pins the refusal, the attribute surviving the refused finger's
+lift, and the claim's release on commit and on unmount.
+
+The eleventh pass (with the Vercel agent reviewer flagging the same
+defect independently) fixed the one path where "released wherever the
+press record dies" was not actually true in a real browser: Escape
+mid-drag. `teardown()` released pointer capture while the press record
+deliberately stayed alive for the eventual lift — but mid-drag the
+pointer sits over the track's center, far from the pill, so once capture
+was gone the lift was hit-tested elsewhere, never reached `onPointerUp`,
+and press and claim leaked app-wide until remount (after the tenth pass,
+that also meant every wrapped pill's click was consumed forever). The
+press-leak half predated the claim — the claim globalized it, and the
+click consumption weaponized it. Repair at the root: capture's lifetime
+is the PRESS's, not the overlay's — teardown no longer releases it, the
+captured stream routes the far-away lift back to the hook, and no
+explicit release is needed anywhere because pointerup/pointercancel
+auto-release capture per spec and unmount disconnects the element. jsdom
+hid this for four passes: it has no capture routing, so the unit suite's
+Escape lift always "landed" on the pill — the pin is e2e in both real
+engines (red pre-fix), driving the lift 150px from the pill and
+asserting the world lives on.
+
+The twelfth pass closed the pre-hold mirror of the same leak class: a
+mouse is not implicitly captured, so a press starting near the pill's
+edge can leave the wrapper inside the slop window — every later move and
+the lift itself dispatch elsewhere, and the hold timer fired on the
+stale press: a phantom capsule, freeze, and input shield with no pointer
+down, and the claim held until remount. This is the window BEFORE the
+one the 2026-07 stand-down fix covered (its capture arms only at
+y-dominant classification, which requires seeing a move). Repair: a
+window-scoped pointerup/pointercancel net armed for exactly the press's
+lifetime — the wrapper's handlers run first, so the net acts only on
+lifts the wrapper never saw, and an outside lift synthesizes no click in
+the wrapper's subtree, so nothing needs suppressing. Capturing the mouse
+at admission (the review's other branch) was declined: it would change
+edge-press semantics — a drag-away would engage or commit where today
+nothing happens — trading a leak fix for undecided design surface.
+Pinned red→green in unit (the net is a plain window listener, so jsdom
+can express this one) and e2e in both engines (press 2px inside the
+edge, jump out in one move, release far away, wait out HOLD_MS — no
+phantom, and a fresh hold engages).
+
+## Amendment (2026-08-10): the backdrop inventory
+
+The eighth review pass (Codex, PR #103) audited what the sixth pass's
+world-pause actually covered and found the freeze incomplete twice over:
+the Horizon's idle breathe kept animating beneath the blur, and the rails
+deliberately stay enabled while a run is in flight (dialing the NEXT run),
+so a mid-stream hold put the blur over a surface repainting with every
+arriving token — sweep, beacon, caret, spinner, counters, the text itself.
+Either way the "filtered once" claim failed again, by content this time
+rather than by layer.
+
+The repair splits by what the moving thing IS. Ornament pauses: the
+Horizon's breathe joins the blooms under `[data-hold-gesture]`
+(`animation-play-state`), completing the idle inventory — at rest, nothing
+beneath the blur moves. Content stands the blur down: a token stream
+cannot honestly hold still, and freezing its DISPLAY to protect a filter
+would invert the priorities — so `HoldSliderTrigger` takes a declared
+`dynamicBackdrop`, the composer passes it while a run is in flight
+(`isPending || stream.active`, covering first runs, refines, and the
+handoff frame), and the overlay ships the dim alone for that gesture —
+the reduced-effects presentation, already designed and already shipped.
+Pinned in unit (dim-only overlay under `dynamicBackdrop` and mid-flight
+at the composer, gesture semantics untouched) and e2e (the Horizon's
+computed play-state paused mid-gesture, running again on release).
+
+## Amendment (2026-08-10): input modality under the gesture
+
+The ninth review pass (Codex, PR #103) found the fifth amendment's tap
+fall-through half was a mis-transcription of the reference semantic: on a
+hybrid-input device, a second pointer's press mid-gesture was refused at
+admission but its synthesized CLICK still fired, opening the other
+picker's sheet (z-70) under the live capsule (z-85) — the exact
+sheet-mid-gesture state the admission guard exists to make impossible,
+now recreated from the other direction. At rest a refused press has no
+one to defer to, so a fall-through tap was the honest reading; mid-claim
+it never was — the reference control goes fully modal under a drag.
+
+Two enforcers, matching the review's two offered repairs. The hook
+consumes the click: `onClickCapture` eats any click while a FOREIGN claim
+is live — no new state, covers both wrapped pills for the claim's whole
+lifetime (the 300ms pre-hold window included) and a keyboard-activated
+pill mid-drag. The focus pair becomes the input shield: blur and dim flip
+to `pointer-events: auto`, so during the ACTIVE phase a second pointer
+anywhere in the viewport dies on the pair — non-wrapped triggers (the
+Format pill, the submit button, the nav) included. The gesture itself
+cannot be stolen: its pointer is captured at activation (implicitly for
+touch), and captured streams bypass hit-testing. The dim mounts in every
+presentation, so the shield holds under stand-downs and `dynamicBackdrop`
+alike.
+
+One residual window was accepted and recorded here: a NON-wrapped
+trigger tapped by a second finger inside another pill's 300ms pre-hold
+window (before the shield mounts) could still open its sheet, and the
+capsule then drew over it — priced as a two-finger race whose closure
+"would take a DOM-wide dialog probe at activation, a coupling this
+control does not want." _(Superseded by the thirteenth pass, below: the
+review re-raised it with the repair reframed as "cancel activation when
+another interaction wins," and `role="dialog"` is a web-platform
+semantic, not the internal coupling that decline priced in — the
+residual is now closed.)_ Pinned in unit (consumed click mid-active and
+pre-hold, twin harness; the composer's Target pill inert while a Thinking
+capsule is up, working again on release) and e2e (a trial click on the
+other pill fails Playwright's receives-events actionability check while
+the capsule is up — real hit-testing, which jsdom cannot exercise).
+
+The tenth pass closed the consumption's last carve-out: the ninth ate
+clicks only under a FOREIGN claim, which exempted the owner's own pill —
+and there a click can only be a second input device (a mouse click
+landing inside a touch press's 300ms pre-hold window, Enter activating
+the still-focused pill mid-drag), which opened the pill's OWN sheet under
+the arriving capsule. The condition collapsed to the simpler, stronger
+form: consume while ANY claim is live, no identity check at all. The
+plain tap survives by protocol order, not by exemption — pointer-up
+releases the claim synchronously before the browser dispatches the
+click, so a legitimate tap's click always arrives with no claim held.
+Unit-pinned: the owning pill's click consumed pre-hold and mid-drag, the
+gesture unbroken through both, and the ordinary tap untouched at rest.
+
+The thirteenth pass closed the modality's last two hybrid holes. First,
+the residual this amendment had accepted: the review re-raised it with a
+cheaper repair — "cancel activation when another interaction wins" — and
+the decline was re-priced and reversed. `activate()` now probes for an
+open dialog (`role="dialog"`, honoring the accessibility tree: an
+exiting sheet under an aria-hidden wrapper counts as closed, since it is
+inert and vanishing) and stands down exactly like a y-dominant scroll —
+cancelled, captured so the lift routes back, click swallowed, the sheet
+untouched. The sheet is the senior surface from both directions now: no
+gesture begins over one (admission guard), and none completes onto one
+(activation probe). Second, an ordering hole in the refusal itself: the
+claim alone could not carry a refusal to its end — if the owning gesture
+released before the refused pointer lifted, both the claim and the
+refused pill's suppressClick were clear at click time, and the press
+documented as refused whole opened its sheet after all. A per-instance
+`refusedPress` marker now survives the owner's release and dies with the
+refused stream's own click (or is superseded by the next pointer-down on
+that wrapper). ~~The marker is deliberately NOT set for same-wrapper
+refusals: both streams share one wrapper there, and a boolean cannot
+tell the refused stream's click from the live press's legitimate one —
+the mid-claim consumption already covers that case, and its post-claim
+tail cannot recreate the sheet-under-capsule state (no capsule is live).~~
+(Superseded by the nineteenth pass — the outlive-the-owner timeline this
+very paragraph fixes cross-pill was never re-run same-wrapper, and the
+rationale's second half judged the tail against the wrong harm: not
+sheet-under-capsule, but a sheet popping open uncommanded on the heels
+of the commit. See the matrix amendment below.)
+Pinned in unit, all red pre-fix: the refused-then-orphaned click
+consumed with the fresh tap working after; the synthetic-dialog
+stand-down with the world unfrozen and the lift swallowed; and at the
+composer, the template sheet opened by a second device mid-press staying
+open and untouched while the capsule never mounts.
+
+The fourteenth pass closed the keyboard channel and a marker-staleness
+edge. The focus pair shields POINTERS — `pointer-events` never touches
+key dispatch — so a background control left keyboard-focused (or tabbed
+to mid-drag) still activated on Enter/Space and opened its sheet under
+the live capsule. While the capsule is up, activation keys now die at
+the window's capture phase, keydown and keyup both (native buttons
+activate Space on keyup); Escape stays the one designed key, and at rest
+every key passes untouched. Each input channel needs its own gate: the
+shield covers hit-testing, the claim covers wrapped-pill clicks, the
+key swallow covers focus-driven activation — synthesized assistive-tech
+clicks on background controls mid-drag remain out of scope, since a
+hold-drag is a pointer gesture an AT user is not simultaneously
+performing, and the sheet stays their complete path. In the same round
+the Vercel agent reviewer caught a staleness edge in the thirteenth
+pass's refusal marker: a refused pointer that releases OUTSIDE the
+wrapper never sends the click the marker waits for, and the stale
+marker ate the pill's next keyboard or programmatic click — an
+activation a keyboard user must never lose. The marker now carries an
+end-watch: the window hears the refused stream end anywhere, and the
+marker clears one task later — outliving exactly the one same-task
+click the lift can still deliver (the settle() ordering trick), pinned
+red→green in unit alongside the key swallow, and in a Chromium touch
+e2e (a focused template button, Enter under a live capsule).
+
+## Amendment (2026-08-10): the modality audit — the matrix, closed
+
+After the fourteenth review pass — the eighth consecutive finding in the
+same class — the owner directed that the remaining cells be enumerated
+and closed proactively rather than surrendered to passes fifteen through
+N. The audit below is that enumeration: every phase of the press × every
+input channel, each cell carrying its enforcing mechanism or its recorded
+acceptance. Three cells were still open and are closed in the same
+commit:
+
+1. **Concealment** — the one ending no pointer or key event can report.
+   An alt-tab, OS app switch, or locked phone mid-gesture delivers
+   nothing to this document; the mouse releases in another window, the
+   up never dispatches here, and press, claim, capsule, and world-freeze
+   would all sit leaked in a background tab — the passes-11/12 leak
+   class through the only channel with no event to net. Window `blur`
+   and `visibilitychange`→hidden now ride each press like the pointer
+   net and are treated exactly as pointercancel: revert, never commit —
+   and the concealed stream, abandoned rather than finished, hands its
+   trailing click to the refused-stream machinery (the lift can land on
+   the pill minutes later, far outside settle()'s same-task window;
+   fifteenth pass, alongside closing the modifier exemption on the
+   activation keys, which still ran a focused button's native activation
+   under Ctrl/Meta). The marker's endgame took two more passes to get
+   right, because every timing-based repair had a hole: a pointer
+   released in another application never reports its end (sixteenth
+   pass — the marker sat stranded and ate the pill's next keyboard
+   click), and the foreground-expiry that fixed that broke for a user
+   who returns STILL HOLDING and only then lifts (seventeenth pass —
+   focus fired before the lift, cleared the marker, and the abandoned
+   stream's click opened the sheet after its revert). The resolution
+   carries no timing at all: the marker gates only POINTER-DERIVED
+   clicks (`detail ≥ 1`); keyboard and programmatic activation carry
+   `detail 0` and always pass it. A stranded marker can never touch a
+   keyboard user, a later pointer stream clears it at its own
+   pointer-down, and the one click the marker exists to eat — its own
+   stream's — is pointer-derived by definition.
+2. **The key list was itself a hole.** The fourteenth pass swallowed
+   Enter and Space — an enumeration. Arrows, PageUp/Down, Home and End
+   scroll the document beneath the frozen world; Tab wanders focus.
+   While the capsule is up, EVERY unmodified key except Escape now dies
+   at the window's capture phase; modifier chords belong to the browser
+   and pass.
+3. **Wheel.** Touch panning was blocked; a wheel or trackpad could still
+   glide the page under the capsule. Blocked in the active phase, the
+   same shape as the touchmove claim.
+
+The matrix, as now enforced (phases: REST · PRE-HOLD, pointer-down to
+classification · ACTIVE, capsule up · TAIL, cancelled press awaiting its
+lift · SETTLE, the post-lift task):
+
+| Channel                          | Pre-hold                                                | Active                                                                                                                                                                                          | Tail                              |
+| -------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Own pointer stream               | slop/axis rules + hold timer                            | capture; x-only drag                                                                                                                                                                            | capture retained; lift ends all   |
+| 2nd pointer, same wrapper        | refused; marker + end-watch outlive the owner (19th)    | + shield                                                                                                                                                                                        | same                              |
+| 2nd pointer, other wrapper       | refused (claim); marker + end-watch outlive the owner   | + shield                                                                                                                                                                                        | same                              |
+| 2nd pointer, non-wrapped control | free until activation → dialog probe stands down        | shield                                                                                                                                                                                          | free (world visually at rest)     |
+| Keyboard                         | free (probe covers the sheet outcome at activation)     | unmodified keys die; Enter/Space die under any modifiers; Escape reverts                                                                                                                        | free                              |
+| Scroll (touch / wheel / keys)    | `touch-action: pinch-zoom`                              | touchmove + wheel blocks + key swallow                                                                                                                                                          | touch-action persists             |
+| Lift/end delivery                | wrapper handlers + window net + concealment revert      | + capture                                                                                                                                                                                       | capture + net + concealment       |
+| Sheets                           | cannot start a gesture (admission); probe at activation | cannot open (shield + keys)                                                                                                                                                                     | may open — legitimate, no capsule |
+| World motion                     | live                                                    | frozen ornaments incl. one-shot entrances (shared `.sheet-in` too, 20th); blur stands down mid-stream; sheet-exit fade may overlap ≤180ms (accepted — pausing would freeze a vanishing surface) | live                              |
+
+At REST every channel is untouched, and in SETTLE only the one same-task
+click is suppressed (suppressClick / the refusal marker). Recorded
+acceptances, deliberate and bounded: assistive-tech-synthesized clicks
+on non-wrapped controls mid-drag (a hold-drag is a pointer gesture an AT
+user is not simultaneously performing; the sheet remains the complete
+path); and mid-gesture geometry drift — a layout shift under the dim-only
+stream presentation, or pinch/rotate mid-drag — because geometry is
+deliberately static for the gesture and release re-anchors, with every
+lift caught wherever it lands. (A third acceptance — the same-wrapper
+post-claim click tail, "no capsule is live by then, so the guarded
+invariant cannot be violated" — was withdrawn by the nineteenth pass
+below.) Any future finding in this control should first be located
+in this table — either a cell's mechanism is wrong (fix the mechanism)
+or a channel or phase is missing from the table (extend the table);
+cells are no longer discovered one review at a time.
+
+The nineteenth pass was the first finding located this way, and it was a
+wrong CELL plus a wrong acceptance, not a missing row: "2nd pointer,
+same wrapper" claimed its click dies via the claim, and the withdrawn
+acceptance had judged the post-claim tail only against
+sheet-under-capsule — missing the real harm. Touch owns the pill, a
+mouse presses the SAME pill mid-gesture (the bare `press.current` reject
+set no marker), the owner commits and releases, and the mouse's later
+lift-click passed every gate — suppressClick expired on its
+zero-timeout, the claim released at the owner's up — so the sheet popped
+open uncommanded on the heels of the drag. The repair is the thirteenth
+pass's own mechanism with its scope exemption deleted: admission now
+refuses on ANY live claim or press record (`gestureOwner !== null ||
+press.current`; the second half also keeps a live press record from
+ever being overwritten), so a same-wrapper competitor gets the same
+marker + end-watch, and the consume body no longer writes the marker at
+all — it used to clear it on any consumed click, harmless cross-pill,
+but same-pill the owner's settle-consumed commit click stripped the
+competitor's protection before its own click arrived. The two streams
+share one capture handler and are told apart by GATE, not identity: the
+owner's commit click dies in its settle window, the competitor's dies
+on the marker, keyboard stays exempt by `detail 0`. ~~Single-slot
+semantics stand (a third simultaneous pointer on one wrapper resolves
+newest-wins), matching the cross-pill machinery.~~ (Superseded by the
+twenty-second pass: "newest wins" named the policy without pricing the
+leak it permits — see below.) Pinned red→green in
+unit: the full owner-releases-first timeline, and the
+settled-click-must-not-strip-the-marker ordering specifically.
+
+The twentieth pass was the second matrix-located finding, again a wrong
+cell — the world-motion claim "frozen ornaments incl. one-shot
+entrances" — and the error class is worth naming: the eighteenth pass's
+sweep classified animations by NAME, not by consumer. `.sheet-in` read
+as "sheet enter, impossible under a capsule (shield + probe)," but the
+class is shared: the Toast card and the diff's sticky toolbar wear the
+same entrance, carry no `role="dialog"` for the activation probe, and a
+toast can be mid-rise as an x-dominant slide engages — its remaining
+≤200ms recomposited the blurred backdrop the whole mitigation exists to
+keep static. `.sheet-in` now joins the pause list: vacuous for a true
+Sheet (which still cannot enter under a capsule), live for the shared
+consumers; one mounting mid-gesture waits at its invisible first frame
+and plays on release, and the toast's sr-only announcement — a separate
+permanently-mounted node — is never delayed. Toast dismissal is a JS
+timer with instant unmount (no exit animation), so the entrance is the
+class's whole exposure. The re-sweep this pass forced re-verified the
+other classification lines by consumer (the composer's spinners render
+only while pending, so dynamicBackdrop genuinely covers them) and left
+`.sheet-in-side`/`.scrim-in` exempt as dialog-locked today, with the
+rule's comment recording that any non-dialog adopter must join the
+list. Pinned: the toast card's class coupling in unit, the cascade in a
+real engine via a `.sheet-in` probe under the gesture (paused, then
+running on release) beside the horizon and footer pins.
+
+The twenty-first pass landed two more corrections in the same domain,
+and together they widen the inventory's DIMENSIONS rather than its
+rows. First: the pause was spatial but not temporal. A toast arriving
+mid-gesture waits at its invisible first frame (twentieth pass) — but
+its dismissal countdown kept running, so a long hold could expire an
+error or Undo toast that was never once visible, and any hold shaved
+the action's window. The toast's clock now pauses with the world:
+`ToastProvider` watches `data-hold-gesture` (an attribute observer —
+the attribute is the freeze's public contract, the same one the CSS
+pause rules key off) and suspends the countdown while it is present,
+resuming the remainder on release; a toast born under a gesture starts
+suspended with its full window. The sr-only announcement remains
+immediate; only the visual card and its countdown defer. Second: the
+eighteenth pass's sweep enumerated `animation:` declarations only —
+TRANSITIONS on backdrop content were never inventory, and there was
+exactly one triggered by activation itself: the pill's own conceal
+fade, which ran beneath the just-mounted blur and re-filtered every
+frame of `var(--motion-quick)` at every motion-enabled gesture start.
+Under the gesture the conceal now snaps (`transition: none` — the same
+presentation the reduced-motion and reduced-effects stand-downs
+already ship); the fade-back keeps its motion, since release removes
+the attribute and the blur in the same teardown. Release-time fades
+are exempt by construction. Pinned red→green: the suspended and
+resumed countdown in unit (both the born-under-a-gesture and the
+suspended-mid-lifetime timelines), the conceal snap in both engines
+(computed transition-duration 0s under the gesture, 0.15s after
+release).
+
+The twenty-second pass re-priced the nineteenth's own acceptance. The
+"single-slot, newest-wins" line named a policy without writing out the
+failure it permits: with TWO streams refused concurrently on one
+wrapper, the newer down replaced the elder's watch, so the newer
+stream's end cleared the whole marker while the elder was still
+physically down — and the elder's eventual click opened the sheet
+right after the owning drag. Refusals are now a SET: each refused
+pointer id is retained until ITS OWN stream ends (per-id end-watch
+removal, one task later — the same settle() ordering trick), clicks
+are consumed while any refusal is pending, and a sibling refusal joins
+the set instead of stealing the slot. One boundary is kept, now priced
+explicitly: an ADMITTED-path pointer-down still clears the set
+wholesale. That reset exists for STRANDED ids — a refused stream that
+ended where no event reports it (released in another application)
+would otherwise eat the new stream's own legitimate tap-click, and a
+fresh press reaching admission is the only available proof of
+staleness. The residual this keeps: an elder refusal that stays
+physically down across a COMPLETE later admitted gesture (admission →
+release) and lifts only after it loses its protection to that reset.
+Closing it would need per-click stream identity (`click.pointerId`),
+which is not yet dependable across the engines this control ships to —
+and the guard that skips it (consume while any id is pending, ever)
+would eat the admitted stream's own tap: over-blocking a certain,
+common path to cover a fourth-order interleaving. Pinned red→green in
+unit, both topologies: the cross-pill sibling pair (the later-refused
+ends far away first; the elder's click still dies) and the same-pill
+pair (either lift order), each with a fresh tap proving no
+over-blocking afterward.
