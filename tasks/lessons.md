@@ -3169,3 +3169,27 @@ test:e2e` hard-fails in global-setup until
   refuse it at admission and let the second press fall through as the tap
   it would otherwise be. The exclusivity is also the reference platform's
   own behavior: the cheaper repair was the truer one.
+
+## 2026-08-10 — The backdrop inventory (Codex pass 8)
+
+- **"Static backdrop" is a claim about the CONTENT, not the layer — and it
+  needs an inventory, not an example.** The world-pause froze the two
+  things the sixth pass happened to look at (nebula canvas, blooms) and
+  missed the Horizon's idle breathe and the whole streaming surface; the
+  blur re-filtered per frame either way. Before claiming a filter runs
+  once, enumerate everything that can move beneath it (`grep infinite`,
+  plus the React surfaces that repaint from state), then split the repair
+  by what each mover IS: ornaments pause under the gesture attribute;
+  content that cannot honestly hold still — a token stream — stands the
+  BLUR down instead (the already-designed dim-only presentation), because
+  freezing live output to protect a decoration inverts the priorities.
+
+- **A documented specificity trap still bites if you don't grep for prior
+  gates on the same element.** globals.css already carried the warning —
+  the breathe's shorthand at (0,3,0) resets `animation-play-state`, so a
+  (0,2,0) pause "parses, reads correctly, and silently loses" — and the
+  world-pause rule walked into it anyway; only the real-browser
+  computed-style pin caught it (the unit greps stayed green, exactly as
+  that comment predicted). Before gating a property on an element, find
+  the rules that already SET it (`grep '\.the-class'`) and copy the
+  winning gate's selector shape, prefix and all.

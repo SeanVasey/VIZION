@@ -3,9 +3,10 @@
 Date: 2026-08-09
 Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
 ruling, DSN-022); amended same day after the first on-device pass, and
-2026-08-10 four times — presses inside an open sheet, the owner's
+2026-08-10 five times — presses inside an open sheet, the owner's
 affordance pass, the reference-geometry pass (fixed home · thumb ·
-measured blur), and the single-gesture claim — see below
+measured blur), the single-gesture claim, and the backdrop inventory —
+see below
 
 ## Context
 
@@ -310,3 +311,28 @@ hold-slider's press is live, a second pill's press is refused at admission
 would otherwise be, which is the reference platform's own semantic. The
 unit suite pins the refusal, the attribute surviving the refused finger's
 lift, and the claim's release on commit and on unmount.
+
+## Amendment (2026-08-10): the backdrop inventory
+
+The eighth review pass (Codex, PR #103) audited what the sixth pass's
+world-pause actually covered and found the freeze incomplete twice over:
+the Horizon's idle breathe kept animating beneath the blur, and the rails
+deliberately stay enabled while a run is in flight (dialing the NEXT run),
+so a mid-stream hold put the blur over a surface repainting with every
+arriving token — sweep, beacon, caret, spinner, counters, the text itself.
+Either way the "filtered once" claim failed again, by content this time
+rather than by layer.
+
+The repair splits by what the moving thing IS. Ornament pauses: the
+Horizon's breathe joins the blooms under `[data-hold-gesture]`
+(`animation-play-state`), completing the idle inventory — at rest, nothing
+beneath the blur moves. Content stands the blur down: a token stream
+cannot honestly hold still, and freezing its DISPLAY to protect a filter
+would invert the priorities — so `HoldSliderTrigger` takes a declared
+`dynamicBackdrop`, the composer passes it while a run is in flight
+(`isPending || stream.active`, covering first runs, refines, and the
+handoff frame), and the overlay ships the dim alone for that gesture —
+the reduced-effects presentation, already designed and already shipped.
+Pinned in unit (dim-only overlay under `dynamicBackdrop` and mid-flight
+at the composer, gesture semantics untouched) and e2e (the Horizon's
+computed play-state paused mid-gesture, running again on release).

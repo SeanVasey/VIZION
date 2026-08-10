@@ -88,6 +88,7 @@ export function HoldSliderTrigger({
   onCommit,
   enabled,
   detentMarker = "dot",
+  dynamicBackdrop = false,
   children,
 }: {
   detents: readonly Detent[];
@@ -106,6 +107,15 @@ export function HoldSliderTrigger({
   enabled: boolean;
   /** Detent glyph vocabulary — see DetentMarker. */
   detentMarker?: DetentMarker;
+  /** True while the content BEHIND the overlay cannot honestly hold still —
+   *  a streaming run repainting its surface as tokens arrive. The focus
+   *  blur's whole performance case is that it filters a STATIC backdrop
+   *  exactly once (the 2026-08-09 bloom lesson); the world-pause freezes
+   *  the idle ornaments, but a live stream is content, not ornament — it
+   *  must keep moving, so the overlay stands the blur down and ships the
+   *  dim alone (the reduced-effects presentation) for that gesture
+   *  (Codex review, eighth pass). */
+  dynamicBackdrop?: boolean;
   /** The existing trigger pill, rendered unchanged. */
   children: ReactNode;
 }) {
@@ -153,6 +163,7 @@ export function HoldSliderTrigger({
           dragIndex={active.dragIndex}
           geometry={active.geometry}
           marker={detentMarker}
+          dynamicBackdrop={dynamicBackdrop}
         />
       )}
     </span>
@@ -192,11 +203,13 @@ function HoldSliderOverlay({
   dragIndex,
   geometry,
   marker,
+  dynamicBackdrop,
 }: {
   detents: readonly Detent[];
   dragIndex: number;
   geometry: TrackGeometry;
   marker: DetentMarker;
+  dynamicBackdrop: boolean;
 }) {
   if (typeof document === "undefined") return null;
   const tone = detents[dragIndex]?.tone ?? "silver";
@@ -212,12 +225,19 @@ function HoldSliderOverlay({
           the globals.css note carries the 2026-08-09 lesson), the dim above
           it carrying the entrance fade. Both z-[84], DOM order stacks the
           dim over the blur; the track rides z-[85]. Stand-downs drop the
-          blur and keep the dim — the pre-blur shipped look. */}
-      <div
-        aria-hidden="true"
-        data-hold-slider-blur=""
-        className="hold-slider-blur pointer-events-none fixed inset-0 z-[84]"
-      />
+          blur and keep the dim — the pre-blur shipped look, which is also
+          what ships when the backdrop itself cannot hold still: the
+          world-pause (data-hold-gesture) freezes the idle ornaments, but a
+          streaming run's surface keeps repainting, and a moving backdrop
+          under a backdrop-filter re-filters every frame — so a declared
+          dynamicBackdrop stands the blur down instead. */}
+      {!dynamicBackdrop && (
+        <div
+          aria-hidden="true"
+          data-hold-slider-blur=""
+          className="hold-slider-blur pointer-events-none fixed inset-0 z-[84]"
+        />
+      )}
       <div
         aria-hidden="true"
         data-hold-slider-scrim=""

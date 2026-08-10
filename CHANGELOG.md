@@ -82,6 +82,20 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **The world-pause under the focus blur is now complete** (ADR-0012
+  amendment; Codex review, eighth pass). The gesture freeze covered the
+  nebula canvas and blooms but not everything that moves: the Horizon's
+  idle breathe kept animating beneath the blur, and a hold started while
+  a run streamed (the rails deliberately stay enabled mid-run) put the
+  filter over a surface repainting with every arriving token — so the
+  backdrop re-filtered per frame either way, the 2026-08-09 bloom
+  mechanism. Repair splits by content type: the Horizon joins the blooms
+  under the `[data-hold-gesture]` pause (at rest, nothing beneath the
+  blur now moves), while a live run — content that cannot honestly hold
+  still — stands the blur down instead: the composer declares the
+  backdrop dynamic while a run is in flight, and that gesture ships the
+  dim alone, the reduced-effects presentation.
+
 - **One hold-slider gesture at a time, app-wide** (ADR-0012 amendment;
   Codex review, seventh pass). The two composer rails sit adjacent and
   both can be enabled, so two fingers could run two gestures at once —

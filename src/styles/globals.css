@@ -402,11 +402,21 @@
     animation: none;
   }
 
-  /* The world pauses under the gesture: the bloom drifts hold their frame
-     while [data-hold-gesture] is up (the canvas half of the freeze lives in
-     AmbientNebula's loop gate). Resuming is free — play-state, not a
-     restart, so the drift continues where it stood. */
-  [data-hold-gesture] .bg-nebula-bloom {
+  /* The world pauses under the gesture: the bloom drifts and the Horizon's
+     idle breathe hold their frame while [data-hold-gesture] is up (the
+     canvas half of the freeze lives in AmbientNebula's loop gate). This
+     pause covers the ORNAMENTS that animate at rest beneath the focus blur
+     — the full idle inventory, so the filtered backdrop is genuinely
+     static. Stream-time motion (sweep, beacon, caret, spinner, the arriving
+     tokens themselves) is content, not ornament: it is not paused, and the
+     blur stands down instead (HoldSlider's dynamicBackdrop). Resuming is
+     free — play-state, not a restart, so the drift continues where it
+     stood. The horizon selector carries the `.horizon[data-state]` prefix
+     for the same reason the reduced-effects gate below does: the breathe's
+     SHORTHAND at (0,3,0) resets play-state to running, so a (0,2,0) pause
+     parses, reads correctly, and silently loses. */
+  [data-hold-gesture] .bg-nebula-bloom,
+  [data-hold-gesture] .horizon[data-state] .horizon-node {
     animation-play-state: paused;
   }
 

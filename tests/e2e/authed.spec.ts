@@ -322,12 +322,26 @@ test.describe("thinking hold-slider", () => {
     await expect(
       page.locator("[data-hold-slider-overlay] [data-detent-bar]"),
     ).toHaveCount(6);
+    // The world pauses under the gesture: every idle ornament beneath the
+    // blur holds its frame — the Horizon's breathe included, not only the
+    // nebula blooms — so the filtered backdrop is genuinely static. A real
+    // browser, deliberately: the breathe's shorthand at (0,3,0) resets
+    // play-state, so an under-specified pause rule parses and silently
+    // loses (the reduced-effects test above pins the same trap). Polled,
+    // not read once — style recompute lags the attribute under load.
+    const horizonPlayState = () =>
+      page
+        .locator(".horizon-node")
+        .evaluate((el) => getComputedStyle(el).animationPlayState);
+    await expect.poll(horizonPlayState).toBe("paused");
     await page.mouse.move(cx + 3 * 44, cy, { steps: 6 });
     await page.mouse.up();
 
     await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
     await expect(page.locator("[data-hold-slider-scrim]")).toHaveCount(0);
     await expect(page.locator("[data-hold-slider-blur]")).toHaveCount(0);
+    // …and thaws with the release, resuming where it stood.
+    await expect.poll(horizonPlayState).toBe("running");
     await expect(pill).toContainText("High");
     // The trailing click was swallowed — no sheet.
     await expect(page.getByRole("dialog")).toHaveCount(0);

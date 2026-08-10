@@ -50,12 +50,14 @@ function Host({
   onCommit = () => {},
   onOpen = () => {},
   detentMarker,
+  dynamicBackdrop,
 }: {
   enabled?: boolean;
   selectedIndex?: number;
   onCommit?: (i: number) => void;
   onOpen?: () => void;
   detentMarker?: DetentMarker;
+  dynamicBackdrop?: boolean;
 }) {
   return (
     <HoldSliderTrigger
@@ -65,6 +67,7 @@ function Host({
       onCommit={onCommit}
       enabled={enabled}
       detentMarker={detentMarker}
+      dynamicBackdrop={dynamicBackdrop}
     >
       <button type="button" onClick={onOpen}>
         Pill
@@ -278,6 +281,30 @@ describe("tap vs hold", () => {
     expect(scrim()).toBeNull();
     expect(blur()).toBeNull();
     expect(frozen()).toBe(false);
+  });
+
+  it("stands the blur down over a declared dynamic backdrop — dim only", () => {
+    // The blur's performance case is a STATIC backdrop filtered once. The
+    // world-pause freezes the idle ornaments, but a streaming run's surface
+    // is content that must keep repainting — so the consumer declares the
+    // backdrop dynamic and the gesture ships the dim alone (the stand-down
+    // presentation), rather than a filter re-priced every frame (Codex
+    // review, eighth pass; the 2026-08-09 bloom mechanism).
+    const onCommit = vi.fn();
+    render(<Host dynamicBackdrop onCommit={onCommit} />);
+    down();
+    hold();
+    expect(document.querySelector("[data-hold-slider-blur]")).toBeNull();
+    expect(document.querySelector("[data-hold-slider-scrim]")).not.toBeNull();
+    expect(overlay()).not.toBeNull();
+    // The freeze attribute still stamps — the idle-ornament pause is
+    // independent of whether the blur shipped.
+    expect(document.documentElement.hasAttribute("data-hold-gesture")).toBe(true);
+    // The gesture itself is untouched: drag and commit as ever.
+    moveTo(DOWN_X + DETENT_SPACING_PX);
+    up(DOWN_X + DETENT_SPACING_PX);
+    expect(onCommit).toHaveBeenCalledWith(1);
+    expect(document.querySelector("[data-hold-slider-scrim]")).toBeNull();
   });
 
   it("conceals the pill while the capsule is up — the track replaces it", () => {

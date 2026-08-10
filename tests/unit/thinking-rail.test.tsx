@@ -41,6 +41,12 @@ vi.mock("@/components/media/AttachmentTray", () => ({ AttachmentTray: () => null
 vi.mock("@/components/diff/TransformationDiff", () => ({
   TransformationDiff: () => null,
 }));
+// Mounted whenever a test puts the mutation in flight; its scroll-into-view
+// effect wants matchMedia, which this jsdom setup doesn't provide — and the
+// rail tests assert on the overlay, never on the streaming surface itself.
+vi.mock("@/components/diff/StreamingResult", () => ({
+  StreamingResult: () => null,
+}));
 
 import { EnhanceComposer } from "@/components/editor/EnhanceComposer";
 
@@ -63,6 +69,9 @@ const targetTrigger = () => screen.getByRole("button", { name: /^Target model:/ 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Tests may put the mock mutation in flight; start each one at rest.
+  mockMutation.isPending = false;
+  mockMutation.stream.active = false;
   useUIStore.setState({
     editorDraft: "",
     activeMode: "polish",
@@ -350,6 +359,41 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     renderComposer();
     fireEvent.click(thinkingTrigger());
     expect(screen.getByRole("radio", { name: "Max" })).toBeInTheDocument();
+  });
+
+  it("ships the gesture dim-only while a run is in flight — the stream cannot pause", () => {
+    // The rails deliberately stay enabled mid-run (dialing the NEXT run),
+    // and the streaming surface keeps repainting beneath the overlay — a
+    // moving backdrop under a backdrop-filter re-filters every frame, the
+    // 2026-08-09 bloom mechanism. Content can't honestly pause the way the
+    // idle ornaments do, so the composer declares the backdrop dynamic and
+    // the blur stands down for that gesture (Codex review, eighth pass).
+    mockMutation.isPending = true;
+    renderComposer();
+    fireEvent.pointerDown(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    expect(overlay()).not.toBeNull();
+    expect(document.querySelector("[data-hold-slider-blur]")).toBeNull();
+    expect(document.querySelector("[data-hold-slider-scrim]")).not.toBeNull();
+    // The gesture itself is untouched — drag one detent, release, commit.
+    fireEvent.pointerMove(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X + DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "low" });
   });
 
   it("stays out of its own open sheet — a held row is a tap, not a drag", () => {
