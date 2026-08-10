@@ -949,7 +949,8 @@ describe("one gesture at a time, app-wide", () => {
       vi.advanceTimersByTime(1); // A's settle clears A's own suppression
     });
     fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
-    fireEvent.click(pillB()); // the refused stream's click, post-claim
+    // The refused stream's own click is pointer-derived (detail ≥ 1).
+    fireEvent.click(pillB(), { detail: 1 });
     expect(onOpenB).not.toHaveBeenCalled();
     // The refusal ended with its stream: a fresh tap on B works.
     downOn(pillB(), 2);
@@ -1033,10 +1034,10 @@ describe("one gesture at a time, app-wide", () => {
     expect(onCommitA).not.toHaveBeenCalled();
     // The concealed stream is abandoned, not finished: the user returns
     // and lifts over the pill — capture survived, the click synthesizes
-    // minutes later, and it must die with ITS stream, not open the sheet
-    // after a revert (fifteenth pass).
+    // minutes later (pointer-derived, detail ≥ 1), and it must die with
+    // ITS stream, not open the sheet after a revert (fifteenth pass).
     fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
-    fireEvent.click(pillA());
+    fireEvent.click(pillA(), { detail: 1 });
     expect(onOpenA).not.toHaveBeenCalled();
     act(() => {
       vi.advanceTimersByTime(1);
@@ -1058,24 +1059,47 @@ describe("one gesture at a time, app-wide", () => {
     expect(onOpenA).toHaveBeenCalledTimes(1);
   });
 
-  it("the conceal watch itself expires on return — a pointer that died in another app cannot eat a keyboard click", () => {
+  it("a marker stranded by an outside death can never eat a keyboard click", () => {
     // The concealed stream's end-watch waits for a pointerup that a
-    // release in another application never sends (sixteenth pass — the
-    // fourteenth's expiry lesson, violated by its own reuse). Foreground
-    // return is the horizon: after refocus the revert is long visible and
-    // the pill's first keyboard activation must land.
+    // release in another application never sends — so the marker CAN sit
+    // stranded, and every timing-based expiry had a hole (sixteenth and
+    // seventeenth passes). The discriminator is the click itself: keyboard
+    // and programmatic activation carry detail 0 and always pass the
+    // marker, stranded or not.
     const onOpenA = vi.fn();
     render(<TwinHosts onOpenA={onOpenA} />);
     downOn(pillA(), 1);
     hold();
     fireEvent.blur(window); // conceal: revert + marker + watch
     expect(overlays()).toHaveLength(0);
-    // The pointer releases in the other app — no event ever arrives.
-    fireEvent.focus(window); // the user comes back
+    // The pointer releases in the other app — no event ever arrives, the
+    // marker is stranded. The keyboard activation (detail 0) lands anyway.
+    fireEvent.click(pillA());
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
+  it("returning STILL HOLDING and lifting over the pill cannot open its sheet", () => {
+    // The seventeenth pass's scenario, which broke the foreground-expiry
+    // repair: alt-tab away holding the button, come back (focus fires),
+    // and only then lift over the pill. The lift's click is
+    // pointer-derived (detail ≥ 1) — the marker consumes it regardless of
+    // when focus fired, because the discriminator carries no timing.
+    const onOpenA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} />);
+    downOn(pillA(), 1);
+    hold();
+    fireEvent.blur(window); // conceal: revert + marker + watch
+    fireEvent.focus(window); // the user returns, button still down
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 }); // the abandoned stream's lift-click
+    expect(onOpenA).not.toHaveBeenCalled();
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    fireEvent.click(pillA()); // keyboard activation: no pointer-down first
+    // A fresh pointer tap works — the marker died with its stream.
+    downOn(pillA(), 1);
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
     expect(onOpenA).toHaveBeenCalledTimes(1);
   });
 

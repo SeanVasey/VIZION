@@ -273,39 +273,12 @@ export function useHoldDrag({
       refusedPress.current = false;
     }, 0);
   }, []);
-  /** The expiry the concealed stream's watch itself needs (sixteenth
-   *  pass — the fourteenth's lesson, violated by its own reuse): a pointer
-   *  released OUTSIDE the window never delivers its end to the watch, and
-   *  the conceal-armed marker would eat the pill's first keyboard click
-   *  after return. Foreground return is the honest horizon: the revert
-   *  already happened, the user sees a resting pill, and anything after
-   *  refocus is new intent. The in-window lift resolves through the
-   *  end-watch before any focus event, so the trailing-click suppression
-   *  keeps its shape. */
-  const onWindowReveal = useCallback(
-    (e: Event) => {
-      if (e.type === "visibilitychange" && document.visibilityState !== "visible") {
-        return;
-      }
-      refusedPress.current = false;
-      refusedPointerId.current = null;
-      clearTimeout(refusedClear.current);
-      window.removeEventListener("pointerup", onRefusedEnd);
-      window.removeEventListener("pointercancel", onRefusedEnd);
-      window.removeEventListener("focus", onWindowReveal);
-      document.removeEventListener("visibilitychange", onWindowReveal);
-    },
-    [onRefusedEnd],
-  );
-
   const disarmRefusedWatch = useCallback(() => {
     refusedPointerId.current = null;
     clearTimeout(refusedClear.current);
     window.removeEventListener("pointerup", onRefusedEnd);
     window.removeEventListener("pointercancel", onRefusedEnd);
-    window.removeEventListener("focus", onWindowReveal);
-    document.removeEventListener("visibilitychange", onWindowReveal);
-  }, [onRefusedEnd, onWindowReveal]);
+  }, [onRefusedEnd]);
 
   /** Give up the exclusive claim — called wherever `press.current` dies. */
   const releaseGesture = useCallback(() => {
@@ -454,12 +427,8 @@ export function useHoldDrag({
       refusedPointerId.current = concealed.pointerId;
       window.addEventListener("pointerup", onRefusedEnd);
       window.addEventListener("pointercancel", onRefusedEnd);
-      // …and the watch itself gets an expiry (see onWindowReveal): a
-      // pointer released in another app never reports its end here.
-      window.addEventListener("focus", onWindowReveal);
-      document.addEventListener("visibilitychange", onWindowReveal);
     },
-    [releaseGesture, onWindowPointerEnd, onRefusedEnd, onWindowReveal],
+    [releaseGesture, onWindowPointerEnd, onRefusedEnd],
   );
 
   /** Disarm the nets wherever the press dies through the wrapper itself. */
@@ -722,7 +691,23 @@ export function useHoldDrag({
     // click is safe by protocol order, not by identity: pointer-up releases
     // the claim synchronously before the browser dispatches the click, so
     // at click time gestureOwner is already null.
-    if (suppressClick.current || refusedPress.current || gestureOwner !== null) {
+    //
+    // The refusal marker gates only POINTER-DERIVED clicks (detail ≥ 1):
+    // keyboard and programmatic activation carry detail 0 and always pass
+    // it. This is the discriminator the marker's whole lifecycle turned out
+    // to need (fourteenth, sixteenth, seventeenth passes): a marker whose
+    // stream ended where no event reports it — released in another app —
+    // can sit stranded, and every timing-based expiry had a hole (the
+    // foreground-clear let a user who returned STILL HOLDING lift into an
+    // un-suppressed click). detail needs no timing: a stranded marker can
+    // never touch a keyboard user, a later pointer stream clears it at its
+    // own pointer-down, and the one click it exists to eat — its own
+    // stream's — is pointer-derived by definition.
+    if (
+      suppressClick.current ||
+      (refusedPress.current && e.detail > 0) ||
+      gestureOwner !== null
+    ) {
       refusedPress.current = false;
       e.preventDefault();
       e.stopPropagation();

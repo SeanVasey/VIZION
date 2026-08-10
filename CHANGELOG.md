@@ -157,10 +157,15 @@ All notable changes to VIZION are documented here. The format follows
   shortcuts, not page-level activation), and a concealed press hands
   its trailing click to the refused-stream end-watch (the lift can land
   on the pill minutes after a blur revert, far outside the same-task
-  suppression window) — and that watch itself expires on foreground
-  return, since a pointer released in another application never reports
-  its end and the stale marker would have eaten the pill's first
-  keyboard activation after refocus.
+  suppression window) — and the marker now gates only pointer-derived
+  clicks (`detail ≥ 1`), the timing-free resolution of two failed
+  expiries: a pointer released in another application never reports its
+  end (a stranded marker ate the next keyboard click), and the
+  foreground-clear that fixed that broke for a user returning STILL
+  HOLDING (focus fired before the lift, and the abandoned stream's
+  click opened the sheet after its revert). Keyboard and programmatic
+  clicks carry `detail 0` and always pass; the one click the marker
+  exists to eat is pointer-derived by definition.
 
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the

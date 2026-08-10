@@ -507,12 +507,20 @@ commit:
    the pill minutes later, far outside settle()'s same-task window;
    fifteenth pass, alongside closing the modifier exemption on the
    activation keys, which still ran a focused button's native activation
-   under Ctrl/Meta). The conceal watch itself carries an expiry
-   (sixteenth pass — the expiry lesson, violated by its own reuse): a
-   pointer released in another application never reports its end, so
-   foreground return clears the marker — the revert is long visible by
-   then, and the pill's first keyboard activation after refocus must
-   land.
+   under Ctrl/Meta). The marker's endgame took two more passes to get
+   right, because every timing-based repair had a hole: a pointer
+   released in another application never reports its end (sixteenth
+   pass — the marker sat stranded and ate the pill's next keyboard
+   click), and the foreground-expiry that fixed that broke for a user
+   who returns STILL HOLDING and only then lifts (seventeenth pass —
+   focus fired before the lift, cleared the marker, and the abandoned
+   stream's click opened the sheet after its revert). The resolution
+   carries no timing at all: the marker gates only POINTER-DERIVED
+   clicks (`detail ≥ 1`); keyboard and programmatic activation carry
+   `detail 0` and always pass it. A stranded marker can never touch a
+   keyboard user, a later pointer stream clears it at its own
+   pointer-down, and the one click the marker exists to eat — its own
+   stream's — is pointer-derived by definition.
 2. **The key list was itself a hole.** The fourteenth pass swallowed
    Enter and Space — an enumeration. Arrows, PageUp/Down, Home and End
    scroll the document beneath the frozen world; Tab wanders focus.
