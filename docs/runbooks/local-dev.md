@@ -43,10 +43,20 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 - Regenerate with `npm run generate:icons` (uses `sharp`). Output under `public/icons/`
   and `public/splash/`, plus `src/app/icon0.svg` / `src/app/icon1.png` /
   `src/app/apple-icon.png` (Next auto-wires these as favicons; the numbered
-  names make it link the scalable SVG first). The final brand masters
-  (`public/brand/vizion-icon-token.svg` / `vizion-mark-token.svg`) drive
-  generation — drop new artwork into those files and re-run, without touching
-  the manifest references (DOC-010: no longer placeholders).
+  names make it link the scalable SVG first). ONE master drives generation:
+  `public/brand/vizion-glyph.svg` — the flat mark on a tight viewBox — painted
+  with the locked Laser/Void colorways. Drop new artwork into that file and
+  re-run, without touching the manifest references (DOC-010: no longer
+  placeholders).
+- Do NOT point the generator at the composed previews
+  (`public/brand/vizion-icon-{light,dark,clear,tinted}.svg`) or the background
+  layers (`vizion-icon-bg-*.svg`): they carry a baked squircle clip and
+  specular gloss, so rasterizing them double-masks the corners iOS rounds at
+  runtime. They are appearance reference only.
+- The `any` matrix ships transparent and the maskable/apple-touch/favicon/App
+  Router set ships opaque — `tests/unit/icon-alpha.test.ts` enforces it
+  (guardrail §6 / INV-09), so a regeneration that flattens the wrong set fails
+  the gate rather than shipping.
 
 ## Playwright
 

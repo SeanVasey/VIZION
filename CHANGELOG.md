@@ -6,6 +6,67 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The icon set is the Liquid Glass mark, derived from one flat master
+
+Every favicon, PWA, apple-touch and splash derivative — 33 files — is
+regenerated from `public/brand/vizion-glyph.svg`, the iOS 26 Liquid Glass
+master that landed in #104. The old I›O art is gone from every derivative;
+nothing was renamed, added or dropped, so `manifest.webmanifest`, the App
+Router convention files and the ten `apple-touch-startup-image` links keep
+pointing exactly where they did.
+
+The load-bearing decision is **which** of the twelve brand SVGs may be
+rasterized: only the flat one. `vizion-icon-{light,dark,clear,tinted}.svg` and
+`vizion-icon-bg-*.svg` are on-screen appearance previews — measured, each
+carries a baked 200-point squircle `<clipPath>`, and the composed ones add a
+radial specular over 12 `stop-opacity` stops. They show how the icon looks
+*after* iOS has masked and glassified it. Rasterizing one would bake the
+rounded corners and gloss into the source bitmap, which the OS then rounds
+again — double-masked corners and clipped art on every device that applies its
+own shape. So the generator composes from `vizion-glyph.svg`'s geometry and
+paints it with the locked colorways instead. That this is the right
+reconstruction is checkable rather than asserted: at frac `0.74` the script
+computes `translate(133.12, 165.69) scale(0.74)`, and the committed Icon
+Composer foreground layer `vizion-icon-foreground-lime.svg` carries
+`translate(133.12, 165.66) scale(0.74)` — the same transform to 0.03 px at
+1024², i.e. the generated plates *are* the shipped artwork.
+
+Appearances follow the source spec. Light (Laser `#DFFA04` plate + Void
+`#0F1012` ink) is the base and drives the opaque surfaces: apple-touch, the
+favicons, `favicon.ico`, the maskable tiles and the App Router
+`icon0.svg`/`icon1.png`/`apple-icon.png`. The `any` matrix stays **transparent**
+— the Laser glyph alone, no plate — because guardrail §6 and
+`tests/unit/icon-alpha.test.ts` both require it; the opacity exception is
+scoped to the surfaces where a transparent tile actually breaks (iOS
+composites one onto black, Android's mask has nothing to fill), and that is
+not the `any` matrix. The splashes take Dark (Void plate + Laser glyph) so the
+launch image matches the manifest's `background_color` rather than flashing
+full-bleed lime before first paint.
+
+Maskable keeps its own padded render at `0.58` against the standard `0.74`, and
+it is now measured rather than reasoned about: the furthest ink pixel in
+`maskable-512.png` sits at `0.337 × S` from centre, inside Android's `0.40 × S`
+safe circle. No derivative is pre-rounded, glossed or shadowed.
+
+`scripts/generate-icons.mjs` was rewritten around this: one master instead of
+two tokens, the manifest read as the inventory (with a hard failure if it ever
+declares an `any` size the frozen matrix does not render, rather than shipping
+a 404 into the install prompt), and the existing hand-rolled ICO writer kept —
+CI runs a blocking full-tree `npm audit`, so a dedicated ICO dependency would
+have bought supply-chain surface for ~25 lines against a `sharp` the repo
+already has. Re-running the script is byte-idempotent across runs.
+
+Not changed, deliberately: `theme_color`/`background_color` were already
+`#0F1012`, and the document's `theme-color` stays the media-qualified
+dark/light pair from DSN-002 — collapsing it to a single dark tag would
+mis-tint browser chrome in the light scheme. `public/brand/` was read and never
+written.
+
+Known follow-up, out of scope here: `src/lib/brand-assets.ts` still points the
+in-app header icon and the sign-in hero at `vizion-icon-token.svg` /
+`vizion-mark-token.svg`, so the mark *inside* the app is still the old I›O art
+while the installed icon is the new one.
+
 ### Added
 
 - **The hold-slider becomes the reference control: fixed home, sliding

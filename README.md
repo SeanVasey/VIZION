@@ -104,19 +104,31 @@ Vercel.
 
 VIZION is a **VASEY/AI** product. No association with VASEY.AUDIO.
 
-The identity is the **I›O mark** — a laser-green bar, chevron and split ring,
-reading as I › O — shown two ways:
+The identity is the **VIZION mark** — a chevron framing a bar and split ring —
+shipped as an iOS 26 Liquid Glass icon set under `public/brand/`.
 
-- **App icon** (`public/brand/vizion-icon-token.svg`) — the mark on a glossy
-  near-black squircle with a laser-green glowing border. Drives the opaque
-  surfaces: the iOS Add-to-Home-Screen tile (`apple-touch-icon`), the favicons,
-  and the App Router `icon`/`apple-icon`.
-- **Glyph** (`public/brand/vizion-mark-token.svg`) — the same mark alone on a
-  transparent ground. Drives the transparent `any` PWA icon matrix, the maskable
-  safe-zone tiles, and the iOS splash glyph.
+**`public/brand/vizion-glyph.svg` is the single raster source of truth**: the
+mark alone, flat, on a tight 1024 × 892.8 viewBox. `npm run generate:icons`
+composes the entire 33-file icon + splash matrix from it via `sharp`, painting
+it with the locked colorways — `Laser #DFFA04`, `Void #0F1012`. Don't hand-edit
+the PNGs, and don't edit `public/brand/` to change a derivative.
 
-These two SVGs are the single source of truth; `npm run generate:icons` re-derives the
-entire 33-file icon + splash matrix from them via `sharp`. Don't hand-edit the PNGs.
+The appearances are:
+
+- **Light** (Laser plate + Void ink) — the base. Drives the opaque surfaces:
+  the iOS Add-to-Home-Screen tile (`apple-touch-icon`), the favicons and
+  `favicon.ico`, the maskable tiles, and the App Router `icon`/`apple-icon`.
+- **Laser glyph on transparent** — the `any` PWA icon matrix, which ships
+  transparent per guardrail §6.
+- **Dark** (Void plate + Laser glyph) — the iOS splash screens, matching the
+  manifest's `background_color`.
+
+The rest of `public/brand/` is reference, not raster input. The composed
+previews (`vizion-icon-{light,dark,clear,tinted}.svg`) and the background layers
+(`vizion-icon-bg-*.svg`) carry a baked squircle clip and specular gloss — they
+show how the icon _appears_ once iOS has masked and glassified it. Rasterizing
+them would bake in the corners and gloss the OS applies at runtime, so the
+generator never reads them.
 
 ## License
 
