@@ -273,12 +273,39 @@ export function useHoldDrag({
       refusedPress.current = false;
     }, 0);
   }, []);
+  /** The expiry the concealed stream's watch itself needs (sixteenth
+   *  pass — the fourteenth's lesson, violated by its own reuse): a pointer
+   *  released OUTSIDE the window never delivers its end to the watch, and
+   *  the conceal-armed marker would eat the pill's first keyboard click
+   *  after return. Foreground return is the honest horizon: the revert
+   *  already happened, the user sees a resting pill, and anything after
+   *  refocus is new intent. The in-window lift resolves through the
+   *  end-watch before any focus event, so the trailing-click suppression
+   *  keeps its shape. */
+  const onWindowReveal = useCallback(
+    (e: Event) => {
+      if (e.type === "visibilitychange" && document.visibilityState !== "visible") {
+        return;
+      }
+      refusedPress.current = false;
+      refusedPointerId.current = null;
+      clearTimeout(refusedClear.current);
+      window.removeEventListener("pointerup", onRefusedEnd);
+      window.removeEventListener("pointercancel", onRefusedEnd);
+      window.removeEventListener("focus", onWindowReveal);
+      document.removeEventListener("visibilitychange", onWindowReveal);
+    },
+    [onRefusedEnd],
+  );
+
   const disarmRefusedWatch = useCallback(() => {
     refusedPointerId.current = null;
     clearTimeout(refusedClear.current);
     window.removeEventListener("pointerup", onRefusedEnd);
     window.removeEventListener("pointercancel", onRefusedEnd);
-  }, [onRefusedEnd]);
+    window.removeEventListener("focus", onWindowReveal);
+    document.removeEventListener("visibilitychange", onWindowReveal);
+  }, [onRefusedEnd, onWindowReveal]);
 
   /** Give up the exclusive claim — called wherever `press.current` dies. */
   const releaseGesture = useCallback(() => {
@@ -427,8 +454,12 @@ export function useHoldDrag({
       refusedPointerId.current = concealed.pointerId;
       window.addEventListener("pointerup", onRefusedEnd);
       window.addEventListener("pointercancel", onRefusedEnd);
+      // …and the watch itself gets an expiry (see onWindowReveal): a
+      // pointer released in another app never reports its end here.
+      window.addEventListener("focus", onWindowReveal);
+      document.addEventListener("visibilitychange", onWindowReveal);
     },
-    [releaseGesture, onWindowPointerEnd, onRefusedEnd],
+    [releaseGesture, onWindowPointerEnd, onRefusedEnd, onWindowReveal],
   );
 
   /** Disarm the nets wherever the press dies through the wrapper itself. */

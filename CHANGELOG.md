@@ -157,7 +157,10 @@ All notable changes to VIZION are documented here. The format follows
   shortcuts, not page-level activation), and a concealed press hands
   its trailing click to the refused-stream end-watch (the lift can land
   on the pill minutes after a blur revert, far outside the same-task
-  suppression window).
+  suppression window) — and that watch itself expires on foreground
+  return, since a pointer released in another application never reports
+  its end and the stale marker would have eaten the pill's first
+  keyboard activation after refocus.
 
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the

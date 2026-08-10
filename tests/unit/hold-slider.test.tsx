@@ -1058,6 +1058,27 @@ describe("one gesture at a time, app-wide", () => {
     expect(onOpenA).toHaveBeenCalledTimes(1);
   });
 
+  it("the conceal watch itself expires on return — a pointer that died in another app cannot eat a keyboard click", () => {
+    // The concealed stream's end-watch waits for a pointerup that a
+    // release in another application never sends (sixteenth pass — the
+    // fourteenth's expiry lesson, violated by its own reuse). Foreground
+    // return is the horizon: after refocus the revert is long visible and
+    // the pill's first keyboard activation must land.
+    const onOpenA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} />);
+    downOn(pillA(), 1);
+    hold();
+    fireEvent.blur(window); // conceal: revert + marker + watch
+    expect(overlays()).toHaveLength(0);
+    // The pointer releases in the other app — no event ever arrives.
+    fireEvent.focus(window); // the user comes back
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    fireEvent.click(pillA()); // keyboard activation: no pointer-down first
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
   it("releases the claim on unmount — a dead owner never bricks the surviving sliders", () => {
     const onCommitB = vi.fn();
     const { rerender } = render(<TwinHosts onCommitB={onCommitB} />);

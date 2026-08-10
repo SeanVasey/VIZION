@@ -507,7 +507,12 @@ commit:
    the pill minutes later, far outside settle()'s same-task window;
    fifteenth pass, alongside closing the modifier exemption on the
    activation keys, which still ran a focused button's native activation
-   under Ctrl/Meta).
+   under Ctrl/Meta). The conceal watch itself carries an expiry
+   (sixteenth pass — the expiry lesson, violated by its own reuse): a
+   pointer released in another application never reports its end, so
+   foreground return clears the marker — the revert is long visible by
+   then, and the pill's first keyboard activation after refocus must
+   land.
 2. **The key list was itself a hole.** The fourteenth pass swallowed
    Enter and Space — an enumeration. Arrows, PageUp/Down, Home and End
    scroll the document beneath the frozen world; Tab wanders focus.
