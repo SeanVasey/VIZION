@@ -458,6 +458,32 @@ test.describe("thinking hold-slider", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
+  test("an edge press that escapes the wrapper cannot activate a phantom capsule", async ({
+    page,
+  }) => {
+    // A mouse is not implicitly captured: press 2px inside the pill's
+    // edge, jump out in ONE move (no intermediate point lands inside), and
+    // release far away — the wrapper hears none of it. Pre-fix the hold
+    // timer fired on the stale press: a phantom capsule, freeze, and input
+    // shield with no pointer down, dead until remount. The window net now
+    // hears the outside lift and clears the timer (twelfth pass).
+    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const box = (await pill.boundingBox())!;
+    const cy = box.y + box.height / 2;
+    await page.mouse.move(box.x + 2, cy);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 200, cy);
+    await page.mouse.up();
+    // Past HOLD_MS — the honest wait for an absence.
+    await page.waitForTimeout(400);
+    await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    // Nothing leaked: a fresh hold on the same pill engages normally.
+    await page.mouse.move(box.x + box.width / 2, cy);
+    await page.mouse.down();
+    await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+    await page.mouse.up();
+  });
+
   /**
    * The same control under REAL SYNTHESIZED TOUCH — Chromium only, because
    * touch synthesis rides CDP and WebKitGTK has no equivalent. This is the

@@ -334,6 +334,26 @@ Escape lift always "landed" on the pill — the pin is e2e in both real
 engines (red pre-fix), driving the lift 150px from the pill and
 asserting the world lives on.
 
+The twelfth pass closed the pre-hold mirror of the same leak class: a
+mouse is not implicitly captured, so a press starting near the pill's
+edge can leave the wrapper inside the slop window — every later move and
+the lift itself dispatch elsewhere, and the hold timer fired on the
+stale press: a phantom capsule, freeze, and input shield with no pointer
+down, and the claim held until remount. This is the window BEFORE the
+one the 2026-07 stand-down fix covered (its capture arms only at
+y-dominant classification, which requires seeing a move). Repair: a
+window-scoped pointerup/pointercancel net armed for exactly the press's
+lifetime — the wrapper's handlers run first, so the net acts only on
+lifts the wrapper never saw, and an outside lift synthesizes no click in
+the wrapper's subtree, so nothing needs suppressing. Capturing the mouse
+at admission (the review's other branch) was declined: it would change
+edge-press semantics — a drag-away would engage or commit where today
+nothing happens — trading a leak fix for undecided design surface.
+Pinned red→green in unit (the net is a plain window listener, so jsdom
+can express this one) and e2e in both engines (press 2px inside the
+edge, jump out in one move, release far away, wait out HOLD_MS — no
+phantom, and a fresh hold engages).
+
 ## Amendment (2026-08-10): the backdrop inventory
 
 The eighth review pass (Codex, PR #103) audited what the sixth pass's

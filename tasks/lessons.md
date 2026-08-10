@@ -3234,3 +3234,15 @@ test:e2e` hard-fails in global-setup until
   as long as the press, not the overlay); when two lifetimes are meant
   to be equal, end them at the same code sites instead of trusting two
   paths to agree.
+
+- **When you patch a leak on one path, enumerate the WINDOWS, not the
+  paths.** The press's lifecycle has three unguarded intervals — pre-hold
+  (down → classification), stand-down (classification → lift), and
+  post-Escape (revert → lift) — and each leaked the same resources by the
+  same mechanism (an event the wrapper couldn't hear) in three different
+  review passes, years or hours apart. The 2026-07 stand-down capture,
+  the eleventh-pass capture retention, and the twelfth-pass window net
+  are one fix applied three times. The general move: for every resource
+  held across an interval, name the mechanism that guarantees the
+  interval ENDS — and check it is armed for the WHOLE interval, not from
+  the first event you happen to observe.

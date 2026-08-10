@@ -292,6 +292,39 @@ export function useHoldDrag({
   }, [onWindowTouchMove, onWindowKeyDown, setActiveBoth]);
   teardownRef.current = teardown;
 
+  /** The pre-hold safety net for UNCAPTURED exits (twelfth pass). A mouse
+   *  is not implicitly captured, so a press starting near the pill's edge
+   *  can leave the wrapper inside the slop window — every later move and
+   *  the lift itself then dispatch elsewhere, the wrapper hears nothing,
+   *  and the hold timer fired on a stale press: a phantom overlay, freeze,
+   *  and input shield with no pointer down, and the app-wide claim held
+   *  until remount (the same lesson the y-dominant stand-down learned in
+   *  2026-07, one window earlier). Window-scoped and armed only while a
+   *  press is live; the wrapper's own handlers run first (target before
+   *  window), so this acts only on lifts the wrapper never saw — and an
+   *  outside lift synthesizes no click in the wrapper's subtree, so there
+   *  is nothing to suppress. Chosen over capturing the mouse at admission,
+   *  which would have changed edge-press semantics (a drag-away would
+   *  engage or commit where today nothing happens). */
+  const onWindowPointerEnd = useCallback(
+    (e: PointerEvent) => {
+      const p = press.current;
+      if (!p || e.pointerId !== p.pointerId) return;
+      press.current = null;
+      releaseGesture();
+      teardownRef.current();
+      window.removeEventListener("pointerup", onWindowPointerEnd);
+      window.removeEventListener("pointercancel", onWindowPointerEnd);
+    },
+    [releaseGesture],
+  );
+
+  /** Disarm the net wherever the press dies through the wrapper itself. */
+  const disarmWindowNet = useCallback(() => {
+    window.removeEventListener("pointerup", onWindowPointerEnd);
+    window.removeEventListener("pointercancel", onWindowPointerEnd);
+  }, [onWindowPointerEnd]);
+
   /** `currentX`: set when a pre-hold SLIDE engages the track — the finger
    *  has already travelled, so the first dragIndex maps its position now
    *  rather than snapping back to the anchor (a quick flick would otherwise
@@ -348,9 +381,10 @@ export function useHoldDrag({
   useEffect(
     () => () => {
       teardown();
+      disarmWindowNet();
       releaseGesture();
     },
-    [teardown, releaseGesture],
+    [teardown, disarmWindowNet, releaseGesture],
   );
 
   function onPointerDown(e: React.PointerEvent) {
@@ -381,6 +415,9 @@ export function useHoldDrag({
       y: e.clientY,
       el: e.currentTarget as HTMLElement,
     };
+    // The uncaptured-exit net rides the whole press — see its declaration.
+    window.addEventListener("pointerup", onWindowPointerEnd);
+    window.addEventListener("pointercancel", onWindowPointerEnd);
     clearTimeout(timer.current);
     timer.current = setTimeout(activate, HOLD_MS);
   }
@@ -454,6 +491,7 @@ export function useHoldDrag({
     if (!p || e.pointerId !== p.pointerId) return;
     press.current = null;
     releaseGesture();
+    disarmWindowNet();
     clearTimeout(timer.current);
     const current = activeRef.current;
     if (current) {
@@ -474,6 +512,7 @@ export function useHoldDrag({
     if (!p || e.pointerId !== p.pointerId) return;
     press.current = null;
     releaseGesture();
+    disarmWindowNet();
     const wasActive = activeRef.current !== null;
     teardown();
     if (wasActive) settle();

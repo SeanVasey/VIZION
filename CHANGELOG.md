@@ -111,7 +111,15 @@ All notable changes to VIZION are documented here. The format follows
   app-wide until remount. Capture now lives exactly as long as the press
   (teardown no longer releases it; pointerup/pointercancel auto-release
   per spec), pinned red→green in both real engines — jsdom has no
-  capture routing and hid the leak from the unit suite. One residual
+  capture routing and hid the leak from the unit suite. A twelfth pass
+  closed the pre-hold mirror: a mouse is not implicitly captured, so an
+  edge press could leave the wrapper inside the slop window and lift
+  unheard — the hold timer then fired a phantom capsule, freeze, and
+  shield from the stale press. A window-scoped pointerup/pointercancel
+  net now rides each press's exact lifetime and ends it on lifts the
+  wrapper never saw (capture-at-admission was declined — it would change
+  edge-press semantics), pinned red→green in unit and both engines. One
+  residual
   two-finger race is accepted and recorded in the ADR: a non-wrapped
   trigger tapped inside another pill's 300ms pre-hold window — cosmetic
   and self-healing.

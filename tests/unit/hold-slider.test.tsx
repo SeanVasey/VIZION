@@ -853,6 +853,38 @@ describe("one gesture at a time, app-wide", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
+  it("ends the press on a lift the wrapper never hears — no phantom activation", () => {
+    // A mouse is not implicitly captured: an edge press can leave the
+    // wrapper inside the slop window, and every later event — the lift
+    // included — dispatches elsewhere. Pre-fix the hold timer fired on the
+    // stale press: a phantom overlay, freeze, and input shield with no
+    // pointer down, and the claim held until remount (twelfth pass). The
+    // window net hears the outside lift and ends the press cleanly.
+    const onCommitA = vi.fn();
+    const onOpenB = vi.fn();
+    render(<TwinHosts onCommitA={onCommitA} onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    fireEvent.pointerUp(document.body, {
+      pointerId: 1,
+      clientX: 500,
+      clientY: 600,
+    });
+    hold(); // the timer must already be dead
+    expect(overlays()).toHaveLength(0);
+    expect(frozen()).toBe(false);
+    expect(onCommitA).not.toHaveBeenCalled();
+    // The claim died with the press: the other pill gestures and taps.
+    downOn(pillB(), 2);
+    hold();
+    expect(overlays()).toHaveLength(1);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
   it("releases the claim on unmount — a dead owner never bricks the surviving sliders", () => {
     const onCommitB = vi.fn();
     const { rerender } = render(<TwinHosts onCommitB={onCommitB} />);
