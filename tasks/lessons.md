@@ -3322,3 +3322,14 @@ test:e2e` hard-fails in global-setup until
   animations, transitions, clocks, mounts — not every instance of the
   one source class the first sweep happened to use. Enumerate by the
   invariant, not by the mechanism you found first.
+
+- **An acceptance must price the loser's guarantees.** "Single-slot,
+  newest wins" (nineteenth pass) named the resolution policy and
+  omitted what the loser loses: the elder refused stream kept physical
+  contact but lost its click protection the moment the newer stream
+  ended (twenty-second pass). Writing "newest wins" FELT like recording
+  a limitation; recording it honestly meant writing "an elder still-down
+  stream's click will open the sheet" — a sentence that would have been
+  fixed on sight. When accepting a conflict-resolution policy, write
+  the failure it permits from the loser's point of view, not the
+  policy's name from the winner's.

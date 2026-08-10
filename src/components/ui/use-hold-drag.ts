@@ -241,45 +241,60 @@ export function useHoldDrag({
   /** This instance's identity for the module-level exclusive-gesture claim. */
   const ownerToken = useRef<object>({});
 
-  /** A press this wrapper refused, whose click has not yet arrived. The
-   *  claim alone cannot carry the refusal to its end: the owner can release
-   *  before the refused pointer lifts, and at click time both the claim and
-   *  suppressClick are clear — the press documented as refused whole then
-   *  opened this pill's sheet (thirteenth pass, cross-pill). Per-instance,
-   *  so it can never collide with another wrapper's legitimate clicks;
-   *  reset by the next pointer-down on this wrapper (a new stream
-   *  supersedes), cleared by the end-watch one task after its stream ends.
-   *  Set for SAME-wrapper refusals too (nineteenth pass): the thirteenth
-   *  scoped the marker cross-pill on the theory that one boolean cannot
-   *  tell the owner's click from the competitor's — but the two are told
-   *  apart by GATE, not identity: the owner's own commit click is consumed
-   *  by suppressClick in its settle window, and consumption never writes
-   *  the marker, so a mouse pressed on the owning pill mid-gesture stays
-   *  refused through its click even when the owner releases first. */
-  const refusedPress = useRef(false);
-
-  /** The refused stream's id and its end-watch. A refusal must not outlive
-   *  its own stream (Vercel agent review, fourteenth round): a refused
-   *  pointer that releases OUTSIDE this wrapper never sends the click the
-   *  marker waits for, and the stale marker ate the pill's next keyboard or
-   *  programmatic click — an activation a keyboard user must never lose.
-   *  The window hears the stream end anywhere; the marker then clears on a
-   *  zero-timeout, outliving exactly the one same-task click the lift can
-   *  still deliver (the settle() ordering trick). */
-  const refusedPointerId = useRef<number | null>(null);
-  const refusedClear = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Streams this wrapper refused, whose clicks have not yet arrived (or
+   *  been proven never coming). The claim alone cannot carry a refusal to
+   *  its end: the owner can release before a refused pointer lifts, and at
+   *  click time both the claim and suppressClick are clear — the press
+   *  documented as refused whole then opened this pill's sheet (thirteenth
+   *  pass cross-pill; nineteenth same-wrapper, told apart from the owner's
+   *  own settle-window click by GATE, not identity). Per-instance, so it
+   *  can never collide with another wrapper's legitimate clicks. A SET,
+   *  not a slot (twenty-second pass): two competing streams can be refused
+   *  concurrently, and the newest-wins slot un-protected the elder — the
+   *  newer stream's end cleared the whole marker while the elder was still
+   *  down, and its click opened the sheet right after the owning drag.
+   *  Each refusal is retained until ITS OWN stream ends: the window hears
+   *  the end anywhere (a refusal must not outlive its stream — the stale
+   *  marker ate a keyboard activation, fourteenth round), and the ended id
+   *  leaves one task later, outliving exactly the one same-task click its
+   *  lift can still deliver (the settle() ordering trick). Clicks are
+   *  consumed while ANY refusal is pending; consumption reads the set and
+   *  never writes it (nineteenth pass). Only an ADMITTED-path pointer-down
+   *  clears the set wholesale — that reset exists for STRANDED ids (a
+   *  stream that ended where no event reports it, whose staleness only a
+   *  fresh legitimate interaction can prove); the boundary it keeps is
+   *  recorded in the ADR. */
+  const refusedIds = useRef<Set<number>>(new Set());
+  const refusedClears = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const onRefusedEnd = useCallback((e: PointerEvent) => {
-    if (e.pointerId !== refusedPointerId.current) return;
-    refusedPointerId.current = null;
-    window.removeEventListener("pointerup", onRefusedEnd);
-    window.removeEventListener("pointercancel", onRefusedEnd);
-    refusedClear.current = setTimeout(() => {
-      refusedPress.current = false;
-    }, 0);
+    const id = e.pointerId;
+    if (!refusedIds.current.has(id) || refusedClears.current.has(id)) return;
+    refusedClears.current.set(
+      id,
+      setTimeout(() => {
+        refusedIds.current.delete(id);
+        refusedClears.current.delete(id);
+        if (refusedIds.current.size === 0) {
+          window.removeEventListener("pointerup", onRefusedEnd);
+          window.removeEventListener("pointercancel", onRefusedEnd);
+        }
+      }, 0),
+    );
   }, []);
+  const armRefusedWatch = useCallback(
+    (pointerId: number) => {
+      refusedIds.current.add(pointerId);
+      // Duplicate adds of the same handler are spec'd no-ops, so arming is
+      // idempotent while any refusal is pending.
+      window.addEventListener("pointerup", onRefusedEnd);
+      window.addEventListener("pointercancel", onRefusedEnd);
+    },
+    [onRefusedEnd],
+  );
   const disarmRefusedWatch = useCallback(() => {
-    refusedPointerId.current = null;
-    clearTimeout(refusedClear.current);
+    refusedIds.current.clear();
+    for (const t of refusedClears.current.values()) clearTimeout(t);
+    refusedClears.current.clear();
     window.removeEventListener("pointerup", onRefusedEnd);
     window.removeEventListener("pointercancel", onRefusedEnd);
   }, [onRefusedEnd]);
@@ -427,12 +442,9 @@ export function useHoldDrag({
       // settle()'s same-task window (fifteenth pass). The refused-stream
       // machinery is exactly this shape: mark the stream, watch for its
       // true end anywhere, clear one task later so only its own click dies.
-      refusedPress.current = true;
-      refusedPointerId.current = concealed.pointerId;
-      window.addEventListener("pointerup", onRefusedEnd);
-      window.addEventListener("pointercancel", onRefusedEnd);
+      armRefusedWatch(concealed.pointerId);
     },
-    [releaseGesture, onWindowPointerEnd, onRefusedEnd],
+    [releaseGesture, onWindowPointerEnd, armRefusedWatch],
   );
 
   /** Disarm the nets wherever the press dies through the wrapper itself. */
@@ -540,25 +552,29 @@ export function useHoldDrag({
   function onPointerDown(e: React.PointerEvent) {
     if (!enabled) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    // A new stream on this wrapper supersedes any still-pending refusal.
-    refusedPress.current = false;
-    disarmRefusedWatch();
     // One gesture at a time, app-wide (see gestureOwner): while ANY press
     // or drag is live — another pill's, or a competing second device on
     // THIS pill (`press.current`; nineteenth pass, which removed the bare
     // unmarked reject that stood here) — this press is refused outright,
     // and its eventual click dies in onClickCapture, marked here so the
     // refusal survives even if the owner releases first. The end-watch
-    // bounds the marker to the refused stream's own lifetime. The
-    // `press.current` half also guards the invariant no claim state can:
-    // a live press record must never be overwritten mid-stream.
+    // bounds each refusal to its own stream's lifetime. Refusals
+    // ACCUMULATE (twenty-second pass): a sibling refusal joins the set
+    // instead of stealing the slot, so the newer stream's end can never
+    // un-protect an elder still down. The `press.current` half also
+    // guards the invariant no claim state can: a live press record must
+    // never be overwritten mid-stream.
     if (gestureOwner !== null || press.current) {
-      refusedPress.current = true;
-      refusedPointerId.current = e.pointerId;
-      window.addEventListener("pointerup", onRefusedEnd);
-      window.addEventListener("pointercancel", onRefusedEnd);
+      armRefusedWatch(e.pointerId);
       return;
     }
+    // Only an ADMITTED-path stream supersedes pending refusals. This reset
+    // exists for STRANDED ids — a refused stream that ended where no event
+    // reports it (released in another app) would otherwise eat this new
+    // stream's own legitimate tap-click. A fresh press reaching admission
+    // is the one proof of staleness available; the boundary this keeps is
+    // recorded in the ADR (twenty-second pass).
+    disarmRefusedWatch();
     // Admission rule: a gesture may only begin in the wrapper's own DOM
     // subtree. The wrapped children include each picker's SHEET — a body
     // portal that React still bubbles up the COMPONENT tree — so without
@@ -690,7 +706,7 @@ export function useHoldDrag({
     // (suppressClick), while ANY hold-slider press is live — foreign or
     // our own, deliberately without a self-exemption — or when it belongs
     // to a stream this wrapper refused whose owner has since released
-    // (refusedPress; thirteenth pass). The ninth pass consumed only
+    // (refusedIds; thirteenth pass). The ninth pass consumed only
     // foreign-claim clicks; the tenth closed the self-carve-out: with our
     // own claim live, a click on this pill can only be a SECOND input
     // device (a mouse click landing inside a touch press's pre-hold
@@ -700,28 +716,29 @@ export function useHoldDrag({
     // the claim synchronously before the browser dispatches the click, so
     // at click time gestureOwner is already null.
     //
-    // The refusal marker gates only POINTER-DERIVED clicks (detail ≥ 1):
-    // keyboard and programmatic activation carry detail 0 and always pass
-    // it. This is the discriminator the marker's whole lifecycle turned out
-    // to need (fourteenth, sixteenth, seventeenth passes): a marker whose
-    // stream ended where no event reports it — released in another app —
-    // can sit stranded, and every timing-based expiry had a hole (the
-    // foreground-clear let a user who returned STILL HOLDING lift into an
-    // un-suppressed click). detail needs no timing: a stranded marker can
-    // never touch a keyboard user, a later pointer stream clears it at its
-    // own pointer-down, and the one click it exists to eat — its own
-    // stream's — is pointer-derived by definition.
+    // Refusals gate only POINTER-DERIVED clicks (detail ≥ 1): keyboard and
+    // programmatic activation carry detail 0 and always pass. This is the
+    // discriminator the refusal lifecycle turned out to need (fourteenth,
+    // sixteenth, seventeenth passes): an id whose stream ended where no
+    // event reports it — released in another app — can sit stranded, and
+    // every timing-based expiry had a hole (the foreground-clear let a
+    // user who returned STILL HOLDING lift into an un-suppressed click).
+    // detail needs no timing: a stranded id can never touch a keyboard
+    // user, the next ADMITTED pointer stream clears it at its own
+    // pointer-down, and the clicks the set exists to eat — its own
+    // streams' — are pointer-derived by definition.
     //
-    // Consumption READS the marker and never writes it (nineteenth pass —
-    // this body used to clear it on any consumed click). Cross-pill that
-    // was harmless, but a same-pill competitor shares this handler with
-    // the owner: the owner's settle-consumed commit click stripped the
-    // competitor's marker before its own click arrived. The marker's
-    // lifecycle has exactly three ends — the end-watch's zero-timeout, the
-    // next pointer-down's supersede, and unmount.
+    // Consumption READS the set and never writes it (nineteenth pass —
+    // this body used to clear the old boolean on any consumed click).
+    // Cross-pill that was harmless, but a same-pill competitor shares
+    // this handler with the owner: the owner's settle-consumed commit
+    // click stripped the competitor's protection before its own click
+    // arrived. Each id's lifecycle has exactly three ends — its own
+    // end-watch zero-timeout, an admitted pointer-down's supersede, and
+    // unmount.
     if (
       suppressClick.current ||
-      (refusedPress.current && e.detail > 0) ||
+      (refusedIds.current.size > 0 && e.detail > 0) ||
       gestureOwner !== null
     ) {
       e.preventDefault();

@@ -1057,6 +1057,77 @@ describe("one gesture at a time, app-wide", () => {
     expect(onOpenA).toHaveBeenCalledTimes(1);
   });
 
+  it("retains every refused pointer until its own end — a sibling never un-protects the elder", () => {
+    // Twenty-second pass, re-pricing the nineteenth's "newest wins" slot:
+    // touch owns A; a mouse AND a second touch press B while the claim is
+    // live. The single slot let the later refusal REPLACE the earlier —
+    // the newer stream's end cleared the whole marker, and the elder
+    // mouse's later click opened B's sheet right after the owning drag.
+    // Refusals now accumulate per-stream and each ends with its own.
+    const onOpenB = vi.fn();
+    render(<TwinHosts onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillB(), 2); // refused — the elder
+    downOn(pillB(), 3); // refused — the sibling that used to steal the slot
+    // The sibling ends first, far away; its removal must not clear the elder.
+    fireEvent.pointerUp(document.body, { pointerId: 3, clientX: 500, clientY: 600 });
+    act(() => {
+      vi.advanceTimersByTime(1); // the sibling's zero-timeout removal
+    });
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1); // the owner's settle suppression expires
+    });
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB(), { detail: 1 }); // the elder's own click
+    expect(onOpenB).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // Every refusal ended with its stream — a fresh tap works.
+    downOn(pillB(), 4);
+    fireEvent.pointerUp(pillB(), { pointerId: 4, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("same-pill sibling refusals are each retained through their own click", () => {
+    // The same accumulation on the OWNING wrapper (nineteenth pass's
+    // topology): both competitors' clicks must die with their own streams,
+    // in either lift order, even after the owner commits and releases.
+    const onOpenA = vi.fn();
+    const onCommitA = vi.fn();
+    render(<TwinHosts onOpenA={onOpenA} onCommitA={onCommitA} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillA(), 2); // refused — the elder
+    downOn(pillA(), 3); // refused — the sibling
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    expect(onCommitA).toHaveBeenCalledTimes(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // The later-refused lifts first over the pill…
+    fireEvent.pointerUp(pillA(), { pointerId: 3, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // …and the elder's click STILL dies with its own stream.
+    fireEvent.pointerUp(pillA(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    downOn(pillA(), 4);
+    fireEvent.pointerUp(pillA(), { pointerId: 4, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA(), { detail: 1 });
+    expect(onOpenA).toHaveBeenCalledTimes(1);
+  });
+
   it("stands down at activation when a sheet opened during the pre-hold window", () => {
     // The admission guard stops gestures BEGINNING over a sheet; this is
     // the symmetric half (thirteenth pass): the input shield mounts only at

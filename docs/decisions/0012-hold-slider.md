@@ -588,9 +588,11 @@ but same-pill the owner's settle-consumed commit click stripped the
 competitor's protection before its own click arrived. The two streams
 share one capture handler and are told apart by GATE, not identity: the
 owner's commit click dies in its settle window, the competitor's dies
-on the marker, keyboard stays exempt by `detail 0`. Single-slot
+on the marker, keyboard stays exempt by `detail 0`. ~~Single-slot
 semantics stand (a third simultaneous pointer on one wrapper resolves
-newest-wins), matching the cross-pill machinery. Pinned red→green in
+newest-wins), matching the cross-pill machinery.~~ (Superseded by the
+twenty-second pass: "newest wins" named the policy without pricing the
+leak it permits — see below.) Pinned red→green in
 unit: the full owner-releases-first timeline, and the
 settled-click-must-not-strip-the-marker ordering specifically.
 
@@ -645,3 +647,32 @@ resumed countdown in unit (both the born-under-a-gesture and the
 suspended-mid-lifetime timelines), the conceal snap in both engines
 (computed transition-duration 0s under the gesture, 0.15s after
 release).
+
+The twenty-second pass re-priced the nineteenth's own acceptance. The
+"single-slot, newest-wins" line named a policy without writing out the
+failure it permits: with TWO streams refused concurrently on one
+wrapper, the newer down replaced the elder's watch, so the newer
+stream's end cleared the whole marker while the elder was still
+physically down — and the elder's eventual click opened the sheet
+right after the owning drag. Refusals are now a SET: each refused
+pointer id is retained until ITS OWN stream ends (per-id end-watch
+removal, one task later — the same settle() ordering trick), clicks
+are consumed while any refusal is pending, and a sibling refusal joins
+the set instead of stealing the slot. One boundary is kept, now priced
+explicitly: an ADMITTED-path pointer-down still clears the set
+wholesale. That reset exists for STRANDED ids — a refused stream that
+ended where no event reports it (released in another application)
+would otherwise eat the new stream's own legitimate tap-click, and a
+fresh press reaching admission is the only available proof of
+staleness. The residual this keeps: an elder refusal that stays
+physically down across a COMPLETE later admitted gesture (admission →
+release) and lifts only after it loses its protection to that reset.
+Closing it would need per-click stream identity (`click.pointerId`),
+which is not yet dependable across the engines this control ships to —
+and the guard that skips it (consume while any id is pending, ever)
+would eat the admitted stream's own tap: over-blocking a certain,
+common path to cover a fourth-order interleaving. Pinned red→green in
+unit, both topologies: the cross-pill sibling pair (the later-refused
+ends far away first; the elder's click still dies) and the same-pill
+pair (either lift order), each with a fresh tap proving no
+over-blocking afterward.

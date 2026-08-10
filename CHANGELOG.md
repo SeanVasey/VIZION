@@ -82,6 +82,23 @@ All notable changes to VIZION are documented here. The format follows
 
 ### Fixed
 
+- **Every refused pointer is now retained until its own end — the
+  refusal slot becomes a set** (ADR-0012, twenty-second pass,
+  re-pricing the nineteenth's recorded acceptance). With two competing
+  streams refused on one wrapper, the "newest wins" slot let the later
+  down replace the earlier's watch: the newer stream's end cleared the
+  whole marker while the elder was still physically down, and the
+  elder's eventual click opened the picker right after the owning
+  drag. Refusals now accumulate per pointer id, each removed one task
+  after its own stream ends, with clicks consumed while any refusal is
+  pending; a sibling refusal joins the set instead of stealing the
+  slot. The one kept boundary is now priced in the ADR: an
+  admitted-path pointer-down still clears the set wholesale (the
+  stranded-id reset — without it, a stream that ended invisibly in
+  another app would eat the new stream's own tap). Pinned red→green in
+  unit in both topologies, either lift order, with fresh-tap
+  no-over-blocking tails.
+
 - **The world-pause gains its missing dimensions — the toast's clock
   and the one backdrop transition** (ADR-0012, twenty-first pass, two
   findings). The pause was spatial but not temporal: a toast arriving
