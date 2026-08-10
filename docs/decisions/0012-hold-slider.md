@@ -245,7 +245,18 @@ Three changes, superseding two acceptance-era choices:
    fourth review pass showed any placement that hides a center makes
    that value unreachable, since the pointer cannot travel past the
    region's edge. Placement never depends on the selection in any mode;
-   the home is the visible region's center, always.
+   the home is the visible region's center, always. One bound is
+   accepted deliberately (fifth review pass): single-GESTURE reach from
+   a given press point is limited by the screen edge — true of every
+   fixed-gain drag including the original anchor-under-finger placement
+   on an unzoomed phone and the reference control itself. The answer is
+   composition, not variable gain: release re-anchors, so the next hold
+   starts from the new selection with fresh travel room (any value is at
+   most two centered gestures away), and the sheet stays the complete
+   single-tap path. Per-side gain normalization was declined — it
+   decouples the finger from the thumb and makes the two directions
+   drag at different speeds, trading the control's 1:1 feel for a
+   single-gesture guarantee it never promised.
 2. **A thumb rides the fill's leading edge** (`data-hold-slider-thumb`,
    28px, glass ground + hair ring, core disc tone-colored by the same
    FILL_CLASS ramp — text-free fills only). Position now reads as an

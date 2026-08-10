@@ -110,8 +110,19 @@ export interface TrackGeometry {
  *   chrome — the rounded ends and margins may overflow the region (the
  *   overlay is pointer-transparent decoration) while the detent CENTERS
  *   compress into the region minus CENTER_INSET_PX. Every stop stays
- *   visible and reachable at any zoom; zoom multiplies physical travel,
- *   so the tighter detents cost no precision.
+ *   visible; zoom multiplies physical travel, so the tighter detents
+ *   cost no precision.
+ *
+ * Single-GESTURE reach is bounded by where the press began — a finger
+ * cannot travel past the screen's edge, at any zoom, under any geometry
+ * (the original anchor-under-finger placement had the same physics for
+ * the top tiers on an unzoomed phone, and so does the reference
+ * control). That bound is answered by COMPOSITION, not by gain: release
+ * re-anchors, so the next hold starts from the new selection with fresh
+ * travel room — any value is at most two centered gestures away — and
+ * the sheet remains the complete single-tap path (WCAG 2.5.7). Drag gain
+ * is deliberately constant and side-symmetric: the finger owns the
+ * thumb 1:1, in both directions, always.
  */
 export function computeTrackGeometry(
   anchorRect: { top: number; height: number },
