@@ -17,7 +17,9 @@ All notable changes to VIZION are documented here. The format follows
   composer's; when zoom leaves the region narrower than the track, the
   detent spacing compresses so the whole ladder fits and stays reachable —
   zoom multiplies physical travel, so tighter detents cost no precision —
-  with a selected-detent-biased placement as the sub-floor fallback), on
+  and below the compression floor the capsule sheds its chrome instead:
+  rounded ends may overflow while every detent CENTER stays inside the
+  region, so no zoom level can strand a value out of reach), on
   the gesturing rail's row — the same spot for every
   press, where the first cut anchored the selected detent under
   the finger and landed wherever the press happened to be; the finger

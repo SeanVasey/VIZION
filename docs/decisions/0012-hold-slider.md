@@ -233,17 +233,19 @@ Three changes, superseding two acceptance-era choices:
    control deliberately preserves native pinch zoom, and a fixed-position
    capsule centered on the layout viewport can open entirely outside a
    zoomed-in user's view; and when zoom leaves that region NARROWER than
-   the full-spacing track, the detent spacing COMPRESSES so the whole
-   ladder fits — still centered, still static for the gesture, every
-   detent reachable (a placement frozen around the selected detent kept
-   the spawn visible but let the drag walk the thumb out of the region;
-   and zoom multiplies physical travel, so compressed detents cost no
-   precision — at the ~3.7× zoom that reaches the 12px floor, one detent
-   is ≥44px of finger movement). Only below MIN_DETENT_SPACING_PX does
-   placement fall back to biasing the SELECTED detent (the thumb's spawn)
-   toward the visible center. The fixed home holds whenever the ladder
-   fits; the selection only steers placement when fixedness is
-   geometrically impossible.
+   the full-spacing track, the detent spacing COMPRESSES — still
+   centered, still static for the gesture, every detent reachable (a
+   placement frozen around the selected detent kept the spawn visible
+   but let the drag walk the thumb out of the region; and zoom
+   multiplies physical travel, so compressed detents cost no precision).
+   Below MIN_DETENT_SPACING_PX the geometry stops reserving the
+   capsule's chrome entirely: the rounded ends and margins may overflow
+   the region (the overlay is pointer-transparent decoration) while the
+   detent CENTERS compress into the region minus CENTER_INSET_PX — the
+   fourth review pass showed any placement that hides a center makes
+   that value unreachable, since the pointer cannot travel past the
+   region's edge. Placement never depends on the selection in any mode;
+   the home is the visible region's center, always.
 2. **A thumb rides the fill's leading edge** (`data-hold-slider-thumb`,
    28px, glass ground + hair ring, core disc tone-colored by the same
    FILL_CLASS ramp — text-free fills only). Position now reads as an

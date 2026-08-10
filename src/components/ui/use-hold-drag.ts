@@ -47,11 +47,16 @@ export const HOLD_MS = 300;
 export const SLOP_PX = 10;
 /** Horizontal travel per detent — one 44px touch target each. */
 export const DETENT_SPACING_PX = 44;
-/** Compression floor for detent spacing when a pinch-zoomed visual region
- *  is narrower than the full track. Ergonomics hold because zoom multiplies
- *  PHYSICAL travel: at the ~3.7× zoom that drives spacing to this floor,
- *  12 layout px is ≥44px of finger movement — the unzoomed target. */
+/** Mode boundary for compression: while compressed spacing stays at or
+ *  above this, the whole capsule (pads and edge margins included) fits the
+ *  visible region; below it, the geometry stops reserving the capsule's
+ *  chrome and constrains only the detent SPAN — see computeTrackGeometry.
+ *  Ergonomics hold either way because zoom multiplies PHYSICAL travel. */
 export const MIN_DETENT_SPACING_PX = 12;
+/** Span-mode inset: the extreme detent centers keep this much clearance
+ *  from the visible region's edges, so the first and last stops are never
+ *  razor-edge pointer targets. */
+export const CENTER_INSET_PX = 8;
 /** Inset from the capsule's rounded end to the first/last detent center. */
 export const TRACK_PAD_PX = 22;
 /** Rendered height of the overlay capsule. */
@@ -89,45 +94,45 @@ export interface TrackGeometry {
  * (Codex review, PR #103). Unzoomed, the shell is a centered
  * max-w-screen-sm column, so the visual center IS the composer's.
  *
- * When the track FITS at full spacing (the normal case), the home is the
- * visible region's center and `selectedIndex` plays no part — same spot
- * for every press. When zoom leaves the region NARROWER than that, the
- * spacing COMPRESSES so the whole ladder fits and every detent stays
- * reachable — geometry is still static for the gesture, still centered,
- * still selection-independent (Codex review, third pass: a placement
- * frozen around the selected detent kept the SPAWN visible but let the
- * drag walk the thumb out of the region; a track the region can hold has
- * no such edge, and zoom multiplies physical travel, so compressed
- * detents cost no precision). Only below MIN_DETENT_SPACING_PX — regions
- * too narrow for even the compressed ladder — does placement fall back to
- * biasing the SELECTED detent (the thumb's spawn) toward the visible
- * center, whichever shown edge keeping its EDGE_MARGIN_PX.
+ * The home is the visible region's CENTER in every mode — placement never
+ * depends on the selection, so the same rail always expands in the same
+ * spot. What adapts is the spacing (Codex review, third and fourth
+ * passes: a placement frozen around the selected detent kept the SPAWN
+ * visible but let the drag walk the thumb out of the region, and any
+ * placement that hides a center makes that value unreachable, because the
+ * pointer cannot travel past the region's edge):
+ *
+ * - FULL: the 44px ladder plus capsule chrome fits inside the margins —
+ *   spacing stays DETENT_SPACING_PX.
+ * - COMPRESSED: spacing shrinks toward MIN_DETENT_SPACING_PX so capsule,
+ *   pads, and margins all still fit.
+ * - SPAN-ONLY: below that, the geometry stops reserving the capsule's
+ *   chrome — the rounded ends and margins may overflow the region (the
+ *   overlay is pointer-transparent decoration) while the detent CENTERS
+ *   compress into the region minus CENTER_INSET_PX. Every stop stays
+ *   visible and reachable at any zoom; zoom multiplies physical travel,
+ *   so the tighter detents cost no precision.
  */
 export function computeTrackGeometry(
   anchorRect: { top: number; height: number },
   detentCount: number,
-  selectedIndex: number,
   viewport: { left: number; width: number },
 ): TrackGeometry {
   const steps = Math.max(detentCount - 1, 1);
-  const available = viewport.width - EDGE_MARGIN_PX * 2 - TRACK_PAD_PX * 2;
-  const spacing = Math.max(
-    MIN_DETENT_SPACING_PX,
-    Math.min(DETENT_SPACING_PX, available / steps),
-  );
+  const chromeSpacing = (viewport.width - EDGE_MARGIN_PX * 2 - TRACK_PAD_PX * 2) / steps;
+  const spacing =
+    chromeSpacing >= MIN_DETENT_SPACING_PX
+      ? Math.min(DETENT_SPACING_PX, chromeSpacing)
+      : Math.max(
+          1,
+          Math.min(DETENT_SPACING_PX, (viewport.width - CENTER_INSET_PX * 2) / steps),
+        );
   const width = steps * spacing + TRACK_PAD_PX * 2;
-  const fits = width <= viewport.width - EDGE_MARGIN_PX * 2;
-  const left = fits
-    ? viewport.left + (viewport.width - width) / 2
-    : Math.max(
-        viewport.left + viewport.width - EDGE_MARGIN_PX - width,
-        Math.min(
-          viewport.left + viewport.width / 2 - (TRACK_PAD_PX + selectedIndex * spacing),
-          viewport.left + EDGE_MARGIN_PX,
-        ),
-      );
+  // Both modes center the SPAN on the region's center; centering the span
+  // and centering the capsule are the same thing (symmetric pads).
+  const first = viewport.left + (viewport.width - steps * spacing) / 2;
+  const left = first - TRACK_PAD_PX;
   const top = anchorRect.top + anchorRect.height / 2 - TRACK_HEIGHT_PX / 2;
-  const first = left + TRACK_PAD_PX;
   return {
     left,
     top,
@@ -254,7 +259,6 @@ export function useHoldDrag({
       const geometry = computeTrackGeometry(
         p.el.getBoundingClientRect(),
         count,
-        selected,
         vv
           ? { left: vv.offsetLeft, width: vv.width }
           : { left: 0, width: window.innerWidth },
