@@ -62,10 +62,50 @@ dark/light pair from DSN-002 — collapsing it to a single dark tag would
 mis-tint browser chrome in the light scheme. `public/brand/` was read and never
 written.
 
-Known follow-up, out of scope here: `src/lib/brand-assets.ts` still points the
-in-app header icon and the sign-in hero at `vizion-icon-token.svg` /
-`vizion-mark-token.svg`, so the mark *inside* the app is still the old I›O art
-while the installed icon is the new one.
+The mark *inside* the app moves with it, so no surface is left on the old I›O
+art. The two in-app surfaces take opposite treatments, because they are
+different things:
+
+The **header tile** (`ScreenHeader`) now serves `vizion-icon-light.svg` — the
+composed Light appearance, the one file the derivative pipeline is forbidden to
+rasterize. That inversion is the point: nothing masks an `<img>` in a web
+document, so here the baked squircle and its gradient are exactly what is
+wanted, and they are what the user already sees on the home screen once iOS has
+rounded and glassified the flat tile. Its `rounded-[8px]` goes with it — a CSS
+circular-arc radius laid over a superellipse clips a sliver off each corner
+rather than following it, so the artwork now owns its own shape.
+
+The **sign-in hero** goes the other way and stops being a file at all.
+`src/components/BrandMark.tsx` inlines the master glyph as a single path drawn
+with `currentColor`, following the DeveloperIcon rule — never hardcode a fill —
+and takes `text-accent`, so it renders Laser on dark and the deep
+`--accent-ink` green on light. A hardcoded brand Laser would have been the
+documented 1.09:1 laser-on-light FAIL on the light canvas. Inlined rather than
+fetched because the master paints a flat `#000000` that no `<img>` can recolour
+per theme, and the Icon Composer foreground layers bake in the icon's 0.74
+padding, which would then have to be subtracted back out of the hero layout.
+Sized 144px, not the retired mark's 160px: the new glyph is nearly square
+(1.15:1 against 1.57:1), so equal width would have stood ~40% taller and
+out-weighed the wordmark beneath it.
+
+Inlining duplicates geometry, and duplicated geometry drifts — a re-cut master
+would move every generated derivative while leaving the in-app mark behind,
+which is the exact split this entry closes. So `tests/unit/brand-mark.test.ts`
+asserts the component's `viewBox` and path still equal `vizion-glyph.svg`
+byte-for-byte, that the fill is `currentColor` and not a hex, and that the
+master still holds exactly one path — the assumption both the component and the
+generator rest on.
+
+Known divergence, NOT introduced here and deliberately not resolved here: the
+brand artwork's Laser is `#DFFA04`, while the design system's `--laser` token is
+`#B7FF3C`. Both now sit in the same header — measured off the rendered document,
+`#B7FF3C` on the wordmark's "IO" against `#CBE801`–`#D2EE02` across the icon
+tile's gradient. The artwork arrived with the new value in #104; reconciling them
+means either hardcoding a fill (breaking the light-theme contrast rule above) or
+retuning `--laser` itself, which is the primary action fill, the focus ring and
+the wordmark accent, and would require re-verifying every contrast ratio
+recorded in `tokens.css`. That is a design-system decision, not an icon-wiring
+one.
 
 ### Added
 

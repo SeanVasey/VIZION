@@ -130,6 +130,23 @@ show how the icon _appears_ once iOS has masked and glassified it. Rasterizing
 them would bake in the corners and gloss the OS applies at runtime, so the
 generator never reads them.
 
+In the app itself the rule inverts, because nothing masks an `<img>` in a web
+document:
+
+- **Header tile** (`ScreenHeader`) — serves the composed `vizion-icon-light.svg`
+  directly. Here the baked squircle and gradient are the point: they are what
+  the user already sees on the home screen. It carries no CSS `rounded-*`; the
+  artwork owns its corners.
+- **Sign-in hero** (`BrandMark`) — the master glyph inlined as a single path on
+  `currentColor`, paired with `text-accent` so it follows the theme. Never a
+  hardcoded fill: brand Laser as ink on the light canvas is a 1.09:1 contrast
+  FAIL. `tests/unit/brand-mark.test.ts` keeps the inlined geometry equal to the
+  master.
+
+One known divergence: the artwork's Laser is `#DFFA04`, the design system's
+`--laser` token is `#B7FF3C`. Both appear in the header. Reconciling them is a
+design-system decision, not an icon one.
+
 ## License
 
 [MIT](./LICENSE) © 2026 Sean Vasey (VASEY/AI). Vendored fonts under

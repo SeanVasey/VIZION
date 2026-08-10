@@ -1,9 +1,22 @@
 /**
- * Versioned URLs for the brand-master SVGs in `public/brand/`.
+ * Versioned URL for the in-app app-icon tile in `public/brand/`.
  *
- * The masters keep their stable filenames — `scripts/generate-icons.mjs`, the
- * docs and the icon matrix all key off them ("swap the source content, not
- * the filenames", tasks/lessons.md). But a stable name meets two
+ * Only the header tile is served as a file. The brand MARK is inlined instead
+ * (`src/components/BrandMark.tsx`) so it can take `currentColor` and follow the
+ * theme — an <img> cannot be recoloured per scheme. That is why there is no
+ * longer a `BRAND_MARK_SRC` here.
+ *
+ * The tile is `vizion-icon-light.svg`, the composed Light appearance. Composed
+ * — not the flat plate the PNG derivatives are built from — because nothing
+ * masks an <img> in a web document: here the baked squircle and its gradient
+ * are the point, and they are what the user already sees on the home screen
+ * once iOS has rounded and glassified the flat tile. (The inverse rule governs
+ * the derivatives: `scripts/generate-icons.mjs` must NEVER rasterize this file,
+ * or the OS would round already-rounded corners.)
+ *
+ * The master keeps its stable filename — the docs and the icon matrix key off
+ * these names ("swap the source content, not the filenames",
+ * tasks/lessons.md). But a stable name meets two
  * stale-while-revalidate layers in front of the live DOM: the `/brand/:path*`
  * HTTP policy (next.config.ts, a day fresh + a week served-stale) sits UNDER
  * the service worker's StaleWhileRevalidate image route, whose background
@@ -20,5 +33,4 @@
  */
 const BRAND_ASSET_VERSION = "2";
 
-export const BRAND_ICON_SRC = `/brand/vizion-icon-token.svg?v=${BRAND_ASSET_VERSION}`;
-export const BRAND_MARK_SRC = `/brand/vizion-mark-token.svg?v=${BRAND_ASSET_VERSION}`;
+export const BRAND_ICON_SRC = `/brand/vizion-icon-light.svg?v=${BRAND_ASSET_VERSION}`;

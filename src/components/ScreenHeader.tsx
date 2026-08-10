@@ -27,14 +27,17 @@ export function ScreenHeader({
       <div className="mx-auto flex max-w-screen-sm items-center justify-between gap-3 px-4 py-3">
         {brand ? (
           <div className="flex items-center gap-2">
-            {/* App icon (squircle) to the LEFT of the wordmark — R1.1. */}
+            {/* App icon (squircle) to the LEFT of the wordmark — R1.1. No
+                `rounded-*`: the composed Light appearance carries its own
+                squircle, and a CSS circular-arc radius over a superellipse
+                clips a sliver off each corner instead of following it. */}
             <Image
               src={BRAND_ICON_SRC}
               alt=""
               width={36}
               height={36}
               priority
-              className="h-9 w-9 rounded-[8px]"
+              className="h-9 w-9"
             />
             {/* The wordmark IS the screen's heading — every screen gets an h1
                 so the document outline never starts at an h2. */}
