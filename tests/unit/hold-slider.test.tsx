@@ -688,7 +688,11 @@ describe("revert paths", () => {
     expect(fireEvent.keyDown(document.body, { key: "ArrowDown" })).toBe(false);
     expect(fireEvent.keyDown(document.body, { key: "Tab" })).toBe(false);
     expect(fireEvent.keyDown(document.body, { key: "PageDown" })).toBe(false);
+    // Chords pass — except on the activation keys, which still run a
+    // focused button's native activation under Ctrl/Meta (fifteenth pass).
     expect(fireEvent.keyDown(document.body, { key: "c", ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(document.body, { key: "Enter", ctrlKey: true })).toBe(false);
+    expect(fireEvent.keyDown(document.body, { key: " ", metaKey: true })).toBe(false);
     fireEvent.keyDown(window, { key: "Escape" });
     expect(overlay()).toBeNull();
     up();
@@ -735,11 +739,13 @@ describe("one gesture at a time, app-wide", () => {
   function TwinHosts({
     onCommitA = () => {},
     onCommitB = () => {},
+    onOpenA = () => {},
     onOpenB = () => {},
     showA = true,
   }: {
     onCommitA?: (i: number) => void;
     onCommitB?: (i: number) => void;
+    onOpenA?: () => void;
     onOpenB?: () => void;
     showA?: boolean;
   }) {
@@ -753,7 +759,9 @@ describe("one gesture at a time, app-wide", () => {
             onCommit={onCommitA}
             enabled
           >
-            <button type="button">A</button>
+            <button type="button" onClick={onOpenA}>
+              A
+            </button>
           </HoldSliderTrigger>
         )}
         <HoldSliderTrigger
@@ -1013,8 +1021,9 @@ describe("one gesture at a time, app-wide", () => {
     // catch (modality audit). Concealment is a pointercancel: revert,
     // never commit, everything released.
     const onCommitA = vi.fn();
+    const onOpenA = vi.fn();
     const onOpenB = vi.fn();
-    render(<TwinHosts onCommitA={onCommitA} onOpenB={onOpenB} />);
+    render(<TwinHosts onCommitA={onCommitA} onOpenA={onOpenA} onOpenB={onOpenB} />);
     downOn(pillA(), 1);
     hold();
     expect(overlays()).toHaveLength(1);
@@ -1022,7 +1031,17 @@ describe("one gesture at a time, app-wide", () => {
     expect(overlays()).toHaveLength(0);
     expect(frozen()).toBe(false);
     expect(onCommitA).not.toHaveBeenCalled();
-    // The claim died with the press: the other pill lives.
+    // The concealed stream is abandoned, not finished: the user returns
+    // and lifts over the pill — capture survived, the click synthesizes
+    // minutes later, and it must die with ITS stream, not open the sheet
+    // after a revert (fifteenth pass).
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA());
+    expect(onOpenA).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // The claim died with the press: the other pill lives…
     downOn(pillB(), 2);
     hold();
     expect(overlays()).toHaveLength(1);
@@ -1032,6 +1051,11 @@ describe("one gesture at a time, app-wide", () => {
     });
     fireEvent.click(pillB());
     expect(onOpenB).toHaveBeenCalledTimes(1);
+    // …and so does the concealed pill itself, on its next fresh tap.
+    downOn(pillA(), 1);
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillA());
+    expect(onOpenA).toHaveBeenCalledTimes(1);
   });
 
   it("releases the claim on unmount — a dead owner never bricks the surviving sliders", () => {

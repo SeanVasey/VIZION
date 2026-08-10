@@ -150,7 +150,14 @@ All notable changes to VIZION are documented here. The format follows
   the active phase alongside the existing touch block. The complete
   phase × channel matrix — every cell's enforcing mechanism or recorded
   acceptance — is now a section of ADR-0012, so future findings locate
-  in the table instead of arriving one review at a time.
+  in the table instead of arriving one review at a time. Two cell
+  corrections followed (fifteenth pass): the activation keys now die
+  under any modifiers (Ctrl/Meta+Enter still ran a focused button's
+  native activation — the chord exemption was meant for browser
+  shortcuts, not page-level activation), and a concealed press hands
+  its trailing click to the refused-stream end-watch (the lift can land
+  on the pill minutes after a blur revert, far outside the same-task
+  suppression window).
 
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the

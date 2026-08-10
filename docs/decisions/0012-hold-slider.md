@@ -501,7 +501,13 @@ commit:
    would all sit leaked in a background tab — the passes-11/12 leak
    class through the only channel with no event to net. Window `blur`
    and `visibilitychange`→hidden now ride each press like the pointer
-   net and are treated exactly as pointercancel: revert, never commit.
+   net and are treated exactly as pointercancel: revert, never commit —
+   and the concealed stream, abandoned rather than finished, hands its
+   trailing click to the refused-stream machinery (the lift can land on
+   the pill minutes later, far outside settle()'s same-task window;
+   fifteenth pass, alongside closing the modifier exemption on the
+   activation keys, which still ran a focused button's native activation
+   under Ctrl/Meta).
 2. **The key list was itself a hole.** The fourteenth pass swallowed
    Enter and Space — an enumeration. Arrows, PageUp/Down, Home and End
    scroll the document beneath the frozen world; Tab wanders focus.
@@ -516,17 +522,17 @@ The matrix, as now enforced (phases: REST · PRE-HOLD, pointer-down to
 classification · ACTIVE, capsule up · TAIL, cancelled press awaiting its
 lift · SETTLE, the post-lift task):
 
-| Channel                          | Pre-hold                                                | Active                                        | Tail                              |
-| -------------------------------- | ------------------------------------------------------- | --------------------------------------------- | --------------------------------- |
-| Own pointer stream               | slop/axis rules + hold timer                            | capture; x-only drag                          | capture retained; lift ends all   |
-| 2nd pointer, same wrapper        | refused (`press.current`); click dies via claim         | + shield                                      | same                              |
-| 2nd pointer, other wrapper       | refused (claim); marker + end-watch outlive the owner   | + shield                                      | same                              |
-| 2nd pointer, non-wrapped control | free until activation → dialog probe stands down        | shield                                        | free (world visually at rest)     |
-| Keyboard                         | free (probe covers the sheet outcome at activation)     | all unmodified keys die; Escape reverts       | free                              |
-| Scroll (touch / wheel / keys)    | `touch-action: pinch-zoom`                              | touchmove + wheel blocks + key swallow        | touch-action persists             |
-| Lift/end delivery                | wrapper handlers + window net + concealment revert      | + capture                                     | capture + net + concealment       |
-| Sheets                           | cannot start a gesture (admission); probe at activation | cannot open (shield + keys)                   | may open — legitimate, no capsule |
-| World motion                     | live                                                    | frozen ornaments; blur stands down mid-stream | live                              |
+| Channel                          | Pre-hold                                                | Active                                                                   | Tail                              |
+| -------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------- |
+| Own pointer stream               | slop/axis rules + hold timer                            | capture; x-only drag                                                     | capture retained; lift ends all   |
+| 2nd pointer, same wrapper        | refused (`press.current`); click dies via claim         | + shield                                                                 | same                              |
+| 2nd pointer, other wrapper       | refused (claim); marker + end-watch outlive the owner   | + shield                                                                 | same                              |
+| 2nd pointer, non-wrapped control | free until activation → dialog probe stands down        | shield                                                                   | free (world visually at rest)     |
+| Keyboard                         | free (probe covers the sheet outcome at activation)     | unmodified keys die; Enter/Space die under any modifiers; Escape reverts | free                              |
+| Scroll (touch / wheel / keys)    | `touch-action: pinch-zoom`                              | touchmove + wheel blocks + key swallow                                   | touch-action persists             |
+| Lift/end delivery                | wrapper handlers + window net + concealment revert      | + capture                                                                | capture + net + concealment       |
+| Sheets                           | cannot start a gesture (admission); probe at activation | cannot open (shield + keys)                                              | may open — legitimate, no capsule |
+| World motion                     | live                                                    | frozen ornaments; blur stands down mid-stream                            | live                              |
 
 At REST every channel is untouched, and in SETTLE only the one same-task
 click is suppressed (suppressClick / the refusal marker). Recorded

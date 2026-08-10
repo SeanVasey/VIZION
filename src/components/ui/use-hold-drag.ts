@@ -327,12 +327,19 @@ export function useHoldDrag({
     // Enter/Space and opened its sheet under the live capsule, and an
     // enumeration of "activation keys" was itself the next hole (arrows,
     // PageUp/Down, Home/End scroll the document beneath the frozen world;
-    // Tab wanders focus). While the capsule is up, EVERY unmodified key
+    // Tab wanders focus). While the capsule is up, every unmodified key
     // except Escape dies here at the window's capture phase, keydown and
-    // keyup both (native buttons activate Space on keyup). Modifier chords
-    // pass — they belong to the browser and the OS, not the page. Escape
-    // above stays the one designed key.
-    if (e.key !== "Escape" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // keyup both (native buttons activate Space on keyup) — and the
+    // activation keys die REGARDLESS of modifiers, because Ctrl/Meta+Enter
+    // still runs a focused button's native activation (fifteenth pass:
+    // the modifier exemption was scoped for browser chords like copy and
+    // reload, and page-level activation rode through it). Escape above
+    // stays the one designed key.
+    const isActivationKey = e.key === "Enter" || e.key === " ";
+    if (
+      e.key !== "Escape" &&
+      (isActivationKey || (!e.ctrlKey && !e.metaKey && !e.altKey))
+    ) {
       e.preventDefault();
       e.stopPropagation();
     }
@@ -402,6 +409,7 @@ export function useHoldDrag({
         return;
       }
       if (!press.current) return;
+      const concealed = press.current;
       press.current = null;
       releaseGesture();
       teardownRef.current();
@@ -409,8 +417,18 @@ export function useHoldDrag({
       window.removeEventListener("pointercancel", onWindowPointerEnd);
       window.removeEventListener("blur", onWindowConceal);
       document.removeEventListener("visibilitychange", onWindowConceal);
+      // The concealed stream is not finished — only abandoned. Capture can
+      // survive into the user's return, so the eventual lift over the pill
+      // still synthesizes a click, minutes after the revert and far outside
+      // settle()'s same-task window (fifteenth pass). The refused-stream
+      // machinery is exactly this shape: mark the stream, watch for its
+      // true end anywhere, clear one task later so only its own click dies.
+      refusedPress.current = true;
+      refusedPointerId.current = concealed.pointerId;
+      window.addEventListener("pointerup", onRefusedEnd);
+      window.addEventListener("pointercancel", onRefusedEnd);
     },
-    [releaseGesture, onWindowPointerEnd],
+    [releaseGesture, onWindowPointerEnd, onRefusedEnd],
   );
 
   /** Disarm the nets wherever the press dies through the wrapper itself. */
