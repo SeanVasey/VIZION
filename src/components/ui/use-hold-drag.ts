@@ -68,26 +68,37 @@ export interface TrackGeometry {
  * Where the overlay track lands, PURE and exported: jsdom has no layout, so
  * geometry must derive from these constants and the few numbers passed in,
  * never from measuring rendered dots. The track has a FIXED HOME — centered
- * in the viewport (the app shell is a centered max-w-screen-sm column, so
- * the viewport's center IS the composer's), on the gesturing rail's row —
+ * in the viewport the user is LOOKING AT, on the gesturing rail's row —
  * the same spot for every press (ADR-0012 amendment 4, from the owner's
  * reference recording: a capsule that lands wherever the finger happened to
  * be reads as floaty, and the first cut's anchor-under-finger placement did
  * exactly that). The finger still maps RELATIVELY through dragOffset, so
  * the press point never jumps the selection; only the capsule's home is
- * fixed. EDGE_MARGIN_PX clamps the rare track wider than the viewport
- * allows, left edge winning like the original clamp.
+ * fixed.
+ *
+ * `viewport` is the VISUAL viewport in layout-viewport coordinates —
+ * {left: 0, width: innerWidth} unzoomed, `visualViewport`'s offset/width
+ * under pinch zoom. This control deliberately preserves native pinch zoom
+ * (the resting `pinch-zoom` claim), and a fixed-position capsule centered
+ * on the LAYOUT viewport can open entirely outside a zoomed-in user's view
+ * (Codex review, PR #103). Unzoomed, the shell is a centered
+ * max-w-screen-sm column, so the visual center IS the composer's.
+ * EDGE_MARGIN_PX clamps within the same visible region, left edge winning
+ * like the original clamp.
  */
 export function computeTrackGeometry(
   anchorRect: { top: number; height: number },
   detentCount: number,
-  viewportWidth: number,
+  viewport: { left: number; width: number },
 ): TrackGeometry {
   const span = (detentCount - 1) * DETENT_SPACING_PX;
   const width = span + TRACK_PAD_PX * 2;
   const left = Math.max(
-    EDGE_MARGIN_PX,
-    Math.min((viewportWidth - width) / 2, viewportWidth - EDGE_MARGIN_PX - width),
+    viewport.left + EDGE_MARGIN_PX,
+    Math.min(
+      viewport.left + (viewport.width - width) / 2,
+      viewport.left + viewport.width - EDGE_MARGIN_PX - width,
+    ),
   );
   const top = anchorRect.top + anchorRect.height / 2 - TRACK_HEIGHT_PX / 2;
   const first = left + TRACK_PAD_PX;
@@ -209,10 +220,16 @@ export function useHoldDrag({
       const p = press.current;
       if (!p) return;
       const { detentCount: count, selectedIndex: selected } = latest.current;
+      // The visual viewport, so a pinch-zoomed user gets the capsule inside
+      // the region they are looking at; jsdom (and old engines) fall back to
+      // the layout viewport, where the two are the same thing.
+      const vv = window.visualViewport;
       const geometry = computeTrackGeometry(
         p.el.getBoundingClientRect(),
         count,
-        window.innerWidth,
+        vv
+          ? { left: vv.offsetLeft, width: vv.width }
+          : { left: 0, width: window.innerWidth },
       );
       // Touch/pen are implicitly captured to the pointer-down target already;
       // this is for a mouse outrunning the wrapper. try/catch for jsdom.

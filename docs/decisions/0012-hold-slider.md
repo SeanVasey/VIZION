@@ -227,7 +227,11 @@ Three changes, superseding two acceptance-era choices:
    measured against the reference it read as floaty, and predictability
    won. The finger still maps RELATIVELY (dragOffset anchors the selected
    detent to the press x), which is why the entire drag/commit suite
-   survived the migration untouched.
+   survived the migration untouched. Review refinement (Codex, PR #103):
+   the center and clamp use the VISUAL viewport (`visualViewport`
+   offset/width, layout-viewport fallback) — this control deliberately
+   preserves native pinch zoom, and a fixed-position capsule centered on
+   the layout viewport can open entirely outside a zoomed-in user's view.
 2. **A thumb rides the fill's leading edge** (`data-hold-slider-thumb`,
    28px, glass ground + hair ring, core disc tone-colored by the same
    FILL_CLASS ramp — text-free fills only). Position now reads as an

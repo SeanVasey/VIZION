@@ -11,9 +11,11 @@ All notable changes to VIZION are documented here. The format follows
 - **The hold-slider becomes the reference control: fixed home, sliding
   thumb, blurred focus** (ADR-0012 amendment 4; owner reference recording
   of ChatGPT's iOS gauge). The capsule now expands in a FIXED HOME —
-  centered in the viewport (the shell is a centered column, so viewport
-  center is the composer's), on the gesturing rail's row — the same spot
-  for every press, where the first cut anchored the selected detent under
+  centered in the viewport the user is looking at (the VISUAL viewport
+  under pinch zoom, per review, since the control preserves native zoom;
+  unzoomed, the shell is a centered column, so viewport center is the
+  composer's), on the gesturing rail's row — the same spot for every
+  press, where the first cut anchored the selected detent under
   the finger and landed wherever the press happened to be; the finger
   still maps relatively through dragOffset, so the press point never
   jumps the selection and the whole drag/commit suite passed unchanged. A

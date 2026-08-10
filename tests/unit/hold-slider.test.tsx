@@ -103,12 +103,14 @@ afterEach(() => {
 describe("track geometry (pure)", () => {
   const rect = { top: 500, height: 44 };
 
+  const wholeViewport = (width: number) => ({ left: 0, width });
+
   it("lands in its fixed home — viewport-centered, on the rail's row", () => {
     // ADR-0012 amendment 4: the first cut anchored the selected detent under
     // the finger, so the capsule landed wherever the press happened to be.
     // The home is now fixed: centered in the viewport (the shell is a
     // centered column, so viewport center IS the composer's), rail's y.
-    const geo = computeTrackGeometry(rect, 6, 1024);
+    const geo = computeTrackGeometry(rect, 6, wholeViewport(1024));
     expect(geo.width).toBe(5 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
     expect(geo.left).toBe((1024 - geo.width) / 2);
     expect(geo.top).toBe(500 + rect.height / 2 - geo.height / 2);
@@ -119,25 +121,39 @@ describe("track geometry (pure)", () => {
   });
 
   it("stays centered on a phone viewport", () => {
-    const geo = computeTrackGeometry(rect, 6, 390);
+    const geo = computeTrackGeometry(rect, 6, wholeViewport(390));
     expect(geo.left).toBe((390 - geo.width) / 2);
   });
 
-  it("clamps to the left margin when centering cannot fit", () => {
-    // Eight detents on a narrow phone: wider than the viewport minus both
-    // margins — the left edge wins, like the original clamp.
-    const geo = computeTrackGeometry(rect, 8, 360);
-    expect(geo.width).toBe(7 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
-    expect(geo.left).toBe(EDGE_MARGIN_PX);
+  it("centers in the VISUAL viewport under pinch zoom", () => {
+    // The control preserves native pinch zoom, and a fixed-position capsule
+    // centered on the LAYOUT viewport can open entirely outside a zoomed-in
+    // user's view (Codex review, PR #103). The caller passes the visual
+    // viewport's offset/width; the home must sit inside that region.
+    const geo = computeTrackGeometry(rect, 3, { left: 300, width: 200 });
+    expect(geo.width).toBe(2 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
+    expect(geo.left).toBe(300 + (200 - geo.width) / 2);
+    expect(geo.left).toBeGreaterThanOrEqual(300);
+    expect(geo.left + geo.width).toBeLessThanOrEqual(500);
+  });
+
+  it("clamps to the visible left margin when centering cannot fit", () => {
+    // Wider than the visible region minus both margins — the left edge
+    // wins, like the original clamp, INSIDE the region the user sees.
+    const narrow = computeTrackGeometry(rect, 8, wholeViewport(360));
+    expect(narrow.width).toBe(7 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
+    expect(narrow.left).toBe(EDGE_MARGIN_PX);
+    const zoomed = computeTrackGeometry(rect, 8, { left: 300, width: 200 });
+    expect(zoomed.left).toBe(300 + EDGE_MARGIN_PX);
   });
 
   it("sizes the track from the detent count", () => {
-    const geo = computeTrackGeometry(rect, 4, 1024);
+    const geo = computeTrackGeometry(rect, 4, wholeViewport(1024));
     expect(geo.width).toBe(3 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
   });
 
   it("maps x to the nearest detent, clamped at the ends", () => {
-    const geo = computeTrackGeometry(rect, 6, 1024);
+    const geo = computeTrackGeometry(rect, 6, wholeViewport(1024));
     const first = geo.detentCenters[0]!;
     expect(detentIndexForX(first, geo)).toBe(0);
     expect(detentIndexForX(first + 2 * DETENT_SPACING_PX + 10, geo)).toBe(2);
