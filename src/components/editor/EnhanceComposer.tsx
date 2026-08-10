@@ -564,6 +564,7 @@ export function EnhanceComposer() {
               autoPreference={autoPreference}
               onAutoPreferenceChange={setAutoPreference}
               triggerClassName={RAIL_TRIGGER_CLASS}
+              holdHint={autoTarget}
             />
           </HoldSliderTrigger>
         </div>
@@ -587,12 +588,16 @@ export function EnhanceComposer() {
                 still opens the sheet below — the wrapper adds the gesture
                 without touching the picker's props, so the memo and the
                 matched-pair trigger class both hold. */}
+            {/* detentMarker="bar": mid-drag this capsule is the DepthGlyph
+                meter expanded — rising ticks say LADDER, and tell it apart
+                from the budget capsule's equal dots one rail up. */}
             <HoldSliderTrigger
               detents={thinkingDetents}
               selectedIndex={thinkingSelectedIndex}
               liveLabel={thinkingLiveLabel}
               onCommit={onThinkingCommit}
               enabled
+              detentMarker="bar"
             >
               <ThinkingPicker
                 label="Thinking depth"
@@ -600,6 +605,7 @@ export function EnhanceComposer() {
                 options={levelOptions}
                 onChange={onThinkingChange}
                 triggerClassName={RAIL_TRIGGER_CLASS}
+                holdHint
               />
             </HoldSliderTrigger>
           </div>

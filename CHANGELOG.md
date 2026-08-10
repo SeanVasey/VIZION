@@ -6,6 +6,24 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The hold-slider announces itself, and the two capsules stopped dressing
+  alike** (ADR-0012 amendment, owner affordance pass). The press-and-hold
+  gesture was invisible at rest — the sheet was deliberately the only
+  discoverable path — so slider-wrapped pills now wear `HoldSliderHint`,
+  three detent dots in miniature at the trailing edge, rendered strictly
+  while the slider is live (the Target pill hints only under Auto routing;
+  Settings' picker, which has no slider, never hints; aria-hidden, so the
+  label stays the readout and the sheet stays the accessible path). And the
+  Thinking capsule now draws its detents as ascending bars — the DepthGlyph
+  meter's own vocabulary, so mid-drag it reads as the meter expanded, a
+  ladder — while the budget capsule keeps equal dots whose growing fill is
+  the spend readout. Distinction by form, not hue: bar height rides ladder
+  position, fill color stays keyed to the level's identity
+  (silver→laser→ultra), tokens stay locked, and the budget ramp's laser cap
+  stands.
+
 ### Fixed
 
 - **An open picker sheet is now inert to the hold-slider** (ADR-0012

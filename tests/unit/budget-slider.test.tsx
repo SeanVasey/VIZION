@@ -84,6 +84,21 @@ afterEach(() => {
 });
 
 describe("budget hold-slider gating", () => {
+  it("shows the hold affordance only while the slider is live", () => {
+    // The hint mirrors `enabled` exactly: a hint over a dead gesture would
+    // be a lie, and Auto-off is precisely when the pill is a pure tap
+    // trigger. (Settings' picker never passes the prop and never hints.)
+    const { rerender } = renderComposer();
+    expect(targetTrigger().querySelector("[data-hold-hint]")).not.toBeNull();
+    useUIStore.setState({ autoTarget: false });
+    rerender(
+      <ToastProvider>
+        <EnhanceComposer />
+      </ToastProvider>,
+    );
+    expect(targetTrigger().querySelector("[data-hold-hint]")).toBeNull();
+  });
+
   it("is inert while Auto routing is off — a hold expands nothing", () => {
     useUIStore.setState({ autoTarget: false });
     renderComposer();

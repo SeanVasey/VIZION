@@ -312,6 +312,11 @@ test.describe("thinking hold-slider", () => {
     await page.mouse.move(cx, cy);
     await page.mouse.down();
     await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+    // The thinking capsule wears rising bars (the DepthGlyph vocabulary),
+    // six for Opus's ladder — the budget capsule keeps equal dots.
+    await expect(
+      page.locator("[data-hold-slider-overlay] [data-detent-bar]"),
+    ).toHaveCount(6);
     await page.mouse.move(cx + 3 * 44, cy, { steps: 6 });
     await page.mouse.up();
 

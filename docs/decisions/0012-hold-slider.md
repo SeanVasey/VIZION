@@ -2,8 +2,9 @@
 
 Date: 2026-08-09
 Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
-ruling, DSN-022); amended same day after the first on-device pass — see
-below
+ruling, DSN-022); amended same day after the first on-device pass, and
+2026-08-10 for presses inside an open sheet + the owner's affordance pass —
+see below
 
 ## Context
 
@@ -112,3 +113,51 @@ touch", Chromium-only. Which of the two defects the owner's device hit is
 not established and does not need to be; real-iOS confirmation of the
 repaired gesture stays on the manual list in
 `docs/runbooks/ios-verification.md`.
+
+## Amendment (2026-08-10): presses inside the open sheet
+
+The overlay's z-[85] rationale asserted "a Sheet can never be open
+mid-gesture" — true of gestures, but nothing enforced it for PRESSES.
+`HoldSliderTrigger` wraps the whole picker, pill and body-portalled Sheet
+alike, and React re-dispatches portal children's events up the COMPONENT
+tree: with the Target sheet open (Auto on), holding its Auto card, a
+routing segment, a model row, or the scrim engaged the slider — capsule
+drawn across the open sheet, an uninvited commit on release, the row's tap
+swallowed by the trailing-click suppression, sheet scrolling pinned by the
+active-phase touchmove preventDefault. (The Thinking rail, enabled
+unconditionally, was the worse half.) Repair: `useHoldDrag` starts a
+gesture only when the pointer-down target is a DOM descendant of the
+wrapper (`e.currentTarget.contains(e.target)`) — containment is the exact
+discriminator, since portalled children are React-tree but not DOM-tree
+descendants, and every legitimate press targets the pill, which is one.
+Every entry path keys off that single admission, so one guard closes all
+of them. The Sheet itself is unchanged: stopping pointer propagation in
+the app's one dialog primitive would mute presses for every ancestor of
+every sheet — too broad a lever for a contract that belongs to the gesture
+hook.
+
+## Amendment (2026-08-10): the owner's affordance pass
+
+Two of this decision's accepted trades were revisited on owner direction
+("thought through with consideration to user experience and aesthetic
+quality"), both resolved with FORM, never a new hue (tokens stay locked;
+the `--dev-*` corridor stays library-list-only per [0003]):
+
+1. **The gesture is no longer invisible at rest.** Acceptance shipped the
+   sheet as the only discoverable path. Now `HoldSliderHint` — three
+   detent dots in miniature, the capsule's own vocabulary — sits at the
+   trailing edge of a slider-wrapped pill, rendered by the pickers behind
+   an opt-in `holdHint` prop that mirrors the slider's `enabled` exactly
+   (Target hints only under Auto; Settings' picker, which has no slider,
+   never hints). aria-hidden decoration: the label stays the readout, the
+   sheet stays the accessible path.
+2. **The two stacked capsules stopped dressing alike.** Budget and
+   Thinking both drew equal dots, distinguishable mid-drag only by count.
+   The overlay now takes `detentMarker`: the Thinking rail passes `bar`
+   and its capsule draws ascending ticks — the DepthGlyph meter's
+   vocabulary, so mid-drag it reads as the meter expanded (a LADDER) —
+   while budget keeps equal `dot`s (equal choices; the fill width is the
+   spend readout, [0004]'s "fill width does the disambiguating" ruling
+   untouched). Bar height rides the detent's ladder POSITION while the
+   fill's color stays keyed to the level's IDENTITY — shape says higher,
+   color says which tier; the DepthGlyph split of duties.

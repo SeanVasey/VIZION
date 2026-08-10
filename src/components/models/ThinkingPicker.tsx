@@ -3,6 +3,7 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
+import { HoldSliderHint } from "@/components/ui/HoldSlider";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
 import {
@@ -42,6 +43,7 @@ function ThinkingPickerImpl({
   onChange,
   label,
   triggerClassName,
+  holdHint,
 }: {
   /** The chosen level, or undefined for Auto (send nothing). */
   value: ThinkingLevel | undefined;
@@ -52,6 +54,9 @@ function ThinkingPickerImpl({
   /** Accessible name for the trigger, e.g. "Thinking depth". */
   label: string;
   triggerClassName?: string;
+  /** True while a HoldSliderTrigger around this pill is live — renders the
+   *  resting detent-dot affordance (see TargetPicker's twin prop). */
+  holdHint?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -72,6 +77,7 @@ function ThinkingPickerImpl({
         <span className="grow truncate text-left">
           {value ? THINKING_LEVEL_LABEL[value] : "Auto"}
         </span>
+        {holdHint && <HoldSliderHint />}
         <PickerChevron />
       </button>
       <ThinkingPickerSheet

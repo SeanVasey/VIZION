@@ -48,12 +48,44 @@ const LABEL_CLASS: Record<Detent["tone"], string> = {
   ultra: "text-ultra",
 };
 
+/** How the overlay draws its detents. `dot` is the default vocabulary;
+ *  `bar` renders ascending ticks — the Thinking rail's, so mid-drag its
+ *  capsule reads as the DepthGlyph meter expanded (a LADDER), while the
+ *  budget capsule's equal dots read as equal choices whose fill is the
+ *  spend. Form is the disambiguator between the two stacked sliders —
+ *  never a new hue (tokens are locked, and the ramp is the level's). */
+export type DetentMarker = "dot" | "bar";
+
+/**
+ * Resting affordance for the hold gesture — three detent dots at the pill's
+ * trailing edge, the capsule's own vocabulary in miniature. ADR-0012 shipped
+ * with the sheet as the only DISCOVERABLE path and the gesture invisible at
+ * rest; the 2026-08-10 owner pass revisited that trade. Static, aria-hidden
+ * decoration: the pill label stays the readout, the sheet stays the
+ * accessible path, and the pickers render it only while their slider is
+ * actually enabled — a hint that outlived its gesture would be a lie.
+ */
+export function HoldSliderHint() {
+  return (
+    <span
+      aria-hidden="true"
+      data-hold-hint=""
+      className="inline-flex shrink-0 items-center gap-[3px]"
+    >
+      <span className="h-[3px] w-[3px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
+      <span className="h-[3px] w-[3px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
+      <span className="h-[3px] w-[3px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
+    </span>
+  );
+}
+
 export function HoldSliderTrigger({
   detents,
   selectedIndex,
   liveLabel,
   onCommit,
   enabled,
+  detentMarker = "dot",
   children,
 }: {
   detents: readonly Detent[];
@@ -66,6 +98,8 @@ export function HoldSliderTrigger({
   onCommit: (index: number) => void;
   /** False = the wrapper is inert and claims nothing; taps are untouched. */
   enabled: boolean;
+  /** Detent glyph vocabulary — see DetentMarker. */
+  detentMarker?: DetentMarker;
   /** The existing trigger pill, rendered unchanged. */
   children: ReactNode;
 }) {
@@ -106,6 +140,7 @@ export function HoldSliderTrigger({
           dragIndex={active.dragIndex}
           geometry={active.geometry}
           label={liveLabel(dragDetent)}
+          marker={detentMarker}
         />
       )}
     </span>
@@ -116,6 +151,11 @@ export function HoldSliderTrigger({
 const DOT_R = 4;
 /** Inset between the track's border and the fill capsule. */
 const FILL_INSET_PX = 6;
+/** Bar-marker geometry: 3px ticks rising from BAR_MIN to BAR_MAX across the
+ *  track, so the ladder's shape is legible inside the 48px capsule. */
+const BAR_W_PX = 3;
+const BAR_MIN_PX = 8;
+const BAR_MAX_PX = 20;
 
 /**
  * The expanded track — pure presentation; the suites (unit and e2e) reach it
@@ -136,11 +176,13 @@ function HoldSliderOverlay({
   dragIndex,
   geometry,
   label,
+  marker,
 }: {
   detents: readonly Detent[];
   dragIndex: number;
   geometry: TrackGeometry;
   label: string;
+  marker: DetentMarker;
 }) {
   if (typeof document === "undefined") return null;
   const tone = detents[dragIndex]?.tone ?? "silver";
@@ -176,18 +218,36 @@ function HoldSliderOverlay({
             width: Math.max(fillWidth, geometry.height - FILL_INSET_PX * 2),
           }}
         />
-        {centers.map((x, i) => (
-          <span
-            key={detents[i]!.id}
-            data-detent-dot={detents[i]!.id}
-            className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-              i <= dragIndex
-                ? "bg-[color-mix(in_srgb,var(--void-2)_55%,transparent)]"
-                : "bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]"
-            }`}
-            style={{ left: x, width: DOT_R * 2, height: DOT_R * 2 }}
-          />
-        ))}
+        {centers.map((x, i) => {
+          const reached =
+            i <= dragIndex
+              ? "bg-[color-mix(in_srgb,var(--void-2)_55%,transparent)]"
+              : "bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]";
+          // Bars rise with the detent's ladder position — position, not the
+          // tone's identity, deliberately: the SHAPE says "higher", the fill
+          // color still says which tier (the DepthGlyph split of duties).
+          return marker === "bar" ? (
+            <span
+              key={detents[i]!.id}
+              data-detent-bar={detents[i]!.id}
+              className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${reached}`}
+              style={{
+                left: x,
+                width: BAR_W_PX,
+                height:
+                  BAR_MIN_PX +
+                  ((BAR_MAX_PX - BAR_MIN_PX) * i) / Math.max(centers.length - 1, 1),
+              }}
+            />
+          ) : (
+            <span
+              key={detents[i]!.id}
+              data-detent-dot={detents[i]!.id}
+              className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${reached}`}
+              style={{ left: x, width: DOT_R * 2, height: DOT_R * 2 }}
+            />
+          );
+        })}
       </div>
     </div>,
     document.body,

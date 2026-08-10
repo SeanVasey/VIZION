@@ -98,6 +98,17 @@ describe("thinking rail sizing", () => {
     expect(screen.getByText("Thinking").tagName).toBe("SPAN");
     expect(thinkingTrigger()).toHaveAccessibleName(/Thinking depth/);
   });
+
+  it("wears the hold affordance at rest — decoration only, name untouched", () => {
+    renderComposer();
+    // This rail's slider is enabled unconditionally, so the hint always
+    // shows. aria-hidden: the pill label stays the readout and the sheet
+    // stays the accessible path (the affordance is for eyes only).
+    const hint = thinkingTrigger().querySelector("[data-hold-hint]");
+    expect(hint).not.toBeNull();
+    expect(hint!.getAttribute("aria-hidden")).toBe("true");
+    expect(thinkingTrigger()).toHaveAccessibleName(/^Thinking depth/);
+  });
 });
 
 describe("thinking rail behaviour", () => {
@@ -202,7 +213,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     vi.useRealTimers();
   });
 
-  it("offers [Auto, ...the target's ladder] as detents — six for Opus", () => {
+  it("offers [Auto, ...the target's ladder] as rising bars — six for Opus", () => {
     renderComposer();
     fireEvent.pointerDown(thinkingTrigger(), {
       pointerId: 1,
@@ -213,8 +224,12 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     act(() => {
       vi.advanceTimersByTime(HOLD_MS);
     });
-    const dots = overlay()!.querySelectorAll("[data-detent-dot]");
-    expect([...dots].map((d) => d.getAttribute("data-detent-dot"))).toEqual([
+    // Bars, not dots: this capsule wears the DepthGlyph's rising-tick
+    // vocabulary, which is also what tells it apart from the budget
+    // capsule's equal dots one rail up.
+    expect(overlay()!.querySelector("[data-detent-dot]")).toBeNull();
+    const bars = overlay()!.querySelectorAll<HTMLElement>("[data-detent-bar]");
+    expect([...bars].map((d) => d.getAttribute("data-detent-bar"))).toEqual([
       "auto",
       "low",
       "medium",
@@ -222,6 +237,10 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       "xhigh",
       "max",
     ]);
+    // Ascending: the ladder's shape is legible in the ticks themselves.
+    const heights = [...bars].map((b) => parseFloat(b.style.height));
+    expect(heights[0]).toBeLessThan(heights[heights.length - 1]!);
+    expect([...heights].sort((a, b) => a - b)).toEqual(heights);
     fireEvent.pointerUp(thinkingTrigger(), {
       pointerId: 1,
       clientX: DOWN_X,
@@ -241,7 +260,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     act(() => {
       vi.advanceTimersByTime(HOLD_MS);
     });
-    expect(overlay()!.querySelectorAll("[data-detent-dot]")).toHaveLength(4);
+    expect(overlay()!.querySelectorAll("[data-detent-bar]")).toHaveLength(4);
     fireEvent.pointerCancel(thinkingTrigger(), { pointerId: 1 });
 
     useUIStore.setState({ targetModel: "gemini_3_6_flash" });
@@ -259,7 +278,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     act(() => {
       vi.advanceTimersByTime(HOLD_MS);
     });
-    expect(overlay()!.querySelector('[data-detent-dot="minimal"]')).not.toBeNull();
+    expect(overlay()!.querySelector('[data-detent-bar="minimal"]')).not.toBeNull();
     fireEvent.pointerCancel(thinkingTrigger(), { pointerId: 1 });
   });
 

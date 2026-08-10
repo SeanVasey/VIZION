@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createPortal } from "react-dom";
-import { HoldSliderTrigger, type Detent } from "@/components/ui/HoldSlider";
+import {
+  HoldSliderTrigger,
+  type Detent,
+  type DetentMarker,
+} from "@/components/ui/HoldSlider";
 import {
   DETENT_SPACING_PX,
   EDGE_MARGIN_PX,
@@ -44,11 +48,13 @@ function Host({
   selectedIndex = 0,
   onCommit = () => {},
   onOpen = () => {},
+  detentMarker,
 }: {
   enabled?: boolean;
   selectedIndex?: number;
   onCommit?: (i: number) => void;
   onOpen?: () => void;
+  detentMarker?: DetentMarker;
 }) {
   return (
     <HoldSliderTrigger
@@ -57,6 +63,7 @@ function Host({
       liveLabel={liveLabel}
       onCommit={onCommit}
       enabled={enabled}
+      detentMarker={detentMarker}
     >
       <button type="button" onClick={onOpen}>
         Pill
@@ -302,6 +309,36 @@ describe("drag, commit, and the trailing click", () => {
     moveTo(DOWN_X + 5 * DETENT_SPACING_PX);
     up(DOWN_X + 5 * DETENT_SPACING_PX);
     expect(region.textContent).toBe("Fable 5 · Max");
+  });
+});
+
+describe("detent marker vocabulary", () => {
+  it("renders equal dots by default", () => {
+    render(<Host />);
+    down();
+    hold();
+    const dots = overlay()!.querySelectorAll<HTMLElement>("[data-detent-dot]");
+    expect(dots).toHaveLength(DETENTS.length);
+    expect(overlay()!.querySelector("[data-detent-bar]")).toBeNull();
+    // Equal: dots carry no per-detent shape — the fill width is the readout.
+    const sizes = new Set([...dots].map((d) => d.style.height));
+    expect(sizes.size).toBe(1);
+    up();
+  });
+
+  it("renders ascending bars under detentMarker='bar'", () => {
+    render(<Host detentMarker="bar" />);
+    down();
+    hold();
+    expect(overlay()!.querySelector("[data-detent-dot]")).toBeNull();
+    const bars = overlay()!.querySelectorAll<HTMLElement>("[data-detent-bar]");
+    expect(bars).toHaveLength(DETENTS.length);
+    const heights = [...bars].map((b) => parseFloat(b.style.height));
+    // Strictly ascending — the ladder's shape, legible in the ticks.
+    for (let i = 1; i < heights.length; i++) {
+      expect(heights[i]!).toBeGreaterThan(heights[i - 1]!);
+    }
+    up();
   });
 });
 
