@@ -118,11 +118,17 @@ All notable changes to VIZION are documented here. The format follows
   shield from the stale press. A window-scoped pointerup/pointercancel
   net now rides each press's exact lifetime and ends it on lifts the
   wrapper never saw (capture-at-admission was declined — it would change
-  edge-press semantics), pinned red→green in unit and both engines. One
-  residual
-  two-finger race is accepted and recorded in the ADR: a non-wrapped
-  trigger tapped inside another pill's 300ms pre-hold window — cosmetic
-  and self-healing.
+  edge-press semantics), pinned red→green in unit and both engines. A
+  thirteenth pass closed the last two hybrid holes: the one residual the
+  ninth pass had accepted — a non-wrapped trigger opening a sheet inside
+  another pill's 300ms pre-hold window — is now closed rather than
+  accepted (`activate()` probes `role="dialog"`, honoring the
+  accessibility tree, and stands down like a y-dominant scroll: the
+  sheet is the senior surface from both directions); and a refusal now
+  outlives its owner (a per-instance marker keeps a refused press's
+  click consumed even when the owning gesture releases before the
+  refused pointer lifts — the claim alone could not carry the refusal to
+  its end).
 
 - **The world-pause under the focus blur is now complete** (ADR-0012
   amendment; Codex review, eighth pass). The gesture freeze covered the

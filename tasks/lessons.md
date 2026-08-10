@@ -3246,3 +3246,17 @@ test:e2e` hard-fails in global-setup until
   held across an interval, name the mechanism that guarantees the
   interval ENDS — and check it is armed for the WHOLE interval, not from
   the first event you happen to observe.
+
+- **An accepted residual is a standing invitation — re-price it when the
+  reviewer returns with a cheaper repair.** The ninth pass declined
+  closing the pre-hold sheet race because "a DOM-wide dialog probe" read
+  as unwanted coupling; the thirteenth re-raised it framed as "cancel
+  activation when another interaction wins," and the probe turned out to
+  be a web-platform semantic (`role="dialog"`, read through the
+  accessibility tree), not an internal selector. The decline had priced
+  the wrong repair. Corollary from the same pass: a refusal recorded
+  only in GLOBAL state (the claim) cannot outlive that state — if the
+  refused stream can end after the owner's, the refusal needs its own
+  per-stream memory. Scope such markers to where they cannot collide
+  with legitimate events (per-instance, cross-pill only — a same-wrapper
+  boolean cannot tell two streams' clicks apart).

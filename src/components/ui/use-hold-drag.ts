@@ -241,6 +241,19 @@ export function useHoldDrag({
   /** This instance's identity for the module-level exclusive-gesture claim. */
   const ownerToken = useRef<object>({});
 
+  /** A press this wrapper refused for a FOREIGN claim, whose click has not
+   *  yet arrived. The claim alone cannot carry the refusal to its end: the
+   *  owner can release before the refused pointer lifts, and at click time
+   *  both the claim and suppressClick are clear — the press documented as
+   *  refused whole then opened this pill's sheet (thirteenth pass).
+   *  Per-instance, so it can never collide with another wrapper's
+   *  legitimate clicks; reset by the next pointer-down on this wrapper
+   *  (a new stream supersedes), cleared when the refused click is eaten.
+   *  Deliberately NOT set for same-wrapper refusals (`press.current`): both
+   *  streams share this one wrapper, and a boolean cannot tell the refused
+   *  stream's click from the live press's own legitimate one. */
+  const refusedPress = useRef(false);
+
   /** Give up the exclusive claim — called wherever `press.current` dies. */
   const releaseGesture = useCallback(() => {
     if (gestureOwner === ownerToken.current) gestureOwner = null;
@@ -334,6 +347,33 @@ export function useHoldDrag({
     (currentX?: number) => {
       const p = press.current;
       if (!p) return;
+      // No capsule over an open sheet, enforced from the second direction
+      // (thirteenth pass): the admission guard stops gestures BEGINNING over
+      // a sheet, but during the pre-hold window the input shield is not yet
+      // mounted, so a second input device can open one through a non-wrapped
+      // trigger (the template button, a confirm) before the timer fires.
+      // The sheet is the senior surface — activation stands down exactly
+      // like a y-dominant scroll: cancelled, captured so the lift routes
+      // back, click swallowed, the sheet untouched. role="dialog" is the
+      // web-platform contract every sheet announces; probed once, at this
+      // single moment, honoring the accessibility tree: an EXITING sheet
+      // stays mounted for its animation under an aria-hidden wrapper, and
+      // hidden means closed — it is inert and vanishing, so a hold begun
+      // as it closes still engages. (This reverses the ninth pass's
+      // recorded "accepted residual" — the probe is a platform semantic,
+      // not the DOM coupling that decline priced in.)
+      const dialogOpen = Array.from(document.querySelectorAll('[role="dialog"]')).some(
+        (d) => !d.closest('[aria-hidden="true"]'),
+      );
+      if (dialogOpen) {
+        cancelled.current = true;
+        try {
+          p.el.setPointerCapture(p.pointerId);
+        } catch {
+          /* jsdom, or a pointer already ended */
+        }
+        return;
+      }
       const { detentCount: count, selectedIndex: selected } = latest.current;
       // The visual viewport, so a pinch-zoomed user gets the capsule inside
       // the region they are looking at; jsdom (and old engines) fall back to
@@ -390,11 +430,17 @@ export function useHoldDrag({
   function onPointerDown(e: React.PointerEvent) {
     if (!enabled || press.current) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    // A new stream on this wrapper supersedes any still-pending refusal
+    // marker (its click never arrived — the pointer released elsewhere).
+    refusedPress.current = false;
     // One gesture at a time, app-wide (see gestureOwner): while another
     // pill's press or drag is live, this press is refused outright — and
-    // its eventual click dies in onClickCapture, so the refused pill is
-    // fully inert rather than falling through as a tap.
-    if (gestureOwner && gestureOwner !== ownerToken.current) return;
+    // its eventual click dies in onClickCapture, marked here so the
+    // refusal survives even if the owner releases first.
+    if (gestureOwner && gestureOwner !== ownerToken.current) {
+      refusedPress.current = true;
+      return;
+    }
     // Admission rule: a gesture may only begin in the wrapper's own DOM
     // subtree. The wrapped children include each picker's SHEET — a body
     // portal that React still bubbles up the COMPONENT tree — so without
@@ -520,17 +566,20 @@ export function useHoldDrag({
 
   function onClickCapture(e: React.MouseEvent) {
     // Eat the click when this instance's own gesture just settled
-    // (suppressClick), or while ANY hold-slider press is live — foreign or
-    // our own, deliberately without a self-exemption. The ninth pass
-    // consumed only foreign-claim clicks; the tenth closed the carve-out:
-    // with our own claim live, a click on this pill can only be a SECOND
-    // input device (a mouse click landing inside a touch press's pre-hold
+    // (suppressClick), while ANY hold-slider press is live — foreign or
+    // our own, deliberately without a self-exemption — or when it belongs
+    // to a stream this wrapper refused whose owner has since released
+    // (refusedPress; thirteenth pass). The ninth pass consumed only
+    // foreign-claim clicks; the tenth closed the self-carve-out: with our
+    // own claim live, a click on this pill can only be a SECOND input
+    // device (a mouse click landing inside a touch press's pre-hold
     // window, Enter on the focused pill mid-drag), and it opened this
     // pill's own sheet under the arriving capsule. The legitimate plain-tap
     // click is safe by protocol order, not by identity: pointer-up releases
     // the claim synchronously before the browser dispatches the click, so
     // at click time gestureOwner is already null.
-    if (suppressClick.current || gestureOwner !== null) {
+    if (suppressClick.current || refusedPress.current || gestureOwner !== null) {
+      refusedPress.current = false;
       e.preventDefault();
       e.stopPropagation();
     }

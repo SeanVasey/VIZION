@@ -885,6 +885,64 @@ describe("one gesture at a time, app-wide", () => {
     expect(onOpenB).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a refused press refused even when the owner releases first", () => {
+    // The claim alone cannot carry the refusal to its end: touch owns A,
+    // mouse-down on B is refused, then A commits and releases the claim
+    // BEFORE the mouse lifts — at B's click time both the claim and B's
+    // suppressClick were clear, and the press documented as refused whole
+    // opened B's sheet (thirteenth pass). The per-instance marker survives
+    // the owner's release and dies with the refused stream's own click.
+    const onOpenB = vi.fn();
+    render(<TwinHosts onOpenB={onOpenB} />);
+    downOn(pillA(), 1);
+    hold();
+    downOn(pillB(), 2); // refused — foreign claim
+    fireEvent.pointerUp(pillA(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    act(() => {
+      vi.advanceTimersByTime(1); // A's settle clears A's own suppression
+    });
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB()); // the refused stream's click, post-claim
+    expect(onOpenB).not.toHaveBeenCalled();
+    // The refusal ended with its stream: a fresh tap on B works.
+    downOn(pillB(), 2);
+    fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.click(pillB());
+    expect(onOpenB).toHaveBeenCalledTimes(1);
+  });
+
+  it("stands down at activation when a sheet opened during the pre-hold window", () => {
+    // The admission guard stops gestures BEGINNING over a sheet; this is
+    // the symmetric half (thirteenth pass): the input shield mounts only at
+    // activation, so a second device can open a sheet through a
+    // non-wrapped trigger inside the 300ms window. The sheet is senior —
+    // the hold stands down like a y-dominant scroll instead of mounting
+    // the capsule over it.
+    const onCommit = vi.fn();
+    const onOpen = vi.fn();
+    render(<Host onCommit={onCommit} onOpen={onOpen} />);
+    down();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    document.body.appendChild(dialog);
+    hold(); // the timer fires into the probe
+    expect(overlay()).toBeNull();
+    expect(document.documentElement.hasAttribute("data-hold-gesture")).toBe(false);
+    up();
+    fireEvent.click(pill());
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled(); // the lift's click is swallowed
+    dialog.remove();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    // Sheet gone — the control is fresh.
+    down();
+    hold();
+    expect(overlay()).not.toBeNull();
+    up();
+  });
+
   it("releases the claim on unmount — a dead owner never bricks the surviving sliders", () => {
     const onCommitB = vi.fn();
     const { rerender } = render(<TwinHosts onCommitB={onCommitB} />);

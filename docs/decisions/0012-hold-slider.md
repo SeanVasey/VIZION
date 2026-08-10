@@ -404,13 +404,16 @@ touch), and captured streams bypass hit-testing. The dim mounts in every
 presentation, so the shield holds under stand-downs and `dynamicBackdrop`
 alike.
 
-One residual window is accepted and recorded: a NON-wrapped trigger
-tapped by a second finger inside another pill's 300ms pre-hold window
-(before the shield mounts) can still open its sheet, and the capsule then
-draws over it. That is a two-finger race into a cosmetic, self-healing
-state — release restores the world and the sheet stays usable — and
-closing it would take a DOM-wide dialog probe at activation, a coupling
-this control does not want. Pinned in unit (consumed click mid-active and
+One residual window was accepted and recorded here: a NON-wrapped
+trigger tapped by a second finger inside another pill's 300ms pre-hold
+window (before the shield mounts) could still open its sheet, and the
+capsule then drew over it — priced as a two-finger race whose closure
+"would take a DOM-wide dialog probe at activation, a coupling this
+control does not want." _(Superseded by the thirteenth pass, below: the
+review re-raised it with the repair reframed as "cancel activation when
+another interaction wins," and `role="dialog"` is a web-platform
+semantic, not the internal coupling that decline priced in — the
+residual is now closed.)_ Pinned in unit (consumed click mid-active and
 pre-hold, twin harness; the composer's Target pill inert while a Thinking
 capsule is up, working again on release) and e2e (a trial click on the
 other pill fails Playwright's receives-events actionability check while
@@ -428,3 +431,31 @@ releases the claim synchronously before the browser dispatches the
 click, so a legitimate tap's click always arrives with no claim held.
 Unit-pinned: the owning pill's click consumed pre-hold and mid-drag, the
 gesture unbroken through both, and the ordinary tap untouched at rest.
+
+The thirteenth pass closed the modality's last two hybrid holes. First,
+the residual this amendment had accepted: the review re-raised it with a
+cheaper repair — "cancel activation when another interaction wins" — and
+the decline was re-priced and reversed. `activate()` now probes for an
+open dialog (`role="dialog"`, honoring the accessibility tree: an
+exiting sheet under an aria-hidden wrapper counts as closed, since it is
+inert and vanishing) and stands down exactly like a y-dominant scroll —
+cancelled, captured so the lift routes back, click swallowed, the sheet
+untouched. The sheet is the senior surface from both directions now: no
+gesture begins over one (admission guard), and none completes onto one
+(activation probe). Second, an ordering hole in the refusal itself: the
+claim alone could not carry a refusal to its end — if the owning gesture
+released before the refused pointer lifted, both the claim and the
+refused pill's suppressClick were clear at click time, and the press
+documented as refused whole opened its sheet after all. A per-instance
+`refusedPress` marker now survives the owner's release and dies with the
+refused stream's own click (or is superseded by the next pointer-down on
+that wrapper). The marker is deliberately NOT set for same-wrapper
+refusals: both streams share one wrapper there, and a boolean cannot
+tell the refused stream's click from the live press's legitimate one —
+the mid-claim consumption already covers that case, and its post-claim
+tail cannot recreate the sheet-under-capsule state (no capsule is live).
+Pinned in unit, all red pre-fix: the refused-then-orphaned click
+consumed with the fresh tap working after; the synthetic-dialog
+stand-down with the world unfrozen and the lift swallowed; and at the
+composer, the template sheet opened by a second device mid-press staying
+open and untouched while the capsule never mounts.

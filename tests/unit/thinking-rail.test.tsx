@@ -425,6 +425,35 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     expect(screen.getByRole("dialog", { name: "Target model" })).toBeInTheDocument();
   });
 
+  it("never mounts the capsule over a sheet a second device opened mid-press", () => {
+    // The template button is a NON-wrapped trigger: during the thinking
+    // pill's 300ms pre-hold window (shield not yet mounted, claim only
+    // consulted by wrapped pills) a second device's click opens the
+    // template sheet — and pre-fix the timer then drew the capsule over it
+    // (thirteenth pass). Activation now probes role="dialog" and stands
+    // down; the sheet stays open and untouched.
+    renderComposer();
+    fireEvent.pointerDown(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /try a template/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    expect(overlay()).toBeNull();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+    });
+    expect(useUIStore.getState().thinkingLevels).toEqual({});
+  });
+
   it("stays out of its own open sheet — a held row is a tap, not a drag", () => {
     // This rail's slider is enabled unconditionally, so pre-guard it was the
     // worse half of the 2026-08-10 defect: the sheet is a body portal but a
