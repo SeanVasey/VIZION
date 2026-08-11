@@ -6,6 +6,53 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The accent corridor's last unwritten floor becomes a test
+
+ADR-0003 requires every developer accent to sit at least **20 ΔE2000 from
+`--laser`** — 18 from `--flare`, 15 from `--amber` and `--pulse` — so an identity
+mark on a library card can never be mistaken for a status colour. Nothing
+asserted it. `developer-accents.test.ts` bound luminance against the composited
+card fills and ΔE2000 _between_ accents; the clearance to the state tokens lived
+only in the ADRs, and 1367 passing tests said nothing about it.
+
+That gap had already cost something. The `--laser` retune below moved the token
+across a 15.6° hue shift, and every one of those floors had to be recomputed **by
+hand** to know the twelve accents survived it — a green suite could not answer
+the question. Worse, 0011's own reasoning leans on the floors: the openai maroon
+is sanctioned on the grounds that "every dE2000 floor still passing at THIS
+value", a sentence pinned by a test asserting the hex and by nothing asserting
+the floors.
+
+So the floors are now assertions, read from `tokens.css` rather than hardcoded —
+the test follows a future retune instead of pinning the value a retune is trying
+to change.
+
+The load-bearing part is not the floors but the **self-check above them**: a
+subtly wrong CIEDE2000 would clear all four thresholds and silently license the
+breach it was meant to catch. The implementation is therefore pinned to a number
+measured, reviewed and committed independently of this test — 0011's published
+`--dev-openai` ↔ `--laser` figure of **66.7**, against the historical `#b7ff3c`,
+because it is checking the arithmetic and not today's palette. Two further tests
+prove the check discriminates rather than merely passes: a hue a hair off
+`--laser` must land below the floor, and google is asserted as the tightest real
+clearance (37.0 — still nearly double, but the margin a future retune squeezes
+first).
+
+Proven red before green. Pointing `--dev-google` at a near-laser green fails with
+`clearance to --laser (#dffa04): expected [ 'google 1.8 < 20' ]` — the accent,
+the measured value and the floor, which is what whoever trips this will need
+mid-retune.
+
+`public/brand/` also loses the two retired I›O masters (`vizion-icon-token.svg`,
+`vizion-mark-token.svg`). Nothing has referenced them since the header stopped
+serving a plated tile, and they were the last artwork in the tree carrying a mark
+the product no longer uses. The other ten files stay: `vizion-glyph.svg` is the
+live raster master, and the composed previews, background layers and Icon
+Composer foregrounds are the current identity's source set — `foreground-lime.svg`
+in particular is the evidence ADR-0013 and the generator header cite to show the
+0.74 transform reproduces the shipped artwork. Deleting that would delete the
+proof of a claim the repo makes.
+
 ### The header wears the mark, not the tile — and one green survives the round trip
 
 Two follow-ups to the retune below, both aimed at the same seam: the accent in
