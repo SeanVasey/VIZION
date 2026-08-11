@@ -13,15 +13,47 @@ import { BottomNav } from "@/components/nav/BottomNav";
 
 const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.variable}`;
 
+// One canonical origin for absolute metadata URLs (Open Graph / Twitter card
+// images resolve against `metadataBase`). Overridable per deploy; the fallback
+// is the documented production domain (docs/runbooks/shortcuts.md).
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vizion-io.vercel.app";
+const DESCRIPTION =
+  "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.";
+// The share/"template" card. Generated in-canon from tokens.css + the master
+// glyph by scripts/generate-social-card.mjs, so it can never disagree with the
+// brand green (1280×640 is GitHub's and the OG spec's large-card ratio).
+const SOCIAL_CARD = "/brand/social-card.png";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   applicationName: "VIZION",
   title: {
     default: "VIZION — prompt-engineering studio",
     template: "%s · VIZION",
   },
-  description:
-    "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.",
+  description: DESCRIPTION,
   manifest: "/manifest.webmanifest",
+  openGraph: {
+    type: "website",
+    siteName: "VIZION",
+    title: "VIZION — prompt-engineering studio",
+    description: DESCRIPTION,
+    url: "/",
+    images: [
+      {
+        url: SOCIAL_CARD,
+        width: 1280,
+        height: 640,
+        alt: "VIZION — a VASEY/AI prompt-engineering studio",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VIZION — prompt-engineering studio",
+    description: DESCRIPTION,
+    images: [SOCIAL_CARD],
+  },
   // NO appleWebApp block: the two static apple metas are hand-written in the
   // <head> below. metadata.appleWebApp — even without statusBarStyle — makes
   // React OWN an apple-mobile-web-app-status-bar-style tag and re-insert it

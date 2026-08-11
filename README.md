@@ -27,8 +27,15 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 
 <div align="center">
 
-<!-- Live capture of the shipped sign-in gate (v0.3.0), rendered from the production build. -->
-<img src="./docs/preview.png" alt="VIZION sign-in gate — the I›O mark, wordmark, VASEY/AI + version pills, and the three Supabase auth methods" width="300" />
+<!-- Live captures of the shipped app, rendered from the production build
+     (CAPTURE=1 npx playwright test capture.spec.ts --project=mobile-chrome). -->
+<img src="./docs/preview.png" alt="VIZION sign-in gate — the VIZION mark, wordmark, VASEY/AI + version pills, and the three Supabase auth methods" width="300" />
+
+<br /><br />
+
+<img src="./docs/shot-enhance.png" alt="VIZION composer — the six-mode rail, target-model and thinking-depth selectors, and the prompt field" width="264" />
+&nbsp;&nbsp;
+<img src="./docs/shot-library.png" alt="VIZION library — saved prompts with per-model badges, version counts, tags, and the activity feed" width="264" />
 
 </div>
 
