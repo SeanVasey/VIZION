@@ -341,18 +341,22 @@ function HoldSliderOverlay({
 }) {
   const { dragIndex, geometry, phase } = active;
   const isLatched = phase === "latched";
-  const scrubbing = useRef(false);
+  /** The pointer that owns the current scrub, or null. Identity-checked on
+   *  every later event the way useHoldDrag checks its own press record: a
+   *  second device's stray up/cancel must not end — or commit — a scrub it
+   *  never started. */
+  const scrubPointer = useRef<number | null>(null);
 
   const onTrackPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (!isLatched) return;
+      if (!isLatched || scrubPointer.current !== null) return;
       // The capsule is a body portal, but React still bubbles its events up
       // the COMPONENT tree into the wrapper's own pointer handlers — where
       // they would be logged as a refused competing press. Stopping here is
       // the local fix; the wrapper's admission guard stays exactly as it is
       // for the portalled SHEETS it was written for.
       e.stopPropagation();
-      scrubbing.current = true;
+      scrubPointer.current = e.pointerId;
       try {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       } catch {
@@ -365,7 +369,7 @@ function HoldSliderOverlay({
 
   const onTrackPointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isLatched || !scrubbing.current) return;
+      if (!isLatched || scrubPointer.current !== e.pointerId) return;
       e.stopPropagation();
       latched.scrubTo(e.clientX);
     },
@@ -374,10 +378,36 @@ function HoldSliderOverlay({
 
   const onTrackPointerUp = useCallback(
     (e: React.PointerEvent) => {
-      if (!isLatched) return;
+      if (!isLatched || scrubPointer.current !== e.pointerId) return;
       e.stopPropagation();
-      scrubbing.current = false;
+      scrubPointer.current = null;
       latched.commit();
+    },
+    [isLatched, latched],
+  );
+
+  /**
+   * Cancellation REVERTS — it never commits (Codex review, PR #109).
+   *
+   * `pointercancel` is the OS taking the stream away: a system gesture, a
+   * call arriving, the UA deciding mid-scrub that this was a pan. The user
+   * released nothing, so there is nothing to save, and the whole gesture
+   * system already treats cancel this way — useHoldDrag's own
+   * onPointerCancel tears the drag down without calling onCommit. Routing
+   * this to the commit handler (the first cut did) would have written
+   * whichever detent the finger happened to be over when the OS interrupted:
+   * a depth or a routing preference the user never confirmed, saved silently.
+   *
+   * Dismissing outright, rather than snapping back and staying open, is the
+   * same choice the drag phase makes: the capsule came up under a pointer
+   * that no longer exists.
+   */
+  const onTrackPointerCancel = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isLatched || scrubPointer.current !== e.pointerId) return;
+      e.stopPropagation();
+      scrubPointer.current = null;
+      latched.dismiss();
     },
     [isLatched, latched],
   );
@@ -459,7 +489,7 @@ function HoldSliderOverlay({
         onPointerDown={onTrackPointerDown}
         onPointerMove={onTrackPointerMove}
         onPointerUp={onTrackPointerUp}
-        onPointerCancel={onTrackPointerUp}
+        onPointerCancel={onTrackPointerCancel}
       >
         {/* The live readout rides in a chip of its own, not as bare text: the
           overlay floats over whatever the composer has at that y, and an

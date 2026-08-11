@@ -753,6 +753,46 @@ describe("the latched phase (latchOnTap)", () => {
     expect(overlay()).toBeNull();
   });
 
+  it("reverts on a cancelled scrub — the OS taking the stream is not a commit", () => {
+    // pointercancel is the OS taking the pointer away mid-scrub: a system
+    // gesture, a call arriving, the UA reclassifying the drag as a pan. The
+    // user released nothing. The first cut routed cancel to the commit
+    // handler, which would have saved whichever detent the finger happened
+    // to be over at the interruption (Codex review, PR #109) — and every
+    // other cancellation path in this system reverts.
+    const onCommit = vi.fn();
+    render(<Host latchOnTap onCommit={onCommit} />);
+    tapOpen();
+    const track = overlay()!;
+    fireEvent.pointerDown(track, { pointerId: 2, clientX: centerX(3), clientY: 400 });
+    expect(overlay()!.textContent).toContain("High");
+    fireEvent.pointerCancel(track, { pointerId: 2, clientX: centerX(3), clientY: 400 });
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(overlay()).toBeNull();
+    // …and the claim came down with it, so the control still works.
+    tapOpen();
+    expect(overlay()).not.toBeNull();
+  });
+
+  it("ignores a stray second pointer's up or cancel on the track", () => {
+    // The scrub is identity-checked the way useHoldDrag checks its own press
+    // record: a second device's events must not end — much less commit — a
+    // scrub they never started.
+    const onCommit = vi.fn();
+    render(<Host latchOnTap onCommit={onCommit} />);
+    tapOpen();
+    const track = overlay()!;
+    fireEvent.pointerDown(track, { pointerId: 2, clientX: centerX(2), clientY: 400 });
+    fireEvent.pointerUp(track, { pointerId: 7, clientX: centerX(5), clientY: 400 });
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(overlay()).not.toBeNull();
+    fireEvent.pointerCancel(track, { pointerId: 7, clientX: centerX(5), clientY: 400 });
+    expect(overlay()).not.toBeNull();
+    // The owning pointer still finishes its own scrub normally.
+    fireEvent.pointerUp(track, { pointerId: 2, clientX: centerX(2), clientY: 400 });
+    expect(onCommit).toHaveBeenCalledWith(2);
+  });
+
   it("holds the app-wide claim for the capsule's whole life", () => {
     // The claim is what makes one capsule exclusive. The drag phase releases
     // it at pointer-up; the latched phase must INHERIT it instead, or a

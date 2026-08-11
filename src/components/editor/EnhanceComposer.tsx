@@ -5,6 +5,7 @@ import { useUIStore } from "@/stores/ui";
 import { useEnhanceViewStore } from "@/stores/enhance-view";
 import {
   TARGET_THINKING_LEVELS,
+  type AutoPreference,
   type TargetModelId,
   type ThinkingLevel,
 } from "@/lib/constants";
@@ -391,6 +392,23 @@ export function EnhanceComposer() {
     [targetModel],
   );
 
+  // The routing dial retires the how-to line too (Codex review, PR #109).
+  // The line names the gesture, not one rail — "tap a dial… or press and
+  // hold" — so a user whose FIRST dial is Auto's has already demonstrated it,
+  // and coming back to the composer to be told how would be the tip lying
+  // about what it knows. Wired here rather than inside TargetPicker: that
+  // picker is entirely prop-driven (Settings renders it with no store at all)
+  // and reaching into the UI store from it would trade that away for one
+  // flag. Stable identity, so the memoized picker still holds (PERF-006).
+  const onAutoPreferenceChange = useCallback(
+    (next: AutoPreference) => {
+      const store = useUIStore.getState();
+      if (!store.dialTipSeen) store.setDialTipSeen(true);
+      setAutoPreference(next);
+    },
+    [setAutoPreference],
+  );
+
   // Persist Polish's revert decisions with the result they belong to — as
   // component state in the diff they died on navigation while the result now
   // survives, silently shipping the model's fully-accepted output (Codex
@@ -524,7 +542,7 @@ export function EnhanceComposer() {
             auto={autoTarget}
             onAutoChange={setAutoTarget}
             autoPreference={autoPreference}
-            onAutoPreferenceChange={setAutoPreference}
+            onAutoPreferenceChange={onAutoPreferenceChange}
             triggerClassName={RAIL_TRIGGER_CLASS}
           />
         </div>

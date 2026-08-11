@@ -241,6 +241,24 @@ describe("tuning dial commits", () => {
     expect(s.autoPreference).toBe("quality");
   });
 
+  it("retires the how-to line when it is the FIRST dial used", () => {
+    // The line names the gesture, not one rail, so a user whose first dial is
+    // this one has already demonstrated it — and returning to the composer to
+    // be told how would be the tip lying about what it knows (Codex review,
+    // PR #109). Wired through the composer, which owns the tip, so
+    // TargetPicker stays entirely prop-driven for Settings' sake.
+    useUIStore.setState({ dialTipSeen: false });
+    renderComposer();
+    expect(document.querySelector("[data-dial-coach-tip]")).not.toBeNull();
+    openSheet();
+    holdAndDrag(1);
+    expect(useUIStore.getState().dialTipSeen).toBe(true);
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Target model" }), {
+      key: "Escape",
+    });
+    expect(document.querySelector("[data-dial-coach-tip]")).toBeNull();
+  });
+
   it("steps on the arrow keys without disturbing the model radiogroup", () => {
     // The dial renders INSIDE the sheet's radiogroup, whose roving handler
     // claims the same arrows and would otherwise yank focus onto a model row

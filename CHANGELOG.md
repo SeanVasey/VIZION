@@ -61,7 +61,7 @@ pins the values and the direction rule itself. Every effect stands down under
 starfield removed outright rather than frozen.
 
 A one-line how-to sits under the Thinking rail and **retires itself** the
-first time any dial commits a value — the redesign trades a legible lie (a
+first time either dial commits a value — the redesign trades a legible lie (a
 chevron over no dropdown) for an invisible truth (a grip over a slider), and
 a hint proven unnecessary should not survive to be read twice.
 

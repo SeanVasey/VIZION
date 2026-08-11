@@ -764,6 +764,18 @@ describe("the dials' how-to line (ADR-0014)", () => {
     expect(tip()).toBeNull();
   });
 
+  it("gives its dismissal a real 44px target, not a 39px one", () => {
+    // The floor applies to the TAP TARGET, not the ink — the label is one
+    // small word by design. `tap-44` is the repo's extender for exactly that
+    // (a pseudo-element sized max(100%, 44px) on both axes). The first cut
+    // used py-3 plus a negative margin, which measured ~39px on an 11px line
+    // and set no minimum width at all (Codex review, PR #109).
+    renderComposer();
+    const dismiss = screen.getByRole("button", { name: "Got it" });
+    expect(dismiss.className).toContain("tap-44");
+    expect(dismiss.className).not.toContain("-my-3");
+  });
+
   it("dismisses explicitly, and stays gone", () => {
     const { rerender } = renderComposer();
     fireEvent.click(screen.getByRole("button", { name: "Got it" }));

@@ -46,9 +46,16 @@ export function DialCoachTip() {
         onClick={() => setSeen(true)}
         // The 44px floor applies to the TAP TARGET, not the ink: the label is
         // one small word by design (it must not out-shout the tip it
-        // dismisses), so the target is grown with padding and a negative
-        // margin that keeps the row's own height unchanged.
-        className="-my-3 shrink-0 py-3 pl-2 font-medium text-accent transition-colors hover:text-chalk"
+        // dismisses). `tap-44` is the repo's extender for exactly that — a
+        // pseudo-element sized `max(100%, 44px)` on both axes, centred on the
+        // button, which grows the HIT AREA without touching layout.
+        //
+        // The first cut tried to do it with `py-3` plus a negative margin and
+        // fell short in both directions (Codex review, PR #109): an 11px
+        // leading-snug line plus 24px of padding is ~39px, not 44, the word
+        // sets no minimum width at all, and a negative margin moves the box
+        // rather than extending what hit-testing sees.
+        className="tap-44 shrink-0 pl-2 font-medium text-accent transition-colors hover:text-chalk"
       >
         Got it
       </button>
