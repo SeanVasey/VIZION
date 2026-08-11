@@ -371,9 +371,35 @@ function AutoTuningDial({
   const detent = BUDGET_DETENTS[selectedIndex]!;
   const max = BUDGET_DETENTS.length - 1;
 
+  /**
+   * A COMMIT always notifies, even when it lands on the stop already stored
+   * (Codex review, PR #109).
+   *
+   * `onChange` here is not a plain setter — it is the parent's
+   * `onPickPreference`, which stores the preference AND turns Auto on. So a
+   * "nothing changed, skip it" guard was not the harmless de-duplication it
+   * looked like: it silently dropped the second half. The case it broke is
+   * the DEFAULT one — Auto off, preference already Balanced, user opens the
+   * dial and commits Balanced — where the documented shortcut ("adjusting
+   * the dial is choosing Auto", the behaviour the Segmented had) simply did
+   * not fire. Deliberately choosing a stop is an act whether or not it moves
+   * the value.
+   *
+   * Re-storing the same preference is genuinely free: the store writes an
+   * identical value, so every value-selecting subscriber sees no change.
+   */
   const commitIndex = (next: number) => {
     const landed = BUDGET_DETENTS[Math.max(0, Math.min(max, next))];
-    if (landed && landed.id !== value) onChange(landed.id as AutoPreference);
+    if (landed) onChange(landed.id as AutoPreference);
+  };
+
+  /** A keyboard step is the one interaction that can fail to be a choice: an
+   *  arrow at the end of the ladder moves nothing, and a key that did nothing
+   *  visible must not flip a mode. Movement first, then commit. */
+  const stepTo = (next: number) => {
+    const clamped = Math.max(0, Math.min(max, next));
+    if (clamped === selectedIndex) return;
+    commitIndex(clamped);
   };
 
   return (
@@ -415,7 +441,7 @@ function AutoTuningDial({
           }
           if (next === null) return;
           e.preventDefault();
-          commitIndex(next);
+          stepTo(next);
         }}
         className="font-body flex min-h-[44px] w-full items-center gap-2 rounded-xl bg-surface px-4 py-1.5 text-sm text-text"
       >

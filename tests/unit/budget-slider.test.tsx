@@ -259,6 +259,40 @@ describe("tuning dial commits", () => {
     expect(document.querySelector("[data-dial-coach-tip]")).toBeNull();
   });
 
+  it("turns Auto on even when the committed stop is the one already stored", () => {
+    // The default case, and the one a de-duplication guard silently broke
+    // (Codex review, PR #109): Auto off, preference already Balanced, user
+    // opens the dial and commits Balanced. `onChange` here is not a plain
+    // setter — it also turns Auto on — so "nothing changed, skip it" dropped
+    // the half that mattered. Deliberately choosing a stop is an act whether
+    // or not it moves the value.
+    useUIStore.setState({ autoTarget: false, autoPreference: "balanced" });
+    renderComposer();
+    openSheet();
+    holdAndDrag(0); // release on the anchor stop — no travel at all
+    const s = useUIStore.getState();
+    expect(s.autoTarget).toBe(true);
+    expect(s.autoPreference).toBe("balanced");
+  });
+
+  it("does NOT flip Auto on from an arrow that cannot move", () => {
+    // The one interaction that can fail to be a choice. A key that did
+    // nothing visible must not flip a mode — so movement is checked before
+    // the commit, rather than the commit checking for change.
+    useUIStore.setState({ autoTarget: false, autoPreference: "quality" });
+    renderComposer();
+    openSheet();
+    const dial = tuningDial();
+    dial.focus();
+    fireEvent.keyDown(dial, { key: "ArrowRight" }); // already at the top
+    expect(useUIStore.getState().autoTarget).toBe(false);
+    // …but a step that DOES move is a choice, and turns Auto on.
+    fireEvent.keyDown(tuningDial(), { key: "ArrowLeft" });
+    const s = useUIStore.getState();
+    expect(s.autoTarget).toBe(true);
+    expect(s.autoPreference).toBe("balanced");
+  });
+
   it("steps on the arrow keys without disturbing the model radiogroup", () => {
     // The dial renders INSIDE the sheet's radiogroup, whose roving handler
     // claims the same arrows and would otherwise yank focus onto a model row
