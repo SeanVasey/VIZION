@@ -764,6 +764,25 @@ describe("the dials' how-to line (ADR-0014)", () => {
     expect(tip()).toBeNull();
   });
 
+  it("keeps its dismissal's hit area off the dial above it", () => {
+    // `tap-44` centres a 44px pseudo-element, so on a ~15px line it overhangs
+    // ~14px each way — and this row sits 4px under the Thinking rail with the
+    // button right-aligned, directly beneath the dial. The overhang reached
+    // into the dial's lower edge, right where the grip is, so tapping to open
+    // the slider dismissed the tip instead (Codex review, PR #109). The row
+    // now reserves the button's own target height and the button centres
+    // inside it, which contains the pseudo within the row.
+    renderComposer();
+    const tipRow = tip() as HTMLElement;
+    expect(tipRow.className).toContain("min-h-[44px]");
+    expect(screen.getByRole("button", { name: "Got it" }).className).toContain(
+      "self-center",
+    );
+    // The glyph still rides the first text line — the reserved height is the
+    // button's business, not the copy's.
+    expect(tipRow.className).toContain("items-start");
+  });
+
   it("gives its dismissal a real 44px target, not a 39px one", () => {
     // The floor applies to the TAP TARGET, not the ink — the label is one
     // small word by design. `tap-44` is the repo's extender for exactly that

@@ -167,6 +167,13 @@ explicit "Got it" writes the same `dialTipSeen` flag.
 - Escape now `stopPropagation`s. A latched capsule can be open inside a
   Sheet, whose panel closes on a bubbled Escape; one Escape must dismiss one
   surface, the one in front.
+- **Pinch-zoom survives a latched capsule.** The active-phase `touchmove`
+  block is right for a drag — it stops a late pan stealing the captured
+  pointer, and it lasts exactly as long as the press. The latched phase
+  inverts that lifetime, so the same blanket block disabled zoom for as long
+  as the capsule was up, in an app that preserves native zoom on purpose.
+  Multi-touch is exempt while latched; one finger stays blocked, because the
+  world under the capsule still must not glide.
 - **The dial spans a scrolling pane, so it hands back the vertical axis.**
   [0012]'s resting `touch-action: pinch-zoom` denies every single-finger pan,
   which is right for a content-width pill in a rail (the cost is a

@@ -34,7 +34,18 @@ export function DialCoachTip() {
   return (
     <p
       data-dial-coach-tip=""
-      className="font-body flex items-start gap-2 pr-1 text-[0.6875rem] leading-snug text-silver"
+      // min-h-44 is the DISMISS BUTTON's doing, not the text's. `tap-44`
+      // centres its 44px pseudo-element on a ~15px line, so it overhangs
+      // ~14px in each direction — and this row sits `gap-1` (4px) under the
+      // Thinking rail with the button right-aligned, directly beneath the
+      // dial. The overhang therefore reached about 10px up into the dial's
+      // lower edge, right where the grip is: tapping to open the slider
+      // dismissed the tip instead (Codex review, PR #109). Giving the row
+      // the button's own target height contains the pseudo inside it.
+      // `items-start` keeps the glyph on the first text line; the button
+      // centres itself (see below), which is what puts its hit area in the
+      // middle of the reserved space rather than at the top of it.
+      className="font-body flex min-h-[44px] items-start gap-2 pr-1 text-[0.6875rem] leading-snug text-silver"
     >
       <SlideGlyph className="mt-[2px] h-3.5 w-3.5 shrink-0 text-silver" />
       <span className="grow">
@@ -55,7 +66,7 @@ export function DialCoachTip() {
         // leading-snug line plus 24px of padding is ~39px, not 44, the word
         // sets no minimum width at all, and a negative margin moves the box
         // rather than extending what hit-testing sees.
-        className="tap-44 shrink-0 pl-2 font-medium text-accent transition-colors hover:text-chalk"
+        className="tap-44 shrink-0 self-center pl-2 font-medium text-accent transition-colors hover:text-chalk"
       >
         Got it
       </button>

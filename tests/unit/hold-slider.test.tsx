@@ -847,6 +847,55 @@ describe("the latched phase (latchOnTap)", () => {
     expect(other).toHaveBeenCalledWith(0);
   });
 
+  it("keeps pinch-zoom alive while latched, and still blocks one-finger pans", () => {
+    // The drag phase blocks every touchmove for exactly as long as the press
+    // lasts, which is right. The latched capsule outlives its finger and can
+    // stay up indefinitely, so the same blanket block quietly disabled
+    // PINCH-ZOOM for its whole life (Codex review, PR #109) — in an app that
+    // preserves native zoom on purpose: the resting claim is `pinch-zoom`,
+    // ADR-0012 refused the app-wide `none`, and the geometry reads the visual
+    // viewport for no other reason. Two fingers are a zoom, not a scroll.
+    const touchMove = (touches: number) =>
+      fireEvent(
+        window,
+        Object.assign(
+          new Event("touchmove", { bubbles: true, cancelable: true }),
+          { touches: Array.from({ length: touches }, () => ({})) },
+        ),
+      );
+
+    render(<Host latchOnTap />);
+    tapOpen();
+    expect(overlay()).not.toBeNull();
+    // Two fingers pass through — the UA gets to zoom.
+    expect(touchMove(2)).toBe(true);
+    // One finger is still refused: the world stays frozen under the capsule.
+    expect(touchMove(1)).toBe(false);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(touchMove(1)).toBe(true);
+  });
+
+  it("blocks multi-touch in the DRAG phase, where the press is still down", () => {
+    // Unchanged from ADR-0012: mid-drag the block is what stops a late pan
+    // stealing the captured pointer, and it ends with the press. Only the
+    // latched phase's inverted lifetime earned the exemption above.
+    const touchMove = (touches: number) =>
+      fireEvent(
+        window,
+        Object.assign(
+          new Event("touchmove", { bubbles: true, cancelable: true }),
+          { touches: Array.from({ length: touches }, () => ({})) },
+        ),
+      );
+    render(<Host />);
+    down();
+    hold();
+    expect(touchMove(2)).toBe(false);
+    expect(touchMove(1)).toBe(false);
+    up();
+    expect(touchMove(2)).toBe(true);
+  });
+
   it("closes on concealment without committing — no capsule in a hidden tab", () => {
     // The one ending no pointer or key event can report. A drag leaves a
     // press record for the net to find; a latched capsule leaves none, so

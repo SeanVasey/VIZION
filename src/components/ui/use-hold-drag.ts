@@ -395,9 +395,27 @@ export function useHoldDrag({
     setActive(next);
   }, []);
 
-  /** Window-scoped, added only for the active phase of a gesture. */
+  /**
+   * Window-scoped, added only for the active phase of a gesture: under a live
+   * capsule the document must not glide beneath the frozen world.
+   *
+   * MULTI-TOUCH is exempt while LATCHED (Codex review, PR #109). In the drag
+   * phase this handler blocks everything, and rightly — the gesture's own
+   * finger is down, the block is what stops a late vertical pan stealing the
+   * pointer mid-drag, and it lasts exactly as long as the press. The latched
+   * phase inverted that lifetime: the capsule outlives the finger that opened
+   * it and can stay up indefinitely, so a blanket block quietly disabled
+   * PINCH-ZOOM for its whole life. This app preserves native zoom on purpose
+   * — the resting claim is `pinch-zoom` precisely so it survives, ADR-0012
+   * refused the app-wide `none` that once killed it, and computeTrackGeometry
+   * reads the visual viewport for no other reason. Two fingers are a zoom,
+   * not a scroll; one finger stays blocked.
+   */
   const onWindowTouchMove = useCallback((e: TouchEvent) => {
-    if (activeRef.current) e.preventDefault();
+    const current = activeRef.current;
+    if (!current) return;
+    if (current.phase === "latched" && e.touches.length > 1) return;
+    e.preventDefault();
   }, []);
 
   /** Wheel is the pointer channel's scroll the shield cannot stop by
