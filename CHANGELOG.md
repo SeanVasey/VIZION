@@ -6,6 +6,103 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The mode rail's labels fit on one line again — at every width
+
+A cross-width guard (no mode label may wrap at 320/360/390/430) failed at
+**320px**, where **both "Condense" and "Reformat"** rendered as two lines — so
+CMC-06/VAR-01's "all six fit at 320" record had gone stale, not just the ≥360
+branch the label steps up to 11px on. The rail is now uniform **10px / tight
+tracking** with `px-0` cells (the 11px step and `px-1` each cost more room than
+the widest 8-character word has), and `authed.spec.ts` pins the whole range so
+the fit cannot silently regrow. The `overflow-wrap:anywhere` text-scale valve
+(VAR-01) is untouched — this only asserts the DEFAULT type never needs it.
+
+### The brand green comes back off yellow — `--laser` `#dffa04` → `#c7fd26`
+
+The Liquid Glass retune (`#b7ff3c` → `#dffa04`, ADR-0013) had moved the brand
+green to hue **66.6°** — a chartreuse that read, on the owner's eye, **too
+yellow** beside the neon buttons, most visibly in light mode. Measured, the
+perception held: `#dffa04` genuinely sits closer to yellow than the pre-refresh
+82° neon. `--laser` now moves to **`#c7fd26`** (hue ~75°), a deliberate middle —
+clearly less yellow, without reverting all the way.
+
+This re-separates the token from the artwork (ADR-0013 amendment): the **token
+leads**, and every _generated_ derivative follows it — the favicon, the
+`any`/maskable matrix, apple-touch, the App Router icons, the splash set, and the
+social card all read `--laser` out of `tokens.css`, so regenerating repainted
+**33 icon files + the social card** to `#c7fd26`. The Liquid Glass **source**
+SVGs in `public/brand/` stay at `#dffa04` as Icon Composer artwork for a future
+native `.icon` build — never rasterized into the PWA — so their green is
+independent until that art is re-exported (an owner follow-up).
+
+The literal mirrors moved with the token: `--laser-glow`, the light
+`--accent-ink` in both light blocks (`#5b6600` → `#526810`, re-derived to the new
+hue while HOLDING its corridor — page 5.50 / glass 6.13 / surface 6.06), the
+`AmbientNebula` canvas mirror (`223, 250, 4` → `199, 253, 38`), and the
+`safe-area` test's `LASER` constant. `--on-laser` does **not** move — Void on the
+new Laser measures 15.87:1, so the §6 contrast law and every button's ink are
+unchanged. All twelve developer accents still clear 0003's 20 ΔE floor (google
+stays tightest at 34.7); `developer-accents.test.ts` reads the floors from
+`tokens.css` and passes unmodified. README hero + gallery + social card were
+recaptured/regenerated at the new green and pixel-verified to ΔE 0.0.
+
+### Both e2e engines run, and the visual contract widens to more surfaces and both themes
+
+The `mobile-safari` (WebKitGTK) project had no browser installed in this
+environment, and `global-setup.ts` hard-fails when any configured project's
+engine is missing — so the whole e2e suite could not run at all. WebKit (and the
+matching Chromium build this repo's Playwright 1.60 pins) are now installed, and
+**both** projects run green.
+
+With the WebKit leg live again, the rendered-a11y pass widened past the two
+surfaces it covered. `a11y.spec.ts` now runs axe on **/library** and
+**/profile** as well as the gate and composer, and adds a **light-theme** pass
+(gate + composer) — contrast is a property of the resolved token cascade, and
+the dark and light blocks in `tokens.css` are independent (the light
+`--accent-ink` is a separate `#5B6600`, not a tint of Laser), so a dark-only scan
+said nothing about the light canvas. The authed light pass drives the store
+through the real Settings segment rather than stamping `data-theme`, because
+`ProfileHydrator` syncs the profile's theme in after mount and a manual override
+lost that race under WebKit load. `shell.spec.ts` gains a **brand theme-parity**
+check: the header mark and the wordmark accent must compute the identical green
+in both themes — the header's "two greens visibly disagreed" regression,
+generalized to a standing guard.
+
+README imagery is regenerated from the shipped build by a new env-gated
+`capture.spec.ts` (Chromium-only, so the committed PNGs are deterministic),
+reusing the same stub + sign-in the suite already drives.
+
+### The share card and the README front door catch up to the current mark
+
+`docs/preview.png` — the README hero — was last recaptured before the `--laser`
+retune and the Liquid Glass icon set, so the repo's front door still showed the
+retired **I›O** mark in the old green, and its alt text still named it. It is
+recaptured from the current production build (the new "V" mark, in the retuned
+`#c7fd26` brand green — see the retune entry above), the alt text corrected, and
+a small gallery of the shipped composer and library added.
+
+The app also carried **no** Open Graph / Twitter metadata, so a shared link (and
+the GitHub repo card) rendered nothing branded. `src/app/layout.tsx` now sets
+`metadataBase`, `openGraph`, and a `summary_large_image` `twitter` card, pointing
+at a generated **social card** (`public/brand/social-card.png`). The card is
+produced in-canon by `scripts/generate-social-card.mjs` (`npm run
+generate:social`): it reads `--laser`/`--void` from `tokens.css` and the master
+glyph from `public/brand/vizion-glyph.svg`, so it cannot disagree with the brand
+green, and renders the Bebas Neue wordmark through headless Chromium (the
+vendored face is a woff2 no system renderer here resolves). Uploading it under
+GitHub → Settings → Social preview stays an owner console action.
+
+### The ambient field stops re-reading the palette on every gesture
+
+`AmbientNebula`'s attribute observer watched `data-theme`,
+`data-reduced-effects`, and `data-hold-gesture` on one callback that re-ran
+`resolvePalette()` — a synchronous `getComputedStyle(document.documentElement)` —
+on every mutation. `data-hold-gesture` toggles at every hold-slider gesture start
+**and** end and changes no colour, so the palette was being re-resolved twice per
+press for nothing, a style read on the gesture's own hot path. The observer now
+reconciles the loop on every mutation (it still gates `canRun()`) but only
+re-reads the palette when a palette-bearing attribute actually moved.
+
 ### The accent corridor's last unwritten floor becomes a test
 
 ADR-0003 requires every developer accent to sit at least **20 ΔE2000 from

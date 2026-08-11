@@ -72,6 +72,32 @@ test.describe("rendered accessibility (axe)", () => {
     ).toEqual([]);
   });
 
+  // The library and settings surfaces were previously outside the axe pass —
+  // contrast was asserted on the gate and composer only, so a regression on the
+  // panel-dense authed surfaces (library cards, settings rows, the chips and
+  // toggles) would have shipped green. Both are reached through the real nav.
+  test("the library has no serious or critical WCAG violations", async ({ page }) => {
+    await signIn(page);
+    await page.getByRole("navigation").getByRole("link", { name: "Library" }).click();
+    await page.waitForURL(/\/library$/);
+    const found = seriousOrCritical(await analyze(page));
+    expect(
+      found,
+      found.map((v) => `${v.id} @ ${v.nodes[0]?.target.join(" ")}`).join("\n"),
+    ).toEqual([]);
+  });
+
+  test("settings has no serious or critical WCAG violations", async ({ page }) => {
+    await signIn(page);
+    await page.getByRole("navigation").getByRole("link", { name: "Settings" }).click();
+    await page.waitForURL(/\/profile$/);
+    const found = seriousOrCritical(await analyze(page));
+    expect(
+      found,
+      found.map((v) => `${v.id} @ ${v.nodes[0]?.target.join(" ")}`).join("\n"),
+    ).toEqual([]);
+  });
+
   test("no horizontal scroll at a 320px viewport (WCAG 1.4.10 reflow)", async ({
     page,
   }) => {
@@ -84,5 +110,79 @@ test.describe("rendered accessibility (axe)", () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
+
+/**
+ * The same rendered-a11y pass in the LIGHT polarity.
+ *
+ * Contrast is a property of the resolved token cascade, and the dark and light
+ * blocks in tokens.css are independent — a value that clears AA on Void can fail
+ * on the #EEF0F4 canvas (and did, historically: the light --accent-ink is a
+ * separate #526810, not a tint of Laser). The dark scans above said nothing
+ * about it. Forcing `data-theme="light"` drives the real `:root[data-theme]`
+ * block; the guard proves the light cascade actually took before axe reads
+ * colours, so a scan that silently stayed dark cannot pass as a light one.
+ */
+// Prove the light cascade actually took before axe reads colours — a scan that
+// silently stayed dark cannot pass as a light one. `--void` resolves to the
+// light canvas #EEF0F4 only under the light block.
+async function expectLightVoid(page: import("@playwright/test").Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--void")
+          .trim()
+          .toLowerCase(),
+      ),
+    )
+    .toBe("#eef0f4");
+}
+
+test.describe("rendered accessibility (axe) — light theme", () => {
+  test("the sign-in gate has no serious or critical WCAG violations on light", async ({
+    page,
+  }) => {
+    await page.goto("/sign-in");
+    await page.getByRole("heading", { level: 1 }).waitFor();
+    // Pre-auth there is no ThemeManager/ProfileHydrator sync to fight, so forcing
+    // the attribute drives the :root[data-theme="light"] block directly.
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = "light";
+    });
+    await expectLightVoid(page);
+    const found = seriousOrCritical(await analyze(page));
+    expect(
+      found,
+      found.map((v) => `${v.id} @ ${v.nodes[0]?.target.join(" ")}`).join("\n"),
+    ).toEqual([]);
+  });
+
+  test("the composer has no serious or critical WCAG violations on light", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await expect(page).toHaveURL(/\/enhance$/);
+    // Authed surfaces differ from the gate: ProfileHydrator syncs the profile's
+    // (dark) theme into the store AFTER mount, so a manual data-theme override
+    // gets clobbered when that settle lands late (a race WebKit lost under
+    // load). Drive the store through the app's own Settings segment instead —
+    // ThemeManager then applies light and it survives the walk back to /enhance.
+    await page.getByRole("navigation").getByRole("link", { name: "Settings" }).click();
+    await page.waitForURL(/\/profile$/);
+    await page
+      .getByRole("group", { name: "Theme" })
+      .getByRole("button", { name: "light", exact: true })
+      .click();
+    await expectLightVoid(page);
+    await page.getByRole("navigation").getByRole("link", { name: "Enhance" }).click();
+    await page.waitForURL(/\/enhance$/);
+    await expectLightVoid(page);
+    const found = seriousOrCritical(await analyze(page));
+    expect(
+      found,
+      found.map((v) => `${v.id} @ ${v.nodes[0]?.target.join(" ")}`).join("\n"),
+    ).toEqual([]);
   });
 });

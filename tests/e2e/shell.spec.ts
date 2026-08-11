@@ -28,6 +28,47 @@ test.describe("VIZION shell + auth gate", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", /dark|light|system/);
   });
 
+  test("the brand mark and the wordmark accent are one green, in both themes", async ({
+    page,
+  }) => {
+    // The header regression, generalized (R1.1 / ScreenHeader): a plated tile
+    // painted a GRADIENT green beside a wordmark reading the flat --accent-ink,
+    // and the two visibly disagreed. Both surfaces now take the accent through
+    // `currentColor` / text-accent, so they must compute the identical rgb — a
+    // hardcoded fill sneaking back into either is what this catches. Real engine
+    // because it is a resolved-cascade fact, and in BOTH polarities because the
+    // light accent (#526810) is a different token, not a tint of the dark Laser.
+    await page.goto("/sign-in");
+    const mark = page.locator('svg[viewBox="0 0 1024 892.8"]').first();
+    const word = page.getByRole("img", { name: "VIZION" });
+    const ioSpan = word.locator("span").nth(1); // VIZ · IO · N — the accent pair
+    await expect(ioSpan).toHaveText("IO");
+
+    await expect(mark).toBeVisible();
+    for (const theme of ["dark", "light"] as const) {
+      // Read all three in ONE evaluate so they share a single computed-style
+      // snapshot — a getComputedStyle forces a synchronous resolve, so no stale
+      // frame can slip between the reads (the recompute-lag WebKit shows under
+      // load when an attribute set and a read are separate round-trips).
+      const colors = await page.evaluate((t) => {
+        document.documentElement.dataset.theme = t;
+        const markEl = document.querySelector('svg[viewBox="0 0 1024 892.8"]')!;
+        const spans = document
+          .querySelector('[role="img"][aria-label="VIZION"]')!
+          .querySelectorAll("span");
+        return {
+          mark: getComputedStyle(markEl).color,
+          io: getComputedStyle(spans[1]!).color, // VIZ · IO · N — the accent pair
+          text: getComputedStyle(spans[0]!).color,
+        };
+      }, theme);
+      // Same accent on both brand surfaces…
+      expect(colors.io, `mark≠wordmark accent on ${theme}`).toBe(colors.mark);
+      // …and it is genuinely the accent, not both collapsing to the ink colour.
+      expect(colors.mark, `accent==text on ${theme}`).not.toBe(colors.text);
+    }
+  });
+
   test("manifest is reachable and declares any + maskable icons", async ({ request }) => {
     const res = await request.get("/manifest.webmanifest");
     expect(res.ok()).toBeTruthy();

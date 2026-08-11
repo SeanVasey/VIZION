@@ -22,6 +22,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate:icons": "node scripts/generate-icons.mjs",
+    "generate:social": "node scripts/generate-social-card.mjs",
     "build:sw": "node scripts/build-sw.mjs",
     "check:db-enum": "node scripts/check-model-enum.mjs",
     "db:verify": "node scripts/verify-migrations.mjs"

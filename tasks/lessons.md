@@ -3349,3 +3349,81 @@ test:e2e` hard-fails in global-setup until
   fixed on sight. When accepting a conflict-resolution policy, write
   the failure it permits from the loser's point of view, not the
   policy's name from the winner's.
+
+## 2026-08-11 — mobile-perf + full-scope-visual audit
+
+- **A pinned Playwright and a pre-installed browser are two versions, and
+  they diverge.** The container ships `chromium-1194` (Chrome 141) and is
+  told not to run `playwright install` — but this repo pins
+  `@playwright/test` at a revision wanting `chromium v1223` (Chrome 148),
+  and `webkit` was absent entirely, so the whole e2e suite could not launch
+  (`global-setup` fails loudly on any missing engine, by an earlier
+  lesson's design). Installing the MATCHING builds (`--with-deps webkit`,
+  then `chromium`) kept `playwright.config.ts` clean — no per-project
+  `executablePath` override that would break every other environment where
+  1223 is already present. The pre-installed browser is a convenience, not
+  a version contract; when the pin and the container disagree, match the
+  pin, don't patch the config.
+
+- **Drive the store, not the attribute, when a hydrator writes after
+  mount.** The light-theme axe scan forced `data-theme="light"` on the
+  authed composer and read `--void` back — green on Chromium, red on
+  WebKit. Not an a11y finding: `ProfileHydrator` syncs the profile's dark
+  theme INTO the UI store a beat after mount, and on WebKit-under-load that
+  settle landed AFTER the manual override and ThemeManager reset the
+  attribute to dark. The gate had no such sync and passed. The fix drove
+  the app's own Settings segment (store → ThemeManager → attribute +
+  persistence), which survives the settle and the navigation. When a value
+  has a single writer that reconciles from a source of truth, poke the
+  source; a manual override only holds until the writer next runs — and on
+  a slower engine that is exactly when it runs.
+
+- **Re-read the palette on the attribute that carries colour, not the one
+  that happens to share the observer.** `AmbientNebula` batched
+  `data-theme`, `data-reduced-effects`, and `data-hold-gesture` onto one
+  MutationObserver that re-ran a synchronous `getComputedStyle` on every
+  fire. Only two of those three change any colour; the third toggles at
+  every gesture edge, so a hold-slider press paid two layout-adjacent style
+  reads for a palette that could not have moved. An observer that watches N
+  attributes for M reasons must split the work by reason — reconcile on
+  all, but do the expensive read only for the attributes that feed it.
+
+- **A "labels fit" ruling is only proven at the widths it measured.**
+  CMC-06/VAR-01 fixed the mode-rail labels and recorded "all six fit at
+  320 (max 43 ≤ 46)" — but the label steps UP from 10px to 11px at ≥360px
+  (`max-[359px]:text-[0.625rem]`), and at that larger size, with
+  `tracking-wide`, "Condense" wraps to two lines at 393px (the default
+  iPhone width). The captured composer shot showed it; the audit never
+  measured it. Left as an owner observation rather than re-adjudicated
+  here — the mode rig is the most-ruled component in the repo and its type
+  metrics were an owner call — but the lesson is general: a responsive
+  control that changes type at a breakpoint has to be re-measured on BOTH
+  sides of it, or the fit claim only covers the branch that was checked.
+  (The owner then called it in, and the measurement told a bigger story:
+  a guard asserting no label wraps at 320/360/390/430 failed at 320 — both
+  Condense AND Reformat were two lines even at the audit's own width, so
+  the "fits at 320" record had gone stale, not just the ≥360 branch. Fixed
+  by dropping to a uniform 10px / tight tracking and `px-0` cells, and the
+  guard now pins the whole range so it cannot silently regrow. The general
+  point sharpens: a fit ruling is not a property of the component, it is a
+  property of the measurement — re-run it, do not cite it.)
+
+- **A token retune is a find-every-mirror job, and the ADR that recorded
+  the last one is the map.** Pulling `--laser` `#dffa04` → `#c7fd26`
+  (owner call: too yellow) had to move six sites, not one: the token, its
+  `--laser-glow` rgba, the light `--accent-ink` in BOTH light blocks
+  (`:root[data-theme="light"]` and the system-light `@media` mirror), the
+  `AmbientNebula` canvas literals (`LASER_RGB` + the `accentRgb` fallback,
+  which a canvas needs because it cannot read a custom property), and the
+  `safe-area` test's `LASER` constant. Missing any one repaints one green
+  while the rest paint another — the exact class of drift the earlier
+  "tile is a token consumer" lesson is about. What made this a lookup
+  rather than a hunt: ADR-0013's own Decision table had enumerated those
+  mirror sites for the previous retune, so the map already existed. The
+  prior audit's rule — "put the table in the ADR so the next finding is a
+  table lookup" — paid out here directly. Corollary: derived values with
+  headroom (the light `--accent-ink` sits at a ~5.5:1 "corridor position",
+  not the bare 4.5:1 AA floor) must be re-derived to hold that position on
+  a hue move, not just re-passed — brightening it to bare AA to "match the
+  button" would have spent the corridor the design system deliberately
+  keeps.

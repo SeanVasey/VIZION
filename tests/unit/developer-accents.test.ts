@@ -407,8 +407,8 @@ describe("semantic clearance — every accent stays distinguishable from the sta
 
   it("reports google as the tightest clearance to --laser", () => {
     // The margin worth watching. 0013 moved --laser and this is the accent that
-    // came closest afterwards (37.0 at #dffa04) — still nearly double the floor,
-    // but it is the one a future retune will squeeze first.
+    // came closest afterwards (34.7 at #c7fd26, 37.0 at the prior #dffa04) —
+    // still well over the floor, but it is the one a future retune squeezes first.
     const laser = tokenHexes("laser")[0]!;
     const ranked = [...ACCENT_HEX]
       .map(([dev, accent]) => [dev, distance(accent, laser)] as const)

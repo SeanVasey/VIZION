@@ -65,7 +65,7 @@ export function AmbientNebula() {
     // --laser's channels. A canvas cannot read a custom property, so this is a
     // hand-kept mirror of tokens.css — retune both together (ADR-0013) or the
     // background paints one green while the DOM paints another.
-    const LASER_RGB = "223, 250, 4";
+    const LASER_RGB = "199, 253, 38";
     // Owner tune: core dots read too faint at the NEBULA+ table alphas.
     // Applied before the light-theme multiplier, so its clamps still bound.
     // On LIGHT the boost is therefore mostly notional: light already
@@ -103,7 +103,7 @@ export function AmbientNebula() {
 
     /* --- Theme-resolved palette (re-read when [data-theme] flips) --------- */
     let silverRgb = "185, 188, 197";
-    let accentRgb = "223, 250, 4"; // --laser fallback until channelsOf() resolves it
+    let accentRgb = "199, 253, 38"; // --laser fallback until channelsOf() resolves it
     let isLight = false;
 
     function channelsOf(cssColor: string): string | null {
@@ -324,8 +324,15 @@ export function AmbientNebula() {
     // Re-resolve field colours when the theme flips ([data-theme] is stamped
     // by ThemeManager; the OS scheme matters while on `system`) and reconcile
     // the loop when [data-reduced-effects] toggles — both ride one observer.
-    const observer = new MutationObserver(() => {
-      resolvePalette();
+    // `data-hold-gesture` also rides it (it gates `canRun()`), but it toggles
+    // at EVERY gesture start AND end and changes no colour — re-resolving on it
+    // would force a synchronous getComputedStyle into the gesture's hot path
+    // twice per press for nothing. So reconcile the loop on every mutation, but
+    // only re-read the palette when a palette-bearing attribute actually moved.
+    const observer = new MutationObserver((mutations) => {
+      if (mutations.some((m) => m.attributeName !== "data-hold-gesture")) {
+        resolvePalette();
+      }
       sync();
     });
     observer.observe(document.documentElement, {
