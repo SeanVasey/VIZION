@@ -130,25 +130,43 @@ const distance = (x: string, y: string) => deltaE2000(lab(x), lab(y));
  * a retune is trying to change. `--laser` moved #b7ff3c → #dffa04 under 0013
  * with these floors verified only BY HAND, which is the gap this closes.
  *
- * First match is the dark block; `--flare` alone also has a light value, and
- * 0011 lists a floor for both.
+ * EVERY declared value is read, not an indexed one. `tokens.css` writes the
+ * light theme TWICE — once under `:root[data-theme="light"]` and again,
+ * verbatim, inside the `@media (prefers-color-scheme: light)` copy for
+ * `data-theme="system"`. That is the hazard documented at the top of
+ * `dev-accents.css`, and the one 0013 had to work around for `--accent-ink`.
+ * `--flare` is declared three times because of it; reading the first two left
+ * the system-light value unchecked, so it could drift toward an accent and
+ * system-theme users would breach the floor while this suite stayed green
+ * (Codex review, PR #106).
+ *
+ * Deduped, so identical light/system-light values cost one test rather than
+ * two, and a token that grows a new theme variant gains its own floor test with
+ * no change here. Asserting the two light blocks are identical was the
+ * alternative; covering every value is stronger, because theme-variant tokens
+ * are legitimate — the job is to check whatever is declared, not to forbid
+ * divergence.
  */
 const TOKENS_CSS = strip(read("src/styles/tokens.css"));
-const tokenHex = (name: string, nth = 0): string => {
-  const all = [...TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "gi"))];
-  const hit = all[nth]?.[1];
-  if (!hit) throw new Error(`tokens.css: --${name} occurrence ${nth} not found`);
-  return hit.toLowerCase();
+const tokenHexes = (name: string): string[] => {
+  const all = [
+    ...TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "gi")),
+  ].map((m) => m[1]!.toLowerCase());
+  if (!all.length) throw new Error(`tokens.css: --${name} not found`);
+  return [...new Set(all)];
 };
 
 /** 0003's semantic-clearance floors, as published in 0011's evidence table. */
-const CLEARANCE = [
-  { label: "--laser", hex: tokenHex("laser"), floor: 20 },
-  { label: "--flare (dark)", hex: tokenHex("flare"), floor: 18 },
-  { label: "--flare (light)", hex: tokenHex("flare", 1), floor: 18 },
-  { label: "--amber", hex: tokenHex("amber"), floor: 15 },
-  { label: "--pulse", hex: tokenHex("pulse"), floor: 15 },
-] as const;
+const CLEARANCE = (
+  [
+    ["laser", 20],
+    ["flare", 18],
+    ["amber", 15],
+    ["pulse", 15],
+  ] as const
+).flatMap(([name, floor]) =>
+  tokenHexes(name).map((hex) => ({ label: `--${name} ${hex}`, hex, floor })),
+);
 
 describe("the accent layer tracks the developer roster", () => {
   it("defines an accent for every developer, and none for anything else", () => {
@@ -257,7 +275,7 @@ describe("semantic clearance — every accent stays distinguishable from the sta
     // A floor test that has never failed is not yet a test. A hue a hair off
     // --laser has to land far below 20, or the assertions below would pass on
     // any palette at all.
-    const laser = tokenHex("laser");
+    const laser = tokenHexes("laser")[0]!;
     const nearlyLaser = `#${(parseInt(laser.slice(1), 16) + 0x020202).toString(16).padStart(6, "0")}`;
     expect(distance(laser, nearlyLaser)).toBeLessThan(20);
   });
@@ -268,15 +286,35 @@ describe("semantic clearance — every accent stays distinguishable from the sta
         .map(([dev, accent]) => ({ dev, measured: distance(accent, hex) }))
         .filter(({ measured }) => measured < floor)
         .map(({ dev, measured }) => `${dev} ${measured.toFixed(1)} < ${floor}`);
-      expect(breaches, `clearance to ${label} (${hex})`).toEqual([]);
+      expect(breaches, `clearance to ${label}`).toEqual([]);
     });
   }
+
+  it("covers every declared value of a token, not just the first", () => {
+    // The gap Codex caught: --flare is declared three times (dark, explicit
+    // light, and the verbatim system-light copy), and an indexed read checked
+    // two. Nothing about that was visible from a passing suite — this pins it,
+    // so re-introducing an index fails here rather than silently narrowing
+    // coverage.
+    const declared = [...TOKENS_CSS.matchAll(/--flare:\s*(#[0-9a-f]{6})/gi)].map((m) =>
+      m[1]!.toLowerCase(),
+    );
+    expect(
+      declared.length,
+      "tokens.css should still declare --flare in dark, light and system-light",
+    ).toBeGreaterThanOrEqual(3);
+
+    const covered = CLEARANCE.filter((c) => c.label.startsWith("--flare ")).map(
+      (c) => c.hex,
+    );
+    for (const hex of declared) expect(covered).toContain(hex);
+  });
 
   it("reports google as the tightest clearance to --laser", () => {
     // The margin worth watching. 0013 moved --laser and this is the accent that
     // came closest afterwards (37.0 at #dffa04) — still nearly double the floor,
     // but it is the one a future retune will squeeze first.
-    const laser = tokenHex("laser");
+    const laser = tokenHexes("laser")[0]!;
     const ranked = [...ACCENT_HEX]
       .map(([dev, accent]) => [dev, distance(accent, laser)] as const)
       .sort((x, y) => x[1] - y[1]);
