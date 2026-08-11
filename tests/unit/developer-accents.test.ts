@@ -49,6 +49,107 @@ function luminance(hex: string): number {
 const CORRIDOR_FLOOR = 0.1995;
 const CORRIDOR_CEILING = 0.2922;
 
+/** CIELAB (D65), the space 0003's semantic-clearance floors are measured in. */
+type Lab = readonly [number, number, number];
+
+function lab(hex: string): Lab {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const [R, G, B] = [lin(r!), lin(g!), lin(b!)];
+  const X = R * 0.4124564 + G * 0.3575761 + B * 0.1804375;
+  const Y = R * 0.2126729 + G * 0.7151522 + B * 0.072175;
+  const Z = R * 0.0193339 + G * 0.119192 + B * 0.9503041;
+  // D65 white point, with the CIE-recommended rational epsilon/kappa.
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : (841 / 108) * t + 4 / 29);
+  const [fx, fy, fz] = [f(X / 0.95047), f(Y / 1.0), f(Z / 1.08883)];
+  return [116 * fy! - 16, 500 * (fx! - fy!), 200 * (fy! - fz!)];
+}
+
+/** CIEDE2000. Pinned against 0011's published figure by the self-check below. */
+function deltaE2000(a: Lab, b: Lab): number {
+  const [L1, a1, b1] = a;
+  const [L2, a2, b2] = b;
+  const rad = Math.PI / 180;
+  const deg = 180 / Math.PI;
+  const C1 = Math.hypot(a1, b1);
+  const C2 = Math.hypot(a2, b2);
+  const Cb = (C1 + C2) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+  const ap1 = (1 + G) * a1;
+  const ap2 = (1 + G) * a2;
+  const Cp1 = Math.hypot(ap1, b1);
+  const Cp2 = Math.hypot(ap2, b2);
+  let hp1 = Math.atan2(b1, ap1) * deg;
+  if (hp1 < 0) hp1 += 360;
+  let hp2 = Math.atan2(b2, ap2) * deg;
+  if (hp2 < 0) hp2 += 360;
+  if (Cp1 === 0) hp1 = 0;
+  if (Cp2 === 0) hp2 = 0;
+  const dL = L2 - L1;
+  const dC = Cp2 - Cp1;
+  let dhp = 0;
+  if (Cp1 * Cp2 !== 0) {
+    dhp = hp2 - hp1;
+    if (dhp > 180) dhp -= 360;
+    else if (dhp < -180) dhp += 360;
+  }
+  const dH = 2 * Math.sqrt(Cp1 * Cp2) * Math.sin((dhp / 2) * rad);
+  const Lb = (L1 + L2) / 2;
+  const Cpb = (Cp1 + Cp2) / 2;
+  let hpb: number;
+  if (Cp1 * Cp2 === 0) hpb = hp1 + hp2;
+  else {
+    hpb = (hp1 + hp2) / 2;
+    if (Math.abs(hp1 - hp2) > 180) hpb += hp1 + hp2 < 360 ? 180 : -180;
+  }
+  const T =
+    1 -
+    0.17 * Math.cos((hpb - 30) * rad) +
+    0.24 * Math.cos(2 * hpb * rad) +
+    0.32 * Math.cos((3 * hpb + 6) * rad) -
+    0.2 * Math.cos((4 * hpb - 63) * rad);
+  const dTh = 30 * Math.exp(-(((hpb - 275) / 25) ** 2));
+  const Rc = 2 * Math.sqrt(Cpb ** 7 / (Cpb ** 7 + 25 ** 7));
+  const Sl = 1 + (0.015 * (Lb - 50) ** 2) / Math.sqrt(20 + (Lb - 50) ** 2);
+  const Sc = 1 + 0.045 * Cpb;
+  const Sh = 1 + 0.015 * Cpb * T;
+  const Rt = -Math.sin(2 * dTh * rad) * Rc;
+  return Math.sqrt(
+    (dL / Sl) ** 2 + (dC / Sc) ** 2 + (dH / Sh) ** 2 + Rt * (dC / Sc) * (dH / Sh),
+  );
+}
+
+const distance = (x: string, y: string) => deltaE2000(lab(x), lab(y));
+
+/**
+ * The semantic tokens each accent must stay clear of, read out of tokens.css
+ * rather than hardcoded — so this follows a retune instead of pinning the value
+ * a retune is trying to change. `--laser` moved #b7ff3c → #dffa04 under 0013
+ * with these floors verified only BY HAND, which is the gap this closes.
+ *
+ * First match is the dark block; `--flare` alone also has a light value, and
+ * 0011 lists a floor for both.
+ */
+const TOKENS_CSS = strip(read("src/styles/tokens.css"));
+const tokenHex = (name: string, nth = 0): string => {
+  const all = [...TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "gi"))];
+  const hit = all[nth]?.[1];
+  if (!hit) throw new Error(`tokens.css: --${name} occurrence ${nth} not found`);
+  return hit.toLowerCase();
+};
+
+/** 0003's semantic-clearance floors, as published in 0011's evidence table. */
+const CLEARANCE = [
+  { label: "--laser", hex: tokenHex("laser"), floor: 20 },
+  { label: "--flare (dark)", hex: tokenHex("flare"), floor: 18 },
+  { label: "--flare (light)", hex: tokenHex("flare", 1), floor: 18 },
+  { label: "--amber", hex: tokenHex("amber"), floor: 15 },
+  { label: "--pulse", hex: tokenHex("pulse"), floor: 15 },
+] as const;
+
 describe("the accent layer tracks the developer roster", () => {
   it("defines an accent for every developer, and none for anything else", () => {
     const declared = [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*#/g)].map((m) => m[1]!);
@@ -124,6 +225,63 @@ describe("the luminance corridor, and its one sanctioned exception (0011)", () =
     // without redoing that work would leave the ADR asserting numbers the
     // stylesheet no longer produces.
     expect(ACCENT_HEX.get("openai")).toBe("#9c595d");
+  });
+});
+
+describe("semantic clearance — every accent stays distinguishable from the state colours", () => {
+  /**
+   * 0003 requires each developer accent to sit at least 20 ΔE2000 from
+   * `--laser` (and 18 / 15 from the other state tokens), so an identity mark is
+   * never mistaken for a status colour. Until now nothing asserted it: the file
+   * bound luminance against the card fills and ΔE2000 BETWEEN accents, and the
+   * clearance to the state tokens lived only in the ADRs. 0011's own reasoning
+   * leans on it — the openai pin above says the maroon is justified by "every
+   * dE2000 floor still passing at THIS value" — and 0013 retuned `--laser`
+   * across a 15.6° hue shift with these floors verified by hand, because a
+   * green suite could not speak to them.
+   */
+
+  it("computes ΔE2000 correctly — checked against the figure 0011 published", () => {
+    // THIS is the assertion that makes the rest of the block mean anything. A
+    // subtly wrong CIEDE2000 would clear every floor below and silently license
+    // a future breach, so the implementation is pinned to a number that was
+    // measured, reviewed and committed independently of this test.
+    //
+    // 0011's evidence table: --dev-openai #9c595d against --laser, which at the
+    // time was #b7ff3c, measured 66.7. The historical hex is deliberate — this
+    // checks the maths, not today's palette.
+    expect(distance("#9c595d", "#b7ff3c")).toBeCloseTo(66.7, 1);
+  });
+
+  it("discriminates — a near-identical colour must FAIL the floor", () => {
+    // A floor test that has never failed is not yet a test. A hue a hair off
+    // --laser has to land far below 20, or the assertions below would pass on
+    // any palette at all.
+    const laser = tokenHex("laser");
+    const nearlyLaser = `#${(parseInt(laser.slice(1), 16) + 0x020202).toString(16).padStart(6, "0")}`;
+    expect(distance(laser, nearlyLaser)).toBeLessThan(20);
+  });
+
+  for (const { label, hex, floor } of CLEARANCE) {
+    it(`keeps all twelve accents ≥ ${floor} ΔE2000 from ${label}`, () => {
+      const breaches = [...ACCENT_HEX]
+        .map(([dev, accent]) => ({ dev, measured: distance(accent, hex) }))
+        .filter(({ measured }) => measured < floor)
+        .map(({ dev, measured }) => `${dev} ${measured.toFixed(1)} < ${floor}`);
+      expect(breaches, `clearance to ${label} (${hex})`).toEqual([]);
+    });
+  }
+
+  it("reports google as the tightest clearance to --laser", () => {
+    // The margin worth watching. 0013 moved --laser and this is the accent that
+    // came closest afterwards (37.0 at #dffa04) — still nearly double the floor,
+    // but it is the one a future retune will squeeze first.
+    const laser = tokenHex("laser");
+    const ranked = [...ACCENT_HEX]
+      .map(([dev, accent]) => [dev, distance(accent, laser)] as const)
+      .sort((x, y) => x[1] - y[1]);
+    expect(ranked[0]![0]).toBe("google");
+    expect(ranked[0]![1]).toBeGreaterThan(20);
   });
 });
 
