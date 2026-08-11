@@ -456,9 +456,16 @@ const COMPACT_HALO_SCALE = 0.5;
  * REAL bars at three viewport sizes — so if a bar is ever retuned past this,
  * a test says so rather than the halo quietly overrunning it.
  *
- * The floor keeps a small region from collapsing the halo to nothing: below
- * it there is no honest way to be both local and obscuring, and a too-small
- * halo is the better failure (it under-treats rather than washing the page).
+ * There is deliberately NO floor. The first version of this clamp had one, as
+ * a `Math.max` OUTSIDE the cap — which let the floor win whenever the region
+ * was cramped enough to matter, i.e. exactly when the clamp was doing its job
+ * (Codex review, PR #110). Under roughly 2× pinch zoom on a 640px layout the
+ * computed room falls below the old 96px floor, so the floor forced a 240px
+ * treatment into a region that could be smaller than that: the full-screen
+ * wash, rebuilt by the guard meant to prevent it. The comment on that floor
+ * even argued "a too-small halo is the better failure" while the code did the
+ * opposite — the cap is authoritative now, and a region with no room gets no
+ * halo, which is that argument actually implemented.
  *
  * X is deliberately NOT clamped. It is already wider than the viewport by
  * design — the plateau has to span the full width from an off-centre capsule
@@ -466,7 +473,6 @@ const COMPACT_HALO_SCALE = 0.5;
  * because there is no chrome on the left or right to overrun.
  */
 const HALO_CHROME_INSET_PX = 72;
-const HALO_MIN_Y_PX = 96;
 /**
  * The dim's ellipse, relative to the blur's box — HORIZONTALLY ONLY.
  *
@@ -624,13 +630,11 @@ function HoldSliderOverlay({
   );
   // The cap is on the halo's HALF-HEIGHT, which includes the capsule's own
   // 24px — that is the edge that has to clear the bar, not the reach past it.
-  const haloY = Math.max(
-    HALO_MIN_Y_PX,
-    Math.min(
-      HALO_Y_PX * haloScale,
-      roomY - HALO_CHROME_INSET_PX - geometry.height / 2,
-    ),
-  );
+  // Nothing may raise the result above this: the cap is the whole guarantee,
+  // and a floor layered over it takes the guarantee away in precisely the
+  // cramped regions the cap exists for.
+  const capY = Math.max(0, roomY - HALO_CHROME_INSET_PX - geometry.height / 2);
+  const haloY = Math.min(HALO_Y_PX * haloScale, capY);
   const haloWidth = geometry.width + haloX * 2;
   const haloHeight = geometry.height + haloY * 2;
   const haloLeft = geometry.left - haloX;

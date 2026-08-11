@@ -318,7 +318,19 @@ guessable from the CSS:
    half-height is capped at the distance to the nearer region edge less an
    allowance for the chrome inside it.
 
-   The clamp's SHAPE was itself wrong on the first attempt, and the new 320×640
+   The clamp went wrong twice more before it was right, and both are worth
+   keeping because both were the same mistake in different clothes: something
+   layered OVER the cap, taking back the guarantee. First a 96px floor applied
+   as an outer `Math.max`, which won whenever the region was cramped enough to
+   matter — under ~2× pinch zoom it forced a 240px treatment into a region
+   that could be smaller than that. Then the dim's spread, applied on both
+   axes, which reached past the clamped blur into the nav while the blur's own
+   clearance assertion stayed green. The rule the third attempt encodes: the
+   cap is the whole guarantee, so nothing may raise a result above it, and the
+   containment property has to be asserted on the OUTERMOST painted extent
+   rather than on whichever layer owns the geometry.
+
+   The clamp's SHAPE was also wrong on the first attempt, and the new 320×640
    e2e test is what said so — it caught a fraction-based cap overrunning the nav
    by 11px. Clearing a fixed-height bar requires `half ≤ room − bar`; the
    fraction that satisfies that depends on `room`, so no single fraction holds

@@ -386,9 +386,18 @@ describe("tap vs hold", () => {
       hold();
       const cramped = haloBox().h;
       expect(cramped).toBeLessThan(roomy);
-      // …but never past the floor, and never to nothing: under-treating is the
-      // better failure than washing the page.
-      expect(cramped).toBeGreaterThan(Number.parseFloat(overlay()!.style.height));
+      // The cap is AUTHORITATIVE — nothing may raise the result above it. An
+      // earlier cut layered a 96px floor over the cap with an outer Math.max,
+      // which let the floor win in exactly the cramped regions the cap exists
+      // for: under ~2× pinch zoom the computed room falls below the floor, so
+      // the floor forced a 240px treatment into a region that could be smaller
+      // than that — the full-screen wash, rebuilt by its own guard (Codex
+      // review, PR #110). A region with no room now gets no halo, which is
+      // what "under-treating is the better failure" actually means in code.
+      const box = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+      const top = Number.parseFloat(box.style.top);
+      expect(top).toBeGreaterThanOrEqual(0);
+      expect(top + cramped).toBeLessThanOrEqual(440);
       up();
     } finally {
       restore();

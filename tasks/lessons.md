@@ -3739,3 +3739,16 @@ test:e2e` hard-fails in global-setup until
   whole time. When a visual effect is composed of more than one layer, the
   containment property has to be asserted on the OUTERMOST painted extent, not
   on whichever layer happens to own the geometry.
+
+- **A floor layered over a cap deletes the cap, exactly where the cap matters.**
+  The halo's reach was clamped to the visible region, then given a 96px minimum
+  as an outer `Math.max`. That reads as "never collapse to nothing" and behaves
+  as "ignore the clamp whenever the region is small" — which is precisely the
+  case the clamp exists for. Under ~2× pinch zoom the computed room drops below
+  the floor, so the floor won and painted a 240px treatment into a region that
+  could be smaller than that: the full-screen wash, rebuilt by its own guard.
+  The comment on the floor even argued that under-treating was the better
+  failure while the code chose the opposite. When a guarantee is a bound, check
+  that nothing downstream can move the result back across it — and prefer
+  `min(preferred, cap)` to `max(floor, min(preferred, cap))` unless the floor
+  has a reason that survives the cap binding.
