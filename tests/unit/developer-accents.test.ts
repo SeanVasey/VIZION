@@ -36,9 +36,18 @@ const GLOBALS = strip(RAW_GLOBALS);
  *
  * The name class stays strict rather than using the `i` flag, which would also
  * admit uppercase token names that the stylesheet does not use.
+ *
+ * The trailing lookahead matters as much as the class. Without it the pattern
+ * is unanchored, so a valid 8-digit `#RRGGBBAA` matches on its first six digits:
+ * `#826ed400` — a FULLY TRANSPARENT mark — was read as opaque `#826ed4`, the
+ * roster guard below saw the developer present, and every corridor and clearance
+ * check measured a colour the browser never renders. The roster guard cannot
+ * catch that one on its own, because the truncated prefix keeps the entry in the
+ * map; only refusing to match does (Codex review, PR #106). Shorthand `#abc`
+ * needs no special handling — it fails to match, and the roster guard fires.
  */
 const ACCENT_HEX = new Map(
-  [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-fA-F]{6})/g)].map(
+  [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-fA-F]{6})(?![0-9a-fA-F])/g)].map(
     (m) => [m[1]!, m[2]!.toLowerCase()] as const,
   ),
 );
@@ -186,6 +195,27 @@ describe("the accent layer tracks the developer roster", () => {
   it("defines an accent for every developer, and none for anything else", () => {
     const declared = [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*#/g)].map((m) => m[1]!);
     expect([...declared].sort()).toEqual([...DEVELOPER_ORDER].sort());
+  });
+
+  it("declares every accent as an opaque 6-digit hex — no alpha, no shorthand", () => {
+    // Anchoring the parse makes a bad value DISAPPEAR, which the test above
+    // then reports as a missing developer — true, but not the reason. This
+    // names it. `#RRGGBBAA` is the case that motivated both: an accent with
+    // alpha renders semi- or fully transparent while every measurement here
+    // would read its opaque prefix.
+    // Scoped to the roster, not to the `--dev-` prefix: the layer also declares
+    // --dev-peak, --dev-rx and --dev-ry, which are an alpha and two radii, not
+    // accents. Matching on the prefix alone flagged all three.
+    const roster = new Set<string>(DEVELOPER_ORDER);
+    const offenders = [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*([^;]+);/g)]
+      .filter((m) => roster.has(m[1]!))
+      .map((m) => [m[1]!, m[2]!.trim()] as const)
+      .filter(([, value]) => !/^#[0-9a-fA-F]{6}$/.test(value))
+      .map(([dev, value]) => `${dev}: ${value}`);
+    expect(
+      offenders,
+      "accents must be #RRGGBB — alpha and shorthand are not measurable by the corridor and clearance checks",
+    ).toEqual([]);
   });
 
   it("PARSES every declared accent into the map the other checks iterate", () => {
