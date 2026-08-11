@@ -83,15 +83,29 @@ export const metadata: Metadata = {
    * served and referenced by nothing — scripts/generate-icons.mjs writes the
    * equivalents under `public/icons/` and this block points at them.
    *
-   * ORDER IS LOAD-BEARING on the apple pair. Apple's own rule for several
-   * same-size `apple-touch-icon` links is "the last one wins"; whether iOS
-   * evaluates `media` on them at all is undocumented and unverifiable from this
-   * repo (see BASE_INVERSE in generate-icons.mjs). So the DARK tile is declared
-   * first and carries the query, and the LIGHT tile is declared last with no
-   * query at all. A media-blind iOS lands on the light tile — exactly today's
-   * behaviour, no regression. A media-aware one can pick the dark tile in dark
-   * appearance. The arrangement can only help; it cannot cost us the light
-   * tile.
+   * THE APPLE PAIR IS BUILT AROUND TWO UNKNOWNS, and both halves matter.
+   * Apple's own rule for several same-size `apple-touch-icon` links is "the last
+   * one wins"; whether iOS evaluates `media` on them at all is undocumented and
+   * unverifiable from this repo (see BASE_INVERSE in generate-icons.mjs). So:
+   * the queries are COMPLEMENTARY — every link carries one, and between them
+   * they cover both schemes — and the LIGHT tile is declared LAST.
+   *
+   *   • A media-blind iOS ignores both queries, sees two equal candidates, and
+   *     takes the last: the light tile. Exactly today's behaviour.
+   *   • A media-aware iOS has exactly ONE eligible link per scheme, so it lands
+   *     on the right tile whether it resolves first-match or last-match.
+   *
+   * Leaving the light link UNCONDITIONAL instead (the first cut of this, caught
+   * in review on #108) breaks the second bullet: an unconditional link matches
+   * in dark mode too, so a media-aware last-wins reader — the likeliest shape,
+   * given last-wins is Apple's own stated rule — would keep choosing light and
+   * the dark tile could never be selected at all.
+   *
+   * The one branch the unconditional link covered and this does not is a UA that
+   * evaluates `media` but reports neither scheme. `prefers-color-scheme` has had
+   * no such value since `no-preference` was dropped from the spec in 2020 —
+   * Safari reports `light` when there is no preference — so that branch is not
+   * reachable on any iOS this ships to.
    *
    * The favicons do NOT invert with the OS scheme, by decision: an opaque plate
    * is legible on any tab background, so there is no legibility case to answer.
@@ -108,7 +122,11 @@ export const metadata: Metadata = {
         sizes: "180x180",
         media: "(prefers-color-scheme: dark)",
       },
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180" },
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        media: "(prefers-color-scheme: light)",
+      },
     ],
   },
   // NO appleWebApp block: the two static apple metas are hand-written in the

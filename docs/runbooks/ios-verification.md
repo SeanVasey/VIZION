@@ -104,11 +104,15 @@ The open questions. The first is no longer depended on; the rest are:
   asking (761615, 787919, 801448 — read 2026-08-11) are unanswered. Searching
   is worse than useless here: results confidently assert both answers.
   `apple-touch-icon-dark.png` and its link ship anyway, because the arrangement
-  is built to be a no-op if ignored — the dark tile is declared first with the
-  query, the light tile last with none, so a media-blind iOS lands exactly where
-  it does today (see the `metadata.icons` block in `src/app/layout.tsx`). What a
-  device settles is whether the dark appearance actually picks the inverse
-  artwork up. If it does not, the fallback is a product decision, not a bug fix:
+  is built to answer both ways at once: the two queries are COMPLEMENTARY, so a
+  media-aware iOS has exactly one eligible link per scheme, and the LIGHT tile
+  is declared LAST, so a media-blind iOS — which ignores the queries and sees
+  two equal candidates — lands exactly where it does today (see the
+  `metadata.icons` block in `src/app/layout.tsx`). Getting only the second half
+  right is not enough, and the first cut of this got it wrong: with the light
+  link left unconditional it also matched in dark mode, and a media-aware
+  last-wins reader would have gone on choosing light forever. What a device
+  settles is whether the dark appearance actually picks the inverse artwork up. If it does not, the fallback is a product decision, not a bug fix:
   either accept iOS's auto-darkened tile, or flip `BASE` in
   `scripts/generate-icons.mjs` to `"dark"` so the ONE tile is Laser-on-Void and
   legible under every appearance — at the cost of the Laser plate in light mode.

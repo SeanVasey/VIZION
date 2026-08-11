@@ -3447,6 +3447,24 @@ test:e2e` hard-fails in global-setup until
   before writing a comment that hedges, look for the arrangement whose
   worst case is the status quo.
 
+  **Amendment, same day (Codex review on #108).** Getting the worst case
+  right is only half the job, and the first cut shipped only that half.
+  The light link was left UNCONDITIONAL, reasoning that a media-blind
+  reader would then take it under Apple's "last one wins" — true, but an
+  unconditional link also matches in DARK mode, so a media-AWARE
+  last-wins reader (the likeliest shape, since last-wins is Apple's own
+  rule) would keep choosing light and the dark tile could never be
+  selected at all. The best case had been quietly designed out while the
+  comment claimed the arrangement "can only help". The fix is
+  complementary queries — every link scheme-qualified, the two covering
+  both schemes, light still declared last — which leaves exactly one
+  eligible link per scheme for a media-aware reader and the media-blind
+  fallback untouched. Sharpened rule: hedging across an unknown means
+  enumerating the reader's plausible strategies (first-match, last-match,
+  ignores-media) and checking the arrangement against EACH. "It can only
+  help" is a claim about a branch table; I wrote it without drawing the
+  table, and the one branch I skipped was the one the feature exists for.
+
 - **`align-items: center` centres a line box, and a line box is not a
   word.** The header mark hung visibly low beside the wordmark although
   flex had "centred" it: a line box's centre sits at

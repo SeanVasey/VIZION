@@ -22,11 +22,16 @@ dark tile's ink and vice-versa) and present in the SSR'd head
 (`shell.spec.ts`). Whether **iOS reads `media` on `apple-touch-icon` at all** is
 undocumented by Apple and unanswerable from this repo — the Developer Forums
 threads asking (761615 / 787919 / 801448) have no reply, and search results
-assert both answers with equal confidence. So the pair is **ordered to be a
-no-op if ignored**: dark first carrying the query, light **last and
-unconditional**, which is what Apple's own "last one wins" rule hands a
-media-blind iOS. It can only help; it cannot cost the light tile. The device
-check and the fallback (flip `BASE` to `"dark"`) are recorded in
+assert both answers with equal confidence. So the pair is **built to answer both
+ways at once**: the two queries are **complementary**, so a media-aware iOS has
+exactly one eligible link per scheme, and the **light tile is declared last**, so
+a media-blind iOS — which ignores the queries and, by Apple's own "last one wins"
+rule, takes the last of two equal candidates — lands exactly where it does today.
+Both halves are needed, and the first cut of this shipped only the second: with
+the light link left unconditional it kept matching in dark mode too, so a
+media-aware last-wins reader would have gone on choosing light and the dark tile
+would have been dead on arrival (caught in review). The device check and the
+fallback (flip `BASE` to `"dark"`) are recorded in
 [the iOS runbook](./docs/runbooks/ios-verification.md).
 
 Consequence: the **App Router convention icons are gone**

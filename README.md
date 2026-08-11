@@ -138,8 +138,10 @@ plate down toward the ink and the mark disappears. `apple-touch-icon-dark.png`
 is the inverse artwork, linked from `metadata.icons` behind
 `media="(prefers-color-scheme: dark)"`. Whether iOS honours `media` on
 `apple-touch-icon` is undocumented and cannot be checked from this repo, so the
-pair is ordered dark-first / light-last-and-unconditional: a media-blind iOS
-takes the light tile exactly as before. See
+pair is built for both answers: the two queries are **complementary** (a
+media-aware iOS has exactly one eligible link per scheme) and the **light tile
+is declared last** (a media-blind iOS ignores the queries, sees two equal
+candidates, and takes the last — exactly today's behaviour). See
 [the iOS runbook](./docs/runbooks/ios-verification.md) — this is one for a
 physical device.
 

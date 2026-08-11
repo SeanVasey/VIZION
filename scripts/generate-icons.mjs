@@ -124,9 +124,11 @@ const BASE = "light";
 // verifiable in this repo: whether iOS Safari honours `media` on
 // `rel="apple-touch-icon"` when it captures the tile. Apple has never
 // documented that it does; the Developer Forums threads asking (761615, 787919,
-// 801448, read 2026-08-11) have no answer either way. So this is built to be a
-// no-op if it is ignored rather than a bet — see the ordering note in
-// layout.tsx. Only a physical iPhone can close it.
+// 801448, read 2026-08-11) have no answer either way. So the link pair is built
+// to answer both ways at once — complementary queries for a media-aware reader,
+// light declared last for a media-blind one — rather than betting on either;
+// see the note on `metadata.icons` in layout.tsx, which is where that lives and
+// where it is easy to get half right. Only a physical iPhone can close it.
 const BASE_INVERSE = BASE === "light" ? "dark" : "light";
 
 // Glyph fractions. 0.74 is the artwork's own composition (see the geometry

@@ -75,17 +75,20 @@ test.describe("VIZION shell + auth gate", () => {
   }) => {
     // layout.tsx owns `metadata.icons` outright (the App Router convention
     // cannot carry a `media` attribute, and declaring the key at all suppresses
-    // the convention links). Two properties matter and neither is visible from
-    // a unit test, because both are about what Next actually SERIALISES:
+    // the convention links). Three properties matter and none is visible from a
+    // unit test, because all are about what Next actually SERIALISES:
     //
-    //   1. ORDER. Apple's rule for several same-size apple-touch-icon links is
-    //      "last one wins", and whether iOS reads `media` on them is
-    //      undocumented. The dark tile must therefore come FIRST and carry the
-    //      query, and the light tile must come LAST with none — so a media-
-    //      blind iOS still lands on the light tile it takes today. Flip the
-    //      array in layout.tsx and dark mode would become the *unconditional*
-    //      icon on every device.
-    //   2. The hrefs resolve. These moved out of `src/app/` when the
+    //   1. BOTH apple links carry a query, and the two queries are
+    //      COMPLEMENTARY. Leaving the light one unconditional (the first cut,
+    //      caught in review) leaves it matching in dark mode as well, so a
+    //      media-aware last-wins reader keeps choosing light and the dark tile
+    //      is dead on arrival.
+    //   2. ORDER. Apple's rule for several same-size apple-touch-icon links is
+    //      "last one wins", so the LIGHT tile must come last: that is what a
+    //      media-blind iOS — which ignores both queries and sees two equal
+    //      candidates — ends up with, i.e. exactly today's behaviour. Flip the
+    //      array and a media-blind device would switch to the dark tile.
+    //   3. The hrefs resolve. These moved out of `src/app/` when the
     //      convention files were deleted; a stale path is a 404 in the
     //      Add-to-Home-Screen sheet, which fails silently.
     await page.goto("/sign-in");
@@ -100,7 +103,10 @@ test.describe("VIZION shell + auth gate", () => {
     expect(apple[0]!.href).toBe("/icons/apple-touch-icon-dark.png");
     expect(apple[0]!.media).toBe("(prefers-color-scheme: dark)");
     expect(apple[1]!.href).toBe("/icons/apple-touch-icon.png");
-    expect(apple[1]!.media, "the light tile must be unconditional").toBe("");
+    expect(
+      apple[1]!.media,
+      "the light tile must be scheme-qualified, or it also matches in dark",
+    ).toBe("(prefers-color-scheme: light)");
 
     // Scalable favicon first, raster fallbacks after.
     const icons = links.filter((l) => l.rel === "icon");

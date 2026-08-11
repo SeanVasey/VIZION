@@ -51,9 +51,10 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
   re-run, without touching the manifest references (DOC-010: no longer
   placeholders).
 - Adding or renaming an icon means editing the `metadata.icons` block too —
-  nothing auto-wires it now. The **order** of the `apple` array is load-bearing
-  (dark first with its media query, light last with none); the reasoning is on
-  that block and pinned by `tests/e2e/shell.spec.ts`.
+  nothing auto-wires it now. The `apple` array is load-bearing twice over: both
+  links must carry **complementary** `prefers-color-scheme` queries, and the
+  **light** one must come **last**. The reasoning is on that block and pinned by
+  `tests/e2e/shell.spec.ts`.
 - Share artwork is a separate script: `npm run generate:social` writes
   `public/brand/og-tile.png` (square, the `og:image`) and
   `public/brand/social-card.png` (landscape, `twitter:image` + the GitHub social
