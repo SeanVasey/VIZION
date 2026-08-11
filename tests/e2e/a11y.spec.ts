@@ -119,7 +119,7 @@ test.describe("rendered accessibility (axe)", () => {
  * Contrast is a property of the resolved token cascade, and the dark and light
  * blocks in tokens.css are independent — a value that clears AA on Void can fail
  * on the #EEF0F4 canvas (and did, historically: the light --accent-ink is a
- * separate #5B6600, not a tint of Laser). The dark scans above said nothing
+ * separate #526810, not a tint of Laser). The dark scans above said nothing
  * about it. Forcing `data-theme="light"` drives the real `:root[data-theme]`
  * block; the guard proves the light cascade actually took before axe reads
  * colours, so a scan that silently stayed dark cannot pass as a light one.

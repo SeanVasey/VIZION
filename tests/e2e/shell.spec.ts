@@ -37,7 +37,7 @@ test.describe("VIZION shell + auth gate", () => {
     // `currentColor` / text-accent, so they must compute the identical rgb — a
     // hardcoded fill sneaking back into either is what this catches. Real engine
     // because it is a resolved-cascade fact, and in BOTH polarities because the
-    // light accent (#5B6600) is a different token, not a tint of the dark Laser.
+    // light accent (#526810) is a different token, not a tint of the dark Laser.
     await page.goto("/sign-in");
     const mark = page.locator('svg[viewBox="0 0 1024 892.8"]').first();
     const word = page.getByRole("img", { name: "VIZION" });

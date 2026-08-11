@@ -2,7 +2,10 @@
 
 Date: 2026-08-10
 Status: accepted (inverts the "art re-derives from tokens" lesson in
-[`tasks/lessons.md`](../../tasks/lessons.md); no ADR superseded)
+[`tasks/lessons.md`](../../tasks/lessons.md); no ADR superseded).
+**Amended 2026-08-11** — `--laser` retuned again, `#dffa04` → `#c7fd26`, pulling
+the brand green back off yellow. The token now LEADS and the artwork trails; see
+the Amendment at the end of this file.
 
 ## Context
 
@@ -158,3 +161,61 @@ light palette's internal balance is preserved rather than merely re-passed.
   input and were deliberately left alone; a blanket replace would corrupt them.
 - If a future icon set is a _derivative_ rather than a refresh, the
   `lessons.md` rule applies unchanged and the art re-derives from these tokens.
+
+## Amendment (2026-08-11) — pulled back off yellow, and the token re-leads
+
+The `#dffa04` set above measured, on the owner's eye, **too yellow** beside the
+neon buttons — most visibly in light mode, where the bright `--laser` fill sits
+next to a `--accent-ink` mark. Measured, the perception is real: `#dffa04` is
+hue **66.6°** (R 223), a chartreuse leaning yellow; the pre-refresh neon was 82°.
+
+`--laser` moves `#dffa04` → **`#c7fd26`** (hue ~**75°**), a deliberate middle —
+clearly less yellow, without reverting all the way to the retired `#b7ff3c`.
+
+This **re-separates the token from the artwork**, reversing the direction the
+body of this ADR set. The 2026-08 Liquid Glass files under `public/brand/`
+(`vizion-icon-*.svg`, the `foreground-*` / `bg-*` layers) are an Icon Composer
+export whose green is **baked into gradients and specular** — they are not the
+raster source of anything the PWA renders (the generator paints a flat glyph from
+the token), and re-authoring a supplied appearance set is out of scope here.
+So the split is made explicit and owned:
+
+- **The token leads.** `--laser #c7fd26` drives the design system and every
+  **generated** derivative — the favicon, the `any`/maskable matrix, apple-touch,
+  the App Router icons, the splash set, and the social card — all of which
+  `scripts/generate-icons.mjs` / `generate-social-card.mjs` read out of
+  `tokens.css`. Regenerating repainted **33 icon files + the social card** to
+  `#c7fd26`.
+- **The Icon Composer art trails**, still at `#dffa04`, as native-app source for
+  a future `.icon` build. Re-exporting it to `#c7fd26` is a follow-up the owner
+  holds; the PWA is unaffected because it never rasterizes those files.
+
+The same literal-mirror sites move with the token (the discipline the body of
+this ADR established):
+
+| Site                                               | From                       | To                        |
+| -------------------------------------------------- | -------------------------- | ------------------------- |
+| `tokens.css` `--laser`                             | `#dffa04`                  | `#c7fd26`                 |
+| `tokens.css` `--laser-glow`                        | `rgba(223, 250, 4, 0.25)`  | `rgba(199, 253, 38, 0.25)`|
+| `tokens.css` `--accent-ink` (light, **×2 blocks**) | `#5b6600`                  | `#526810`                 |
+| `AmbientNebula.tsx` `LASER_RGB` / `accentRgb`      | `"223, 250, 4"`            | `"199, 253, 38"`          |
+| `tests/unit/safe-area.test.ts` `LASER`             | `#DFFA04`                  | `#C7FD26`                 |
+
+**`--on-laser` still does not move.** Void on `#c7fd26` measures **15.87:1** —
+comfortably over the §6 floor — so the button/chip/FAB ink is unchanged.
+
+**The developer-accent corridor survives — recomputed, not assumed.** Every one
+of the twelve accents still clears 0003's **20 ΔE2000** floor to `--laser`; the
+tightest is still **google at 34.7** (was 37.0 at `#dffa04`), still well over the
+floor. `developer-accents.test.ts` reads the floors from `tokens.css`, so it
+follows the retune and passes unmodified; its "google is tightest / > 20"
+assertion holds, and its historical `#b7ff3c` self-check (66.7) is untouched.
+
+**`--accent-ink` (light) re-derived `#5b6600` → `#526810`** — the same
+construction at the new ~75° hue (off the olive `#dffa04` gave it), lightness
+tuned to HOLD the corridor rather than merely pass: page **5.50** / glass **6.13**
+/ surface **6.06**, matching the prior value's 5.50 / 6.12 / 6.06.
+
+The load-bearing check remains visual (no test asserts rendered colour): both
+themes were rendered and pixel-sampled — every generated icon, the favicon, and
+the social card read `#c7fd26` to ΔE 0.0.

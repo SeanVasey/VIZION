@@ -117,8 +117,9 @@ shipped as an iOS 26 Liquid Glass icon set under `public/brand/`.
 **`public/brand/vizion-glyph.svg` is the single raster source of truth**: the
 mark alone, flat, on a tight 1024 × 892.8 viewBox. `npm run generate:icons`
 composes the entire 33-file icon + splash matrix from it via `sharp`, painting
-it with the locked colorways — `Laser #DFFA04`, `Void #0F1012`. Don't hand-edit
-the PNGs, and don't edit `public/brand/` to change a derivative.
+it with the locked colorways it reads from `tokens.css` — `Laser #C7FD26`,
+`Void #0F1012`. Don't hand-edit the PNGs, and don't edit `public/brand/` to
+change a derivative.
 
 The appearances are:
 
@@ -158,13 +159,16 @@ measured `#C9E601`–`#D3EF02` beside a wordmark reading a flat `--accent-ink` a
 the two greens visibly disagreed. On `currentColor` the mark and the wordmark
 are the same token by construction and cannot drift apart.
 
-Artwork and design system share one green: `--laser` was retuned `#B7FF3C` →
-`#DFFA04` to meet the Liquid Glass set, which inverts the usual "art re-derives
-from the tokens" rule because this set is a brand refresh rather than a
-derivative — see [ADR-0013](./docs/decisions/0013-brand-green-retune.md). The
-generator closes the loop from the other side: it reads `--laser` and `--void`
-out of `tokens.css` rather than restating them, so the icons cannot disagree
-with the design system about what the brand green is.
+The brand green is `--laser`, and the **token leads**. It was retuned `#B7FF3C`
+→ `#DFFA04` to meet the Liquid Glass set, then pulled back off yellow to
+`#C7FD26` (hue ~75°) when the `#DFFA04` set read too yellow beside the neon
+buttons — see [ADR-0013](./docs/decisions/0013-brand-green-retune.md) and its
+2026-08-11 amendment. The generator closes the loop: it reads `--laser` and
+`--void` out of `tokens.css` rather than restating them, so every generated icon
+follows the token by construction. The Liquid Glass **source** SVGs in
+`public/brand/` still carry `#DFFA04` — they are Icon Composer artwork for a
+future native `.icon` build, never rasterized into the PWA, so their green is
+independent of the shipped token until that art is re-exported.
 
 ## License
 
