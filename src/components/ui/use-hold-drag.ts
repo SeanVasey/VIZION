@@ -42,9 +42,16 @@ import { tap } from "@/lib/haptics";
  * "the slider never appears" (2026-08-09, ADR-0012 amendment). Once the
  * hold fires the pointer is captured AND a non-passive window `touchmove`
  * preventDefault stops a late vertical pan from stealing the pointer
- * mid-drag. The two composer pills are not a scroll surface — unlike the
- * library's swipe rows, which rightly keep `pan-y` because a full-width
- * list row IS one.
+ * mid-drag.
+ *
+ * That default is right for a content-width pill in a rail, where the cost
+ * is a thumb-sized dead spot. It is wrong for a control that spans a
+ * scrolling pane — the shape the library's swipe rows have always had, and
+ * which they answer by keeping `pan-y`. The budget dial became that shape
+ * when it moved into the Target sheet (ADR-0014) and grew full-width across
+ * a sixteen-row `overflow-y-auto` list, so `scrollableHost` now carries the
+ * same exemption. Only the vertical axis is handed back; horizontal stays
+ * the gesture's.
  */
 
 /** Hold time before the slider engages. Above usePressable's 130ms press
@@ -259,6 +266,7 @@ export function useHoldDrag({
   selectedIndex,
   enabled,
   latchOnTap = false,
+  scrollableHost = false,
   onCommit,
 }: {
   detentCount: number;
@@ -270,6 +278,26 @@ export function useHoldDrag({
   /** True = a plain tap opens the capsule LATCHED instead of falling through
    *  to the wrapped trigger's click. See the header. */
   latchOnTap?: boolean;
+  /**
+   * True when the wrapper sits ON a scrollable surface it must not trap —
+   * a full-width control inside an `overflow-y-auto` pane.
+   *
+   * The default claim denies every single-finger pan, and `touch-action` is
+   * consulted ONCE at gesture start, so the y-dominant stand-down below
+   * cannot hand a pan back after the fact: it stops the SLIDER engaging, but
+   * the scroll is already lost. On a content-width pill in a rail that costs
+   * a thumb-sized dead spot and is the accepted trade (ADR-0012). Across a
+   * full-width band in a sixteen-row list it is a scroll trap (Codex review,
+   * PR #109) — the same shape as the library's swipe rows, which have always
+   * kept `pan-y` for this reason.
+   *
+   * The cost is real and bounded: with the vertical axis native, a pre-hold
+   * vertical drift lets the UA `pointercancel` the press, so a HOLD needs a
+   * steadier finger here. Tap-to-latch (no movement) and horizontal
+   * press-and-slide are both unaffected, and on the surface that sets this
+   * the tap is the primary path.
+   */
+  scrollableHost?: boolean;
   /** Called once on release with the landed detent. Must be stable. */
   onCommit: (index: number) => void;
 }) {
@@ -984,12 +1012,18 @@ export function useHoldDrag({
       onPointerCancel,
       onClickCapture,
       onContextMenu,
-      // The resting claim (see the header for why it must deny every
-      // single-finger pan); omitted entirely when inert so a disabled
+      // The resting axis claim; omitted entirely when inert so a disabled
       // wrapper makes no claim at all (the swipe-actions rule).
+      //
+      // Default `pinch-zoom` denies every single-finger pan — see the header
+      // for why that is the pre-hold window's only defense. `scrollableHost`
+      // hands the VERTICAL axis back, which is the exact carve-out ADR-0012
+      // already made for the library's swipe rows ("a full-width list row IS
+      // a scroll surface"). Horizontal is still refused, so a sideways slide
+      // remains the gesture's; only the pan the host needs is given up.
       style: enabled
         ? ({
-            touchAction: "pinch-zoom",
+            touchAction: scrollableHost ? "pan-y pinch-zoom" : "pinch-zoom",
             WebkitTouchCallout: "none",
           } as React.CSSProperties)
         : undefined,

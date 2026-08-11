@@ -167,6 +167,17 @@ explicit "Got it" writes the same `dialTipSeen` flag.
 - Escape now `stopPropagation`s. A latched capsule can be open inside a
   Sheet, whose panel closes on a bubbled Escape; one Escape must dismiss one
   surface, the one in front.
+- **The dial spans a scrolling pane, so it hands back the vertical axis.**
+  [0012]'s resting `touch-action: pinch-zoom` denies every single-finger pan,
+  which is right for a content-width pill in a rail (the cost is a
+  thumb-sized dead spot) and wrong for a full-width control across an
+  `overflow-y-auto` list of sixteen models — that is a scroll trap, and the
+  same shape the library's swipe rows have always answered with `pan-y`.
+  `scrollableHost` carries that exemption per instance; horizontal stays the
+  gesture's. The cost is 0012's measured one — a pre-hold vertical drift lets
+  the UA cancel the press, so a HOLD needs a steadier finger here — and it is
+  bounded, because on this surface the tap is the primary path and a tap does
+  not move.
 - The click-consumption that rode on the Target pill's wrapper went away with
   that wrapper. What holds the "no sheet under a live capsule" line is what
   always did the physical work: a viewport-covering, pointer-interactive

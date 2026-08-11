@@ -168,6 +168,7 @@ export function HoldSliderTrigger({
   detentMarker = "dot",
   dynamicBackdrop = false,
   latchOnTap = false,
+  scrollableHost = false,
   peakCaption,
   className,
   children,
@@ -201,6 +202,10 @@ export function HoldSliderTrigger({
    *  to the wrapped trigger's click. Hosts that pass this own the whole
    *  interaction and must declare slider semantics on the trigger. */
   latchOnTap?: boolean;
+  /** True when this trigger sits on a scrollable surface it must not trap —
+   *  see useHoldDrag's own note. Pairs with `className="flex w-full"`: a
+   *  full-width control in an overflowing pane needs both. */
+  scrollableHost?: boolean;
   /** The cost line shown beneath the capsule at the ladder's TOP stop only —
    *  the reference control's "consumes usage limits faster". Returning null
    *  (or omitting the prop) ships no caption. */
@@ -233,6 +238,7 @@ export function HoldSliderTrigger({
     selectedIndex,
     enabled,
     latchOnTap,
+    scrollableHost,
     onCommit: handleCommit,
   });
 

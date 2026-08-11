@@ -121,6 +121,31 @@ describe("where the tuning dial lives", () => {
     expect(targetTrigger()).toHaveTextContent("Auto · Quality");
   });
 
+  it("leaves the sheet's vertical pan native — no scroll trap over the dial", () => {
+    // The dial spans the full width of an `overflow-y-auto` pane holding
+    // sixteen model rows, so a touch that starts on it must still scroll the
+    // list. `touch-action` is consulted ONCE at gesture start, so the hook's
+    // y-dominant stand-down cannot hand the pan back afterwards — the
+    // resting claim is the only thing that can, and the default claim denies
+    // every single-finger pan (Codex review, PR #109). Horizontal stays
+    // refused: that axis is the slider's.
+    renderComposer();
+    openSheet();
+    const wrapper = tuningDial().parentElement!;
+    expect(wrapper.style.touchAction).toBe("pan-y pinch-zoom");
+  });
+
+  it("keeps the composer rail's pill on the exclusive claim", () => {
+    // The exemption is per-instance and deliberately narrow: a content-width
+    // pill in a rail is not a scroll surface, and ADR-0012 measured what
+    // handing it `pan-y` costs (a pre-hold drift cancels the press — "the
+    // slider never appears"). Only the full-width sheet dial opts out.
+    useUIStore.setState({ dialTipSeen: true });
+    renderComposer();
+    const thinking = screen.getByRole("slider", { name: "Thinking depth" });
+    expect(thinking.parentElement!.style.touchAction).toBe("pinch-zoom");
+  });
+
   it("declares the ARIA slider contract, cheapest-first", () => {
     renderComposer();
     openSheet();

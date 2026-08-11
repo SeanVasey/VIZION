@@ -412,8 +412,12 @@ function AutoTuningDial({
       latchOnTap
       peakCaption={BUDGET_PEAK_CAPTION}
       // Block-level here: this dial spans the sheet's column under the card
-      // it tunes, unlike the composer rail's content-width pills.
+      // it tunes, unlike the composer rail's content-width pills — which is
+      // exactly why it also declares `scrollableHost`: a full-width band
+      // across an overflowing sixteen-row list would otherwise swallow the
+      // pan that scrolls it.
       className="flex w-full"
+      scrollableHost
     >
       <button
         type="button"
