@@ -245,6 +245,9 @@ function TargetPickerSheet({
     ],
     [onPickAuto],
   );
+  // The CHECKED index, live — not a starting point. Turning Auto on from the
+  // tuning dial re-checks this group's first radio without moving focus, and
+  // the sheet no longer closes behind it, so the tab stop has to follow.
   const roving = useRovingRadios(flatIds.length, auto ? 0 : flatIds.indexOf(value));
 
   return (

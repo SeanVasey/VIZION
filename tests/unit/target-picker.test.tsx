@@ -287,6 +287,68 @@ describe("TargetPicker — Auto routing preference", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  it("moves the roving tab stop onto Auto when the dial checks it", () => {
+    // WAI-ARIA puts a radiogroup's single tab stop on the CHECKED radio. The
+    // dial turns Auto on from outside the group without moving focus, and
+    // ADR-0014 stopped the sheet closing behind it — so a tab stop that was
+    // only initialised once left tabIndex=0 stranded on the previously
+    // selected model while Auto was the checked row, and Tab re-entered the
+    // group on an unchecked one (Codex review, PR #109).
+    const { rerender } = render(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={vi.fn()}
+        auto={false}
+        onAutoChange={vi.fn()}
+        autoPreference="balanced"
+        onAutoPreferenceChange={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /target model/i }));
+    const autoRadio = () => screen.getByRole("radio", { name: /^Auto/ });
+    const sonnet = () => screen.getByRole("radio", { name: "Sonnet 5" });
+    expect(sonnet().getAttribute("tabindex")).toBe("0");
+    expect(autoRadio().getAttribute("tabindex")).toBe("-1");
+
+    // The dial flips Auto on; the sheet stays open, so the group must retarget.
+    rerender(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={vi.fn()}
+        auto
+        onAutoChange={vi.fn()}
+        autoPreference="quality"
+        onAutoPreferenceChange={vi.fn()}
+      />,
+    );
+    expect(autoRadio().getAttribute("aria-checked")).toBe("true");
+    expect(autoRadio().getAttribute("tabindex")).toBe("0");
+    expect(sonnet().getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("does not fight arrow navigation — focus moves without a selection", () => {
+    // The tab stop follows the SELECTION, and arrows change the selection not
+    // at all (A11Y-002: selection here is expensive, so arrows move FOCUS and
+    // Enter activates). A sync that fired on every render rather than on a
+    // selection CHANGE would have yanked focus back to the checked row on the
+    // first arrow press and broken that contract.
+    openWithPreference();
+    // Start from the checked row, which the sheet has already focused — so
+    // the handler's index and the DOM agree before the first key.
+    const sonnet = screen.getByRole("radio", { name: "Sonnet 5" });
+    expect(document.activeElement).toBe(sonnet);
+    fireEvent.keyDown(sonnet, { key: "ArrowDown" });
+    const moved = document.activeElement as HTMLElement;
+    expect(moved).not.toBe(sonnet);
+    expect(moved.getAttribute("tabindex")).toBe("0");
+    expect(sonnet.getAttribute("tabindex")).toBe("-1");
+    // …and nothing was selected on the way: Sonnet is still the checked row.
+    expect(sonnet.getAttribute("aria-checked")).toBe("true");
+    expect(moved.getAttribute("aria-checked")).toBe("false");
+  });
+
   it("keeps roving-nav keys inside the dial (Codex review, PR #96)", () => {
     // The dial renders inside the sheet's radiogroup element; without a
     // propagation stop, Arrow/Home/End/PageUp would reach the roving handler,

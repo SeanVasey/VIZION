@@ -104,6 +104,14 @@ Two consequences:
   choice that ended the interaction. A dial is adjusted and looked at, and
   closing the pane out from under a drag threw away the result just dialled
   in. Committing still turns Auto ON, which is the shortcut the Segmented was.
+  This one had a tail: `useRovingRadios` initialised its tab stop once, which
+  was sound only because every selection in this sheet used to close it — the
+  hook said so in its own header. Turning Auto on from the dial checks the
+  Auto radio from OUTSIDE the group without moving focus, so with the sheet
+  staying open the tab stop stayed stranded on the previously selected model
+  and Tab re-entered the group on an unchecked row. The tab stop now follows
+  the checked index (Codex review, PR #109). Anything else that changes this
+  group's selection without closing it inherits the same requirement.
 
 The composer's Target pill therefore hosts no slider at all. It still names
 the live preference — "Auto · Balanced" — so what the dial sets stays visible
