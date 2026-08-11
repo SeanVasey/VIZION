@@ -92,6 +92,7 @@ function TargetPickerImpl({
   onAutoChange,
   autoPreference,
   onAutoPreferenceChange,
+  streaming,
 }: {
   value: TargetModelId;
   onChange: (next: TargetModelId) => void;
@@ -117,6 +118,19 @@ function TargetPickerImpl({
    */
   autoPreference?: AutoPreference;
   onAutoPreferenceChange?: (next: AutoPreference) => void;
+  /**
+   * True while a run is in flight, for the tuning dial's capsule inside the
+   * sheet (Codex review, PR #109). It rode on the composer's own wrapper
+   * until the dial moved in here, and was simply dropped in the move — so
+   * the capsule's full-viewport `backdrop-filter` re-filtered on every
+   * streamed repaint, the exact trap `dynamicBackdrop` exists to avoid
+   * (ADR-0012, eighth pass). The rails stay live mid-run by design, so this
+   * state is reachable: the sheet opens over a streaming composer.
+   *
+   * A boolean that flips at stream start and end, never per flush, so the
+   * memo on this component still holds across SSE frames (PERF-006).
+   */
+  streaming?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -172,6 +186,7 @@ function TargetPickerImpl({
           })
         }
         autoPreference={autoPreference}
+        streaming={streaming}
         onPickPreference={
           onAutoChange &&
           onAutoPreferenceChange &&
@@ -205,6 +220,7 @@ function TargetPickerSheet({
   onPickAuto,
   autoPreference,
   onPickPreference,
+  streaming,
 }: {
   open: boolean;
   onClose: () => void;
@@ -215,6 +231,7 @@ function TargetPickerSheet({
   onPickAuto?: () => void;
   autoPreference?: AutoPreference;
   onPickPreference?: (next: AutoPreference) => void;
+  streaming?: boolean;
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null);
   // Open on the current pick rather than the top of a sixteen-row list.
@@ -294,7 +311,11 @@ function TargetPickerSheet({
                   if (ROVING_NAV_KEYS.has(e.key)) e.stopPropagation();
                 }}
               >
-                <AutoTuningDial value={autoPreference} onChange={onPickPreference} />
+                <AutoTuningDial
+                  value={autoPreference}
+                  onChange={onPickPreference}
+                  streaming={streaming ?? false}
+                />
               </div>
             )}
           </section>
@@ -359,9 +380,13 @@ function TargetPickerSheet({
 function AutoTuningDial({
   value,
   onChange,
+  streaming,
 }: {
   value: AutoPreference;
   onChange: (next: AutoPreference) => void;
+  /** Stands the capsule's focus blur down to dim-only while the composer
+   *  behind the sheet is repainting — see TargetPicker's `streaming`. */
+  streaming: boolean;
 }) {
   const index = BUDGET_DETENTS.findIndex((d) => d.id === value);
   // A stored value outside the ladder can only come from a future/edited
@@ -411,6 +436,7 @@ function AutoTuningDial({
       enabled
       latchOnTap
       peakCaption={BUDGET_PEAK_CAPTION}
+      dynamicBackdrop={streaming}
       // Block-level here: this dial spans the sheet's column under the card
       // it tunes, unlike the composer rail's content-width pills — which is
       // exactly why it also declares `scrollableHost`: a full-width band

@@ -544,6 +544,10 @@ export function EnhanceComposer() {
             autoPreference={autoPreference}
             onAutoPreferenceChange={onAutoPreferenceChange}
             triggerClassName={RAIL_TRIGGER_CLASS}
+            // The tuning dial's capsule lives inside this picker's sheet now,
+            // so the stream state it needs has to travel with it — see
+            // TargetPicker's `streaming`.
+            streaming={isPending || enhanceMutation.stream.active}
           />
         </div>
 

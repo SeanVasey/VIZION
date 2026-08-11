@@ -44,6 +44,12 @@ vi.mock("@/components/media/AttachmentTray", () => ({ AttachmentTray: () => null
 vi.mock("@/components/diff/TransformationDiff", () => ({
   TransformationDiff: () => null,
 }));
+// Mounted whenever a test puts the mutation in flight; its scroll-into-view
+// effect wants matchMedia, which this jsdom setup doesn't provide — and these
+// tests assert on the capsule, never on the streaming surface itself.
+vi.mock("@/components/diff/StreamingResult", () => ({
+  StreamingResult: () => null,
+}));
 
 import { EnhanceComposer } from "@/components/editor/EnhanceComposer";
 
@@ -85,6 +91,11 @@ function holdAndDrag(steps: number) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
+  // Reset here, not at the end of the test that sets it: a failing assertion
+  // would otherwise leave the mutation in flight and take the rest of the
+  // file down with it.
+  mockMutation.isPending = false;
+  mockMutation.stream.active = false;
   useUIStore.setState({
     editorDraft: "",
     activeMode: "polish",
@@ -201,6 +212,48 @@ describe("the capsule opens inside its own sheet", () => {
       vi.advanceTimersByTime(HOLD_MS);
     });
     expect(overlay()).not.toBeNull();
+    fireEvent.pointerCancel(tuningDial(), { pointerId: 1 });
+  });
+
+  it("ships the capsule dim-only while a run is in flight", () => {
+    // The rails stay live mid-run by design (dialling the NEXT run), so the
+    // sheet can be opened over a streaming composer — and the capsule's
+    // full-viewport backdrop-filter would then re-filter on every streamed
+    // repaint, the trap ADR-0012's eighth pass identified. The composer's own
+    // wrapper carried this state until the dial moved into the sheet, where
+    // the move simply dropped it (Codex review, PR #109).
+    mockMutation.isPending = true;
+    renderComposer();
+    openSheet();
+    fireEvent.pointerDown(tuningDial(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    expect(overlay()).not.toBeNull();
+    expect(document.querySelector("[data-hold-slider-blur]")).toBeNull();
+    // The dim always mounts — it is the input shield as well as the drop-back.
+    expect(document.querySelector("[data-hold-slider-scrim]")).not.toBeNull();
+    fireEvent.pointerCancel(tuningDial(), { pointerId: 1 });
+  });
+
+  it("blurs normally at rest — the stand-down is for a live stream only", () => {
+    renderComposer();
+    openSheet();
+    fireEvent.pointerDown(tuningDial(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+      button: 0,
+    });
+    act(() => {
+      vi.advanceTimersByTime(HOLD_MS);
+    });
+    expect(document.querySelector("[data-hold-slider-blur]")).not.toBeNull();
     fireEvent.pointerCancel(tuningDial(), { pointerId: 1 });
   });
 

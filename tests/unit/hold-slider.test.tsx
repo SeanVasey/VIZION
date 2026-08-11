@@ -733,9 +733,13 @@ describe("the latched phase (latchOnTap)", () => {
     render(<Host latchOnTap />);
     tapOpen();
     expect(overlay()!.className).toContain("pointer-events-auto");
-    // touch-action:none while latched — scrubbing IS a drag on the track,
-    // and without this the UA reads it as a pan and steals the pointer.
-    expect(overlay()!.style.touchAction).toBe("none");
+    // `pinch-zoom` while latched, NEVER `none`: the scrub needs the UA to
+    // stop reading a single finger as a pan, and nothing more. `none` would
+    // also deny ZOOM, and touch-action resolves at gesture start on the
+    // element the touch began on — earlier than the window handler's
+    // multi-touch exemption, which therefore could not save it (Codex
+    // review, PR #109).
+    expect(overlay()!.style.touchAction).toBe("pinch-zoom");
   });
 
   it("scrubs on the track and commits the stop under the release", () => {

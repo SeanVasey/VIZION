@@ -488,9 +488,17 @@ function HoldSliderOverlay({
           top: geometry.top,
           width: geometry.width,
           height: geometry.height,
-          // Latched scrubbing is a drag on the track itself; without this the
-          // UA reads it as a pan and steals the pointer mid-scrub.
-          touchAction: isLatched ? "none" : undefined,
+          // Latched scrubbing is a drag on the track itself, so the UA must
+          // not read it as a pan and steal the pointer mid-scrub — but
+          // `pinch-zoom`, never `none` (Codex review, PR #109). `none` also
+          // denies ZOOM, and `touch-action` is resolved at gesture start on
+          // the element the touch began on, which is earlier than — and
+          // therefore not helped by — the window handler's multi-touch
+          // exemption. A finger of a pinch landing on the capsule would still
+          // have killed the zoom. This value refuses exactly the single-finger
+          // pan the scrub needs and nothing else; it is the same claim the
+          // resting wrapper makes, for the same reason.
+          touchAction: isLatched ? "pinch-zoom" : undefined,
         }}
         onPointerDown={onTrackPointerDown}
         onPointerMove={onTrackPointerMove}
