@@ -47,7 +47,7 @@
 // Idempotent: every output is overwritten on each run, so re-running yields
 // the same tree.
 
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import fs from "node:fs/promises";
 import sharp from "sharp";
@@ -57,7 +57,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 
 const BRAND_DIR = path.join(repoRoot, "public", "brand");
-const ICONS_DIR = path.join(repoRoot, "public", "icons");
+export const ICONS_DIR = path.join(repoRoot, "public", "icons");
 const SPLASH_DIR = path.join(repoRoot, "public", "splash");
 const APP_DIR = path.join(repoRoot, "src", "app");
 
@@ -110,7 +110,7 @@ const FRAC_MASKABLE = 0.58;
 // 512/1024; the intermediate sizes are the browser/OS-chrome tail and are
 // asserted by tests/unit/icon-alpha.test.ts (which requires ≥13). Sizes are
 // FROZEN — the manifest's `any` entries must stay a subset (asserted below).
-const ANY_SIZES = [48, 72, 96, 128, 144, 152, 167, 180, 192, 256, 384, 512, 1024];
+export const ANY_SIZES = [48, 72, 96, 128, 144, 152, 167, 180, 192, 256, 384, 512, 1024];
 
 // iOS splash device classes (portrait, width × height in px). Each pairs with a
 // media-qualified <link rel="apple-touch-startup-image"> in src/app/layout.tsx
@@ -291,9 +291,61 @@ async function readManifestIcons() {
       ),
     );
     const file = path.join(repoRoot, "public", icon.src.replace(/^\//, ""));
-    (/maskable/i.test(icon.purpose || "") ? maskable : any).push({ file, px });
+    // `src` is carried alongside `file` so a validation failure can quote the
+    // manifest line the author actually wrote, not a resolved absolute path.
+    (/maskable/i.test(icon.purpose || "") ? maskable : any).push({
+      src: icon.src,
+      file,
+      px,
+    });
   }
   return { any, maskable };
+}
+
+/**
+ * Assert every `any`-purpose manifest entry is one this generator actually
+ * writes — BOTH its size and its path.
+ *
+ * Why this is a validation and not, as the maskable branch does, a loop over the
+ * manifest's own paths: the `any` matrix is a SUPERSET of the manifest. Thirteen
+ * sizes are rendered, five are declared; the other eight are the browser/OS
+ * chrome tail that tests/unit/icon-alpha.test.ts requires. It therefore cannot
+ * be driven by the manifest alone — the frozen filenames are the source, and the
+ * manifest has to agree with them. The maskable set IS exactly the manifest set,
+ * so it can be manifest-driven, and is.
+ *
+ * Checking size alone was not enough (Codex review, PR #105): renaming a
+ * declared entry to a still-supported size — `/icons/icon-192.png` →
+ * `/icons/app-192.png` — passed, this script wrote `icon-192.png` as always, and
+ * the manifest was left pointing at a file nothing creates. That is a 404 in the
+ * install prompt, arriving silently, which is precisely what the guard claims to
+ * prevent. Names are frozen (see the header), so a rename is an error to report,
+ * never something to quietly absorb.
+ */
+export function assertAnyEntriesMatchMatrix(entries, sizes, iconsDir) {
+  const problems = [];
+  for (const { src, file, px } of entries) {
+    if (!sizes.includes(px)) {
+      problems.push(
+        `  ${src} — size ${px} is not in ANY_SIZES; add it to the frozen matrix ` +
+          `or correct the manifest.`,
+      );
+      continue;
+    }
+    const expected = path.join(iconsDir, `icon-${px}.png`);
+    if (file !== expected) {
+      problems.push(
+        `  ${src} — the any matrix is generated at frozen paths; expected ` +
+          `/icons/icon-${px}.png. Rename it back, or teach this script the new name.`,
+      );
+    }
+  }
+  if (problems.length) {
+    throw new Error(
+      `manifest.webmanifest declares any-purpose icons this generator does not ` +
+        `produce:\n${problems.join("\n")}`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -305,18 +357,9 @@ async function main() {
 
   const { any: manifestAny, maskable: manifestMaskable } = await readManifestIcons();
 
-  // The manifest's `any` entries must be a subset of the frozen matrix — if the
-  // manifest ever gains a size this script does not render, fail loudly here
-  // rather than shipping a 404 in the install prompt.
-  const missing = manifestAny
-    .filter(({ px }) => !ANY_SIZES.includes(px))
-    .map(({ px }) => px);
-  if (missing.length) {
-    throw new Error(
-      `manifest.webmanifest declares any-purpose size(s) ${missing.join(", ")} ` +
-        `not present in ANY_SIZES — add them to the frozen matrix.`,
-    );
-  }
+  // Every `any` entry must name a file this script actually writes — size AND
+  // path. Fail loudly here rather than shipping a 404 in the install prompt.
+  assertAnyEntriesMatchMatrix(manifestAny, ANY_SIZES, ICONS_DIR);
 
   // 1. Transparent `any` matrix: the glyph alone in Laser, no plate. Laser (not
   //    Void ink) because there is no plate behind it here — this is the same
@@ -406,7 +449,21 @@ async function main() {
   console.log(`\nDone. ${written.length} files written.`);
 }
 
-main().catch((err) => {
-  console.error("generate-icons failed:", err);
-  process.exit(1);
-});
+// Generate only when invoked directly — `node scripts/generate-icons.mjs`, and
+// so `npm run generate:icons` and the CI step that calls it. The module is also
+// IMPORTED, by tests/unit/generate-icons-guard.test.ts, to reach the validator
+// above; without this check that import would rewrite 33 files as a side effect
+// of running the test suite.
+//
+// If this guard ever evaluates false under the CLI, generation silently stops
+// while every test stays green — so the test asserts the byte-identical re-run,
+// not just the validator.
+const invokedDirectly =
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error("generate-icons failed:", err);
+    process.exit(1);
+  });
+}
