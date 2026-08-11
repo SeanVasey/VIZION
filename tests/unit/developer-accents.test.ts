@@ -23,9 +23,23 @@ const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 const ACCENTS_CSS = strip(RAW_ACCENTS);
 const GLOBALS = strip(RAW_GLOBALS);
 
+/**
+ * Hex is matched case-INSENSITIVELY and normalised down.
+ *
+ * CSS hex is case-insensitive, so `#826ED4` is a valid spelling of an accent.
+ * A `[0-9a-f]{6}` class silently dropped such a declaration from this map while
+ * the roster assertion below — which matches only up to the `#` — still counted
+ * the developer. Every check that iterates this map (the luminance corridor and
+ * the clearance floors) would then skip that accent and stay green, with the
+ * skip invisible: openai, xai and google happen to be pinned by name elsewhere,
+ * so the nine others could vanish unnoticed (Codex review, PR #106).
+ *
+ * The name class stays strict rather than using the `i` flag, which would also
+ * admit uppercase token names that the stylesheet does not use.
+ */
 const ACCENT_HEX = new Map(
-  [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-f]{6})/g)].map(
-    (m) => [m[1]!, m[2]!] as const,
+  [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-fA-F]{6})/g)].map(
+    (m) => [m[1]!, m[2]!.toLowerCase()] as const,
   ),
 );
 
@@ -172,6 +186,16 @@ describe("the accent layer tracks the developer roster", () => {
   it("defines an accent for every developer, and none for anything else", () => {
     const declared = [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*#/g)].map((m) => m[1]!);
     expect([...declared].sort()).toEqual([...DEVELOPER_ORDER].sort());
+  });
+
+  it("PARSES every declared accent into the map the other checks iterate", () => {
+    // The gap above, made structural. Declaring an accent and parsing it are
+    // two different things: the roster test reads names, every contrast and
+    // clearance check reads ACCENT_HEX, and nothing connected the two. Any
+    // future parse failure — a new hex spelling, a nested block, a rename —
+    // now fails HERE rather than quietly shrinking the set those checks
+    // iterate while their titles still claim all twelve.
+    expect([...ACCENT_HEX.keys()].sort()).toEqual([...DEVELOPER_ORDER].sort());
   });
 
   it("is imported, or every card silently loses its colour", () => {
