@@ -12,7 +12,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![PWA](https://img.shields.io/badge/PWA-installable-DFFA04?logoColor=0F1012)](https://web.dev/progressive-web-apps/)
+[![PWA](https://img.shields.io/badge/PWA-installable-C7FD26?logoColor=0F1012)](https://web.dev/progressive-web-apps/)
 [![License](https://img.shields.io/badge/license-MIT-B9BCC5)](./LICENSE)
 
 </div>

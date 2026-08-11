@@ -16,7 +16,11 @@ const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.v
 // One canonical origin for absolute metadata URLs (Open Graph / Twitter card
 // images resolve against `metadataBase`). Overridable per deploy; the fallback
 // is the documented production domain (docs/runbooks/shortcuts.md).
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vizion-io.vercel.app";
+// `||`, not `??`: `.env.example` ships `NEXT_PUBLIC_SITE_URL=` empty, so a
+// copied-but-unfilled var surfaces as "" (not undefined) — and an empty string
+// must fall back too, or `new URL("")` below throws at module eval and crashes
+// every route.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://vizion-io.vercel.app";
 const DESCRIPTION =
   "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.";
 // The share/"template" card. Generated in-canon from tokens.css + the master
