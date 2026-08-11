@@ -51,6 +51,8 @@ function Host({
   onOpen = () => {},
   detentMarker,
   dynamicBackdrop,
+  latchOnTap,
+  peakCaption,
 }: {
   enabled?: boolean;
   selectedIndex?: number;
@@ -58,6 +60,8 @@ function Host({
   onOpen?: () => void;
   detentMarker?: DetentMarker;
   dynamicBackdrop?: boolean;
+  latchOnTap?: boolean;
+  peakCaption?: string | null;
 }) {
   return (
     <HoldSliderTrigger
@@ -68,6 +72,8 @@ function Host({
       enabled={enabled}
       detentMarker={detentMarker}
       dynamicBackdrop={dynamicBackdrop}
+      latchOnTap={latchOnTap}
+      peakCaption={peakCaption}
     >
       <button type="button" onClick={onOpen}>
         Pill
@@ -105,40 +111,65 @@ afterEach(() => {
 });
 
 describe("track geometry (pure)", () => {
-  const rect = { top: 500, height: 44 };
+  /** A trigger centered at x=512 on the 1024px viewport the tests below use,
+   *  so an unclamped anchored home and a region-centered one COINCIDE — the
+   *  phone case, where the composer pill sits within a hair of the region's
+   *  center. Tests that care about the anchor move it deliberately. */
+  const rect = { left: 468, top: 500, width: 88, height: 44 };
+  const anchoredAt = (centerX: number) => ({
+    left: centerX - 44,
+    top: 500,
+    width: 88,
+    height: 44,
+  });
 
   const wholeViewport = (width: number) => ({ left: 0, width });
 
-  it("lands in its fixed home — viewport-centered, on the rail's row", () => {
-    // ADR-0012 amendment 4: the first cut anchored the selected detent under
-    // the finger, so the capsule landed wherever the press happened to be.
-    // The home is now fixed: centered in the viewport (the shell is a
-    // centered column, so viewport center IS the composer's), rail's y.
+  it("opens centered on its TRIGGER, on the trigger's row", () => {
+    // ADR-0014: the capsule's home is the button that owns it, both axes, so
+    // it reads as that button expanding in place. (ADR-0012 amendment 4 had
+    // a viewport-centered home; the property it was actually defending —
+    // placement never depends on where the PRESS landed — is unchanged, and
+    // is what the last assertion here pins.)
     const geo = computeTrackGeometry(rect, 6, wholeViewport(1024));
     expect(geo.width).toBe(5 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
-    expect(geo.left).toBe((1024 - geo.width) / 2);
+    expect(geo.left).toBe(512 - geo.width / 2);
     expect(geo.top).toBe(500 + rect.height / 2 - geo.height / 2);
     expect(geo.detentCenters).toHaveLength(6);
     expect(geo.detentCenters[0]).toBe(geo.left + TRACK_PAD_PX);
     // Even spacing, ascending.
     expect(geo.detentCenters[3]! - geo.detentCenters[2]!).toBe(DETENT_SPACING_PX);
-    // The selection cannot steer placement in ANY mode: it is not even an
-    // input to the geometry — that is what keeps the home fixed.
+    // A trigger elsewhere takes its capsule with it — and the SELECTION is
+    // still not an input to the geometry at all, in any mode.
+    const moved = computeTrackGeometry(anchoredAt(300), 6, wholeViewport(1024));
+    expect(moved.left).toBe(300 - moved.width / 2);
+    expect(moved.width).toBe(geo.width);
   });
 
-  it("stays centered on a phone viewport", () => {
-    const geo = computeTrackGeometry(rect, 6, wholeViewport(390));
-    expect(geo.left).toBe((390 - geo.width) / 2);
+  it("clamps an edge-hugging trigger's capsule inside the margins", () => {
+    // The budget dial sits inset in a side sheet, and a trigger near a
+    // viewport edge would otherwise open a capsule half off-screen — which
+    // is the state that makes far detents unreachable, since a pointer
+    // cannot travel past the edge.
+    const geo = computeTrackGeometry(anchoredAt(20), 6, wholeViewport(390));
+    expect(geo.left).toBe(EDGE_MARGIN_PX);
+    const right = computeTrackGeometry(anchoredAt(380), 6, wholeViewport(390));
+    expect(right.left + right.width).toBe(390 - EDGE_MARGIN_PX);
+    for (const center of right.detentCenters) {
+      expect(center).toBeGreaterThanOrEqual(0);
+      expect(center).toBeLessThanOrEqual(390);
+    }
   });
 
-  it("centers in the VISUAL viewport under pinch zoom", () => {
+  it("opens inside the VISUAL viewport under pinch zoom", () => {
     // The control preserves native pinch zoom, and a fixed-position capsule
-    // centered on the LAYOUT viewport can open entirely outside a zoomed-in
-    // user's view (Codex review, PR #103). The caller passes the visual
-    // viewport's offset/width; the home must sit inside that region.
-    const geo = computeTrackGeometry(rect, 3, { left: 300, width: 200 });
+    // can open entirely outside a zoomed-in user's view (Codex review, PR
+    // #103). The caller passes the visual viewport's offset/width; the home
+    // must sit inside that region even when the trigger itself is outside
+    // it — the clamp, not the anchor, is what guarantees that.
+    const geo = computeTrackGeometry(anchoredAt(60), 3, { left: 300, width: 200 });
     expect(geo.width).toBe(2 * DETENT_SPACING_PX + 2 * TRACK_PAD_PX);
-    expect(geo.left).toBe(300 + (200 - geo.width) / 2);
+    expect(geo.left).toBe(300 + EDGE_MARGIN_PX);
     expect(geo.left).toBeGreaterThanOrEqual(300);
     expect(geo.left + geo.width).toBeLessThanOrEqual(500);
   });
@@ -147,15 +178,17 @@ describe("track geometry (pure)", () => {
     // Codex review, third pass: a placement frozen around the selected
     // detent kept the SPAWN visible but let the drag walk the thumb out of
     // a region narrower than the track. Compressed spacing removes the
-    // edge entirely: the whole ladder fits, geometry stays static and
-    // centered, and zoom multiplies physical travel so the tighter detents
-    // cost no precision.
+    // edge entirely: the whole ladder fits, and zoom multiplies physical
+    // travel so the tighter detents cost no precision.
     const region = { left: 300, width: 200 };
-    const geo = computeTrackGeometry(rect, 6, region);
+    const geo = computeTrackGeometry(anchoredAt(400), 6, region);
     const spacing = geo.detentCenters[1]! - geo.detentCenters[0]!;
     expect(spacing).toBeCloseTo(124 / 5, 5); // (200 - 2·16 - 2·22) / 5
     expect(geo.width).toBeCloseTo(5 * spacing + 2 * TRACK_PAD_PX, 5);
-    expect(geo.left).toBeCloseTo(300 + (200 - geo.width) / 2, 5);
+    // Compressed to EXACTLY the margins, so the clamp pins it — an anchored
+    // home has nowhere left to move, which is the proof that a compressed
+    // capsule can never overflow the region.
+    expect(geo.left).toBeCloseTo(300 + EDGE_MARGIN_PX, 5);
     // Every detent center sits inside the visible region…
     for (const center of geo.detentCenters) {
       expect(center).toBeGreaterThanOrEqual(300);
@@ -173,7 +206,7 @@ describe("track geometry (pure)", () => {
     // region (the overlay is pointer-transparent decoration) while every
     // CENTER compresses into the region minus CENTER_INSET_PX.
     const region = { left: 300, width: 80 };
-    const geo = computeTrackGeometry(rect, 6, region);
+    const geo = computeTrackGeometry(anchoredAt(340), 6, region);
     const spacing = geo.detentCenters[1]! - geo.detentCenters[0]!;
     expect(spacing).toBeCloseTo((80 - 2 * CENTER_INSET_PX) / 5, 5);
     // All six centers inside the region, extremes inset from its edges…
@@ -193,12 +226,13 @@ describe("track geometry (pure)", () => {
 
   it("compresses on a narrow layout viewport too", () => {
     // Eight detents on a 360px phone: full spacing would need 352px; the
-    // ladder compresses to fit inside the margins instead.
-    const narrow = computeTrackGeometry(rect, 8, wholeViewport(360));
+    // ladder compresses to fit inside the margins instead, which leaves the
+    // clamp pinning it there whatever the anchor.
+    const narrow = computeTrackGeometry(anchoredAt(180), 8, wholeViewport(360));
     const spacing = narrow.detentCenters[1]! - narrow.detentCenters[0]!;
     expect(spacing).toBeCloseTo((360 - 32 - 44) / 7, 5);
     expect(narrow.width).toBeLessThanOrEqual(360 - 2 * EDGE_MARGIN_PX);
-    expect(narrow.left).toBeCloseTo((360 - narrow.width) / 2, 5);
+    expect(narrow.left).toBeCloseTo(EDGE_MARGIN_PX, 5);
   });
 
   it("sizes the track from the detent count", () => {
@@ -351,11 +385,16 @@ describe("tap vs hold", () => {
     expect(thumb().className).toContain("hold-slider-thumb");
     // On the anchor (Auto, faint) — centered on detent 0's x.
     expect(thumb().style.left).toBe(dots()[0]!.style.left);
+    const core = () => thumb().querySelector<HTMLElement>("[data-tone]")!;
     moveTo(DOWN_X + 2 * DETENT_SPACING_PX);
     expect(thumb().style.left).toBe(dots()[2]!.style.left);
-    expect(thumb().querySelector("span")!.className).toContain("bg-laser");
+    // The core takes the tone's own ramp color, so it and the fill can never
+    // disagree about what the level is (ADR-0014: one TONE_COLOR map).
+    expect(core().dataset.tone).toBe("laser");
+    expect(core().style.backgroundColor).toContain("--laser");
     moveTo(DOWN_X + 4 * DETENT_SPACING_PX);
-    expect(thumb().querySelector("span")!.className).toContain("bg-ultra");
+    expect(core().dataset.tone).toBe("ultra");
+    expect(core().style.backgroundColor).toContain("--ultra-ink");
     up(DOWN_X + 4 * DETENT_SPACING_PX);
     expect(overlay()).toBeNull();
   });
@@ -636,6 +675,228 @@ describe("portal-bubbled presses stay inert", () => {
     expect(onCommit).not.toHaveBeenCalled();
     fireEvent.click(row());
     expect(onRow).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the latched phase (latchOnTap)", () => {
+  /** Absolute x of a detent center inside the mounted overlay. Latched
+   *  mapping is absolute — the finger is on the track, not offset from a
+   *  pill it pressed — so the tests aim at real centers. */
+  const centerX = (i: number) => {
+    const track = overlay()!;
+    const left = Number(String(track.style.left).replace("px", ""));
+    const dot = track.querySelector<HTMLElement>(
+      `[data-detent-dot="${DETENTS[i]!.id}"]`,
+    )!;
+    return left + Number(dot.style.left.replace("px", ""));
+  };
+  const tapOpen = () => {
+    down();
+    up();
+  };
+
+  it("opts OUT by default — a tap still falls through to the pill's click", () => {
+    // The split is per-instance. Every consumer today opts IN (there is no
+    // sheet left behind either dial), but the fall-through path is what an
+    // instance in front of a real dropdown would use, and it must not rot.
+    const onOpen = vi.fn();
+    render(<Host onOpen={onOpen} />);
+    tapOpen();
+    fireEvent.click(pill());
+    expect(overlay()).toBeNull();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens on a tap, stays up, and swallows the pill's own click", () => {
+    const onOpen = vi.fn();
+    render(<Host latchOnTap onOpen={onOpen} />);
+    tapOpen();
+    fireEvent.click(pill());
+    expect(overlay()).not.toBeNull();
+    expect(overlay()!.dataset.holdSliderPhase).toBe("latched");
+    // The tap that opened the capsule must not ALSO fire whatever the
+    // trigger does on click — one gesture, one outcome.
+    expect(onOpen).not.toHaveBeenCalled();
+    // No pointer is down; the capsule outlives it indefinitely.
+    act(() => vi.advanceTimersByTime(5000));
+    expect(overlay()).not.toBeNull();
+  });
+
+  it("takes pointer events itself, unlike the pointer-inert drag phase", () => {
+    const { unmount } = render(<Host latchOnTap />);
+    down();
+    hold();
+    expect(overlay()!.className).toContain("pointer-events-none");
+    up();
+    unmount();
+
+    render(<Host latchOnTap />);
+    tapOpen();
+    expect(overlay()!.className).toContain("pointer-events-auto");
+    // touch-action:none while latched — scrubbing IS a drag on the track,
+    // and without this the UA reads it as a pan and steals the pointer.
+    expect(overlay()!.style.touchAction).toBe("none");
+  });
+
+  it("scrubs on the track and commits the stop under the release", () => {
+    const onCommit = vi.fn();
+    render(<Host latchOnTap onCommit={onCommit} />);
+    tapOpen();
+    const track = overlay()!;
+    fireEvent.pointerDown(track, { pointerId: 2, clientX: centerX(2), clientY: 400 });
+    expect(overlay()!.textContent).toContain("Medium");
+    fireEvent.pointerMove(track, { pointerId: 2, clientX: centerX(4), clientY: 400 });
+    expect(overlay()!.textContent).toContain("Extra High");
+    fireEvent.pointerUp(track, { pointerId: 2, clientX: centerX(4), clientY: 400 });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith(4);
+    expect(overlay()).toBeNull();
+  });
+
+  it("holds the app-wide claim for the capsule's whole life", () => {
+    // The claim is what makes one capsule exclusive. The drag phase releases
+    // it at pointer-up; the latched phase must INHERIT it instead, or a
+    // second pill could open a rival capsule beside the live one.
+    const other = vi.fn();
+    render(
+      <>
+        <Host latchOnTap />
+        <div data-other="">
+          <HoldSliderTrigger
+            detents={DETENTS}
+            selectedIndex={0}
+            liveLabel={liveLabel}
+            onCommit={other}
+            enabled
+          >
+            <button type="button">Other</button>
+          </HoldSliderTrigger>
+        </div>
+      </>,
+    );
+    tapOpen();
+    const otherPill = screen.getByRole("button", { name: "Other" });
+    fireEvent.pointerDown(otherPill, {
+      pointerId: 9,
+      clientX: 700,
+      clientY: 400,
+      button: 0,
+    });
+    hold();
+    expect(document.querySelectorAll("[data-hold-slider-overlay]")).toHaveLength(1);
+    fireEvent.pointerUp(otherPill, { pointerId: 9, clientX: 700, clientY: 400 });
+    expect(other).not.toHaveBeenCalled();
+
+    // Dismiss, and the other pill works again — the claim really was
+    // released, not leaked.
+    fireEvent.pointerDown(document.querySelector("[data-hold-slider-scrim]")!, {
+      pointerId: 10,
+      clientX: 5,
+      clientY: 5,
+    });
+    expect(overlay()).toBeNull();
+    fireEvent.pointerDown(otherPill, {
+      pointerId: 11,
+      clientX: 700,
+      clientY: 400,
+      button: 0,
+    });
+    hold();
+    expect(overlay()).not.toBeNull();
+    fireEvent.pointerUp(otherPill, { pointerId: 11, clientX: 700, clientY: 400 });
+    expect(other).toHaveBeenCalledWith(0);
+  });
+
+  it("closes on concealment without committing — no capsule in a hidden tab", () => {
+    // The one ending no pointer or key event can report. A drag leaves a
+    // press record for the net to find; a latched capsule leaves none, so
+    // the watch has to key off the OPEN STATE instead — otherwise the world
+    // stays frozen behind a capsule in a backgrounded tab.
+    const onCommit = vi.fn();
+    render(<Host latchOnTap onCommit={onCommit} />);
+    tapOpen();
+    fireEvent.keyDown(window, { key: "End" });
+    expect(overlay()!.textContent).toContain("Max");
+    fireEvent.blur(window);
+    expect(overlay()).toBeNull();
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(document.documentElement.hasAttribute("data-hold-gesture")).toBe(false);
+  });
+
+  it("announces every keyboard step, so the ladder is aimable by ear", () => {
+    // The drag phase is deliberately silent (a finger sweeping six detents
+    // would be a stream of noise ending in the commit that announces
+    // itself); keyboard stepping is the opposite — each step IS the
+    // feedback, and this is the path that replaced the retired sheet.
+    render(<Host latchOnTap />);
+    const region = () =>
+      document.querySelector<HTMLElement>("[data-hold-slider-announce]")!;
+    tapOpen();
+    expect(region().textContent).toBe("Fable 5 · Auto");
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(region().textContent).toBe("Fable 5 · Low");
+    fireEvent.keyDown(window, { key: "End" });
+    expect(region().textContent).toBe("Fable 5 · Max");
+  });
+
+  it("paints the top stop as an event, and only the top stop", () => {
+    render(<Host latchOnTap peakCaption="Costs the most" />);
+    tapOpen();
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(overlay()!.querySelector("[data-hold-slider-burst]")).toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-surge]")).toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
+    fireEvent.keyDown(window, { key: "End" });
+    expect(overlay()!.querySelector("[data-hold-slider-burst]")).not.toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-surge]")).not.toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-caption]")!.textContent).toBe(
+      "Costs the most",
+    );
+    // Leaving the top takes all three with it — none of them is a state the
+    // capsule can get stuck in.
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(overlay()!.querySelector("[data-hold-slider-burst]")).toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
+  });
+
+  it("lays the ramp across the TRACK, pinned to the detents' own tones", () => {
+    // Two properties at once (HoldSlider's rampGradient note): the ramp is
+    // sized to the track so a growing fill reveals it rather than
+    // restretching it, and its stops come from the DETENTS so a level's
+    // colour cannot drift with the ladder's length.
+    render(<Host latchOnTap />);
+    tapOpen();
+    const ramp = overlay()!.querySelector<HTMLElement>("[data-hold-slider-ramp]")!;
+    const image = ramp.style.backgroundImage;
+    // Two stops per detent — the tone's own position and the end of its HOLD
+    // — except the last, which has no gap to hold across. The two-decimal
+    // form is the STOP POSITION's: the muted tones are color-mix()es carrying
+    // whole-percent weights of their own, so the pattern has to tell the two
+    // kinds of percentage apart.
+    const positions = (image.match(/\d+\.\d\d%/g) ?? []).map((p) => parseFloat(p));
+    expect(positions).toHaveLength(DETENTS.length * 2 - 1);
+    // Monotonic, and every hold lands short of the next detent — a hold that
+    // overshot would put a detent inside its neighbour's blend, which is the
+    // colour-coding failing quietly.
+    for (let i = 1; i < positions.length; i++) {
+      expect(positions[i]!).toBeGreaterThan(positions[i - 1]!);
+    }
+    for (let i = 0; i < DETENTS.length - 1; i++) {
+      expect(positions[i * 2 + 1]!).toBeLessThan(positions[i * 2 + 2]!);
+    }
+    expect(image.indexOf("--silver")).toBeLessThan(image.indexOf("--laser"));
+    expect(image.indexOf("--laser")).toBeLessThan(image.indexOf("--ultra-ink"));
+    // Sized to the track, not to the fill it is seen through.
+    const trackWidth = Number(String(overlay()!.style.width).replace("px", ""));
+    const rampWidth = Number(String(ramp.style.width).replace("px", ""));
+    expect(rampWidth).toBeGreaterThan(trackWidth * 0.7);
+    const before = ramp.style.backgroundImage;
+    fireEvent.keyDown(window, { key: "End" });
+    // …so moving the value does not repaint it.
+    expect(
+      overlay()!.querySelector<HTMLElement>("[data-hold-slider-ramp]")!.style
+        .backgroundImage,
+    ).toBe(before);
   });
 });
 

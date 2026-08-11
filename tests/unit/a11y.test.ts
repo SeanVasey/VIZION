@@ -218,6 +218,60 @@ describe("the ultra ink is declared for dark and both light paths (globals.css)"
       }
     }
   });
+
+  describe("its shimmer partner --ultra-ink-hi (the hold-slider caption)", () => {
+    const his = [...GLOBALS.matchAll(/--ultra-ink-hi:\s*(#[0-9a-f]{6})/gi)].map(
+      (m) => m[1]!,
+    );
+
+    it("is declared the same three times, in the same shape", () => {
+      expect(his).toHaveLength(3);
+      expect(his[1]).toBe(his[2]);
+      expect(his[0]).not.toBe(his[1]);
+    });
+
+    it("clears AA everywhere too — so does every frame of the sweep", () => {
+      // The caption animates a gradient BETWEEN these two inks, so pinning
+      // both ends pins the whole animation: no frame can be less contrasting
+      // than the worse of them.
+      const hiFor: Record<(typeof THEMES)[number]["name"], string> = {
+        dark: his[0]!,
+        light: his[1]!,
+        "system-light": his[2]!,
+      };
+      for (const { name, block } of THEMES) {
+        const ink = parseColor(hiFor[name]) as RGB;
+        for (const [surface, bg] of Object.entries(backdrops(block))) {
+          expect(
+            contrast(ink, bg),
+            `--ultra-ink-hi on ${name}/${surface}`,
+          ).toBeGreaterThanOrEqual(AA_TEXT);
+        }
+      }
+    });
+
+    it("moves AWAY from the surface in each theme, never merely brightens", () => {
+      // The failure this exists to prevent: a shimmer built from a bright
+      // wash raises contrast on dark and drops it below AA on light — the
+      // laser-on-light class of bug, one hue over. Being strictly MORE
+      // contrasting than its partner is the property that makes the effect
+      // theme-safe by construction rather than by measurement.
+      const pairs: [(typeof THEMES)[number]["name"], string, string][] = [
+        ["dark", decls[0]!, his[0]!],
+        ["light", decls[1]!, his[1]!],
+        ["system-light", decls[2]!, his[2]!],
+      ];
+      for (const [name, base, hi] of pairs) {
+        const theme = THEMES.find((t) => t.name === name)!;
+        for (const [surface, bg] of Object.entries(backdrops(theme.block))) {
+          expect(
+            contrast(parseColor(hi) as RGB, bg),
+            `--ultra-ink-hi vs --ultra-ink on ${name}/${surface}`,
+          ).toBeGreaterThan(contrast(parseColor(base) as RGB, bg));
+        }
+      }
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

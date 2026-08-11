@@ -163,15 +163,28 @@
      #7c3aed measures 4.99:1 page / 5.56:1 glass / 5.50:1 surface. Every
      theme/surface combo clears text AA (pinned in tests/unit/a11y.test.ts),
      so this ink can never join laser's thin-stroke-on-light failure class. */
+  /* --ultra-ink-hi is the ultra ink's SHIMMER partner (the hold-slider's peak
+     caption). It moves AWAY from the surface in each theme — lighter on dark,
+     darker on light — so it is strictly more contrasting than --ultra-ink
+     rather than merely different. That direction is the whole point: a
+     shimmer built from a bright wash would have raised contrast on dark and
+     dropped it below AA on light, which is the failure class --accent-ink
+     exists to avoid. Because both stops clear AA, every frame of the sweep
+     does too, whatever phase it is caught in. Dark #d9c2ff: 11.0:1 page /
+     8.9:1 glass. Light #4c1d95: 11.6:1 page / 12.9:1 glass. Pinned in
+     tests/unit/a11y.test.ts beside its partner. */
   :root {
     --ultra-ink: #b47aff;
+    --ultra-ink-hi: #d9c2ff;
   }
   :root[data-theme="light"] {
     --ultra-ink: #7c3aed;
+    --ultra-ink-hi: #4c1d95;
   }
   @media (prefers-color-scheme: light) {
     :root[data-theme="system"] {
       --ultra-ink: #7c3aed;
+      --ultra-ink-hi: #4c1d95;
     }
   }
 
@@ -304,15 +317,19 @@
     box-shadow: var(--focus-ring), var(--glass-sheen);
   }
 
-  /* The hold-slider's capsule fill (ui/HoldSlider). The eased width/color
-     snap between detents is the control's only motion, so both stand-downs
+  /* The hold-slider's capsule fill (ui/HoldSlider). The eased width snap
+     between detents is the control's structural motion, so both stand-downs
      collapse it to an instant jump: the OS-level preference and the app's
      own reduced-effects knob (stamped on <html> by ReducedEffectsManager).
-     The gesture itself is unaffected — this gates presentation only. */
+     The gesture itself is unaffected — this gates presentation only.
+
+     WIDTH only, deliberately: the fill no longer carries a background of its
+     own. It is a window onto the ramp below, which is anchored to the TRACK
+     and therefore never repaints as the window grows (HoldSlider's
+     rampGradient note). That removed the old background-color leg of this
+     transition along with the thing it was smoothing. */
   .hold-slider-fill {
-    transition:
-      width var(--motion-quick) ease-out,
-      background-color var(--motion-quick) ease-out;
+    transition: width var(--motion-quick) ease-out;
   }
   @media (prefers-reduced-motion: reduce) {
     .hold-slider-fill {
@@ -321,6 +338,154 @@
   }
   [data-reduced-effects] .hold-slider-fill {
     transition: none;
+  }
+
+  /* The ramp itself — the gradient is composed in HoldSlider from the live
+     detent list, so nothing about the COLOR lives here; this rule owns only
+     how it is painted. Sized to the track, pinned left, clipped by the fill. */
+  .hold-slider-ramp {
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+  }
+
+  /* The starfield: specks drifting inside the fill, the reference control's
+     texture. Four radial gradients on one 96x48 tile, translated by exactly
+     one tile width so the loop is seamless — no image, no canvas, nothing for
+     the CSP to allow, and one compositor-friendly background-position
+     animation for the whole field.
+
+     It is an ORNAMENT and it lives under a capsule that also freezes the
+     world (data-hold-gesture), so it is one of the very few animations
+     deliberately NOT in that pause list: pausing the thing the gesture exists
+     to show would be self-defeating, and the focus blur already stands down
+     over any backdrop that cannot hold still (dynamicBackdrop). Both
+     stand-downs remove it outright rather than freezing it — a static
+     starfield is speckle, not texture. */
+  .hold-slider-stars {
+    background-image:
+      radial-gradient(1.5px 1.5px at 14px 12px, rgba(255, 255, 255, 0.95), transparent),
+      radial-gradient(1px 1px at 47px 30px, rgba(255, 255, 255, 0.7), transparent),
+      radial-gradient(1.5px 1.5px at 68px 17px, rgba(255, 255, 255, 0.55), transparent),
+      radial-gradient(1px 1px at 88px 36px, rgba(255, 255, 255, 0.8), transparent);
+    background-size: 96px 48px;
+    background-repeat: repeat;
+    animation: hold-slider-stars 7s linear infinite;
+  }
+  @keyframes hold-slider-stars {
+    to {
+      background-position: -96px 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-stars {
+      display: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-stars {
+    display: none;
+  }
+
+  /* Arriving at the ladder's TOP stop is an event, not just a wider bar: a
+     violet surge sweeps back across the fill (the reference recording's
+     nebula migration). Mounted only at the peak detent, so it costs nothing
+     at any other value. */
+  .hold-slider-surge {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--ultra-ink) 55%, transparent) 45%,
+      color-mix(in srgb, var(--ultra-ink) 85%, transparent) 100%
+    );
+    background-size: 220% 100%;
+    background-position: 100% 0;
+    animation: hold-slider-surge 1.6s ease-out forwards;
+  }
+  @keyframes hold-slider-surge {
+    to {
+      background-position: 0 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-surge {
+      animation: none;
+      background-position: 0 0;
+    }
+  }
+  [data-reduced-effects] .hold-slider-surge {
+    animation: none;
+    background-position: 0 0;
+  }
+
+  /* The arrival burst — a dotted ring blooming off the thumb at the top stop.
+     One-shot, decorative, pointer-inert; both stand-downs drop it entirely
+     (an un-animated ring is just a stray circle sitting on the track). */
+  .hold-slider-burst {
+    animation: hold-slider-burst 520ms ease-out forwards;
+  }
+  @keyframes hold-slider-burst {
+    from {
+      opacity: 0.9;
+      transform: translate(-50%, -50%) scale(0.55);
+    }
+    to {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(1.5);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-burst {
+      display: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-burst {
+    display: none;
+  }
+
+  /* The peak caption ("costs more, takes longer") — a shimmer sweeps it once,
+     left to right, the way the reference control lights its warning word by
+     word.
+
+     The sweep is CONTRAST-SAFE by construction, which is why it is built from
+     two inks rather than a wash of white: every stop is --ultra-ink or the
+     MORE-contrasting --ultra-ink-hi, so the darkest pixel in the animation is
+     the token that already clears AA on all three surfaces in both themes
+     (tokens are pinned in tests/unit/a11y.test.ts). A highlight that merely
+     brightened would have inverted on the light theme and failed there.
+     Under either stand-down the gradient is dropped and the text renders in
+     flat --ultra-ink. */
+  .hold-slider-caption {
+    color: var(--ultra-ink);
+    background-image: linear-gradient(
+      90deg,
+      var(--ultra-ink) 0%,
+      var(--ultra-ink) 35%,
+      var(--ultra-ink-hi) 50%,
+      var(--ultra-ink) 65%,
+      var(--ultra-ink) 100%
+    );
+    background-size: 260% 100%;
+    background-position: 100% 0;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: hold-slider-caption 1.8s ease-out forwards;
+  }
+  @keyframes hold-slider-caption {
+    to {
+      background-position: 0 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-caption {
+      background-image: none;
+      -webkit-text-fill-color: var(--ultra-ink);
+      animation: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-caption {
+    background-image: none;
+    -webkit-text-fill-color: var(--ultra-ink);
+    animation: none;
   }
 
   /* The wrapped pill fades out while its overlay capsule is up — the capsule
@@ -355,17 +520,25 @@
     transition: none;
   }
 
-  /* The thumb's detent-to-detent glide — the same eased snap (and the same
-     two stand-downs) as the fill it rides. */
+  /* The thumb's detent-to-detent glide, and its tone core's cross-fade — the
+     same eased snap (and the same two stand-downs) as the fill it rides. The
+     core DOES transition its background where the fill no longer does: it is
+     a single flat swatch that genuinely changes color per detent, not a
+     window onto a ramp that was already painted. */
   .hold-slider-thumb {
     transition: left var(--motion-quick) ease-out;
   }
+  .hold-slider-core {
+    transition: background-color var(--motion-quick) ease-out;
+  }
   @media (prefers-reduced-motion: reduce) {
-    .hold-slider-thumb {
+    .hold-slider-thumb,
+    .hold-slider-core {
       transition: none;
     }
   }
-  [data-reduced-effects] .hold-slider-thumb {
+  [data-reduced-effects] .hold-slider-thumb,
+  [data-reduced-effects] .hold-slider-core {
     transition: none;
   }
 

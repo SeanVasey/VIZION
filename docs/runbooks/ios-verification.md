@@ -148,14 +148,30 @@ The open questions. The first is no longer depended on; the rest are:
   a UA pan-steal and the slop rule discarded the press-and-slide gesture).
   The pre-hold window is now pinned under real synthesized touch in
   Chromium (`authed.spec.ts` "under touch", CDP-only: press-and-slide
-  engages, a stationary hold expands, a tap stays a tap), and the resting
-  `touch-action: pinch-zoom` denies the UA the pre-hold pan-cancel by
-  construction. What still needs the device is the WebKit/iOS half: that
+  engages, a stationary hold expands, a tap latches the capsule), and the
+  resting `touch-action: pinch-zoom` denies the UA the pre-hold pan-cancel
+  by construction. What still needs the device is the WebKit/iOS half: that
   `-webkit-touch-callout: none` plus the global button `user-select: none`
   actually beat the ~500ms system callout/loupe on the composer pills, and
   that the active-phase `touchmove` preventDefault holds a mid-drag
   vertical wander against a `pointercancel`. If they fire anyway, the
   revert path is graceful (the gesture cancels, nothing commits), so the
   failure mode is a missing accelerator, not a broken control.
+- **the LATCHED phase under iOS touch (ADR-0014, new 2026-08-11 —
+  unverified on device).** A tap now opens a capsule that OUTLIVES the
+  finger, and the interactions that follow land on a portalled overlay
+  rather than on the pill the tap started from. Three things to watch,
+  none of which Chromium's CDP synthesis or WebKitGTK can answer: (1) that
+  the callout/loupe timer does not fire on the pill during the tap that
+  latches — the tap is short, so this should be strictly easier than the
+  hold path, but it is a different code path; (2) that scrubbing the open
+  track works, i.e. `touch-action: none` on the overlay is honoured and
+  iOS does not treat a drag beginning on a `position: fixed` portalled
+  element as a page pan; and (3) that the outside-tap dismiss lands on the
+  scrim rather than being eaten as a "dismiss the keyboard" gesture when
+  the composer's textarea is focused. Failure mode here is NOT graceful in
+  the way the accelerator's is: the dial has no sheet behind it any more,
+  so a latched capsule that cannot be scrubbed or dismissed leaves the
+  pointer user with only the drag path. Check this one first.
 
-A single pass on a physical iPhone, in the installed PWA, would close all five.
+A single pass on a physical iPhone, in the installed PWA, would close all six.

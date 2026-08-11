@@ -109,6 +109,11 @@ interface UIState {
    *  meaningful only while `autoTarget` is on; it rides the request beside
    *  `auto: true` and the server owns what each preset means. */
   autoPreference: AutoPreference;
+  /** The composer's dial how-to line has been read or used (ADR-0014). Set
+   *  by the "Got it" button OR by the first dial commit — a hint that has
+   *  been proven unnecessary retires itself. Device-local: it is a hint, not
+   *  identity, and showing it once more on a second device costs nothing. */
+  dialTipSeen: boolean;
   /** Reformat's chosen output shape. `null` = "whichever fits", the behaviour
    *  before the rail existed. */
   reformatFormat: FormatId | null;
@@ -128,6 +133,7 @@ interface UIState {
   setReducedEffects: (v: boolean) => void;
   setAutoTarget: (v: boolean) => void;
   setAutoPreference: (v: AutoPreference) => void;
+  setDialTipSeen: (v: boolean) => void;
   setReformatFormat: (v: FormatId | null) => void;
   /** `null` clears back to the mode's own default. */
   setLengthForMode: (mode: ModeId, length: LengthId | null) => void;
@@ -151,6 +157,7 @@ export const useUIStore = create<UIState>()(
       reducedEffects: false,
       autoTarget: false,
       autoPreference: "balanced",
+      dialTipSeen: false,
       reformatFormat: null,
       lengthByMode: {},
 
@@ -171,6 +178,7 @@ export const useUIStore = create<UIState>()(
       setReducedEffects: (reducedEffects) => set({ reducedEffects }),
       setAutoTarget: (autoTarget) => set({ autoTarget }),
       setAutoPreference: (autoPreference) => set({ autoPreference }),
+      setDialTipSeen: (dialTipSeen) => set({ dialTipSeen }),
       setReformatFormat: (reformatFormat) => set({ reformatFormat }),
       setLengthForMode: (mode, length) =>
         set((s) => {
@@ -248,6 +256,11 @@ export const useUIStore = create<UIState>()(
         // persisted value is harmless — the server validates the wire value
         // and treats anything unknown as a 400, never a silent reroute.
         autoPreference: state.autoPreference,
+        // Same shallow-merge story again: absent key -> initial `false`, so a
+        // user upgrading into ADR-0014 is shown the new dials' how-to line
+        // exactly once. No version bump — that is the whole point of landing
+        // it as a pass-through default.
+        dialTipSeen: state.dialTipSeen,
         // Same shallow-merge story as autoTarget: absent key -> initial null.
         reformatFormat: state.reformatFormat,
         // Absent key -> initial {} under the shallow merge, same as above.
