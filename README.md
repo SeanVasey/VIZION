@@ -123,12 +123,19 @@ The appearances are:
 - **Dark** (Void plate + Laser glyph) — the iOS splash screens, matching the
   manifest's `background_color`.
 
-The rest of `public/brand/` is reference, not raster input. The composed
-previews (`vizion-icon-{light,dark,clear,tinted}.svg`) and the background layers
-(`vizion-icon-bg-*.svg`) carry a baked squircle clip and specular gloss — they
-show how the icon _appears_ once iOS has masked and glassified it. Rasterizing
-them would bake in the corners and gloss the OS applies at runtime, so the
-generator never reads them.
+The rest of `public/brand/` is reference, not raster input, and all of it belongs
+to the current identity — the retired I›O `*-token.svg` pair is gone.
+
+- **Composed previews** (`vizion-icon-{light,dark,clear,tinted}.svg`) and
+  **background layers** (`vizion-icon-bg-*.svg`) carry a baked squircle clip and
+  specular gloss: they show how the icon _appears_ once iOS has masked and
+  glassified it. Rasterizing them would bake in the corners and gloss the OS
+  applies at runtime, so the generator never reads them.
+- **Foreground layers** (`vizion-icon-foreground-{lime,ink,mono}.svg`) are the
+  Icon Composer stack, the source set for a native `.icon` build.
+  `foreground-lime.svg` also serves as evidence: it carries
+  `translate(133.12, 165.66) scale(0.74)`, which the generator reproduces to
+  0.03 px — the check that the composed plates really are the shipped artwork.
 
 **In the app, no `public/brand/` file is rendered at all.** Both brand surfaces —
 the `ScreenHeader` mark and the sign-in hero — use `BrandMark`: the master glyph

@@ -23,9 +23,32 @@ const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 const ACCENTS_CSS = strip(RAW_ACCENTS);
 const GLOBALS = strip(RAW_GLOBALS);
 
+/**
+ * Hex is matched case-INSENSITIVELY and normalised down.
+ *
+ * CSS hex is case-insensitive, so `#826ED4` is a valid spelling of an accent.
+ * A `[0-9a-f]{6}` class silently dropped such a declaration from this map while
+ * the roster assertion below — which matches only up to the `#` — still counted
+ * the developer. Every check that iterates this map (the luminance corridor and
+ * the clearance floors) would then skip that accent and stay green, with the
+ * skip invisible: openai, xai and google happen to be pinned by name elsewhere,
+ * so the nine others could vanish unnoticed (Codex review, PR #106).
+ *
+ * The name class stays strict rather than using the `i` flag, which would also
+ * admit uppercase token names that the stylesheet does not use.
+ *
+ * The trailing lookahead matters as much as the class. Without it the pattern
+ * is unanchored, so a valid 8-digit `#RRGGBBAA` matches on its first six digits:
+ * `#826ed400` — a FULLY TRANSPARENT mark — was read as opaque `#826ed4`, the
+ * roster guard below saw the developer present, and every corridor and clearance
+ * check measured a colour the browser never renders. The roster guard cannot
+ * catch that one on its own, because the truncated prefix keeps the entry in the
+ * map; only refusing to match does (Codex review, PR #106). Shorthand `#abc`
+ * needs no special handling — it fails to match, and the roster guard fires.
+ */
 const ACCENT_HEX = new Map(
-  [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-f]{6})/g)].map(
-    (m) => [m[1]!, m[2]!] as const,
+  [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*(#[0-9a-fA-F]{6})(?![0-9a-fA-F])/g)].map(
+    (m) => [m[1]!, m[2]!.toLowerCase()] as const,
   ),
 );
 
@@ -49,10 +72,171 @@ function luminance(hex: string): number {
 const CORRIDOR_FLOOR = 0.1995;
 const CORRIDOR_CEILING = 0.2922;
 
+/** CIELAB (D65), the space 0003's semantic-clearance floors are measured in. */
+type Lab = readonly [number, number, number];
+
+function lab(hex: string): Lab {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const [R, G, B] = [lin(r!), lin(g!), lin(b!)];
+  const X = R * 0.4124564 + G * 0.3575761 + B * 0.1804375;
+  const Y = R * 0.2126729 + G * 0.7151522 + B * 0.072175;
+  const Z = R * 0.0193339 + G * 0.119192 + B * 0.9503041;
+  // D65 white point, with the CIE-recommended rational epsilon/kappa.
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : (841 / 108) * t + 4 / 29);
+  const [fx, fy, fz] = [f(X / 0.95047), f(Y / 1.0), f(Z / 1.08883)];
+  return [116 * fy! - 16, 500 * (fx! - fy!), 200 * (fy! - fz!)];
+}
+
+/** CIEDE2000. Pinned against 0011's published figure by the self-check below. */
+function deltaE2000(a: Lab, b: Lab): number {
+  const [L1, a1, b1] = a;
+  const [L2, a2, b2] = b;
+  const rad = Math.PI / 180;
+  const deg = 180 / Math.PI;
+  const C1 = Math.hypot(a1, b1);
+  const C2 = Math.hypot(a2, b2);
+  const Cb = (C1 + C2) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+  const ap1 = (1 + G) * a1;
+  const ap2 = (1 + G) * a2;
+  const Cp1 = Math.hypot(ap1, b1);
+  const Cp2 = Math.hypot(ap2, b2);
+  let hp1 = Math.atan2(b1, ap1) * deg;
+  if (hp1 < 0) hp1 += 360;
+  let hp2 = Math.atan2(b2, ap2) * deg;
+  if (hp2 < 0) hp2 += 360;
+  if (Cp1 === 0) hp1 = 0;
+  if (Cp2 === 0) hp2 = 0;
+  const dL = L2 - L1;
+  const dC = Cp2 - Cp1;
+  let dhp = 0;
+  if (Cp1 * Cp2 !== 0) {
+    dhp = hp2 - hp1;
+    if (dhp > 180) dhp -= 360;
+    else if (dhp < -180) dhp += 360;
+  }
+  const dH = 2 * Math.sqrt(Cp1 * Cp2) * Math.sin((dhp / 2) * rad);
+  const Lb = (L1 + L2) / 2;
+  const Cpb = (Cp1 + Cp2) / 2;
+  let hpb: number;
+  if (Cp1 * Cp2 === 0) hpb = hp1 + hp2;
+  else {
+    hpb = (hp1 + hp2) / 2;
+    if (Math.abs(hp1 - hp2) > 180) hpb += hp1 + hp2 < 360 ? 180 : -180;
+  }
+  const T =
+    1 -
+    0.17 * Math.cos((hpb - 30) * rad) +
+    0.24 * Math.cos(2 * hpb * rad) +
+    0.32 * Math.cos((3 * hpb + 6) * rad) -
+    0.2 * Math.cos((4 * hpb - 63) * rad);
+  const dTh = 30 * Math.exp(-(((hpb - 275) / 25) ** 2));
+  const Rc = 2 * Math.sqrt(Cpb ** 7 / (Cpb ** 7 + 25 ** 7));
+  const Sl = 1 + (0.015 * (Lb - 50) ** 2) / Math.sqrt(20 + (Lb - 50) ** 2);
+  const Sc = 1 + 0.045 * Cpb;
+  const Sh = 1 + 0.015 * Cpb * T;
+  const Rt = -Math.sin(2 * dTh * rad) * Rc;
+  return Math.sqrt(
+    (dL / Sl) ** 2 + (dC / Sc) ** 2 + (dH / Sh) ** 2 + Rt * (dC / Sc) * (dH / Sh),
+  );
+}
+
+const distance = (x: string, y: string) => deltaE2000(lab(x), lab(y));
+
+/**
+ * The semantic tokens each accent must stay clear of, read out of tokens.css
+ * rather than hardcoded — so this follows a retune instead of pinning the value
+ * a retune is trying to change. `--laser` moved #b7ff3c → #dffa04 under 0013
+ * with these floors verified only BY HAND, which is the gap this closes.
+ *
+ * EVERY declared value is read, not an indexed one. `tokens.css` writes the
+ * light theme TWICE — once under `:root[data-theme="light"]` and again,
+ * verbatim, inside the `@media (prefers-color-scheme: light)` copy for
+ * `data-theme="system"`. That is the hazard documented at the top of
+ * `dev-accents.css`, and the one 0013 had to work around for `--accent-ink`.
+ * `--flare` is declared three times because of it; reading the first two left
+ * the system-light value unchecked, so it could drift toward an accent and
+ * system-theme users would breach the floor while this suite stayed green
+ * (Codex review, PR #106).
+ *
+ * Deduped, so identical light/system-light values cost one test rather than
+ * two, and a token that grows a new theme variant gains its own floor test with
+ * no change here. Asserting the two light blocks are identical was the
+ * alternative; covering every value is stronger, because theme-variant tokens
+ * are legitimate — the job is to check whatever is declared, not to forbid
+ * divergence.
+ */
+const TOKENS_CSS = strip(read("src/styles/tokens.css"));
+const tokenHexes = (name: string): string[] => {
+  // Same trailing boundary as ACCENT_HEX, for the same reason: unanchored, a
+  // valid 8-digit `#RRGGBBAA` is captured as its opaque first six digits, and
+  // the floors are then measured against a colour the browser never renders.
+  // The accent side was anchored first; leaving this one open made the pair
+  // asymmetric, which is how it was spotted (Codex review, PR #106).
+  //
+  // Deliberately does NOT throw. CLEARANCE is built at module scope, so a throw
+  // here fails COLLECTION — the whole file reports "no tests", the other 27
+  // never run, and the checks written to name the offender never execute. It
+  // returns what it finds instead, and two tests below assert that what it finds
+  // is complete.
+  const all = [
+    ...TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})(?![0-9a-f])`, "gi")),
+  ].map((m) => m[1]!.toLowerCase());
+  return [...new Set(all)];
+};
+
+/** The state tokens each accent must clear, and 0003's floor for each. */
+const SEMANTIC_FLOORS = [
+  ["laser", 20],
+  ["flare", 18],
+  ["amber", 15],
+  ["pulse", 15],
+] as const;
+
+/** 0003's semantic-clearance floors, as published in 0011's evidence table. */
+const CLEARANCE = SEMANTIC_FLOORS.flatMap(([name, floor]) =>
+  tokenHexes(name).map((hex) => ({ label: `--${name} ${hex}`, hex, floor })),
+);
+
 describe("the accent layer tracks the developer roster", () => {
   it("defines an accent for every developer, and none for anything else", () => {
     const declared = [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*#/g)].map((m) => m[1]!);
     expect([...declared].sort()).toEqual([...DEVELOPER_ORDER].sort());
+  });
+
+  it("declares every accent as an opaque 6-digit hex — no alpha, no shorthand", () => {
+    // Anchoring the parse makes a bad value DISAPPEAR, which the test above
+    // then reports as a missing developer — true, but not the reason. This
+    // names it. `#RRGGBBAA` is the case that motivated both: an accent with
+    // alpha renders semi- or fully transparent while every measurement here
+    // would read its opaque prefix.
+    // Scoped to the roster, not to the `--dev-` prefix: the layer also declares
+    // --dev-peak, --dev-rx and --dev-ry, which are an alpha and two radii, not
+    // accents. Matching on the prefix alone flagged all three.
+    const roster = new Set<string>(DEVELOPER_ORDER);
+    const offenders = [...ACCENTS_CSS.matchAll(/--dev-([a-z]+):\s*([^;]+);/g)]
+      .filter((m) => roster.has(m[1]!))
+      .map((m) => [m[1]!, m[2]!.trim()] as const)
+      .filter(([, value]) => !/^#[0-9a-fA-F]{6}$/.test(value))
+      .map(([dev, value]) => `${dev}: ${value}`);
+    expect(
+      offenders,
+      "accents must be #RRGGBB — alpha and shorthand are not measurable by the corridor and clearance checks",
+    ).toEqual([]);
+  });
+
+  it("PARSES every declared accent into the map the other checks iterate", () => {
+    // The gap above, made structural. Declaring an accent and parsing it are
+    // two different things: the roster test reads names, every contrast and
+    // clearance check reads ACCENT_HEX, and nothing connected the two. Any
+    // future parse failure — a new hex spelling, a nested block, a rename —
+    // now fails HERE rather than quietly shrinking the set those checks
+    // iterate while their titles still claim all twelve.
+    expect([...ACCENT_HEX.keys()].sort()).toEqual([...DEVELOPER_ORDER].sort());
   });
 
   it("is imported, or every card silently loses its colour", () => {
@@ -124,6 +308,113 @@ describe("the luminance corridor, and its one sanctioned exception (0011)", () =
     // without redoing that work would leave the ADR asserting numbers the
     // stylesheet no longer produces.
     expect(ACCENT_HEX.get("openai")).toBe("#9c595d");
+  });
+});
+
+describe("semantic clearance — every accent stays distinguishable from the state colours", () => {
+  /**
+   * 0003 requires each developer accent to sit at least 20 ΔE2000 from
+   * `--laser` (and 18 / 15 from the other state tokens), so an identity mark is
+   * never mistaken for a status colour. Until now nothing asserted it: the file
+   * bound luminance against the card fills and ΔE2000 BETWEEN accents, and the
+   * clearance to the state tokens lived only in the ADRs. 0011's own reasoning
+   * leans on it — the openai pin above says the maroon is justified by "every
+   * dE2000 floor still passing at THIS value" — and 0013 retuned `--laser`
+   * across a 15.6° hue shift with these floors verified by hand, because a
+   * green suite could not speak to them.
+   */
+
+  it("computes ΔE2000 correctly — checked against the figure 0011 published", () => {
+    // THIS is the assertion that makes the rest of the block mean anything. A
+    // subtly wrong CIEDE2000 would clear every floor below and silently license
+    // a future breach, so the implementation is pinned to a number that was
+    // measured, reviewed and committed independently of this test.
+    //
+    // 0011's evidence table: --dev-openai #9c595d against --laser, which at the
+    // time was #b7ff3c, measured 66.7. The historical hex is deliberate — this
+    // checks the maths, not today's palette.
+    expect(distance("#9c595d", "#b7ff3c")).toBeCloseTo(66.7, 1);
+  });
+
+  it("discriminates — a near-identical colour must FAIL the floor", () => {
+    // A floor test that has never failed is not yet a test. A hue a hair off
+    // --laser has to land far below 20, or the assertions below would pass on
+    // any palette at all.
+    const laser = tokenHexes("laser")[0]!;
+    const nearlyLaser = `#${(parseInt(laser.slice(1), 16) + 0x020202).toString(16).padStart(6, "0")}`;
+    expect(distance(laser, nearlyLaser)).toBeLessThan(20);
+  });
+
+  for (const { label, hex, floor } of CLEARANCE) {
+    it(`keeps all twelve accents ≥ ${floor} ΔE2000 from ${label}`, () => {
+      const breaches = [...ACCENT_HEX]
+        .map(([dev, accent]) => ({ dev, measured: distance(accent, hex) }))
+        .filter(({ measured }) => measured < floor)
+        .map(({ dev, measured }) => `${dev} ${measured.toFixed(1)} < ${floor}`);
+      expect(breaches, `clearance to ${label}`).toEqual([]);
+    });
+  }
+
+  it("resolves every state token to at least one measurable value", () => {
+    // Without this, a token that stops matching simply drops its floor tests
+    // from the run — the suite gets quietly narrower while staying green, which
+    // is the failure mode this whole block was added to end.
+    const unresolved = SEMANTIC_FLOORS.map(([name]) => name).filter(
+      (name) => tokenHexes(name).length === 0,
+    );
+    expect(
+      unresolved,
+      "a state token resolving to nothing removes its entire floor from the suite",
+    ).toEqual([]);
+  });
+
+  it("declares every state token as an opaque 6-digit hex, like the accents", () => {
+    // The accent-side mirror of this check exists in the roster block. Both
+    // sides need it: anchoring makes a bad value stop matching, which surfaces
+    // as "--pulse not found" rather than as the real problem. This names it.
+    const offenders: string[] = [];
+    for (const [name] of SEMANTIC_FLOORS) {
+      for (const m of TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*([^;]+);`, "g"))) {
+        const value = m[1]!.trim();
+        if (!/^#[0-9a-fA-F]{6}$/.test(value)) offenders.push(`--${name}: ${value}`);
+      }
+    }
+    expect(
+      offenders,
+      "state tokens must be #RRGGBB — an alpha value renders differently from the opaque colour these floors measure",
+    ).toEqual([]);
+  });
+
+  it("covers every declared value of a token, not just the first", () => {
+    // The gap Codex caught: --flare is declared three times (dark, explicit
+    // light, and the verbatim system-light copy), and an indexed read checked
+    // two. Nothing about that was visible from a passing suite — this pins it,
+    // so re-introducing an index fails here rather than silently narrowing
+    // coverage.
+    const declared = [...TOKENS_CSS.matchAll(/--flare:\s*(#[0-9a-f]{6})/gi)].map((m) =>
+      m[1]!.toLowerCase(),
+    );
+    expect(
+      declared.length,
+      "tokens.css should still declare --flare in dark, light and system-light",
+    ).toBeGreaterThanOrEqual(3);
+
+    const covered = CLEARANCE.filter((c) => c.label.startsWith("--flare ")).map(
+      (c) => c.hex,
+    );
+    for (const hex of declared) expect(covered).toContain(hex);
+  });
+
+  it("reports google as the tightest clearance to --laser", () => {
+    // The margin worth watching. 0013 moved --laser and this is the accent that
+    // came closest afterwards (37.0 at #dffa04) — still nearly double the floor,
+    // but it is the one a future retune will squeeze first.
+    const laser = tokenHexes("laser")[0]!;
+    const ranked = [...ACCENT_HEX]
+      .map(([dev, accent]) => [dev, distance(accent, laser)] as const)
+      .sort((x, y) => x[1] - y[1]);
+    expect(ranked[0]![0]).toBe("google");
+    expect(ranked[0]![1]).toBeGreaterThan(20);
   });
 });
 
