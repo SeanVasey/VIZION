@@ -112,10 +112,22 @@ The open questions. The first is no longer depended on; the rest are:
   right is not enough, and the first cut of this got it wrong: with the light
   link left unconditional it also matched in dark mode, and a media-aware
   last-wins reader would have gone on choosing light forever. What a device
-  settles is whether the dark appearance actually picks the inverse artwork up. If it does not, the fallback is a product decision, not a bug fix:
-  either accept iOS's auto-darkened tile, or flip `BASE` in
-  `scripts/generate-icons.mjs` to `"dark"` so the ONE tile is Laser-on-Void and
-  legible under every appearance — at the cost of the Laser plate in light mode.
+  settles is whether the dark appearance actually picks the inverse artwork up.
+  If it does not, the fallback is a product decision, not a bug fix: either
+  accept iOS's auto-darkened tile, or — knowing at that point that `media` is
+  being ignored — collapse the `apple` array in `src/app/layout.tsx` to a single
+  unconditional link at `/icons/apple-touch-icon-dark.png`, so the one tile iOS
+  installs is Laser-on-Void and legible under every appearance, at the cost of
+  the Laser plate in light mode. (`apple-touch-icon.png` is then unreferenced;
+  drop it from the generator in the same change.)
+  **Do not reach for `BASE` in `scripts/generate-icons.mjs` for this.** An
+  earlier revision of this runbook said to flip it to `"dark"`, and that was
+  wrong: `BASE` governs the scheme-agnostic favicons and maskable tiles, and
+  while the dark tile was generated as its inverse, flipping it would have put
+  the LIGHT colorway in the file named `-dark` and installed both appearances
+  backwards (Codex review, #108). The two tiles are pinned to fixed scheme names
+  now, so `BASE` no longer reaches them — the lever is the head, not the
+  generator.
   **Do not** write "iOS supports/ignores this" into the tree from a search
   result.
 

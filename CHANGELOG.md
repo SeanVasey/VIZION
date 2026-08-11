@@ -31,8 +31,17 @@ Both halves are needed, and the first cut of this shipped only the second: with
 the light link left unconditional it kept matching in dark mode too, so a
 media-aware last-wins reader would have gone on choosing light and the dark tile
 would have been dead on arrival (caught in review). The device check and the
-fallback (flip `BASE` to `"dark"`) are recorded in
-[the iOS runbook](./docs/runbooks/ios-verification.md).
+fallback — collapse the pair to one unconditional link at the dark tile — are
+recorded in [the iOS runbook](./docs/runbooks/ios-verification.md).
+
+Both tiles are pinned to **fixed scheme names** in the generator rather than
+derived from the house-default `BASE`. Derived (the first cut, also caught in
+review) they inverted under exactly the fallback the runbook prescribed: flipping
+`BASE` to `"dark"` rendered the LIGHT colorway into the file named `-dark`, so a
+media-aware iOS would have installed each appearance under the other's scheme.
+`icon-alpha.test.ts` now asserts each tile carries the appearance its name
+claims — as a luminance ORDER, since inversion alone is symmetric and passes just
+as happily with the two files swapped.
 
 Consequence: the **App Router convention icons are gone**
 (`src/app/icon0.svg` / `icon1.png` / `apple-icon.png`). The convention cannot

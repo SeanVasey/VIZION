@@ -103,14 +103,31 @@ const LASER = token("laser");
 const VOID = token("void");
 const INK = VOID;
 
-// Base appearance for the name-agnostic derivatives (favicons, apple-touch,
-// maskable tiles). 'light' = Laser plate + Void ink, per the source spec. Flip
-// to 'dark' (Void plate + Laser glyph) if the dark mark should ever become
-// primary — one constant, nothing else to change.
+// Base appearance for the SCHEME-AGNOSTIC derivatives only — the favicons and
+// the maskable tiles, surfaces that have no notion of an OS appearance and just
+// need one house colorway. 'light' = Laser plate + Void ink, per the source
+// spec. Flip to 'dark' if the dark mark should ever become the house default.
+//
+// It deliberately does NOT reach the two home-screen tiles below. Those are
+// SCHEME-MAPPED, and a scheme-mapped file cannot follow a configurable default
+// without eventually contradicting the query it is linked behind.
 const BASE = "light";
 
-// The OPPOSITE appearance, rendered once as `apple-touch-icon-dark.png` for the
-// media-qualified home-screen link (src/app/layout.tsx).
+// The two home-screen appearances, pinned to fixed scheme names.
+//
+// WHY PINNED, not `BASE === "light" ? "dark" : "light"` (which is what this was,
+// until review caught it on #108). `apple-touch-icon-dark.png` is linked behind
+// `media="(prefers-color-scheme: dark)"`. Its name and its query both say dark,
+// so its ARTWORK has to be dark — full stop, independent of any default. Derived
+// from BASE, flipping BASE to "dark" would have rendered the LIGHT colorway into
+// the file named `-dark` and the dark colorway into the one behind the light
+// query: a media-aware iOS would install both appearances inverted. That is not
+// hypothetical — flipping BASE was, until this commit, the fallback the iOS
+// runbook told the next reader to reach for.
+const APPLE_LIGHT = "light";
+const APPLE_DARK = "dark";
+
+// `apple-touch-icon-dark.png` — the dark-appearance home-screen tile.
 //
 // WHY IT EXISTS. Left to itself, iOS derives a dark-appearance home-screen tile
 // from the light one by darkening it. Applied to the base tile — Void ink on a
@@ -129,7 +146,6 @@ const BASE = "light";
 // light declared last for a media-blind one — rather than betting on either;
 // see the note on `metadata.icons` in layout.tsx, which is where that lives and
 // where it is easy to get half right. Only a physical iPhone can close it.
-const BASE_INVERSE = BASE === "light" ? "dark" : "light";
 
 // Glyph fractions. 0.74 is the artwork's own composition (see the geometry
 // check above); 0.58 pads the maskable tiles clear of the safe-zone circle.
@@ -411,24 +427,28 @@ async function main() {
   }
 
   // 3. apple-touch-icon, BOTH appearances (opaque branded tiles — iOS ignores
-  //    transparency and would composite a transparent tile onto black). The
-  //    dark tile is the inverse colorway; see BASE_INVERSE for why it exists
-  //    and what about it is unverified.
+  //    transparency and would composite a transparent tile onto black). Each
+  //    file is pinned to the scheme its media query names — see APPLE_LIGHT /
+  //    APPLE_DARK for why these do not follow BASE, and what about them is
+  //    unverified.
   console.log("Rendering apple-touch-icons (light + dark appearance)...");
+  for (const [name, scheme] of [
+    ["apple-touch-icon.png", APPLE_LIGHT],
+    ["apple-touch-icon-dark.png", APPLE_DARK],
+  ]) {
+    const { plate } = appearance(scheme);
+    await renderPng(
+      plateSVG(appearance(scheme), FRAC_STANDARD),
+      180,
+      180,
+      path.join(ICONS_DIR, name),
+      { flatten: plate },
+    );
+  }
+
+  // The house colorway, for the scheme-agnostic favicons below.
   const baseSvg = plateSVG(appearance(BASE), FRAC_STANDARD);
   const basePlate = appearance(BASE).plate;
-  await renderPng(baseSvg, 180, 180, path.join(ICONS_DIR, "apple-touch-icon.png"), {
-    flatten: basePlate,
-  });
-  const inverseSvg = plateSVG(appearance(BASE_INVERSE), FRAC_STANDARD);
-  const inversePlate = appearance(BASE_INVERSE).plate;
-  await renderPng(
-    inverseSvg,
-    180,
-    180,
-    path.join(ICONS_DIR, "apple-touch-icon-dark.png"),
-    { flatten: inversePlate },
-  );
 
   // 4. Favicon PNGs (a plated tile reads better than a bare mark at 16px).
   console.log("Rendering favicons...");

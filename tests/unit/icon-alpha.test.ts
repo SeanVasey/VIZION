@@ -90,26 +90,67 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
    * on both (the bar spans y 31.7–113.8 of the 180px tile at frac 0.74).
    */
   it("the two apple-touch appearances are inverse colorways", async () => {
-    const sample = async (file: string) => {
-      const { data, info } = await raw(file);
-      const at = (x: number, y: number) => {
-        const i = (y * info.width + x) * 4;
-        return `${data[i]},${data[i + 1]},${data[i + 2]}`;
-      };
-      return { plate: at(2, 2), glyph: at(90, 90) };
-    };
-    const light = await sample(join(ICONS, "apple-touch-icon.png"));
-    const dark = await sample(join(ICONS, "apple-touch-icon-dark.png"));
+    const light = await sampleTile(join(ICONS, "apple-touch-icon.png"));
+    const dark = await sampleTile(join(ICONS, "apple-touch-icon-dark.png"));
 
-    expect(light.plate, "a tile whose plate equals its glyph shows nothing").not.toBe(
-      light.glyph,
+    expect(light.plate.rgb, "a tile whose plate equals its glyph shows nothing").not.toBe(
+      light.glyph.rgb,
     );
-    expect(dark.plate).not.toBe(dark.glyph);
-    expect(dark.plate, "the dark tile's plate must be the light tile's ink").toBe(
-      light.glyph,
+    expect(dark.plate.rgb).not.toBe(dark.glyph.rgb);
+    expect(dark.plate.rgb, "the dark tile's plate must be the light tile's ink").toBe(
+      light.glyph.rgb,
     );
-    expect(dark.glyph, "the dark tile's mark must be the light tile's plate").toBe(
-      light.plate,
+    expect(dark.glyph.rgb, "the dark tile's mark must be the light tile's plate").toBe(
+      light.plate.rgb,
     );
   });
+
+  /**
+   * ...and each tile must carry the appearance its NAME and its media query
+   * claim. Inversion alone does not pin that: swap the two files and every
+   * assertion above still passes, while a media-aware iOS installs a lime plate
+   * for dark mode and a near-black one for light.
+   *
+   * That swap was reachable (Codex review, #108): the dark tile was generated as
+   * `BASE === "light" ? "dark" : "light"`, so flipping `BASE` to `"dark"` — which
+   * the iOS runbook told the next reader to do — would have rendered the light
+   * colorway into the file named `-dark`. The generator now pins both to fixed
+   * scheme names, and this is the guard that keeps them pinned.
+   *
+   * Stated as a luminance ORDER rather than a hex, so it survives a retune of
+   * either token and still cannot be satisfied by the swap.
+   */
+  it("each apple-touch tile carries the appearance its name claims", async () => {
+    const light = await sampleTile(join(ICONS, "apple-touch-icon.png"));
+    const dark = await sampleTile(join(ICONS, "apple-touch-icon-dark.png"));
+
+    expect(
+      dark.plate.luma,
+      "the -dark tile is linked behind (prefers-color-scheme: dark); its plate must be the darker one",
+    ).toBeLessThan(light.plate.luma);
+    expect(
+      dark.glyph.luma,
+      "the -dark tile's mark must be the lighter ink, or it vanishes into its own plate",
+    ).toBeGreaterThan(light.glyph.luma);
+  });
 });
+
+/**
+ * Plate and glyph pixels of a 180px home-screen tile, as an rgb string plus a
+ * relative luminance.
+ *
+ * Sampled, not restated: the hexes live in tokens.css and the generator reads
+ * them from there, so comparing the two tiles pins their relationship without
+ * giving this file a second opinion about the brand green. (2, 2) is plate on
+ * both; (90, 90) is inside the glyph's vertical bar on both (the bar spans
+ * y 31.7–113.8 of the 180px tile at frac 0.74).
+ */
+async function sampleTile(file: string) {
+  const { data, info } = await raw(file);
+  const at = (x: number, y: number) => {
+    const i = (y * info.width + x) * 4;
+    const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!];
+    return { rgb: `${r},${g},${b}`, luma: 0.2126 * r + 0.7152 * g + 0.0722 * b };
+  };
+  return { plate: at(2, 2), glyph: at(90, 90) };
+}
