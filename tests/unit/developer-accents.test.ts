@@ -172,22 +172,33 @@ const distance = (x: string, y: string) => deltaE2000(lab(x), lab(y));
  */
 const TOKENS_CSS = strip(read("src/styles/tokens.css"));
 const tokenHexes = (name: string): string[] => {
+  // Same trailing boundary as ACCENT_HEX, for the same reason: unanchored, a
+  // valid 8-digit `#RRGGBBAA` is captured as its opaque first six digits, and
+  // the floors are then measured against a colour the browser never renders.
+  // The accent side was anchored first; leaving this one open made the pair
+  // asymmetric, which is how it was spotted (Codex review, PR #106).
+  //
+  // Deliberately does NOT throw. CLEARANCE is built at module scope, so a throw
+  // here fails COLLECTION — the whole file reports "no tests", the other 27
+  // never run, and the checks written to name the offender never execute. It
+  // returns what it finds instead, and two tests below assert that what it finds
+  // is complete.
   const all = [
-    ...TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "gi")),
+    ...TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})(?![0-9a-f])`, "gi")),
   ].map((m) => m[1]!.toLowerCase());
-  if (!all.length) throw new Error(`tokens.css: --${name} not found`);
   return [...new Set(all)];
 };
 
+/** The state tokens each accent must clear, and 0003's floor for each. */
+const SEMANTIC_FLOORS = [
+  ["laser", 20],
+  ["flare", 18],
+  ["amber", 15],
+  ["pulse", 15],
+] as const;
+
 /** 0003's semantic-clearance floors, as published in 0011's evidence table. */
-const CLEARANCE = (
-  [
-    ["laser", 20],
-    ["flare", 18],
-    ["amber", 15],
-    ["pulse", 15],
-  ] as const
-).flatMap(([name, floor]) =>
+const CLEARANCE = SEMANTIC_FLOORS.flatMap(([name, floor]) =>
   tokenHexes(name).map((hex) => ({ label: `--${name} ${hex}`, hex, floor })),
 );
 
@@ -343,6 +354,36 @@ describe("semantic clearance — every accent stays distinguishable from the sta
       expect(breaches, `clearance to ${label}`).toEqual([]);
     });
   }
+
+  it("resolves every state token to at least one measurable value", () => {
+    // Without this, a token that stops matching simply drops its floor tests
+    // from the run — the suite gets quietly narrower while staying green, which
+    // is the failure mode this whole block was added to end.
+    const unresolved = SEMANTIC_FLOORS.map(([name]) => name).filter(
+      (name) => tokenHexes(name).length === 0,
+    );
+    expect(
+      unresolved,
+      "a state token resolving to nothing removes its entire floor from the suite",
+    ).toEqual([]);
+  });
+
+  it("declares every state token as an opaque 6-digit hex, like the accents", () => {
+    // The accent-side mirror of this check exists in the roster block. Both
+    // sides need it: anchoring makes a bad value stop matching, which surfaces
+    // as "--pulse not found" rather than as the real problem. This names it.
+    const offenders: string[] = [];
+    for (const [name] of SEMANTIC_FLOORS) {
+      for (const m of TOKENS_CSS.matchAll(new RegExp(`--${name}:\\s*([^;]+);`, "g"))) {
+        const value = m[1]!.trim();
+        if (!/^#[0-9a-fA-F]{6}$/.test(value)) offenders.push(`--${name}: ${value}`);
+      }
+    }
+    expect(
+      offenders,
+      "state tokens must be #RRGGBB — an alpha value renders differently from the opaque colour these floors measure",
+    ).toEqual([]);
+  });
 
   it("covers every declared value of a token, not just the first", () => {
     // The gap Codex caught: --flare is declared three times (dark, explicit
