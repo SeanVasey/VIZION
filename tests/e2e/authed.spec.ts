@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import sharp from "sharp";
 import { signIn, expectNoUnhandledStubRoutes } from "./support/auth";
 
 /**
@@ -24,6 +25,92 @@ test.describe("authenticated app", () => {
     );
     await expect(nav.getByRole("link", { name: "Library" })).toHaveCount(1);
     await expect(nav.getByRole("link", { name: "Settings" })).toHaveCount(1);
+  });
+
+  test("the brand mark is optically centred on the wordmark", async ({ page }) => {
+    // `align-items: center` centres the h1's LINE BOX, whose centre sits at
+    // `baseline − (ascent − descent) / 2` — not at the CAP BAND centre the eye
+    // actually reads the word as. For Bebas Neue those disagree, and the mark
+    // hung low: 0.99px of clearance above the cap line against 2.98px below the
+    // baseline (Chromium; 0.38 / 3.79 in WebKit). ScreenHeader's −0.046em lift
+    // closes that, and this is the measurement that keeps it closed.
+    //
+    // PIXELS, not font metrics. The two engines' canvas `actualBoundingBox`
+    // values for this face disagree by 12%, and the layout ascent/descent they
+    // use is not the pair canvas reports — deriving the baseline arithmetically
+    // gave an answer 1.3px away from where the glyphs actually landed. What is
+    // on screen is the only thing that settles it.
+    //
+    // Tolerance: a revert measures 1.99px (Chromium) / 3.41px (WebKit) of
+    // imbalance and the fix measures 0.76 / 0.66, so ±1.25px separates them with
+    // room for the ±1 image-row quantisation at dpr 2.6–3 (~0.35px a side).
+    // Settle the streamed handover first. `/enhance/loading.tsx` renders the
+    // same branded header as the page, and under a loaded suite both were
+    // briefly in the DOM — two identical lockups, which is a strict-mode
+    // violation rather than a real failure. Waiting for the count to fall back
+    // to one is the wait; the h1 is then read off the ROW, not the document, so
+    // mark and word can never be sampled from different headers.
+    const mark = page.locator('header svg[viewBox="0 0 1024 892.8"]');
+    await expect(mark).toHaveCount(1);
+    const row = mark.locator("xpath=..");
+    const heading = row.locator("h1");
+    await expect(mark).toBeVisible();
+
+    // Flatten the chrome to pure black-on-white so a luminance threshold is
+    // unambiguous. Colour only — nothing here moves a box.
+    await page.addStyleTag({
+      content: `header.glass-chrome::before { display: none !important; }
+                header.glass-chrome { background: #000 !important; }
+                header * { color: #fff !important; }`,
+    });
+
+    const [rowBox, markBox, headingBox] = await Promise.all([
+      row.boundingBox(),
+      mark.boundingBox(),
+      heading.boundingBox(),
+    ]);
+    const shot = await row.screenshot();
+    const { data, info } = await sharp(shot)
+      .greyscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    // Derive the capture scale rather than assuming devicePixelRatio.
+    const scale = info.width / rowBox!.width;
+
+    /** [top, bottom] of the inked rows in a CSS-px column slice, in CSS px. */
+    const inkBand = (fromX: number, toX: number): [number, number] => {
+      const x0 = Math.max(0, Math.round((fromX - rowBox!.x) * scale));
+      const x1 = Math.min(info.width, Math.round((toX - rowBox!.x) * scale));
+      let top = -1;
+      let bottom = -1;
+      for (let y = 0; y < info.height; y++) {
+        let lit = 0;
+        for (let x = x0; x < x1; x++) if (data[y * info.width + x]! > 127) lit++;
+        if (lit > 0) {
+          if (top < 0) top = y;
+          bottom = y;
+        }
+      }
+      expect(top, "no ink found in the slice").toBeGreaterThanOrEqual(0);
+      return [top / scale, (bottom + 1) / scale];
+    };
+
+    const [markTop, markBottom] = inkBand(markBox!.x, markBox!.x + markBox!.width);
+    const [wordTop, wordBottom] = inkBand(
+      headingBox!.x,
+      headingBox!.x + headingBox!.width,
+    );
+
+    // The mark is taller than the caps by design, so it clears the word both
+    // ways; what must not happen is clearing one way much more than the other.
+    const above = wordTop - markTop;
+    const below = markBottom - wordBottom;
+    expect(above, "the mark should overhang the cap line").toBeGreaterThan(0);
+    expect(below, "the mark should overhang the baseline").toBeGreaterThan(0);
+    expect(
+      Math.abs(above - below),
+      `mark overhangs the word by ${above.toFixed(2)}px above and ${below.toFixed(2)}px below`,
+    ).toBeLessThanOrEqual(1.25);
   });
 
   test("a real nav tab acknowledges a press", async ({ page }) => {
@@ -223,9 +310,10 @@ test.describe("authenticated app", () => {
       );
       const min = Math.min(...heights);
       const max = Math.max(...heights);
-      expect(max, `a mode label wraps at ${width}px — heights ${heights.join(",")}`).toBeLessThan(
-        min * 1.6,
-      );
+      expect(
+        max,
+        `a mode label wraps at ${width}px — heights ${heights.join(",")}`,
+      ).toBeLessThan(min * 1.6);
     }
   });
 

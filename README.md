@@ -116,7 +116,7 @@ shipped as an iOS 26 Liquid Glass icon set under `public/brand/`.
 
 **`public/brand/vizion-glyph.svg` is the single raster source of truth**: the
 mark alone, flat, on a tight 1024 × 892.8 viewBox. `npm run generate:icons`
-composes the entire 33-file icon + splash matrix from it via `sharp`, painting
+composes the entire 32-file icon + splash matrix from it via `sharp`, painting
 it with the locked colorways it reads from `tokens.css` — `Laser #C7FD26`,
 `Void #0F1012`. Don't hand-edit the PNGs, and don't edit `public/brand/` to
 change a derivative.
@@ -124,12 +124,42 @@ change a derivative.
 The appearances are:
 
 - **Light** (Laser plate + Void ink) — the base. Drives the opaque surfaces:
-  the iOS Add-to-Home-Screen tile (`apple-touch-icon`), the favicons and
-  `favicon.ico`, the maskable tiles, and the App Router `icon`/`apple-icon`.
+  the iOS Add-to-Home-Screen tile (`apple-touch-icon.png`), the scalable and
+  raster favicons plus `favicon.ico`, the maskable tiles, and the square
+  `og:image` share tile.
 - **Laser glyph on transparent** — the `any` PWA icon matrix, which ships
   transparent per guardrail §6.
 - **Dark** (Void plate + Laser glyph) — the iOS splash screens, matching the
-  manifest's `background_color`.
+  manifest's `background_color`, and `apple-touch-icon-dark.png`.
+
+**The dark home-screen tile.** Left alone, iOS builds a dark-appearance tile by
+darkening the light one — which, on Void ink over a Laser plate, darkens the
+plate down toward the ink and the mark disappears. `apple-touch-icon-dark.png`
+is the inverse artwork, linked from `metadata.icons` behind
+`media="(prefers-color-scheme: dark)"`. Whether iOS honours `media` on
+`apple-touch-icon` is undocumented and cannot be checked from this repo, so the
+pair is built for both answers: the two queries are **complementary** (a
+media-aware iOS has exactly one eligible link per scheme) and the **light tile
+is declared last** (a media-blind iOS ignores the queries, sees two equal
+candidates, and takes the last — exactly today's behaviour). See
+[the iOS runbook](./docs/runbooks/ios-verification.md) — this is one for a
+physical device.
+
+There are no `src/app/icon*`/`apple-icon` convention files. The App Router
+convention cannot express `media`, and declaring `metadata.icons` at all
+suppresses the convention links, so `layout.tsx` declares the whole icon head
+and every file lives under `public/icons/`.
+
+**Share artwork** (`npm run generate:social`, also token-driven) is the one
+other pair of generated files:
+
+- `og-tile.png` — 1200 × 1200, the Light appearance at share resolution. This is
+  `og:image`, and it is square because every consumer of `og:image` except X
+  crops toward a square: iOS Safari's Share Sheet takes the centre 640 × 640,
+  which of a landscape card kept one arm of the chevron and half a sentence.
+- `social-card.png` — 1280 × 640, the descriptive card. Now `twitter:image`
+  only (X reads it first and genuinely wants 2:1), plus the artwork for
+  GitHub → Settings → General → Social preview.
 
 The rest of `public/brand/` is reference, not raster input, and all of it belongs
 to the current identity — the retired I›O `*-token.svg` pair is gone.

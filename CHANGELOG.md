@@ -6,6 +6,88 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### A dark Home Screen tile, so the mark stops disappearing in dark mode
+
+Installed to the Home Screen, VIZION's icon went **invisible in dark
+appearance**: iOS derives a dark tile by darkening the light one, and the light
+tile is Void ink on a Laser plate — darken it and the plate falls toward the ink
+until the mark is a shadow of itself on near-black. `generate-icons.mjs` now
+renders the **inverse colorway** as `apple-touch-icon-dark.png` (Laser glyph on a
+Void plate), and `layout.tsx` links it behind
+`media="(prefers-color-scheme: dark)"`.
+
+**What is verified and what is not** (guardrail §3): the tile is generated,
+opaque, inverse (`icon-alpha.test.ts` asserts the light tile's plate equals the
+dark tile's ink and vice-versa) and present in the SSR'd head
+(`shell.spec.ts`). Whether **iOS reads `media` on `apple-touch-icon` at all** is
+undocumented by Apple and unanswerable from this repo — the Developer Forums
+threads asking (761615 / 787919 / 801448) have no reply, and search results
+assert both answers with equal confidence. So the pair is **built to answer both
+ways at once**: the two queries are **complementary**, so a media-aware iOS has
+exactly one eligible link per scheme, and the **light tile is declared last**, so
+a media-blind iOS — which ignores the queries and, by Apple's own "last one wins"
+rule, takes the last of two equal candidates — lands exactly where it does today.
+Both halves are needed, and the first cut of this shipped only the second: with
+the light link left unconditional it kept matching in dark mode too, so a
+media-aware last-wins reader would have gone on choosing light and the dark tile
+would have been dead on arrival (caught in review). The device check and the
+fallback — collapse the pair to one unconditional link at the dark tile — are
+recorded in [the iOS runbook](./docs/runbooks/ios-verification.md).
+
+Both tiles are pinned to **fixed scheme names** in the generator rather than
+derived from the house-default `BASE`. Derived (the first cut, also caught in
+review) they inverted under exactly the fallback the runbook prescribed: flipping
+`BASE` to `"dark"` rendered the LIGHT colorway into the file named `-dark`, so a
+media-aware iOS would have installed each appearance under the other's scheme.
+`icon-alpha.test.ts` now asserts each tile carries the appearance its name
+claims — as a luminance ORDER, since inversion alone is symmetric and passes just
+as happily with the two files swapped.
+
+Consequence: the **App Router convention icons are gone**
+(`src/app/icon0.svg` / `icon1.png` / `apple-icon.png`). The convention cannot
+express `media`, and Next merges convention links only `if
+(!resolvedMetadata.icons)` — so the moment `metadata.icons` exists they vanish,
+and keeping the files would have shipped three assets nothing referenced.
+`layout.tsx` now declares the whole icon head and every file lives under
+`public/icons/`, including the scalable `favicon.svg`. The favicons deliberately
+do **not** invert: an opaque plate is legible on any tab background, so the tab
+mark stays one constant thing.
+
+### `og:image` is a square brand tile; the card stays for X
+
+The iOS Share Sheet was showing a **beheaded logo and half a sentence** — it
+crops `og:image` to the centre square, and of the 1280 × 640 card that 640 × 640
+window keeps only the right arm of the chevron and a clipped mode list. Every
+consumer of `og:image` except X crops the same way. `generate-social-card.mjs`
+now also writes **`og-tile.png`** (1200 × 1200, the Light appearance at share
+resolution — the same artwork as the app icon), and that is `og:image`. The
+landscape `social-card.png` becomes **`twitter:image` only**, which X reads
+ahead of `og:image` and which genuinely wants 2:1; it is still the GitHub social
+preview upload. `shell.spec.ts` asserts the og image is square, so a landscape
+file put back behind that name fails rather than quietly restoring the crop.
+
+### The brand mark sits where the eye expects, next to the wordmark
+
+In the header lockup the mark hung low: measured ink-to-ink on the shipped
+header it cleared the wordmark's cap line by **0.99px** (Chromium) / **0.38px**
+(WebKit) while dropping **2.98px** / **3.79px** below the baseline — nearly all
+of its overhang on one side, which is what reads as "uneven parts of the icon
+over and under the word". The cause is that `align-items: center` centres the
+h1's **line box**, whose centre sits at `baseline − (ascent − descent) / 2`,
+while the eye centres on the **cap band** at `baseline − capHeight / 2`; for
+Bebas Neue those disagree. The mark now carries a **−0.046em** lift, resolved
+against a `text-2xl` on the row so it scales with the wordmark rather than the
+16px body size. Imbalance drops to 0.76px / −0.66px; it cannot reach zero in
+both, because the engines pick different ascent/descent metrics for this face
+(their individual optima are 0.058em and 0.035em, and 0.046em is the midpoint).
+
+Measured in **pixels**, not font metrics, and that mattered: the two engines'
+canvas `actualBoundingBox` values for this face disagree by 12%, and deriving
+the baseline arithmetically put the answer 1.3px from where the glyphs actually
+landed. `authed.spec.ts` re-measures the shipped header — screenshot, threshold,
+compare the mark's ink band against the word's — and fails past ±1.25px, so a
+revert (1.99px / 3.41px) cannot pass.
+
 ### The mode rail's labels fit on one line again — at every width
 
 A cross-width guard (no mode label may wrap at 320/360/390/430) failed at
