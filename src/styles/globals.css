@@ -571,8 +571,8 @@
   .hold-slider-glass {
     background-color: color-mix(in srgb, var(--glass-still) 92%, transparent);
     background-image: var(--grain, none);
-    backdrop-filter: blur(28px) saturate(1.3);
-    -webkit-backdrop-filter: blur(28px) saturate(1.3);
+    backdrop-filter: blur(40px) saturate(1.3);
+    -webkit-backdrop-filter: blur(40px) saturate(1.3);
     border: 1px solid var(--hair);
   }
   /* The frost stands down WITH the halo blur, not independently: both gates
@@ -721,19 +721,31 @@
      slightly wider ellipse; filter dropped → dim only, which is already the
      shipped stand-down. None of them is the full-viewport wash. */
   .hold-slider-blur {
-    backdrop-filter: blur(16px) saturate(1.05);
-    -webkit-backdrop-filter: blur(16px) saturate(1.05);
+    backdrop-filter: blur(38px) saturate(1.05);
+    -webkit-backdrop-filter: blur(38px) saturate(1.05);
     /* Inscribed in the element's own box, so the halo's extent is HoldSlider's
        geometry and this rule only has to say "fade to nothing at the edge".
        Paired prefixes for the same reason backdrop-filter and
-       background-clip: text carry them. */
+       background-clip: text carry them.
+
+       THE PLATEAU IS THE LEVER, not the blur radius — measured, and it is the
+       opposite of the obvious guess. Eight parameterizations were rendered and
+       scored (see HALO_X_PX's note for the metric). Going from blur(38px) at a
+       82% plateau to blur(54px) at 78% made every band MORE legible, not less:
+       the coach line went 0.06 -> 0.16, the first prompt line 0.04 -> 0.14.
+       Chromium appears to trade filter quality for area as the element and the
+       radius grow, so past a point a bigger blur on a bigger box buys a coarser
+       result. Widening the fully-opaque core does what raising the radius was
+       supposed to. If this ever needs to obscure more, move THIS number and the
+       dim's matching stop first, and re-measure rather than reaching for the
+       radius. */
     -webkit-mask-image: radial-gradient(
       ellipse closest-side,
       #000 0%,
-      #000 42%,
+      #000 84%,
       transparent 100%
     );
-    mask-image: radial-gradient(ellipse closest-side, #000 0%, #000 42%, transparent 100%);
+    mask-image: radial-gradient(ellipse closest-side, #000 0%, #000 84%, transparent 100%);
   }
   @media (prefers-reduced-motion: reduce) {
     .hold-slider-blur {
@@ -753,12 +765,19 @@
      little over half the old strength: the capsule's own frost and lift carry
      the separation the flat dim used to buy by force.
      The four --dial-* properties come from HoldSlider (viewport pixels); the
-     fallbacks keep this rule legible, and renderable, on its own. */
+     fallbacks keep this rule legible, and renderable, on its own.
+
+     The mid stop tracks the blur's mask plateau above — they are one falloff
+     drawn twice, and if they drift the dim's edge and the blur's edge stop
+     landing together. Strength was raised with the rest of the halo on the
+     owner's second pass: a wash this dense edge to edge is the rejected
+     behaviour, but under the popup it is the thing that makes text stop
+     reading rather than merely go soft. */
   .hold-slider-scrim {
     background-image: radial-gradient(
       var(--dial-rx, 260px) var(--dial-ry, 300px) at var(--dial-cx, 50%) var(--dial-cy, 50%),
-      color-mix(in srgb, var(--void) 38%, transparent) 0%,
-      color-mix(in srgb, var(--void) 32%, transparent) 42%,
+      color-mix(in srgb, var(--void) 60%, transparent) 0%,
+      color-mix(in srgb, var(--void) 52%, transparent) 84%,
       transparent 100%
     );
     animation: hold-slider-scrim-in var(--motion-quick) ease-out;

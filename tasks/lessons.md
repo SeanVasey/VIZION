@@ -3639,3 +3639,54 @@ test:e2e` hard-fails in global-setup until
   stay exactly as pinned while only the paint became local. Zero existing
   assertions changed. When one element does two things, check whether they are
   even expressed in the same CSS property before restructuring.
+
+## Phase — dials, amendment 1b: measuring the halo instead of eyeballing it (2026-08-11)
+
+- **When a visual judgement gets close, stop looking and build a metric.** Two
+  halo variants differing only by a 48px shift "looked" very different, and a
+  strictly stronger one "looked" weaker. Both readings were mine, and both were
+  wrong. A per-band ratio — high-pass energy with the capsule open, over the
+  same band with it closed — settled twelve variants in one run, in both
+  themes, and produced an ordering that held up. The rule is not "measure
+  everything"; it is that once you are choosing between options that are close,
+  eyes stop being evidence and start being noise.
+
+- **Pick the metric for the failure mode, not for convenience.** The first
+  version used luminance VARIANCE, and it ranked a 54px blur as less obscuring
+  than a 38px one — because a big blur smears bright content (the Laser chip,
+  the capsule) across a band and RAISES its variance while making nothing
+  readable. A high-pass filter (mean |2L(x) − L(x−3) − L(x+3)|) answers the
+  question actually being asked, "are there glyph edges here", and smooth
+  gradients contribute nothing to it. A metric that moves the wrong way on the
+  effect you are tuning is worse than no metric.
+
+- **Never mutate a live `backdrop-filter` through a sweep in one page.** Round
+  one drove six variants through a single open capsule, and the results were
+  not reproducible — Chromium appears to keep some of the previous filter's
+  composited state. A clean page per variant, with the parameters applied
+  BEFORE the capsule mounts, gave stable numbers. Sweeps over compositor-level
+  effects need fresh documents the way benchmarks need fresh processes.
+
+- **Bigger blur is not more blur past a point.** blur(54px) on a 744×488 box
+  measured worse on every band than blur(38px) on a 704×466 one; Chromium
+  appears to trade filter quality for area. The lever that actually works is
+  the mask's opaque plateau. Generalize: for compositor effects, the parameter
+  the API names is not necessarily the parameter that controls the outcome.
+
+- **A structural invariant catches what a fraction-of-viewport assertion
+  wouldn't.** The halo's containment was first pinned as "height < 70% of the
+  viewport". Restating it as "the box ends clear of the chrome bars" caught a
+  4px overlap with the bottom nav on WebKit that the fraction would have waved
+  through — and it says the thing that is actually true, which is that once the
+  halo touches a bar, localization stops being a property of the BOX and starts
+  depending on the mask, which WebKit cannot verify.
+
+- **Verify an adversarial finding's MECHANISM separately from its FIX.** A
+  review pass reported that the light theme's veil brightens the Laser mode
+  chip instead of dimming it, and prescribed inverting the veil to a dark
+  scrim. The mechanism was real and measured (page ground 238 → 239, chip
+  214 → 222 — a near-white veil cannot dim near-white content). The prescribed
+  fix was built and measured too, and it was worse: less obscuring on every
+  band and a murky grey cloud against a brief asking for "a smooth and clean
+  appearance". Accepting the finding and rejecting the remedy is a legitimate
+  outcome, and it only exists if you test the remedy rather than the argument.

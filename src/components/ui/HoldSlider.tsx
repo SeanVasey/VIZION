@@ -240,6 +240,7 @@ export function HoldSliderTrigger({
   enabled,
   detentMarker = "dot",
   dynamicBackdrop = false,
+  compactHalo = false,
   latchOnTap = false,
   scrollableHost = false,
   peakCaption,
@@ -275,6 +276,9 @@ export function HoldSliderTrigger({
    *  to the wrapped trigger's click. Hosts that pass this own the whole
    *  interaction and must declare slider semantics on the trigger. */
   latchOnTap?: boolean;
+  /** True when this trigger sits inside a SHEET rather than on a full page —
+   *  halves the halo's reach. See COMPACT_HALO_SCALE. */
+  compactHalo?: boolean;
   /** True when this trigger sits on a scrollable surface it must not trap —
    *  see useHoldDrag's own note. Pairs with `className="flex w-full"`: a
    *  full-width control in an overflowing pane needs both. */
@@ -354,6 +358,7 @@ export function HoldSliderTrigger({
           active={active}
           marker={detentMarker}
           dynamicBackdrop={dynamicBackdrop}
+          compactHalo={compactHalo}
           peakCaption={peakCaption ?? null}
           latched={latched}
         />
@@ -378,18 +383,50 @@ const BAR_MAX_PX = 20;
 /**
  * How far the treated halo reaches past the capsule, per axis.
  *
- * Asymmetric on purpose, and the phone is what sets both numbers. Opus's
- * six-stop capsule is already 264px of a 390px viewport, so there is barely
- * any horizontal room left to fade in — the halo spans most of the width
- * either way, and pushing X further only wastes filter area. Vertically there
- * are ~780px to work with and the popup is taller than the capsule: the level
- * chip sits 36px above it and the peak caption 32px below, both of which have
- * to land inside the treated region or they read as floating over untouched
- * screen. Y therefore clears both with margin, and the ellipse takes the
- * corners back out so the result is a lens, not a band.
+ * These are MEASURED, not chosen (2026-08-11, second owner pass: "the radius of
+ * blurring and the glass effect … needs to extend further … to completely
+ * obscure the underneath text and shapes or icons of the button and the
+ * surrounding areas of the prompt input area"). Eight parameterizations were
+ * rendered against the real app and scored by the high-pass energy of each
+ * screen band relative to the same band with no capsule open — an objective
+ * stand-in for "is there readable text here", since a large blur smears bright
+ * content around and RAISES plain variance without making anything legible.
+ * The numbers below took the Target row from 0.51 to 0.25, the coach line from
+ * 0.32 to 0.06, and the first three lines of the prompt from 0.61 / 0.82 / 0.97
+ * to 0.04 / 0.05 / 0.07, while leaving the page header at 1.00 and the bottom
+ * nav at 0.92. The runbook in tasks/lessons.md carries the method.
+ *
+ * Two things set the ceilings, and both are structural rather than taste:
+ *
+ *  - Y is capped so the BOX still ends clear of the chrome bars, and the cap is
+ *    the binding constraint rather than a round number. The first cut of this
+ *    pass used 209 and the e2e invariant caught it overlapping the bottom nav
+ *    by 4px — which is exactly what that assertion is for, because once the
+ *    halo reaches a chrome bar, localization starts depending on the mask, and
+ *    the mask is the one property WebKit cannot verify (see the
+ *    .hold-slider-blur note). 196 leaves ~9px under the nav and ~79px below the
+ *    header, and measures indistinguishably from 209 on every band but one.
+ *  - X is deliberately larger than the viewport, which looks wasteful and is
+ *    not. The capsule clamps right-of-centre on a phone (x=245 of 393), so an
+ *    ellipse sized to the capsule falls off soonest on the LEFT and left the
+ *    left column of the prompt readable. X is set so the mask's PLATEAU still
+ *    spans the full width from that off-centre origin.
  */
-const HALO_X_PX = 72;
-const HALO_Y_PX = 128;
+const HALO_X_PX = 220;
+const HALO_Y_PX = 196;
+/**
+ * The reach a capsule inside a SHEET gets instead (`compactHalo`).
+ *
+ * Not a taste knob — the numbers above were measured against the composer, a
+ * full page with a header, a mode rail, a card and a textarea to obscure, and
+ * they are wrong on a 320px-tall sheet panel. At full reach the tuning dial's
+ * halo swallowed the sheet's own title, the whole model list, AND the Auto card
+ * the dial exists to tune, which is the one thing that has to stay visible
+ * while you tune it (seen in capture, 2026-08-11). A sheet is also already a
+ * focus surface — its own scrim has handled the world behind it — so the halo's
+ * only job here is the panel's immediate surroundings.
+ */
+const COMPACT_HALO_SCALE = 0.5;
 /**
  * The dim's ellipse, relative to the blur's box. Slightly WIDER on purpose:
  * where an engine ignores the mask the blur ends on its box edge, and the
@@ -428,6 +465,7 @@ function HoldSliderOverlay({
   active,
   marker,
   dynamicBackdrop,
+  compactHalo,
   peakCaption,
   latched,
 }: {
@@ -435,6 +473,7 @@ function HoldSliderOverlay({
   active: HoldActive;
   marker: DetentMarker;
   dynamicBackdrop: boolean;
+  compactHalo: boolean;
   peakCaption: string | null;
   latched: {
     scrubTo: (clientX: number) => void;
@@ -523,10 +562,13 @@ function HoldSliderOverlay({
   // The halo — the treated region around the capsule, in viewport pixels. The
   // capsule is anchor-centred, so its centre IS the button's centre and no
   // extra geometry has to be carried out of use-hold-drag.
-  const haloWidth = geometry.width + HALO_X_PX * 2;
-  const haloHeight = geometry.height + HALO_Y_PX * 2;
-  const haloLeft = geometry.left - HALO_X_PX;
-  const haloTop = geometry.top - HALO_Y_PX;
+  const haloScale = compactHalo ? COMPACT_HALO_SCALE : 1;
+  const haloX = HALO_X_PX * haloScale;
+  const haloY = HALO_Y_PX * haloScale;
+  const haloWidth = geometry.width + haloX * 2;
+  const haloHeight = geometry.height + haloY * 2;
+  const haloLeft = geometry.left - haloX;
+  const haloTop = geometry.top - haloY;
   const haloVars = {
     "--dial-cx": `${geometry.left + geometry.width / 2}px`,
     "--dial-cy": `${geometry.top + geometry.height / 2}px`,

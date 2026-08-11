@@ -279,6 +279,47 @@ halo; mask dropped → hard-edged but still LOCAL halo, seamed by the dim's
 slightly wider ellipse; filter dropped → the dim alone, which is already what
 both stand-downs ship. None of them is the wash that was rejected.
 
+**The halo's reach and density are MEASURED, and the first cut of them was too
+timid.** The owner's third pass asked for exactly that: _"the radius of blurring
+and the glass effect … needs to extend further … to completely obscure the
+underneath text and shapes or icons of the button and the surrounding areas of
+the prompt input area."_ Twelve parameterizations were rendered against the real
+app and scored by the HIGH-PASS energy of each screen band relative to the same
+band with no capsule open — a stand-in for "is there readable text here" that
+plain variance gets backwards, because a large blur smears bright content around
+and raises variance without making anything legible. Three results, none of them
+guessable from the CSS:
+
+1. **The mask's plateau is the lever, not the blur radius.** blur(38px) at an
+   84% plateau obscures materially better than blur(54px) at 78% — the coach
+   line goes 0.06 vs 0.16, the first prompt line 0.04 vs 0.14. Chromium appears
+   to trade filter quality for area as the element and the radius grow, so past
+   a point a bigger blur on a bigger box buys a coarser result. Widen the opaque
+   core before reaching for the radius, and re-measure.
+2. **X wants to be larger than the viewport, and that is not waste.** The capsule
+   clamps right-of-centre on a phone (x=245 of 393), so an ellipse sized to it
+   falls off soonest on the LEFT and left the left column of the prompt readable.
+   X is set so the plateau still spans the full width from that off-centre origin.
+3. **The Y ceiling is the chrome bars, and it binds.** The first cut of this pass
+   used 209 and the e2e invariant caught the box overlapping the bottom nav by
+   4px. 196 leaves ~9px of clearance and measures indistinguishably. That
+   assertion is now stated against the real bars rather than as a fraction of the
+   viewport, because the moment the halo reaches one, localization stops being a
+   property of the box and starts depending on the mask — the one property that
+   cannot be verified on WebKit.
+
+**One asymmetry is accepted and named.** The dim is `--void`-based so it inverts
+with the theme, and on light `--void` is a near-white: measured, the light veil
+moves the page ground 238 → 239, i.e. essentially nothing, and the Laser
+"Clarify" chip 214 → **222** — it gets brighter under focus while its neighbours
+recede. A dark veil on the light theme was built and measured as the fix. It was
+rejected on the evidence: it obscures LESS (prompt line 4 at 0.22 vs 0.18, the
+mode rail 0.44 vs 0.37) and it renders as a murky grey cloud whose ellipse is
+visible as a shape — against a brief whose words are "a smooth and clean
+appearance of a popup". On light the obscuring is carried by the blur, and the
+dim's job there is depth rather than dimming. The active mode chip not receding
+is the residue; the capsule still dominates the frame at these values.
+
 ### The capsule reads as a pane, not a chip
 
 _"the popup with the blurred background and the slider has glass backgrounds

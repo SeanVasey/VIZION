@@ -26,7 +26,20 @@ bottom of the Thinking ladder is "Auto", where every new device starts.
 **The held state no longer washes the screen.** It used to lay a flat
 `--void 62%` over `fixed inset-0`, which on the light theme is 62% of a
 near-white edge to edge. Now the treatment is a **halo**: an ellipse around
-the capsule that blurs and lightly dims, falling off to untouched screen. The
+the capsule that blurs and dims, falling off to untouched screen — reaching far
+enough, and dense enough, that the text and icons under and around the dial and
+across the top of the prompt area stop reading rather than merely going soft.
+The reach and density are **measured, not chosen**: twelve parameterizations
+were rendered against the real app and scored by the high-pass energy of each
+screen band against the same band with no capsule open. The shipped values take
+the Target row from 0.51 to 0.25, the coach line from 0.32 to 0.06 and the first
+three prompt lines from 0.61 / 0.82 / 0.97 to 0.04 / 0.05 / 0.08, while leaving
+the page header at 1.00 and the bottom nav at 0.91. Two of those numbers are
+counter-intuitive enough to be worth stating: the mask's **plateau is the lever,
+not the blur radius** (blur 38px at an 84% plateau beats blur 54px at 78% on
+every band), and the halo is deliberately **wider than the viewport**, because
+the capsule clamps off-centre on a phone and an ellipse sized to it fades
+soonest on the side with the most text. The
 two layers get there from opposite ends, and the asymmetry is deliberate — the
 dim keeps its viewport-covering box because that box *is* the input shield,
 and localizes in its paint; the blur localizes in its **box**, and only

@@ -52,6 +52,7 @@ function Host({
   onOpen = () => {},
   detentMarker,
   dynamicBackdrop,
+  compactHalo,
   latchOnTap,
   peakCaption,
 }: {
@@ -61,6 +62,7 @@ function Host({
   onOpen?: () => void;
   detentMarker?: DetentMarker;
   dynamicBackdrop?: boolean;
+  compactHalo?: boolean;
   latchOnTap?: boolean;
   peakCaption?: string | null;
 }) {
@@ -73,6 +75,7 @@ function Host({
       enabled={enabled}
       detentMarker={detentMarker}
       dynamicBackdrop={dynamicBackdrop}
+      compactHalo={compactHalo}
       latchOnTap={latchOnTap}
       peakCaption={peakCaption}
     >
@@ -352,10 +355,19 @@ describe("tap vs hold", () => {
     expect(px(blur.style.left) + px(blur.style.width) / 2).toBeCloseTo(trackCx, 5);
     expect(px(blur.style.top) + px(blur.style.height) / 2).toBeCloseTo(trackCy, 5);
     expect(px(blur.style.width)).toBeGreaterThan(px(track.style.width));
-    // Vertically the halo has to clear the floating level chip ABOVE the
-    // capsule and the peak caption BELOW it, or they read as text over
-    // untouched screen. Both are ~40px out, so the margin is generous.
-    expect(px(blur.style.height)).toBeGreaterThan(px(track.style.height) + 160);
+    // Vertically the halo has to reach well past the floating level chip ABOVE
+    // the capsule and the peak caption BELOW it — and, after the owner's
+    // second pass, past the whole composer row into the prompt area, so the
+    // text under and around the popup stops reading rather than merely going
+    // soft. The floor is deliberately far above the two chips' ~40px: this
+    // number regressing to "just clears the chips" is the shipped-too-small
+    // state the second pass rejected. The real ceiling — that the box still
+    // ends clear of the chrome bars — needs layout and is pinned in e2e.
+    expect(px(blur.style.height)).toBeGreaterThan(px(track.style.height) + 380);
+    // Wider than the viewport is CORRECT here, not a bug: the capsule clamps
+    // off-centre on a phone, so the ellipse needs a horizontal radius large
+    // enough that its opaque core still spans the full width from that origin.
+    expect(px(blur.style.width)).toBeGreaterThan(px(track.style.width) + 380);
 
     // The dim keeps the shield's box and carries the centre instead.
     expect(scrim.className).toContain("fixed inset-0");
@@ -372,6 +384,41 @@ describe("tap vs hold", () => {
     // No flat fill left in the component: the wash is a gradient in CSS now,
     // and this was the last hardcoded backdrop colour outside the stylesheet.
     expect(scrim.style.backgroundColor).toBe("");
+  });
+
+  it("pulls the halo in for a capsule inside a sheet", () => {
+    // The halo's reach was measured against the COMPOSER — a full page with a
+    // header, a mode rail, a card and a textarea to obscure. On a ~320px sheet
+    // panel the same numbers swallowed the sheet's own title, its model list,
+    // and the Auto card the dial exists to tune, which is the one thing that
+    // has to stay visible while you tune it (seen in capture, 2026-08-11). A
+    // sheet is also already a focus surface — its own scrim handled the world
+    // behind it — so the halo's job there is only the panel's surroundings.
+    const blurBox = () => {
+      const el = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+      return {
+        w: Number.parseFloat(el.style.width),
+        h: Number.parseFloat(el.style.height),
+      };
+    };
+    const { unmount } = render(<Host />);
+    down();
+    hold();
+    const full = blurBox();
+    up();
+    unmount();
+
+    render(<Host compactHalo />);
+    down();
+    hold();
+    const compact = blurBox();
+    // Strictly smaller on both axes, and still larger than the capsule — a
+    // compact halo is a smaller lens, never no lens.
+    expect(compact.w).toBeLessThan(full.w);
+    expect(compact.h).toBeLessThan(full.h);
+    const track = overlay()!;
+    expect(compact.w).toBeGreaterThan(Number.parseFloat(track.style.width));
+    expect(compact.h).toBeGreaterThan(Number.parseFloat(track.style.height));
   });
 
   it("puts the capsule on frosted glass with an edge shadow", () => {

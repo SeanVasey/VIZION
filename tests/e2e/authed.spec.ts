@@ -445,19 +445,23 @@ test.describe("thinking hold-slider", () => {
     // wash is out). Two independent halves, pinned in a real engine because
     // jsdom has no layout to measure and no computed backdrop to read:
     //
-    //  · the blur's BOX is a halo around the capsule — comfortably inside the
-    //    viewport on both axes, and concentric with the track. That box is
-    //    what makes the treatment local at all; the mask below only softens
-    //    its edge, which is deliberate, because the WebKitGTK build this
-    //    suite also runs paints no backdrop-filter whatsoever and real Safari
-    //    is therefore unmeasured (docs/runbooks/ios-verification.md).
-    const halo = await page.locator("[data-hold-slider-blur]").boundingBox();
-    const vp = page.viewportSize()!;
-    expect(halo!.height).toBeLessThan(vp.height * 0.7);
-    expect(halo!.y).toBeGreaterThan(0);
-    expect(halo!.y + halo!.height).toBeLessThan(vp.height);
+    //  · the blur's BOX is a halo around the capsule, concentric with the
+    //    track and ENDING CLEAR OF THE CHROME BARS on both sides. That last
+    //    property is the whole containment argument and it is deliberately
+    //    stated against the real bars rather than as a fraction of the
+    //    viewport: the box is what makes the treatment local, and the mask
+    //    only softens its edge — which matters because the WebKitGTK build
+    //    this suite also runs paints no backdrop-filter whatsoever, so real
+    //    Safari is unmeasured (docs/runbooks/ios-verification.md). If the halo
+    //    ever grows past a chrome bar, localization starts depending on the
+    //    one property that cannot be verified there.
+    const halo = (await page.locator("[data-hold-slider-blur]").boundingBox())!;
+    const header = (await page.locator(".glass-chrome").first().boundingBox())!;
+    const nav = (await page.locator(".glass-nav").first().boundingBox())!;
+    expect(halo.y).toBeGreaterThanOrEqual(header.y + header.height);
+    expect(halo.y + halo.height).toBeLessThanOrEqual(nav.y + 1);
     const track = (await page.locator("[data-hold-slider-overlay]").boundingBox())!;
-    expect(Math.abs(halo!.y + halo!.height / 2 - (track.y + track.height / 2))).toBeLessThan(2);
+    expect(Math.abs(halo.y + halo.height / 2 - (track.y + track.height / 2))).toBeLessThan(2);
     //  · the dim keeps the viewport-covering box — it is the shield — and
     //    localizes in its PAINT instead: a radial gradient, never the flat
     //    fill that washed the light theme near-white edge to edge.

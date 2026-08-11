@@ -445,6 +445,10 @@ function AutoTuningDial({
       latchOnTap
       peakCaption={BUDGET_PEAK_CAPTION}
       dynamicBackdrop={streaming}
+      // This dial is inside the sheet, so its halo is the compact one — see
+      // COMPACT_HALO_SCALE. The composer's reach would obscure this panel's
+      // own title, its model list, and the Auto card the dial is tuning.
+      compactHalo
       // Block-level here: this dial spans the sheet's column under the card
       // it tunes, unlike the composer rail's content-width pills — which is
       // exactly why it also declares `scrollableHost`: a full-width band
