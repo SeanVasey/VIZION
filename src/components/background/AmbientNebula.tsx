@@ -324,8 +324,15 @@ export function AmbientNebula() {
     // Re-resolve field colours when the theme flips ([data-theme] is stamped
     // by ThemeManager; the OS scheme matters while on `system`) and reconcile
     // the loop when [data-reduced-effects] toggles — both ride one observer.
-    const observer = new MutationObserver(() => {
-      resolvePalette();
+    // `data-hold-gesture` also rides it (it gates `canRun()`), but it toggles
+    // at EVERY gesture start AND end and changes no colour — re-resolving on it
+    // would force a synchronous getComputedStyle into the gesture's hot path
+    // twice per press for nothing. So reconcile the loop on every mutation, but
+    // only re-read the palette when a palette-bearing attribute actually moved.
+    const observer = new MutationObserver((mutations) => {
+      if (mutations.some((m) => m.attributeName !== "data-hold-gesture")) {
+        resolvePalette();
+      }
       sync();
     });
     observer.observe(document.documentElement, {
