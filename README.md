@@ -12,7 +12,7 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![PWA](https://img.shields.io/badge/PWA-installable-B7FF3C?logoColor=0F1012)](https://web.dev/progressive-web-apps/)
+[![PWA](https://img.shields.io/badge/PWA-installable-DFFA04?logoColor=0F1012)](https://web.dev/progressive-web-apps/)
 [![License](https://img.shields.io/badge/license-MIT-B9BCC5)](./LICENSE)
 
 </div>
@@ -104,19 +104,53 @@ Vercel.
 
 VIZION is a **VASEY/AI** product. No association with VASEY.AUDIO.
 
-The identity is the **I›O mark** — a laser-green bar, chevron and split ring,
-reading as I › O — shown two ways:
+The identity is the **VIZION mark** — a chevron framing a bar and split ring —
+shipped as an iOS 26 Liquid Glass icon set under `public/brand/`.
 
-- **App icon** (`public/brand/vizion-icon-token.svg`) — the mark on a glossy
-  near-black squircle with a laser-green glowing border. Drives the opaque
-  surfaces: the iOS Add-to-Home-Screen tile (`apple-touch-icon`), the favicons,
-  and the App Router `icon`/`apple-icon`.
-- **Glyph** (`public/brand/vizion-mark-token.svg`) — the same mark alone on a
-  transparent ground. Drives the transparent `any` PWA icon matrix, the maskable
-  safe-zone tiles, and the iOS splash glyph.
+**`public/brand/vizion-glyph.svg` is the single raster source of truth**: the
+mark alone, flat, on a tight 1024 × 892.8 viewBox. `npm run generate:icons`
+composes the entire 33-file icon + splash matrix from it via `sharp`, painting
+it with the locked colorways — `Laser #DFFA04`, `Void #0F1012`. Don't hand-edit
+the PNGs, and don't edit `public/brand/` to change a derivative.
 
-These two SVGs are the single source of truth; `npm run generate:icons` re-derives the
-entire 33-file icon + splash matrix from them via `sharp`. Don't hand-edit the PNGs.
+The appearances are:
+
+- **Light** (Laser plate + Void ink) — the base. Drives the opaque surfaces:
+  the iOS Add-to-Home-Screen tile (`apple-touch-icon`), the favicons and
+  `favicon.ico`, the maskable tiles, and the App Router `icon`/`apple-icon`.
+- **Laser glyph on transparent** — the `any` PWA icon matrix, which ships
+  transparent per guardrail §6.
+- **Dark** (Void plate + Laser glyph) — the iOS splash screens, matching the
+  manifest's `background_color`.
+
+The rest of `public/brand/` is reference, not raster input. The composed
+previews (`vizion-icon-{light,dark,clear,tinted}.svg`) and the background layers
+(`vizion-icon-bg-*.svg`) carry a baked squircle clip and specular gloss — they
+show how the icon _appears_ once iOS has masked and glassified it. Rasterizing
+them would bake in the corners and gloss the OS applies at runtime, so the
+generator never reads them.
+
+**In the app, no `public/brand/` file is rendered at all.** Both brand surfaces —
+the `ScreenHeader` mark and the sign-in hero — use `BrandMark`: the master glyph
+inlined as a single path on `currentColor`, paired with `text-accent` so it
+follows the theme. Never a hardcoded fill; brand Laser as ink on the light
+canvas is a 1.09:1 contrast FAIL. `tests/unit/brand-mark.test.ts` keeps the
+inlined geometry equal to the master.
+
+The header used to serve the composed `vizion-icon-light.svg` as a plated tile.
+It no longer does, because that plate is a _gradient_
+(`#ECFF52 → #DFFA04 → #C2E000`): almost none of its area is the accent, so it
+measured `#C9E601`–`#D3EF02` beside a wordmark reading a flat `--accent-ink` and
+the two greens visibly disagreed. On `currentColor` the mark and the wordmark
+are the same token by construction and cannot drift apart.
+
+Artwork and design system share one green: `--laser` was retuned `#B7FF3C` →
+`#DFFA04` to meet the Liquid Glass set, which inverts the usual "art re-derives
+from the tokens" rule because this set is a brand refresh rather than a
+derivative — see [ADR-0013](./docs/decisions/0013-brand-green-retune.md). The
+generator closes the loop from the other side: it reads `--laser` and `--void`
+out of `tokens.css` rather than restating them, so the icons cannot disagree
+with the design system about what the brand green is.
 
 ## License
 

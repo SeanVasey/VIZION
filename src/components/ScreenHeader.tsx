@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import Image from "next/image";
 import { PressableLink } from "@/components/ui/PressableLink";
 import { Wordmark } from "@/components/Wordmark";
+import { BrandMark } from "@/components/BrandMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { BRAND_ICON_SRC } from "@/lib/brand-assets";
 
 /**
  * Full-bleed glass header with the safe-area top inset baked in.  Shows the
@@ -27,15 +26,18 @@ export function ScreenHeader({
       <div className="mx-auto flex max-w-screen-sm items-center justify-between gap-3 px-4 py-3">
         {brand ? (
           <div className="flex items-center gap-2">
-            {/* App icon (squircle) to the LEFT of the wordmark — R1.1. */}
-            <Image
-              src={BRAND_ICON_SRC}
-              alt=""
-              width={36}
-              height={36}
-              priority
-              className="h-9 w-9 rounded-[8px]"
-            />
+            {/* The MARK to the LEFT of the wordmark — R1.1.
+                The glyph, not the plated app-icon tile. The tile served the
+                composed Light appearance, whose plate is a gradient
+                (#ECFF52 → #DFFA04 → #C2E000): almost none of its area is the
+                accent, so it measured #C9E601–#D3EF02 beside a wordmark reading
+                a flat --accent-ink and the two greens visibly disagreed. The
+                bare glyph takes `currentColor`, so mark and wordmark are now
+                the SAME token in both themes — they cannot drift apart.
+                Sized by width like the auth hero, letting the 1024×892.8 aspect
+                set the height: 32px wide ≈ 27.9px tall, which puts its mass on
+                the wordmark's cap height rather than towering over it. */}
+            <BrandMark className="h-auto w-8 shrink-0 text-accent" />
             {/* The wordmark IS the screen's heading — every screen gets an h1
                 so the document outline never starts at an h2. */}
             <h1 className="m-0 leading-none">

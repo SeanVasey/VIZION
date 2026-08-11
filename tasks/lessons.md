@@ -2604,6 +2604,22 @@ render identical; account change wipes storage before rehydrating (the
   start from the token hexes and diff the art's palette against `tokens.css`
   before committing — the icon must re-derive from the tokens, never
   approximate them.
+  - **Amended 2026-08-10 ([ADR-0013](../docs/decisions/0013-brand-green-retune.md)):
+    the rule holds for derivative artwork, and NOT for a brand refresh.** The
+    iOS 26 Liquid Glass set (#104) arrived at hue 66.6° `#dffa04` — inside the
+    very 64–74° band this entry records — and the token moved to meet it rather
+    than the reverse, because that set is a designed identity, not an
+    approximation of one. When the brand itself moves, the token is what has
+    drifted. Read 0013 before "fixing" `--laser` back to `#b7ff3c`.
+  - The second half of the lesson survived intact and is worth restating,
+    because it is what nearly bit twice: **the token file is not the only place
+    the accent lives.** `--laser-glow` spells the channels out for an alpha, the
+    light theme carries a hand-derived `--accent-ink` in TWO blocks, and
+    `AmbientNebula.tsx` mirrors the channels again because a canvas cannot read
+    a custom property. A retune that changes only `--laser` leaves the canvas
+    painting the old green behind a DOM painting the new one — the same "never
+    references the token file" failure, relocated from an SVG to a canvas. Grep
+    the raw hex AND the `r, g, b` triplet before declaring a colour change done.
 
 ## NEBULA+ background swap — the contracts around a component outlive the component
 

@@ -1,21 +1,53 @@
 // VIZION PWA icon + splash generator.
 //
-// Renders the full brand asset matrix (icons, maskable tiles, apple-touch-icon,
-// Next.js App Router favicons, and iOS splash screens) from the master brand
-// SVGs using sharp. Run with: node scripts/generate-icons.mjs
+// Renders the full brand asset matrix (the transparent `any` icons, maskable
+// tiles, apple-touch-icon, favicons + favicon.ico, the Next.js App Router
+// convention icons, and the iOS splash screens) from ONE master SVG using
+// sharp. Run with: node scripts/generate-icons.mjs
 //
-// Sources (master, hand-authored artwork — see public/brand/):
-//   • vizion-icon-token.svg — the full app icon: a glossy near-black squircle
-//     with a laser-green glowing border framing the I›O mark (bar, chevron and
-//     split ring). Used for opaque surfaces: apple-touch-icon, favicons, and
-//     the App Router icon/apple-icon.
-//   • vizion-mark-token.svg — the I›O mark ALONE (laser-green bar, chevron and
-//     split ring) on a transparent ground. Used for the transparent "any" PWA
-//     matrix, the maskable safe zone, and the iOS splash glyph.
+// SOURCE OF TRUTH — public/brand/vizion-glyph.svg
+// ----------------------------------------------
+// The iOS 26 "Liquid Glass" icon set landed in public/brand/ as an Icon
+// Composer export: a master glyph, per-appearance composed previews, and the
+// separated background/foreground layers. Only ONE of those files is a valid
+// raster source, and this script reads only that one:
 //
-// Idempotent: every output is overwritten on each run.
+//   • vizion-glyph.svg — the mark alone, flat, tight viewBox (1024 × 892.8),
+//     a single evenodd <path>. This is the geometry every derivative is
+//     composed from, painted here with the Light/Dark/mono colorways.
+//
+// The composed previews (vizion-icon-{light,dark,clear,tinted}.svg) and the
+// background layers (vizion-icon-bg-{light,dark}.svg) are ON-SCREEN APPEARANCE
+// PREVIEWS, not flat artwork: each carries a baked squircle <clipPath> plus
+// edge-highlight/specular gradients (measured: bg-light is a 200-point squircle
+// clip over an #ECFF52→#DFFA04→#C2E000 plate; icon-light adds a radial specular
+// and 12 stop-opacity stops). Rasterizing them would bake in exactly the
+// rounded corners and gloss that iOS 26/27 applies at runtime — double-masking
+// the corners and clipping the art. They are visual reference only.
+//
+// Geometry check: this script's plateSVG() at frac 0.74 computes
+// `translate(133.12, 165.69) scale(0.74)`, which reproduces the committed
+// Icon Composer foreground layer (vizion-icon-foreground-lime.svg:
+// `translate(133.12, 165.66) scale(0.74)`) to 0.03 px at 1024² — i.e. the
+// generated plates are the shipped artwork, not an approximation.
+//
+// RULES (never work around)
+// -------------------------
+//   • Full-bleed square. NO pre-rounded corners, NO gloss, NO drop shadow —
+//     the OS rounds and glassifies at runtime.
+//   • Maskable is the only padded exception: 0.58 glyph fraction so the art
+//     clears Android's 80% safe-zone circle. Everything else uses 0.74.
+//   • Alpha contract (guardrail §6 / INV-09, enforced by
+//     tests/unit/icon-alpha.test.ts): the `any` matrix ships TRANSPARENT — the
+//     glyph alone, no plate. maskable, apple-touch, the favicons and the App
+//     Router icons ship OPAQUE, because iOS renders a transparent tile on
+//     black and Android's mask has nothing to fill.
+//   • public/brand/ is never written to. This script only reads from it.
+//
+// Idempotent: every output is overwritten on each run, so re-running yields
+// the same tree.
 
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import fs from "node:fs/promises";
 import sharp from "sharp";
@@ -25,22 +57,65 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 
 const BRAND_DIR = path.join(repoRoot, "public", "brand");
-const ICONS_DIR = path.join(repoRoot, "public", "icons");
+export const ICONS_DIR = path.join(repoRoot, "public", "icons");
 const SPLASH_DIR = path.join(repoRoot, "public", "splash");
 const APP_DIR = path.join(repoRoot, "src", "app");
 
-const ICON_SVG = path.join(BRAND_DIR, "vizion-icon-token.svg");
-const MARK_SVG = path.join(BRAND_DIR, "vizion-mark-token.svg");
+const MASTER_SVG = path.join(BRAND_DIR, "vizion-glyph.svg");
+const MANIFEST = path.join(repoRoot, "public", "manifest.webmanifest");
+const TOKENS = path.join(repoRoot, "src", "styles", "tokens.css");
 
-// Transparent fill for the "any" purpose PNGs.
-const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
-// Void background (style-guide §1.1) for opaque tiles + splashes.
-const VOID = "#0F1012";
+/**
+ * Read a token's hex straight out of `src/styles/tokens.css`.
+ *
+ * The colours are NOT restated here. `tasks/lessons.md` records the failure
+ * that follows from restating them — icon art authored beside the token file
+ * instead of from it, drifting a full hue band before anyone noticed, because
+ * nothing connected the two. A literal in this script would be that same
+ * disconnection with a shorter fuse: it would agree with `tokens.css` exactly
+ * until the day someone retunes one and not the other.
+ *
+ * So the generator derives. Retune `--laser`, re-run `npm run generate:icons`,
+ * and every derivative follows by construction — the icons cannot disagree
+ * with the design system about what the brand green is.
+ *
+ * Only the DARK-block values are read (the first match), which is the whole
+ * palette this pipeline needs: an app icon has no theme, it has an appearance.
+ */
+const tokensCss = await fs.readFile(TOKENS, "utf8");
+function token(name) {
+  const m = tokensCss.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`));
+  if (!m) throw new Error(`tokens.css: --${name} not found (or is not a hex)`);
+  return m[1].toUpperCase();
+}
 
-// Sizes for the transparent "any" icon matrix.
-const ANY_SIZES = [48, 72, 96, 128, 144, 152, 167, 180, 192, 256, 384, 512, 1024];
+// LASER is the glyph accent, VOID the dark plate (and the manifest's
+// theme_color/background_color), INK the glyph on a light plate.
+const LASER = token("laser");
+const VOID = token("void");
+const INK = VOID;
 
-// iOS splash device classes (portrait, width x height in px).
+// Base appearance for the name-agnostic derivatives (favicons, apple-touch,
+// App Router icons, maskable tiles). 'light' = Laser plate + Void ink, per the
+// source spec. Flip to 'dark' (Void plate + Laser glyph) if the dark mark
+// should ever become primary — one constant, nothing else to change.
+const BASE = "light";
+
+// Glyph fractions. 0.74 is the artwork's own composition (see the geometry
+// check above); 0.58 pads the maskable tiles clear of the safe-zone circle.
+const FRAC_STANDARD = 0.74;
+const FRAC_MASKABLE = 0.58;
+
+// The full transparent `any` matrix. The manifest references only 192/256/384/
+// 512/1024; the intermediate sizes are the browser/OS-chrome tail and are
+// asserted by tests/unit/icon-alpha.test.ts (which requires ≥13). Sizes are
+// FROZEN — the manifest's `any` entries must stay a subset (asserted below).
+export const ANY_SIZES = [48, 72, 96, 128, 144, 152, 167, 180, 192, 256, 384, 512, 1024];
+
+// iOS splash device classes (portrait, width × height in px). Each pairs with a
+// media-qualified <link rel="apple-touch-startup-image"> in src/app/layout.tsx
+// (PRI-007 / APPLE-01) — adding a size here without adding the link there ships
+// a file nothing requests.
 const SPLASH_SIZES = [
   [1290, 2796], // iPhone 15 Pro Max
   [1179, 2556], // iPhone 15 / 14 Pro
@@ -54,25 +129,117 @@ const SPLASH_SIZES = [
   [2048, 2732], // iPad Pro 12.9
 ];
 
+// Canvas the vector plates are authored at before sharp resamples to the target
+// size. 1024 is the artwork's own canvas, so frac 0.74 lands on the committed
+// Icon Composer transform exactly.
+const CANVAS = 1024;
+
 const written = [];
 
-// Render an SVG buffer to a square PNG.
-//   • flatten=false → preserve transparency (the "any" matrix, mark-only).
-//   • flatten=true  → composite onto Void so transparent corners read opaque
-//     (apple-touch / favicons, where the OS expects a filled square).
-async function renderSquarePng(svgBuffer, size, outPath, { flatten = false } = {}) {
-  let pipe = sharp(svgBuffer, { density: 384 }).resize(size, size, {
-    fit: "contain",
-    background: TRANSPARENT,
-  });
-  if (flatten) pipe = pipe.flatten({ background: VOID });
-  await pipe.png().toFile(outPath);
+/** Void plate + Laser glyph, or Laser plate + Void ink. */
+function appearance(name) {
+  return name === "dark" ? { plate: VOID, glyph: LASER } : { plate: LASER, glyph: INK };
+}
+
+// ---------------------------------------------------------------------------
+// Master glyph
+// ---------------------------------------------------------------------------
+
+const masterSource = await fs.readFile(MASTER_SVG, "utf8");
+
+const viewBoxMatch = masterSource.match(/viewBox="([-\d.\s]+)"/);
+if (!viewBoxMatch) throw new Error(`${MASTER_SVG}: missing viewBox`);
+const [, , GLYPH_W, GLYPH_H] = viewBoxMatch[1].trim().split(/\s+/).map(Number);
+
+const pathMatch = masterSource.match(/<path[^>]*\bd="([^"]+)"/);
+if (!pathMatch) throw new Error(`${MASTER_SVG}: missing <path d>`);
+const GLYPH_D = pathMatch[1];
+
+/**
+ * Place the glyph on a canvas: uniform scale so its width is `frac` of the
+ * canvas width, horizontally centred, vertically centred with a slight optical
+ * lift so the mark sits where the eye expects rather than where the maths puts
+ * it. `lift` is a fraction of the canvas height (0 = true centre).
+ */
+function placeGlyph(canvasW, canvasH, frac, lift) {
+  const scale = (canvasW * frac) / GLYPH_W;
+  const w = GLYPH_W * scale;
+  const h = GLYPH_H * scale;
+  return {
+    tx: (canvasW - w) / 2,
+    ty: (canvasH - h) / 2 - lift * canvasH,
+    scale,
+  };
+}
+
+function glyphGroup(canvasW, canvasH, frac, fill, lift) {
+  const { tx, ty, scale } = placeGlyph(canvasW, canvasH, frac, lift);
+  return (
+    `<g transform="translate(${tx.toFixed(2)},${ty.toFixed(2)}) scale(${scale.toFixed(5)})">` +
+    `<path d="${GLYPH_D}" fill="${fill}" fill-rule="evenodd"/></g>`
+  );
+}
+
+/** Full-bleed opaque square: plate + glyph. No clip, no gloss, no shadow. */
+function plateSVG({ plate, glyph }, frac, size = CANVAS) {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
+    `<rect width="${size}" height="${size}" fill="${plate}"/>` +
+    glyphGroup(size, size, frac, glyph, 0.0156) +
+    `</svg>`
+  );
+}
+
+/** Transparent square: the glyph alone, no plate (the `any` matrix). */
+function glyphOnlySVG(fill, frac, size = CANVAS) {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
+    glyphGroup(size, size, frac, fill, 0.0156) +
+    `</svg>`
+  );
+}
+
+/** Portrait splash: full-bleed plate with the glyph centred at `frac` width. */
+function splashSVG({ plate, glyph }, width, height, frac) {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<rect width="${width}" height="${height}" fill="${plate}"/>` +
+    glyphGroup(width, height, frac, glyph, 0) +
+    `</svg>`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Raster helpers
+// ---------------------------------------------------------------------------
+
+function logWrite(outPath) {
+  const rel = path.relative(repoRoot, outPath);
+  written.push(rel);
+  console.log(`  wrote ${rel}`);
+}
+
+/**
+ * Rasterize an SVG string to PNG.
+ *   • flatten: composite onto `background` so the result is provably opaque —
+ *     a full-bleed <rect> alone can still leave sub-255 alpha on the outermost
+ *     antialiased row, which tests/unit/icon-alpha.test.ts would fail.
+ */
+async function renderPng(svg, width, height, outPath, { flatten = null } = {}) {
+  let pipe = sharp(Buffer.from(svg)).resize(width, height, { fit: "fill" });
+  if (flatten) pipe = pipe.flatten({ background: flatten });
+  await pipe.png({ compressionLevel: 9 }).toFile(outPath);
   logWrite(outPath);
 }
 
-// Pack already-rendered square PNGs into a .ico container (ICONDIR + one
-// ICONDIRENTRY per image + the PNG blobs verbatim). PNG-compressed entries
-// have been valid ICO members since Vista and are what every browser expects.
+/**
+ * Pack already-rendered square PNGs into a .ico container (ICONDIR + one
+ * ICONDIRENTRY per image + the PNG blobs verbatim). PNG-compressed entries
+ * have been valid ICO members since Vista and are what every browser expects.
+ * Hand-rolled on purpose: it is ~25 lines against sharp, which the repo already
+ * depends on, and CI runs a blocking full-tree `npm audit` — a dedicated ICO
+ * dependency would add supply-chain surface for nothing.
+ */
 async function writeFaviconIco(pngPaths, outPath) {
   const pngs = await Promise.all(pngPaths.map((p) => fs.readFile(p)));
   const sizes = await Promise.all(
@@ -101,75 +268,137 @@ async function writeFaviconIco(pngPaths, outPath) {
   logWrite(outPath);
 }
 
-// Composite the transparent mark, centered, onto a Void canvas of WxH. Used for
-// the maskable safe zone (square) and the iOS splash screens (portrait).
-async function renderMarkOnVoid(markBuffer, width, height, markSize, outPath) {
-  const mark = await sharp(markBuffer, { density: 384 })
-    .resize(markSize, markSize, { fit: "contain", background: TRANSPARENT })
-    .png()
-    .toBuffer();
+// ---------------------------------------------------------------------------
+// Reference surfaces
+// ---------------------------------------------------------------------------
 
-  await sharp({
-    create: { width, height, channels: 4, background: VOID },
-  })
-    .composite([{ input: mark, gravity: "centre" }])
-    .png()
-    .toFile(outPath);
-  logWrite(outPath);
+/**
+ * Read the PWA icon inventory straight out of public/manifest.webmanifest, so
+ * filenames and sizes can never drift from what the manifest declares. There is
+ * no index.html in this repo — the <head> is owned by src/app/layout.tsx plus
+ * the App Router convention files (icon0.svg / icon1.png / apple-icon.png),
+ * which are generated explicitly in main().
+ */
+async function readManifestIcons() {
+  const manifest = JSON.parse(await fs.readFile(MANIFEST, "utf8"));
+  const any = [];
+  const maskable = [];
+  for (const icon of manifest.icons ?? []) {
+    if (!icon.src || !/\.png$/i.test(icon.src)) continue;
+    const px = Math.max(
+      ...(String(icon.sizes || "").match(/(\d+)x\1/g) ?? ["512x512"]).map((s) =>
+        parseInt(s, 10),
+      ),
+    );
+    const file = path.join(repoRoot, "public", icon.src.replace(/^\//, ""));
+    // `src` is carried alongside `file` so a validation failure can quote the
+    // manifest line the author actually wrote, not a resolved absolute path.
+    (/maskable/i.test(icon.purpose || "") ? maskable : any).push({
+      src: icon.src,
+      file,
+      px,
+    });
+  }
+  return { any, maskable };
 }
 
-function logWrite(outPath) {
-  const rel = path.relative(repoRoot, outPath);
-  written.push(rel);
-  console.log(`  wrote ${rel}`);
+/**
+ * Assert every `any`-purpose manifest entry is one this generator actually
+ * writes — BOTH its size and its path.
+ *
+ * Why this is a validation and not, as the maskable branch does, a loop over the
+ * manifest's own paths: the `any` matrix is a SUPERSET of the manifest. Thirteen
+ * sizes are rendered, five are declared; the other eight are the browser/OS
+ * chrome tail that tests/unit/icon-alpha.test.ts requires. It therefore cannot
+ * be driven by the manifest alone — the frozen filenames are the source, and the
+ * manifest has to agree with them. The maskable set IS exactly the manifest set,
+ * so it can be manifest-driven, and is.
+ *
+ * Checking size alone was not enough (Codex review, PR #105): renaming a
+ * declared entry to a still-supported size — `/icons/icon-192.png` →
+ * `/icons/app-192.png` — passed, this script wrote `icon-192.png` as always, and
+ * the manifest was left pointing at a file nothing creates. That is a 404 in the
+ * install prompt, arriving silently, which is precisely what the guard claims to
+ * prevent. Names are frozen (see the header), so a rename is an error to report,
+ * never something to quietly absorb.
+ */
+export function assertAnyEntriesMatchMatrix(entries, sizes, iconsDir) {
+  const problems = [];
+  for (const { src, file, px } of entries) {
+    if (!sizes.includes(px)) {
+      problems.push(
+        `  ${src} — size ${px} is not in ANY_SIZES; add it to the frozen matrix ` +
+          `or correct the manifest.`,
+      );
+      continue;
+    }
+    const expected = path.join(iconsDir, `icon-${px}.png`);
+    if (file !== expected) {
+      problems.push(
+        `  ${src} — the any matrix is generated at frozen paths; expected ` +
+          `/icons/icon-${px}.png. Rename it back, or teach this script the new name.`,
+      );
+    }
+  }
+  if (problems.length) {
+    throw new Error(
+      `manifest.webmanifest declares any-purpose icons this generator does not ` +
+        `produce:\n${problems.join("\n")}`,
+    );
+  }
 }
+
+// ---------------------------------------------------------------------------
 
 async function main() {
-  // Load the master artwork once.
-  const [iconSvg, markSvg] = await Promise.all([
-    fs.readFile(ICON_SVG),
-    fs.readFile(MARK_SVG),
-  ]);
+  await Promise.all(
+    [ICONS_DIR, SPLASH_DIR, APP_DIR].map((dir) => fs.mkdir(dir, { recursive: true })),
+  );
 
-  // Ensure output directories exist.
-  await fs.mkdir(ICONS_DIR, { recursive: true });
-  await fs.mkdir(SPLASH_DIR, { recursive: true });
-  await fs.mkdir(APP_DIR, { recursive: true });
+  const { any: manifestAny, maskable: manifestMaskable } = await readManifestIcons();
 
-  // 1. Transparent "any" icon matrix (mark alone, no plate).
+  // Every `any` entry must name a file this script actually writes — size AND
+  // path. Fail loudly here rather than shipping a 404 in the install prompt.
+  assertAnyEntriesMatchMatrix(manifestAny, ANY_SIZES, ICONS_DIR);
+
+  // 1. Transparent `any` matrix: the glyph alone in Laser, no plate. Laser (not
+  //    Void ink) because there is no plate behind it here — this is the same
+  //    colorway as the committed vizion-icon-foreground-lime.svg layer, and it
+  //    stays legible on whatever ground the consumer paints.
   console.log("Rendering transparent 'any' icons...");
   for (const size of ANY_SIZES) {
-    const out = path.join(ICONS_DIR, `icon-${size}.png`);
-    await renderSquarePng(markSvg, size, out);
+    const svg = glyphOnlySVG(LASER, FRAC_STANDARD);
+    await renderPng(svg, size, size, path.join(ICONS_DIR, `icon-${size}.png`));
   }
 
-  // 2. Maskable set: mark centered on a full-bleed Void canvas, sized so the
-  //    art's corners stay inside the Android maskable safe circle — the
-  //    rendered corner radius must stay ≤ 0.40 × size. With fit: "contain" and
-  //    the 1565×996 (1.571:1) mark, a 0.68 bounding box puts the corners at
-  //    ≈0.40 × size from centre; anything larger gets clipped by the mask.
+  // 2. Maskable set: opaque full-bleed plate, glyph padded to 0.58 so nothing
+  //    crosses Android's 80% safe-zone circle. Sizes come from the manifest.
   console.log("Rendering maskable icons...");
-  for (const size of [192, 512]) {
-    const out = path.join(ICONS_DIR, `maskable-${size}.png`);
-    await renderMarkOnVoid(markSvg, size, size, Math.round(size * 0.68), out);
+  const maskableSvg = plateSVG(appearance(BASE), FRAC_MASKABLE);
+  const maskablePlate = appearance(BASE).plate;
+  for (const { file, px } of manifestMaskable) {
+    await renderPng(maskableSvg, px, px, file, { flatten: maskablePlate });
   }
 
-  // 3. apple-touch-icon (opaque branded tile — iOS ignores transparency).
+  // 3. apple-touch-icon (opaque branded tile — iOS ignores transparency and
+  //    would composite a transparent tile onto black).
   console.log("Rendering apple-touch-icon...");
-  await renderSquarePng(iconSvg, 180, path.join(ICONS_DIR, "apple-touch-icon.png"), {
-    flatten: true,
+  const baseSvg = plateSVG(appearance(BASE), FRAC_STANDARD);
+  const basePlate = appearance(BASE).plate;
+  await renderPng(baseSvg, 180, 180, path.join(ICONS_DIR, "apple-touch-icon.png"), {
+    flatten: basePlate,
   });
 
-  // 4. Favicon PNGs (branded tile reads better than a bare mark at small sizes).
+  // 4. Favicon PNGs (a plated tile reads better than a bare mark at 16px).
   console.log("Rendering favicons...");
   for (const size of [16, 32, 48]) {
-    const out = path.join(ICONS_DIR, `favicon-${size}.png`);
-    await renderSquarePng(iconSvg, size, out, { flatten: true });
+    await renderPng(baseSvg, size, size, path.join(ICONS_DIR, `favicon-${size}.png`), {
+      flatten: basePlate,
+    });
   }
   // Also assemble /favicon.ico from those PNGs: browsers (and the offline 404
   // console) still request the legacy path unconditionally, and App Router's
-  // <link rel="icon"> does not cover it. PNG-in-ICO container — fine for every
-  // consumer of this path, which is browsers only.
+  // <link rel="icon"> does not cover it.
   await writeFaviconIco(
     [16, 32, 48].map((size) => path.join(ICONS_DIR, `favicon-${size}.png`)),
     path.join(repoRoot, "public", "favicon.ico"),
@@ -183,25 +412,58 @@ async function main() {
   // emitted a link for the PNG only, so the SVG was generated and served but
   // never referenced by any tag (audit VAR-15). The numbered convention makes
   // Next link both, SVG first.
+  //
+  // icon0.svg is the generated flat plate, NOT a copy of a public/brand file —
+  // the composed brand SVGs carry the baked squircle + gloss this pipeline
+  // forbids, and a favicon must be the same full-bleed square as its raster
+  // siblings.
   console.log("Rendering Next.js App Router icons...");
-  await fs.copyFile(ICON_SVG, path.join(APP_DIR, "icon0.svg"));
+  await fs.writeFile(path.join(APP_DIR, "icon0.svg"), `${baseSvg}\n`);
   logWrite(path.join(APP_DIR, "icon0.svg"));
-  await renderSquarePng(iconSvg, 512, path.join(APP_DIR, "icon1.png"), { flatten: true });
-  await renderSquarePng(iconSvg, 180, path.join(APP_DIR, "apple-icon.png"), {
-    flatten: true,
+  await renderPng(baseSvg, 512, 512, path.join(APP_DIR, "icon1.png"), {
+    flatten: basePlate,
+  });
+  await renderPng(baseSvg, 180, 180, path.join(APP_DIR, "apple-icon.png"), {
+    flatten: basePlate,
   });
 
-  // 6. iOS splash screens (Void canvas + centered mark at ~30% of the width).
+  // 6. iOS splash screens. Dark appearance (Void plate + Laser glyph) so the
+  //    launch image matches the manifest's background_color #0F1012 — a Laser
+  //    plate here would flash full-bleed lime before the app paints. Glyph at
+  //    30% of the device width, optically centred.
   console.log("Rendering iOS splash screens...");
+  const splashApp = appearance("dark");
   for (const [width, height] of SPLASH_SIZES) {
-    const out = path.join(SPLASH_DIR, `splash-${width}x${height}.png`);
-    await renderMarkOnVoid(markSvg, width, height, Math.round(width * 0.3), out);
+    const svg = splashSVG(splashApp, width, height, 0.3);
+    await renderPng(
+      svg,
+      width,
+      height,
+      path.join(SPLASH_DIR, `splash-${width}x${height}.png`),
+      {
+        flatten: splashApp.plate,
+      },
+    );
   }
 
   console.log(`\nDone. ${written.length} files written.`);
 }
 
-main().catch((err) => {
-  console.error("generate-icons failed:", err);
-  process.exit(1);
-});
+// Generate only when invoked directly — `node scripts/generate-icons.mjs`, and
+// so `npm run generate:icons` and the CI step that calls it. The module is also
+// IMPORTED, by tests/unit/generate-icons-guard.test.ts, to reach the validator
+// above; without this check that import would rewrite 33 files as a side effect
+// of running the test suite.
+//
+// If this guard ever evaluates false under the CLI, generation silently stops
+// while every test stays green — so the test asserts the byte-identical re-run,
+// not just the validator.
+const invokedDirectly =
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error("generate-icons failed:", err);
+    process.exit(1);
+  });
+}

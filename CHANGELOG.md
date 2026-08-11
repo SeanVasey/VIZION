@@ -6,6 +6,209 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The header wears the mark, not the tile — and one green survives the round trip
+
+Two follow-ups to the retune below, both aimed at the same seam: the accent in
+the app header still did not match the accent token, because the thing painting
+it was never the token.
+
+The header's app-icon tile served the composed `vizion-icon-light.svg`, whose
+plate is a **gradient** — `#ECFF52 → #DFFA04 → #C2E000`. Almost none of its area
+is the accent: sampled off the rendered document it measured `#C9E601`–`#D3EF02`
+next to a wordmark reading a flat `--accent-ink`, so retuning `--laser` moved the
+wordmark and left the tile behind. Two greens, still disagreeing, one retune
+later.
+
+So the tile is gone and the **glyph** takes its place, left of the wordmark, on
+`currentColor` + `text-accent` — the same `BrandMark` the sign-in hero uses.
+Mark and wordmark now resolve to one value by construction rather than by
+agreement: the header samples `#DFFA04` in dark and `#5B6600` in light, at
+identical pixel counts, and there is no third green left to drift. Sized 32px
+wide (≈27.9px tall on the 1024×892.8 aspect), chosen against 28/36/40px
+candidates rendered in place — 28 reads timid, 36 and up overpower the wordmark;
+32 puts the mark's mass on its cap height. `src/lib/brand-assets.ts` retires with
+the tile, its last consumer gone.
+
+The generator closes the same loop from the other side. `LASER` and `VOID` were
+literals that happened to equal the tokens; now `scripts/generate-icons.mjs`
+**reads them out of `src/styles/tokens.css`**. This is the standing lesson from
+`tasks/lessons.md` — art authored beside the token file instead of from it drifts
+a full hue band before anyone notices — applied to the pipeline rather than
+restated in it: a literal here would have agreed with `tokens.css` exactly until
+the day someone retuned one and not the other. Retune `--laser` now and every
+derivative follows on the next run. Regenerating produced **byte-identical**
+output across all 33 files, which is the proof the icons already matched: the
+change makes it structural, not coincidental.
+
+### The accent green becomes one green — `--laser` follows the brand
+
+`--laser` moves `#b7ff3c` → `#dffa04` ([ADR-0013](docs/decisions/0013-brand-green-retune.md)),
+so the artwork, the icons and the UI finally read the same hue. Until now they
+did not, and the seam was visible in one glance at the app header: the icon tile
+painting the brand's `#DFFA04` (66.6°) beside a wordmark "IO" painting the
+token's `#B7FF3C` (82.2°) — measured off the rendered document, not inferred.
+
+The interesting part is the direction. `tasks/lessons.md` already records this
+drift happening once, with the lesson drawn from it: *the icon must re-derive
+from the tokens, never approximate them* — written when previous icon art
+wandered to hue 64–74° against the token at 82°. The Liquid Glass set lands at
+66.6°, **inside that same band**. On the letter of the rule the artwork should
+move. It doesn't, because that rule governs derivative artwork and this is a
+brand refresh: a designed identity of which the green is a constituent, not an
+approximation of a palette that already existed. When the brand moves, the token
+is what has drifted. That inversion is the whole reason 0013 exists — without it
+the next reader of `lessons.md` reverts this on sight, correctly by the rule as
+written. The lesson entry now carries the boundary.
+
+Three derivatives encode the old hue as literals and move with it, and the third
+is the one that would have shipped the bug: `--laser-glow` spells the channels
+out because a shadow needs an alpha; the light theme's hand-derived
+`--accent-ink` sits in **two** blocks (`[data-theme="light"]` and the verbatim
+`@media (prefers-color-scheme: light)` copy — write one and a system-light user
+silently inherits dark values, the hazard documented in `dev-accents.css`); and
+`AmbientNebula.tsx` mirrors the channels twice more because a canvas cannot read
+a custom property. Retuning only `--laser` would have left the background canvas
+painting the old green behind a DOM painting the new one — the original
+incident's exact failure mode, relocated from an SVG to a canvas.
+
+`--accent-ink` is re-derived rather than left alone: Laser as *text* on a light
+surface is the 1.09:1 FAIL, so the light theme substitutes a deep same-hue tone,
+and a tone at the retired hue would have stranded the light theme at 82° while
+everything else read 66.6°. `#3f6b00` → `#5b6600` is the same construction at the
+new hue, tuned to hold the corridor *position* rather than merely pass — page
+5.50 / glass 6.12 / surface 6.06, against the retired value's 5.55 / 6.18 / 6.12.
+
+`--on-laser` does not move. `#0e1013` on the new Laser measures 16.16:1, up from
+15.77:1, so the §6 contrast law — buttons are `--on-laser` on `--laser` — holds
+and every button, chip and FAB keeps its ink. This is a hue change, not a
+polarity one.
+
+The check that mattered most was the one a green test suite could not give.
+[0003](docs/decisions/0003-developer-accents.md) sets a semantic-clearance floor
+of **20 ΔE2000 to `--laser`** for all twelve developer accents — but
+`developer-accents.test.ts` does not encode that floor, so 1361 passing tests
+said nothing about it. Recomputed directly (with a CIEDE2000 implementation
+self-checked against 0011's published 66.7 figure, which it reproduced exactly):
+all twelve clear the floor, the tightest being google at **37.0**, still nearly
+double. `--flare` (65.1 / 70.0, floor 18), `--amber` (24.0) and `--pulse` (27.2,
+floor 15) hold as well, so 0003 and 0011 stand unamended and their test passes
+untouched.
+
+Verified by rendering rather than reasoning, since nothing asserts colour
+appearance: the hero samples `#DFFA04` in dark and `#5B6600` in light, **and
+`#5B6600` again for a system-light user with no `data-theme` set** — the
+double-block trap, cleared. In the header, tile and wordmark now sample the same
+hue family.
+
+Deliberately untouched: `public/brand/` (already the target green),
+`scripts/generate-icons.mjs` (its `LASER` already matched the artwork and now
+matches the token too, correct by both measures without an edit), and the
+`#b7ff3c` occurrences in `media-{highlight,context}.test.ts` and `media.test.ts`
+— those are sample palette text inside generated prompts and raw RGB pixel bytes
+for an extraction test, arbitrary fixture data that a blanket replace would have
+corrupted.
+
+### The icon set is the Liquid Glass mark, derived from one flat master
+
+Every favicon, PWA, apple-touch and splash derivative — 33 files — is
+regenerated from `public/brand/vizion-glyph.svg`, the iOS 26 Liquid Glass
+master that landed in #104. The old I›O art is gone from every derivative;
+nothing was renamed, added or dropped, so `manifest.webmanifest`, the App
+Router convention files and the ten `apple-touch-startup-image` links keep
+pointing exactly where they did.
+
+The load-bearing decision is **which** of the twelve brand SVGs may be
+rasterized: only the flat one. `vizion-icon-{light,dark,clear,tinted}.svg` and
+`vizion-icon-bg-*.svg` are on-screen appearance previews — measured, each
+carries a baked 200-point squircle `<clipPath>`, and the composed ones add a
+radial specular over 12 `stop-opacity` stops. They show how the icon looks
+*after* iOS has masked and glassified it. Rasterizing one would bake the
+rounded corners and gloss into the source bitmap, which the OS then rounds
+again — double-masked corners and clipped art on every device that applies its
+own shape. So the generator composes from `vizion-glyph.svg`'s geometry and
+paints it with the locked colorways instead. That this is the right
+reconstruction is checkable rather than asserted: at frac `0.74` the script
+computes `translate(133.12, 165.69) scale(0.74)`, and the committed Icon
+Composer foreground layer `vizion-icon-foreground-lime.svg` carries
+`translate(133.12, 165.66) scale(0.74)` — the same transform to 0.03 px at
+1024², i.e. the generated plates *are* the shipped artwork.
+
+Appearances follow the source spec. Light (Laser `#DFFA04` plate + Void
+`#0F1012` ink) is the base and drives the opaque surfaces: apple-touch, the
+favicons, `favicon.ico`, the maskable tiles and the App Router
+`icon0.svg`/`icon1.png`/`apple-icon.png`. The `any` matrix stays **transparent**
+— the Laser glyph alone, no plate — because guardrail §6 and
+`tests/unit/icon-alpha.test.ts` both require it; the opacity exception is
+scoped to the surfaces where a transparent tile actually breaks (iOS
+composites one onto black, Android's mask has nothing to fill), and that is
+not the `any` matrix. The splashes take Dark (Void plate + Laser glyph) so the
+launch image matches the manifest's `background_color` rather than flashing
+full-bleed lime before first paint.
+
+Maskable keeps its own padded render at `0.58` against the standard `0.74`, and
+it is now measured rather than reasoned about: the furthest ink pixel in
+`maskable-512.png` sits at `0.337 × S` from centre, inside Android's `0.40 × S`
+safe circle. No derivative is pre-rounded, glossed or shadowed.
+
+`scripts/generate-icons.mjs` was rewritten around this: one master instead of
+two tokens, the manifest read as the inventory (with a hard failure if it ever
+declares an `any` size the frozen matrix does not render, rather than shipping
+a 404 into the install prompt), and the existing hand-rolled ICO writer kept —
+CI runs a blocking full-tree `npm audit`, so a dedicated ICO dependency would
+have bought supply-chain surface for ~25 lines against a `sharp` the repo
+already has. Re-running the script is byte-idempotent across runs.
+
+Not changed, deliberately: `theme_color`/`background_color` were already
+`#0F1012`, and the document's `theme-color` stays the media-qualified
+dark/light pair from DSN-002 — collapsing it to a single dark tag would
+mis-tint browser chrome in the light scheme. `public/brand/` was read and never
+written.
+
+The mark *inside* the app moves with it, so no surface is left on the old I›O
+art. The two in-app surfaces take opposite treatments, because they are
+different things:
+
+The **header tile** (`ScreenHeader`) now serves `vizion-icon-light.svg` — the
+composed Light appearance, the one file the derivative pipeline is forbidden to
+rasterize. That inversion is the point: nothing masks an `<img>` in a web
+document, so here the baked squircle and its gradient are exactly what is
+wanted, and they are what the user already sees on the home screen once iOS has
+rounded and glassified the flat tile. Its `rounded-[8px]` goes with it — a CSS
+circular-arc radius laid over a superellipse clips a sliver off each corner
+rather than following it, so the artwork now owns its own shape.
+
+The **sign-in hero** goes the other way and stops being a file at all.
+`src/components/BrandMark.tsx` inlines the master glyph as a single path drawn
+with `currentColor`, following the DeveloperIcon rule — never hardcode a fill —
+and takes `text-accent`, so it renders Laser on dark and the deep
+`--accent-ink` green on light. A hardcoded brand Laser would have been the
+documented 1.09:1 laser-on-light FAIL on the light canvas. Inlined rather than
+fetched because the master paints a flat `#000000` that no `<img>` can recolour
+per theme, and the Icon Composer foreground layers bake in the icon's 0.74
+padding, which would then have to be subtracted back out of the hero layout.
+Sized 144px, not the retired mark's 160px: the new glyph is nearly square
+(1.15:1 against 1.57:1), so equal width would have stood ~40% taller and
+out-weighed the wordmark beneath it.
+
+Inlining duplicates geometry, and duplicated geometry drifts — a re-cut master
+would move every generated derivative while leaving the in-app mark behind,
+which is the exact split this entry closes. So `tests/unit/brand-mark.test.ts`
+asserts the component's `viewBox` and path still equal `vizion-glyph.svg`
+byte-for-byte, that the fill is `currentColor` and not a hex, and that the
+master still holds exactly one path — the assumption both the component and the
+generator rest on.
+
+Known divergence, NOT introduced here and deliberately not resolved here: the
+brand artwork's Laser is `#DFFA04`, while the design system's `--laser` token is
+`#B7FF3C`. Both now sit in the same header — measured off the rendered document,
+`#B7FF3C` on the wordmark's "IO" against `#CBE801`–`#D2EE02` across the icon
+tile's gradient. The artwork arrived with the new value in #104; reconciling them
+means either hardcoding a fill (breaking the light-theme contrast rule above) or
+retuning `--laser` itself, which is the primary action fill, the focus ring and
+the wordmark accent, and would require re-verifying every contrast ratio
+recorded in `tokens.css`. That is a design-system decision, not an icon-wiring
+one.
+
 ### Added
 
 - **The hold-slider becomes the reference control: fixed home, sliding

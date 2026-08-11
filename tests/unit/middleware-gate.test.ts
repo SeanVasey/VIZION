@@ -194,7 +194,7 @@ describe("middleware matcher — the paths the gate never sees", () => {
     "/manifest.webmanifest",
     "/icons/icon-192.png",
     "/splash/splash-828x1792.png",
-    "/brand/vizion-mark-token.svg",
+    "/brand/vizion-icon-light.svg",
   ])("excludes the static asset %s", async (path) => {
     expect((await matcherRegex).test(path)).toBe(false);
   });
