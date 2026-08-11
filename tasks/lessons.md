@@ -3717,3 +3717,25 @@ test:e2e` hard-fails in global-setup until
   immediately — and then found the flawed shape of the first fix too. The cheap
   general move after tuning anything against a viewport is a single assertion at
   the other end of the supported range.
+
+- **A stand-down expressed in JS is invisible to the CSS that thinks it owns
+  it.** The halo has three stand-downs: `prefers-reduced-motion` and
+  `[data-reduced-effects]` null the filter in CSS, while `dynamicBackdrop`
+  withdraws the element in TSX. When the capsule gained its own
+  `backdrop-filter`, it got the two CSS gates and silently missed the third —
+  so a streaming run, the one case the third gate exists for, re-filtered the
+  repainting result on every token frame through the very layer that was
+  supposed to stand down alongside the halo. The comment on the new rule even
+  claimed it "stands down WITH the halo blur", which was true of two gates out
+  of three. Before adding a filter beside an existing one, enumerate the
+  existing one's gates and check where each is *expressed*, not just that they
+  exist.
+
+- **Clamping the element is not clamping the treatment.** The halo's blur box
+  was clamped to the visible region; the dim was a separate layer whose radius
+  was multiplied by a spread constant, so it kept reaching ~35px past the
+  clamped edge and into the bottom nav — still around half strength, because
+  its fade only starts at 84%. The blur passed its own clearance assertion the
+  whole time. When a visual effect is composed of more than one layer, the
+  containment property has to be asserted on the OUTERMOST painted extent, not
+  on whichever layer happens to own the geometry.

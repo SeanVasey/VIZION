@@ -579,7 +579,14 @@
      null the halo below, and a frost left filtering an unblurred backdrop is
      a smear on live content rather than a pane over a lens. Falling back to
      flat --glass-still lands it exactly on .glass-solid, which is the surface
-     the capsule wore before this rule existed. */
+     the capsule wore before this rule existed.
+
+     These two gates are the CSS half only. The THIRD stand-down —
+     `dynamicBackdrop`, for a streaming run whose surface cannot hold still —
+     is a JS-side withdrawal that never renders the halo element, so no rule
+     here can observe it; HoldSlider swaps this class for `.glass-solid`
+     instead. Any future gate on the halo has to answer the same question:
+     is it expressible in CSS, or does it live where the element does? */
   @media (prefers-reduced-motion: reduce) {
     .hold-slider-glass {
       background-color: var(--glass-still);

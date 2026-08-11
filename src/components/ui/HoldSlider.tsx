@@ -468,13 +468,22 @@ const COMPACT_HALO_SCALE = 0.5;
 const HALO_CHROME_INSET_PX = 72;
 const HALO_MIN_Y_PX = 96;
 /**
- * The dim's ellipse, relative to the blur's box. Slightly WIDER on purpose:
- * where an engine ignores the mask the blur ends on its box edge, and the
- * dim still having a little left there turns a rectangle into a seam. On
- * engines that honour the mask (Chromium, measured) both fade together and
- * the spread is invisible.
+ * The dim's ellipse, relative to the blur's box — HORIZONTALLY ONLY.
+ *
+ * Slightly wider than the blur on purpose: where an engine ignores the mask
+ * the blur ends on its box edge, and the dim still having a little left there
+ * turns a rectangle into a seam. On engines that honour the mask (Chromium,
+ * measured) both fade together and the spread is invisible.
+ *
+ * It does NOT apply vertically, and that asymmetry is the same one the halo's
+ * own clamp has: there is chrome above and below and none to the sides. A
+ * spread applied to Y put the dim ~35px past the blur's clamped edge and
+ * therefore into the bottom nav, still around half strength there because the
+ * fade only starts at 84% — so the blur was localized and the treatment as a
+ * whole was not (Codex review, PR #110). Vertically the dim now ends exactly
+ * where the blur's box does, which is what makes the clamp mean something.
  */
-const DIM_SPREAD = 1.16;
+const DIM_SPREAD_X = 1.16;
 
 /**
  * The expanded track — pure presentation plus, in the latched phase, its own
@@ -629,8 +638,8 @@ function HoldSliderOverlay({
   const haloVars = {
     "--dial-cx": `${geometry.left + geometry.width / 2}px`,
     "--dial-cy": `${geometry.top + geometry.height / 2}px`,
-    "--dial-rx": `${(haloWidth / 2) * DIM_SPREAD}px`,
-    "--dial-ry": `${(haloHeight / 2) * DIM_SPREAD}px`,
+    "--dial-rx": `${(haloWidth / 2) * DIM_SPREAD_X}px`,
+    "--dial-ry": `${haloHeight / 2}px`,
   } as React.CSSProperties;
   // Offsets inside the track, from viewport-x detent centers.
   const centers = geometry.detentCenters.map((x) => x - geometry.left);
@@ -777,7 +786,21 @@ function HoldSliderOverlay({
             lens, which is what gives the capsule its depth. `hold-slider-lift`
             is the shadow that drops it over that halo; it composes the glass
             sheen rather than replacing it (box-shadow is one property). */}
-        <div className="hold-slider-glass hold-slider-lift relative h-full w-full overflow-hidden rounded-full">
+        {/* The frost stands down over a dynamic backdrop too, and it has to be
+            said HERE rather than in CSS: `dynamicBackdrop` is a JS-side
+            withdrawal (the halo element is not rendered at all), so the two
+            CSS stand-downs on `.hold-slider-glass` never see it. Missing that
+            left a 40px backdrop-filter re-filtering the streaming result on
+            every token frame — the exact per-frame cost `dynamicBackdrop`
+            exists to prevent, reintroduced by the very layer that was supposed
+            to stand down with the halo (Codex review, PR #110). `.glass-solid`
+            is the right fallback because it is exactly what both CSS gates
+            already collapse the frost to. */}
+        <div
+          className={`${
+            dynamicBackdrop ? "glass-solid" : "hold-slider-glass"
+          } hold-slider-lift relative h-full w-full overflow-hidden rounded-full`}
+        >
           <div
             data-tone={tone}
             data-peak={peak ? "" : undefined}

@@ -539,6 +539,55 @@ describe("tap vs hold", () => {
     expect(document.querySelector("[data-hold-slider-scrim]")).toBeNull();
   });
 
+  it("stands the CAPSULE FROST down over a dynamic backdrop too", () => {
+    // `dynamicBackdrop` is a JS-side withdrawal — the halo element is simply
+    // not rendered — so the two CSS stand-downs on `.hold-slider-glass` cannot
+    // see it. The frost shipped without its own answer, leaving a 40px
+    // backdrop-filter re-filtering the streaming result on every token frame:
+    // the exact per-frame cost this prop exists to prevent, reintroduced by
+    // the layer meant to stand down alongside the halo (Codex review, PR
+    // #110). `.glass-solid` is what both CSS gates already collapse it to.
+    const restore = withRealLayout();
+    const { unmount } = render(<Host />);
+    down();
+    hold();
+    expect(overlay()!.querySelector(".hold-slider-glass")).not.toBeNull();
+    up();
+    unmount();
+
+    render(<Host dynamicBackdrop />);
+    down();
+    hold();
+    expect(overlay()!.querySelector(".hold-slider-glass")).toBeNull();
+    const capsule = overlay()!.querySelector<HTMLElement>(".glass-solid.hold-slider-lift")!;
+    expect(capsule).not.toBeNull();
+    up();
+    restore();
+  });
+
+  it("ends the dim exactly where the blur box does, vertically", () => {
+    // The spread that softens the mask-less seam is HORIZONTAL only. Applied
+    // to Y it pushed the painted dim ~35px past the blur's clamped edge and
+    // into the bottom nav — still around half strength there, because the fade
+    // only starts at 84% — so the blur was localized and the treatment as a
+    // whole was not (Codex review, PR #110).
+    const restore = withRealLayout();
+    render(<Host />);
+    down();
+    hold();
+    const blur = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+    const scrim = document.querySelector<HTMLElement>("[data-hold-slider-scrim]")!;
+    const px = (v: string) => Number.parseFloat(v);
+    const halfHeight = px(blur.style.height) / 2;
+    expect(px(scrim.style.getPropertyValue("--dial-ry"))).toBeCloseTo(halfHeight, 5);
+    // Horizontally the spread survives — there is no chrome to overrun there.
+    expect(px(scrim.style.getPropertyValue("--dial-rx"))).toBeGreaterThan(
+      px(blur.style.width) / 2,
+    );
+    up();
+    restore();
+  });
+
   it("conceals the pill while the capsule is up — the track replaces it", () => {
     render(<Host />);
     const wrapper = pill().parentElement!;
