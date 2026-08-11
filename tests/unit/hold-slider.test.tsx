@@ -325,6 +325,76 @@ describe("tap vs hold", () => {
     expect(frozen()).toBe(false);
   });
 
+  /**
+   * jsdom has no layout, so every rect is zeros and the capsule lands at the
+   * very top of the region — where the halo's clamp correctly collapses it to
+   * the floor. These tests are about the halo's SIZE, so they need a trigger
+   * that sits somewhere plausible: the composer pill's real measured rect on
+   * the 393×660 target, with the region to match. Restores on teardown.
+   */
+  const PILL_RECT = { x: 239, y: 345, width: 125, height: 44 } as const;
+  function withRealLayout() {
+    const rect = Element.prototype.getBoundingClientRect;
+    const innerHeight = window.innerHeight;
+    Element.prototype.getBoundingClientRect = function () {
+      return {
+        ...PILL_RECT,
+        left: PILL_RECT.x,
+        top: PILL_RECT.y,
+        right: PILL_RECT.x + PILL_RECT.width,
+        bottom: PILL_RECT.y + PILL_RECT.height,
+        toJSON: () => ({}),
+      } as DOMRect;
+    };
+    Object.defineProperty(window, "innerHeight", { value: 660, configurable: true });
+    return () => {
+      Element.prototype.getBoundingClientRect = rect;
+      Object.defineProperty(window, "innerHeight", {
+        value: innerHeight,
+        configurable: true,
+      });
+    };
+  }
+  const haloBox = () => {
+    const el = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+    return {
+      w: Number.parseFloat(el.style.width),
+      h: Number.parseFloat(el.style.height),
+    };
+  };
+
+  it("clamps the halo to the region the gesture opened into", () => {
+    // The reach is an absolute measurement taken on a 393×660 phone, and an
+    // absolute number is only "local" relative to a region. On the 320×640
+    // viewport this repo supports — and far more so under pinch zoom, where
+    // the visible region can be a fraction of the layout viewport — an
+    // unclamped 196px per side stops clearing the chrome bars, and the
+    // treatment quietly becomes the full-screen wash it exists to replace
+    // (Codex review, PR #110). `useHoldDrag` samples the visual viewport for
+    // the capsule's own placement already; the halo now reads the same sample.
+    const restore = withRealLayout();
+    try {
+      render(<Host />);
+      down();
+      hold();
+      const roomy = haloBox().h;
+      up();
+
+      // Same trigger, a much shorter region: the halo must give way.
+      Object.defineProperty(window, "innerHeight", { value: 440, configurable: true });
+      down();
+      hold();
+      const cramped = haloBox().h;
+      expect(cramped).toBeLessThan(roomy);
+      // …but never past the floor, and never to nothing: under-treating is the
+      // better failure than washing the page.
+      expect(cramped).toBeGreaterThan(Number.parseFloat(overlay()!.style.height));
+      up();
+    } finally {
+      restore();
+    }
+  });
+
   it("treats a halo around the capsule, not the whole viewport", () => {
     // What shipped first washed `fixed inset-0` flat — on the light theme,
     // 62% of a near-white over the entire screen (owner's red X, 2026-08-11:
@@ -338,6 +408,7 @@ describe("tap vs hold", () => {
     // properties globals.css reads for its radial gradient. The BLUR
     // localizes in its BOX, which is what keeps the treatment local even on
     // an engine that ignores the mask softening its edge.
+    const restore = withRealLayout();
     render(<Host />);
     down();
     hold();
@@ -384,6 +455,7 @@ describe("tap vs hold", () => {
     // No flat fill left in the component: the wash is a gradient in CSS now,
     // and this was the last hardcoded backdrop colour outside the stylesheet.
     expect(scrim.style.backgroundColor).toBe("");
+    restore();
   });
 
   it("pulls the halo in for a capsule inside a sheet", () => {
@@ -394,24 +466,18 @@ describe("tap vs hold", () => {
     // has to stay visible while you tune it (seen in capture, 2026-08-11). A
     // sheet is also already a focus surface — its own scrim handled the world
     // behind it — so the halo's job there is only the panel's surroundings.
-    const blurBox = () => {
-      const el = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
-      return {
-        w: Number.parseFloat(el.style.width),
-        h: Number.parseFloat(el.style.height),
-      };
-    };
+    const restore = withRealLayout();
     const { unmount } = render(<Host />);
     down();
     hold();
-    const full = blurBox();
+    const full = haloBox();
     up();
     unmount();
 
     render(<Host compactHalo />);
     down();
     hold();
-    const compact = blurBox();
+    const compact = haloBox();
     // Strictly smaller on both axes, and still larger than the capsule — a
     // compact halo is a smaller lens, never no lens.
     expect(compact.w).toBeLessThan(full.w);
@@ -419,6 +485,7 @@ describe("tap vs hold", () => {
     const track = overlay()!;
     expect(compact.w).toBeGreaterThan(Number.parseFloat(track.style.width));
     expect(compact.h).toBeGreaterThan(Number.parseFloat(track.style.height));
+    restore();
   });
 
   it("puts the capsule on frosted glass with an edge shadow", () => {

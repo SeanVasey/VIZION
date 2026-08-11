@@ -612,6 +612,33 @@ test.describe("thinking hold-slider", () => {
     await expect(pill).toContainText("Auto");
   });
 
+  test("the halo stays clear of the chrome bars on the smallest supported viewport", async ({
+    page,
+  }) => {
+    // The halo's reach is an absolute measurement taken on a ~393×660 phone,
+    // and an absolute number is only "local" relative to a region. This repo
+    // supports 320×640 (the reflow check in a11y.spec.ts), where the fixed
+    // bottom nav sits higher — so an unclamped halo would overrun it and stop
+    // being the localized treatment this whole change is (Codex review, PR
+    // #110). The clamp lives in HoldSlider; this is the test that makes the
+    // clamp's headroom a measured claim rather than an assumed one, because
+    // only a real engine can say where the bars actually are.
+    await page.setViewportSize({ width: 320, height: 640 });
+    const dial = page.getByRole("slider", { name: "Thinking depth" });
+    await dial.click();
+    await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+
+    const halo = (await page.locator("[data-hold-slider-blur]").boundingBox())!;
+    const header = (await page.locator(".glass-chrome").first().boundingBox())!;
+    const nav = (await page.locator(".glass-nav").first().boundingBox())!;
+    expect(halo.y).toBeGreaterThanOrEqual(header.y + header.height);
+    expect(halo.y + halo.height).toBeLessThanOrEqual(nav.y + 1);
+    // Still a halo, not a hairline: the clamp gives way to the region, but it
+    // must not collapse the treatment to the capsule itself.
+    const track = (await page.locator("[data-hold-slider-overlay]").boundingBox())!;
+    expect(halo.height).toBeGreaterThan(track.height * 2);
+  });
+
   test("the budget dial opens its capsule INSIDE the model sheet", async ({ page }) => {
     // The one place a capsule may ride over an open dialog: the dial that
     // lives in it. Only an engine can answer the stacking half — the capsule

@@ -39,7 +39,14 @@ counter-intuitive enough to be worth stating: the mask's **plateau is the lever,
 not the blur radius** (blur 38px at an 84% plateau beats blur 54px at 78% on
 every band), and the halo is deliberately **wider than the viewport**, because
 the capsule clamps off-centre on a phone and an ellipse sized to it fades
-soonest on the side with the most text. The
+soonest on the side with the most text.
+
+Vertically the reach is **clamped to the region the gesture opened into** — the
+visible viewport, which is what the capsule itself has been placed inside since
+[ADR-0012]. An absolute measurement is only "local" relative to a region: 196px
+per side was measured on a 393×660 phone, and on the 320×640 viewport this repo
+supports it overran the bottom nav, as it would far more sharply under pinch
+zoom. The
 two layers get there from opposite ends, and the asymmetry is deliberate — the
 dim keeps its viewport-covering box because that box *is* the input shield,
 and localizes in its paint; the blur localizes in its **box**, and only

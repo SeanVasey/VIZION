@@ -428,6 +428,46 @@ const HALO_Y_PX = 196;
  */
 const COMPACT_HALO_SCALE = 0.5;
 /**
+ * How much of the visible region's half-height the halo may claim, and the
+ * floor below which clamping stops.
+ *
+ * `HALO_Y_PX` is an absolute measurement taken on a 393×660 phone, and an
+ * absolute number is only "local" relative to a region (Codex review, PR
+ * #110). On the 320×640 viewport this repo supports, and much more so under
+ * pinch zoom — where the visible region can be a fraction of the layout
+ * viewport — a fixed 196px per side stops clearing the chrome bars and the
+ * treatment quietly becomes the full-screen wash it exists to replace.
+ *
+ * So the halo's half-height is capped at the distance from the capsule's
+ * centre to the nearer edge of the region the gesture actually opened into,
+ * MINUS an allowance for the chrome that sits inside that edge.
+ *
+ * A subtraction, not a fraction — the first cut of this clamp used a fraction
+ * and the 320×640 e2e test caught it overrunning the nav by 11px. The
+ * difference is structural, not a tuning miss: clearing a fixed-height bar
+ * requires `half ≤ room − bar`, so the fraction that satisfies it depends on
+ * `room` and no single value can hold as the region shrinks. A fraction
+ * tuned to one viewport is a clamp that fails hardest exactly where it is
+ * most needed.
+ *
+ * The allowance does mean a `ui/` primitive carries a number about the app's
+ * chrome, which is the cost of the correct shape. It is one constant, it is
+ * generous against `--bottom-nav-h` (4rem), and the e2e suite measures the
+ * REAL bars at three viewport sizes — so if a bar is ever retuned past this,
+ * a test says so rather than the halo quietly overrunning it.
+ *
+ * The floor keeps a small region from collapsing the halo to nothing: below
+ * it there is no honest way to be both local and obscuring, and a too-small
+ * halo is the better failure (it under-treats rather than washing the page).
+ *
+ * X is deliberately NOT clamped. It is already wider than the viewport by
+ * design — the plateau has to span the full width from an off-centre capsule
+ * — and the ellipse's horizontal reach cannot make the treatment less local,
+ * because there is no chrome on the left or right to overrun.
+ */
+const HALO_CHROME_INSET_PX = 72;
+const HALO_MIN_Y_PX = 96;
+/**
  * The dim's ellipse, relative to the blur's box. Slightly WIDER on purpose:
  * where an engine ignores the mask the blur ends on its box edge, and the
  * dim still having a little left there turns a rectangle into a seam. On
@@ -564,7 +604,24 @@ function HoldSliderOverlay({
   // extra geometry has to be carried out of use-hold-drag.
   const haloScale = compactHalo ? COMPACT_HALO_SCALE : 1;
   const haloX = HALO_X_PX * haloScale;
-  const haloY = HALO_Y_PX * haloScale;
+  // Clamped to the region the gesture opened into — see HALO_REGION_FRACTION.
+  // Measured from the capsule's CENTRE to the nearer region edge, because the
+  // halo is centred on the capsule and has to clear on both sides at once;
+  // taking the nearer edge is what keeps it symmetric while staying inside.
+  const capsuleCenterY = geometry.top + geometry.height / 2;
+  const roomY = Math.min(
+    capsuleCenterY - active.region.top,
+    active.region.top + active.region.height - capsuleCenterY,
+  );
+  // The cap is on the halo's HALF-HEIGHT, which includes the capsule's own
+  // 24px — that is the edge that has to clear the bar, not the reach past it.
+  const haloY = Math.max(
+    HALO_MIN_Y_PX,
+    Math.min(
+      HALO_Y_PX * haloScale,
+      roomY - HALO_CHROME_INSET_PX - geometry.height / 2,
+    ),
+  );
   const haloWidth = geometry.width + haloX * 2;
   const haloHeight = geometry.height + haloY * 2;
   const haloLeft = geometry.left - haloX;

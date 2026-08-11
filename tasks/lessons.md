@@ -3690,3 +3690,30 @@ test:e2e` hard-fails in global-setup until
   band and a murky grey cloud against a brief asking for "a smooth and clean
   appearance". Accepting the finding and rejecting the remedy is a legitimate
   outcome, and it only exists if you test the remedy rather than the argument.
+
+- **An absolute overlay measurement is only "local" relative to a REGION.** The
+  halo's reach was measured on a 393×660 phone and hard-coded. It was correct
+  there and wrong everywhere else: on the 320×640 viewport the repo supports it
+  overran the bottom nav, and under pinch zoom — where the visible region can be
+  a fraction of the layout viewport — it would swamp the screen entirely. The
+  tell was already in the codebase: `computeTrackGeometry` had taken
+  `visualViewport` seriously since PR #103 for exactly this reason, and the new
+  halo simply did not consult it. When one part of a control already clamps to a
+  region, anything else that sizes itself in absolute pixels beside it is a bug
+  waiting for a smaller screen.
+
+- **To clear a fixed-height obstacle, subtract; do not scale.** The first clamp
+  capped the halo at a FRACTION of the room to the region's edge, and the
+  320×640 test caught it overrunning the nav by 11px. The flaw is structural,
+  not a bad constant: clearing a bar needs `half ≤ room − bar`, so the fraction
+  that satisfies it depends on `room` — meaning any fixed fraction fails as the
+  region shrinks, which is precisely when the clamp is load-bearing. A ratio
+  tuned on the roomiest case is a safety margin that evaporates under pressure.
+
+- **Write the test at the size you did NOT measure at.** Every number in this
+  change was measured on one device profile, and both e2e projects are near that
+  profile, so the whole suite agreed with the assumption it was built on. One
+  test that resizes to the smallest supported viewport found a real overrun
+  immediately — and then found the flawed shape of the first fix too. The cheap
+  general move after tuning anything against a viewport is a single assertion at
+  the other end of the supported range.

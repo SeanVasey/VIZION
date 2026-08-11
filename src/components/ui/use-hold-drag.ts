@@ -259,6 +259,22 @@ export interface HoldActive {
   phase: HoldPhase;
   dragIndex: number;
   geometry: TrackGeometry;
+  /**
+   * The VISIBLE region's vertical extent at activation, in layout-viewport
+   * coordinates — `visualViewport`'s offsetTop/height under pinch zoom, the
+   * layout viewport otherwise. Sampled in the same breath as `geometry`, so
+   * the two can never disagree about which region the gesture opened into.
+   *
+   * `computeTrackGeometry` only ever needed the HORIZONTAL half (the capsule
+   * is a fixed 48px tall and the ladder runs sideways), which is why the
+   * vertical is carried here rather than folded into that function. The halo
+   * needs it: an overlay treatment sized in absolute pixels is only "local"
+   * relative to a region, and 196px per side stops being local on a 640px
+   * screen — still less on a pinch-zoomed one, where this control
+   * deliberately keeps the capsule inside the visible region and the halo
+   * would otherwise ignore the same constraint (Codex review, PR #110).
+   */
+  region: { top: number; height: number };
 }
 
 export function useHoldDrag({
@@ -691,6 +707,10 @@ export function useHoldDrag({
           ? { left: vv.offsetLeft, width: vv.width }
           : { left: 0, width: window.innerWidth },
       );
+      // Same sample, vertical half — see HoldActive.region.
+      const region = vv
+        ? { top: vv.offsetTop, height: vv.height }
+        : { top: 0, height: window.innerHeight };
       // Touch/pen are implicitly captured to the pointer-down target already;
       // this is for a mouse outrunning the wrapper. try/catch for jsdom.
       // Skipped when latching: that pointer is already UP (the tap is what
@@ -725,6 +745,7 @@ export function useHoldDrag({
             ? selected
             : detentIndexForX(currentX - dragOffset.current, geometry),
         geometry,
+        region,
       });
       return true;
     },

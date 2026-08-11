@@ -307,6 +307,27 @@ guessable from the CSS:
    viewport, because the moment the halo reaches one, localization stops being a
    property of the box and starts depending on the mask — the one property that
    cannot be verified on WebKit.
+4. **An absolute reach is only local relative to a REGION, so it has to be
+   clamped** (Codex review, PR #110). 196px per side was measured on a 393×660
+   phone; this repo also supports 320×640, where the fixed nav sits higher, and
+   pinch zoom can shrink the visible region to a fraction of the layout viewport
+   — a case the control already takes seriously, since `computeTrackGeometry`
+   places the capsule inside `visualViewport` for exactly that reason. The halo
+   was ignoring the same constraint. `HoldActive` now carries the region's
+   vertical extent, sampled in the same breath as the geometry, and the halo's
+   half-height is capped at the distance to the nearer region edge less an
+   allowance for the chrome inside it.
+
+   The clamp's SHAPE was itself wrong on the first attempt, and the new 320×640
+   e2e test is what said so — it caught a fraction-based cap overrunning the nav
+   by 11px. Clearing a fixed-height bar requires `half ≤ room − bar`; the
+   fraction that satisfies that depends on `room`, so no single fraction holds
+   as the region shrinks, and it fails hardest exactly where the clamp matters
+   most. A subtraction generalizes; a ratio tuned to one viewport does not.
+   The cost is that a `ui/` primitive now carries one number about the app's
+   chrome — accepted, because the alternative (measuring the bars from inside
+   the primitive) couples far worse, and three viewport sizes of e2e coverage
+   turn a retuned bar into a failing test rather than a silent overrun.
 
 **One asymmetry is accepted and named.** The dim is `--void`-based so it inverts
 with the theme, and on light `--void` is a near-white: measured, the light veil
