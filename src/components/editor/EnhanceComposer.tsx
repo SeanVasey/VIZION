@@ -4,10 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import { useEnhanceViewStore } from "@/stores/enhance-view";
 import {
-  AUTO_PREFERENCES,
-  AUTO_PREFERENCE_LABEL,
   TARGET_THINKING_LEVELS,
-  THINKING_LEVEL_LABEL,
   type AutoPreference,
   type TargetModelId,
   type ThinkingLevel,
@@ -16,8 +13,13 @@ import { NOT_CONFIGURED_MESSAGE, useEnhance } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
 import { ModeRig } from "@/components/editor/ModeRig";
 import { TargetPicker } from "@/components/models/TargetPicker";
-import { ThinkingPicker } from "@/components/models/ThinkingPicker";
+import { ThinkingDial } from "@/components/models/ThinkingDial";
 import { targetLabel } from "@/components/models/target-label";
+import {
+  buildThinkingDetents,
+  THINKING_PEAK_CAPTION,
+} from "@/components/models/dial-detents";
+import { DialCoachTip } from "@/components/editor/DialCoachTip";
 import { HoldSliderTrigger, type Detent } from "@/components/ui/HoldSlider";
 import { TransformationDiff } from "@/components/diff/TransformationDiff";
 import { StreamingResult } from "@/components/diff/StreamingResult";
@@ -37,24 +39,6 @@ import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
 /** Frozen option list for the format rail — built once, not per render. */
 const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
 
-/** Hold-slider tone per thinking level — keyed to the level's IDENTITY, never
- *  its ladder position (the DepthGlyph rule), so "high" wears the same laser
- *  on Grok's 3-step ladder as on Fable's 5-step one. The ramp mirrors the
- *  meter glyph's vocabulary: muted silver below the accent, laser through the
- *  middle, the ultra violet for the two tiers above High. */
-const LEVEL_TONE: Record<ThinkingLevel, Detent["tone"]> = {
-  minimal: "silver",
-  low: "silver",
-  medium: "laser",
-  high: "laser",
-  xhigh: "ultra",
-  max: "ultra",
-};
-
-/** Auto rides the slider as the LEFTMOST detent — dragging fully left is the
- *  one-gesture route back to "send nothing, provider default applies". */
-const AUTO_DETENT: Detent = { id: "auto", label: "Auto", tone: "faint" };
-
 /** The stored thinking level for a target, validated against that target's
  *  ladder — so a stale persisted level can never ride into a request. One
  *  rule, three consumers (composer rail, refine, answered re-run). */
@@ -67,36 +51,19 @@ function validThinkingLevel(
   return ladder && stored && ladder.includes(stored) ? stored : undefined;
 }
 
-function buildThinkingDetents(ladder: readonly ThinkingLevel[]): Detent[] {
-  return [
-    AUTO_DETENT,
-    ...ladder.map((level) => ({
-      id: level,
-      label: THINKING_LEVEL_LABEL[level],
-      tone: LEVEL_TONE[level],
-    })),
-  ];
-}
-
-/** Auto-routing's budget slider, cheapest first so the fill grows with
- *  spend: budget → balanced → quality. That is AUTO_PREFERENCES *reversed* —
- *  the wire constant is quality-first and test-pinned, so the display order
- *  is derived here, never by reordering the constant. No ultra tier: the
- *  ramp tops out at laser, and the fill width does the disambiguating. */
-const BUDGET_DETENTS: Detent[] = [...AUTO_PREFERENCES].reverse().map((p) => ({
-  id: p,
-  label: AUTO_PREFERENCE_LABEL[p],
-  tone: p === "budget" ? "silver" : "laser",
-}));
-
 /**
  * The control pill shared by the Target and Thinking rails.
  *
  * ONE string, two consumers, on purpose. The rails stack directly on top of
  * each other, so the pills are read as a pair and any divergence in type size
  * or padding reads as a bug — which is exactly what shipped while Thinking was
- * a `<select>` (see ThinkingPicker's header for the iOS 16px floor that caused
+ * a `<select>` (see ThinkingDial's header for the iOS 16px floor that caused
  * it). Two copies of the same class string is how that drift comes back.
+ *
+ * The trailing pad stays asymmetric now that the two pills end in different
+ * glyphs — a chevron on Target, the slider grip on Thinking. Both marks are
+ * 16px wide and the pair still reads as one instrument; what would break it
+ * is a second class string, not a shared one.
  */
 const RAIL_TRIGGER_CLASS =
   "font-body inline-flex min-h-[44px] items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-2.5 text-sm text-text transition-colors hover:text-chalk";
@@ -381,18 +348,28 @@ export function EnhanceComposer() {
       ? `$${capUsage.todayCost.toFixed(2)} of $${capUsage.capUsd.toFixed(2)} daily cap used`
       : null;
 
-  // Stable-identity so the memoized ThinkingPicker holds across stream flushes
+  // Stable-identity so the memoized ThinkingDial holds across stream flushes
   // (PERF-006) — the inline arrow it replaces was a fresh function each render.
+  // Any change through the dial — keyboard step at rest or capsule commit —
+  // proves the control was understood, so it retires the how-to line. Reads
+  // the flag imperatively rather than subscribing: the composer must not
+  // re-render on a hint's state, and writing an already-true flag would
+  // otherwise churn every subscriber (the handleUse pattern, PERF-003).
   const onThinkingChange = useCallback(
-    (next: ThinkingLevel | null) => setThinkingLevel(targetModel, next),
+    (next: ThinkingLevel | null) => {
+      const store = useUIStore.getState();
+      if (!store.dialTipSeen) store.setDialTipSeen(true);
+      setThinkingLevel(targetModel, next);
+    },
     [targetModel, setThinkingLevel],
   );
 
-  // The thinking rail's hold-slider (ADR-0012): [Auto, ...the target's own
-  // ladder], so the detent count adapts per model (4/5/6) and a ladderless
-  // target — which renders no rail at all — never builds one. Everything
-  // here re-computes only on a target switch, the same cadence as
-  // onThinkingChange, so the memoized picker inside the wrapper holds.
+  // The thinking dial's ladder (ADR-0012, redesigned in ADR-0014): [Auto,
+  // ...the target's own ladder], so the detent count adapts per model (4/5/6)
+  // and a ladderless target — which renders no rail at all — never builds
+  // one. Everything here re-computes only on a target switch, the same
+  // cadence as onThinkingChange, so the memoized dial inside the wrapper
+  // holds.
   const thinkingDetents = useMemo(
     () => (levelOptions ? buildThinkingDetents(levelOptions) : null),
     [levelOptions],
@@ -403,6 +380,8 @@ export function EnhanceComposer() {
     (index: number) => {
       const ladder = TARGET_THINKING_LEVELS[targetModel];
       if (!ladder) return;
+      const store = useUIStore.getState();
+      if (!store.dialTipSeen) store.setDialTipSeen(true);
       // Index 0 is the Auto detent — the store's own "no level" signal.
       setThinkingLevel(targetModel, index === 0 ? null : (ladder[index - 1] ?? null));
     },
@@ -413,19 +392,22 @@ export function EnhanceComposer() {
     [targetModel],
   );
 
-  // The Target rail's budget slider — live ONLY while Auto routing is on.
-  // A hold that silently flipped Auto on would be an invisible mode change
-  // from a control that didn't advertise it, so plain-model mode stays a
-  // pure tap trigger (the wrapper claims nothing while disabled).
-  const budgetSelectedIndex = BUDGET_DETENTS.findIndex((d) => d.id === autoPreference);
-  const onBudgetCommit = useCallback(
-    (index: number) => {
-      const detent = BUDGET_DETENTS[index];
-      if (detent) setAutoPreference(detent.id as AutoPreference);
+  // The routing dial retires the how-to line too (Codex review, PR #109).
+  // The line names the gesture, not one rail — "tap a dial… or press and
+  // hold" — so a user whose FIRST dial is Auto's has already demonstrated it,
+  // and coming back to the composer to be told how would be the tip lying
+  // about what it knows. Wired here rather than inside TargetPicker: that
+  // picker is entirely prop-driven (Settings renders it with no store at all)
+  // and reaching into the UI store from it would trade that away for one
+  // flag. Stable identity, so the memoized picker still holds (PERF-006).
+  const onAutoPreferenceChange = useCallback(
+    (next: AutoPreference) => {
+      const store = useUIStore.getState();
+      if (!store.dialTipSeen) store.setDialTipSeen(true);
+      setAutoPreference(next);
     },
     [setAutoPreference],
   );
-  const budgetLiveLabel = useCallback((detent: Detent) => `Auto · ${detent.label}`, []);
 
   // Persist Polish's revert decisions with the result they belong to — as
   // component state in the diff they died on navigation while the result now
@@ -544,36 +526,29 @@ export function EnhanceComposer() {
           <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
             Target
           </span>
-          {/* Budget hold-slider (ADR-0012), live only while Auto routing is
-              on — disabled it claims nothing and the pill is a pure tap
-              trigger. Same wrapper as the Thinking rail, so both pills carry
-              the same affordance and the matched-pair contract holds. */}
-          {/* dynamicBackdrop while a run is in flight (either rail): the
-              stream surface, spinner and counters keep repainting beneath
-              the overlay — content, not ornament, so the world-pause cannot
-              freeze it — and the focus BLUR stands down to the dim-only
-              presentation for that gesture. The rails deliberately stay
-              enabled mid-run (dialing the NEXT run), so this state is real. */}
-          <HoldSliderTrigger
-            detents={BUDGET_DETENTS}
-            selectedIndex={budgetSelectedIndex}
-            liveLabel={budgetLiveLabel}
-            onCommit={onBudgetCommit}
-            enabled={autoTarget}
-            dynamicBackdrop={isPending || enhanceMutation.stream.active}
-          >
-            <TargetPicker
-              label="Target model"
-              value={targetModel}
-              onChange={setTargetModel}
-              auto={autoTarget}
-              onAutoChange={setAutoTarget}
-              autoPreference={autoPreference}
-              onAutoPreferenceChange={setAutoPreference}
-              triggerClassName={RAIL_TRIGGER_CLASS}
-              holdHint={autoTarget}
-            />
-          </HoldSliderTrigger>
+          {/* No hold-slider on this pill any more (ADR-0014). Target IS a
+              dropdown — sixteen models across twelve developers — so it keeps
+              its chevron and its sheet, and the budget dial it used to host
+              moved INSIDE that sheet, under the Auto card it tunes (owner
+              direction: the tuning slider belongs in "the model selection
+              pane that slides out from the right", while Thinking stays
+              permanently on the rail). The pill still names the live
+              preference — "Auto · Balanced" — so what the dial sets is
+              visible at rest without opening anything. */}
+          <TargetPicker
+            label="Target model"
+            value={targetModel}
+            onChange={setTargetModel}
+            auto={autoTarget}
+            onAutoChange={setAutoTarget}
+            autoPreference={autoPreference}
+            onAutoPreferenceChange={onAutoPreferenceChange}
+            triggerClassName={RAIL_TRIGGER_CLASS}
+            // The tuning dial's capsule lives inside this picker's sheet now,
+            // so the stream state it needs has to travel with it — see
+            // TargetPicker's `streaming`.
+            streaming={isPending || enhanceMutation.stream.active}
+          />
         </div>
 
         {/* Thinking rail — reasoning depth, only for targets whose provider
@@ -587,35 +562,56 @@ export function EnhanceComposer() {
             caption is a `<span>` because there is no longer a form element for
             `htmlFor` to point at — the trigger carries its own accessible name. */}
         {levelOptions && thinkingDetents && (
-          <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
-            <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
-              Thinking
-            </span>
-            {/* Hold-to-drag accelerator around the pill (ADR-0012): a tap
-                still opens the sheet below — the wrapper adds the gesture
-                without touching the picker's props, so the memo and the
-                matched-pair trigger class both hold. */}
-            {/* detentMarker="bar": mid-drag this capsule is the DepthGlyph
-                meter expanded — rising ticks say LADDER, and tell it apart
-                from the budget capsule's equal dots one rail up. */}
-            <HoldSliderTrigger
-              detents={thinkingDetents}
-              selectedIndex={thinkingSelectedIndex}
-              liveLabel={thinkingLiveLabel}
-              onCommit={onThinkingCommit}
-              enabled
-              detentMarker="bar"
-              dynamicBackdrop={isPending || enhanceMutation.stream.active}
-            >
-              <ThinkingPicker
-                label="Thinking depth"
-                value={thinkingLevel}
-                options={levelOptions}
-                onChange={onThinkingChange}
-                triggerClassName={RAIL_TRIGGER_CLASS}
-                holdHint
-              />
-            </HoldSliderTrigger>
+          <div className="flex flex-col gap-1 border-b border-hair px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+                Thinking
+              </span>
+              {/* The dial and its capsule (ADR-0014). `latchOnTap`: a tap
+                  opens the track over this exact pill and leaves it up —
+                  there is no sheet behind it to fall through to any more, and
+                  a tap-then-tap is what keeps every stop reachable without a
+                  drag (WCAG 2.5.7). A hold or a sideways slide still scrubs
+                  in one motion. The wrapper adds all of it without touching
+                  the dial's props, so the memo and the matched-pair trigger
+                  class both hold. */}
+              {/* detentMarker="bar": mid-drag this capsule is the DepthGlyph
+                  meter expanded — rising ticks say LADDER, and tell it apart
+                  from the budget capsule's equal dots inside the Target
+                  sheet. */}
+              {/* dynamicBackdrop while a run is in flight: the stream
+                  surface, spinner and counters keep repainting beneath the
+                  overlay — content, not ornament, so the world-pause cannot
+                  freeze it — and the focus BLUR stands down to the dim-only
+                  presentation for that gesture. The rail deliberately stays
+                  live mid-run (dialing the NEXT run), so this state is
+                  real. */}
+              <HoldSliderTrigger
+                detents={thinkingDetents}
+                selectedIndex={thinkingSelectedIndex}
+                liveLabel={thinkingLiveLabel}
+                onCommit={onThinkingCommit}
+                enabled
+                latchOnTap
+                detentMarker="bar"
+                peakCaption={THINKING_PEAK_CAPTION}
+                dynamicBackdrop={isPending || enhanceMutation.stream.active}
+              >
+                <ThinkingDial
+                  label="Thinking depth"
+                  value={thinkingLevel}
+                  options={levelOptions}
+                  onChange={onThinkingChange}
+                  triggerClassName={RAIL_TRIGGER_CLASS}
+                  holdHint
+                />
+              </HoldSliderTrigger>
+            </div>
+            {/* The one-time "how do I drive this" line. It sits under the
+                Thinking rail because that is the dial that is always on
+                screen — the tuning dial inside the Target sheet is the same
+                mechanism, so learning it once covers both. */}
+            <DialCoachTip />
           </div>
         )}
 

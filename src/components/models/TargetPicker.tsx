@@ -3,17 +3,20 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
-import { HoldSliderHint } from "@/components/ui/HoldSlider";
-import { Segmented } from "@/components/ui/Segmented";
+import { HoldSliderHint, HoldSliderTrigger } from "@/components/ui/HoldSlider";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { targetLabel } from "@/components/models/target-label";
+import {
+  BUDGET_DETENTS,
+  BUDGET_PEAK_CAPTION,
+  TONE_INK_CLASS,
+} from "@/components/models/dial-detents";
 import {
   PICKER_TRIGGER_FALLBACK_CLASS,
   PickerChevron,
 } from "@/components/models/picker-trigger";
 import {
-  AUTO_PREFERENCES,
   AUTO_PREFERENCE_LABEL,
   DEVELOPER_LABEL,
   DEVELOPER_ORDER,
@@ -54,19 +57,13 @@ const GROUPS: { developer: Developer; models: TargetModel[] }[] = DEVELOPER_ORDE
   }),
 ).filter((g) => g.models.length > 0);
 
-/** Auto's preference segments — a Segmented (toggle buttons), NOT more radios:
- *  nesting a second radiogroup inside the sheet's would break the roving
- *  contract A11Y-002 pins, and aria-pressed is what these actually do. */
-const PREFERENCE_OPTIONS = AUTO_PREFERENCES.map((p) => ({
-  id: p,
-  label: AUTO_PREFERENCE_LABEL[p],
-}));
-
-/** Keys the sheet's roving-radio handler claims. The segments render INSIDE
- *  the radiogroup element, so without a stop these bubble up, get
+/** Keys the sheet's roving-radio handler claims. The tuning dial renders
+ *  INSIDE the radiogroup element, so without a stop these bubble up, get
  *  preventDefault'd, and yank focus onto a model radio mid-interaction
- *  (Codex review, PR #96). Segments are plain tab stops by design — arrows
- *  do nothing there, and that nothing must stay local. */
+ *  (Codex review, PR #96 — written for the Segmented this replaced, and
+ *  MORE load-bearing now: the dial is a `role="slider"` whose whole keyboard
+ *  contract is arrows, so a leak would have the two controls fighting over
+ *  every one of them). */
 const ROVING_NAV_KEYS = new Set([
   "ArrowUp",
   "ArrowDown",
@@ -74,6 +71,8 @@ const ROVING_NAV_KEYS = new Set([
   "ArrowRight",
   "Home",
   "End",
+  "PageUp",
+  "PageDown",
 ]);
 
 // Memoized: nested in the composer, which re-renders per keystroke and per SSE
@@ -93,6 +92,7 @@ function TargetPickerImpl({
   onAutoChange,
   autoPreference,
   onAutoPreferenceChange,
+  streaming,
 }: {
   value: TargetModelId;
   onChange: (next: TargetModelId) => void;
@@ -118,6 +118,19 @@ function TargetPickerImpl({
    */
   autoPreference?: AutoPreference;
   onAutoPreferenceChange?: (next: AutoPreference) => void;
+  /**
+   * True while a run is in flight, for the tuning dial's capsule inside the
+   * sheet (Codex review, PR #109). It rode on the composer's own wrapper
+   * until the dial moved in here, and was simply dropped in the move — so
+   * the capsule's full-viewport `backdrop-filter` re-filtered on every
+   * streamed repaint, the exact trap `dynamicBackdrop` exists to avoid
+   * (ADR-0012, eighth pass). The rails stay live mid-run by design, so this
+   * state is reachable: the sheet opens over a streaming composer.
+   *
+   * A boolean that flips at stream start and end, never per flush, so the
+   * memo on this component still holds across SSE frames (PERF-006).
+   */
+  streaming?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -173,15 +186,16 @@ function TargetPickerImpl({
           })
         }
         autoPreference={autoPreference}
+        streaming={streaming}
         onPickPreference={
           onAutoChange &&
           onAutoPreferenceChange &&
           ((next: AutoPreference) => {
-            // Choosing HOW Auto should route is choosing Auto: the segment
-            // both stores the preference and turns routing on, one tap.
+            // Choosing HOW Auto should route is choosing Auto: the dial both
+            // stores the preference and turns routing on, one interaction.
+            // The sheet stays OPEN — see AutoTuningDial's header.
             onAutoPreferenceChange(next);
             onAutoChange(true);
-            setOpen(false);
           })
         }
         onPick={(next) => {
@@ -206,6 +220,7 @@ function TargetPickerSheet({
   onPickAuto,
   autoPreference,
   onPickPreference,
+  streaming,
 }: {
   open: boolean;
   onClose: () => void;
@@ -216,6 +231,7 @@ function TargetPickerSheet({
   onPickAuto?: () => void;
   autoPreference?: AutoPreference;
   onPickPreference?: (next: AutoPreference) => void;
+  streaming?: boolean;
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null);
   // Open on the current pick rather than the top of a sixteen-row list.
@@ -229,6 +245,9 @@ function TargetPickerSheet({
     ],
     [onPickAuto],
   );
+  // The CHECKED index, live — not a starting point. Turning Auto on from the
+  // tuning dial re-checks this group's first radio without moving focus, and
+  // the sheet no longer closes behind it, so the tab stop has to follow.
   const roving = useRovingRadios(flatIds.length, auto ? 0 : flatIds.indexOf(value));
 
   return (
@@ -279,9 +298,15 @@ function TargetPickerSheet({
               </button>
             </div>
             {onPickPreference && autoPreference && (
-              // The active segment IS the answer to "routing how?" — no prose
-              // restatement needed. Tapping any segment (the current one
-              // included) turns Auto on, so the row doubles as a shortcut.
+              // Auto's tuning dial, directly under the card it tunes (owner
+              // direction, 2026-08-11: the same slider mechanism as Thinking,
+              // "underneath the auto selection for model auto tuning",
+              // popping out over its own label button, inside the pane that
+              // slides out from the right). It replaced a three-up Segmented
+              // — same three values, but a preference from Budget to Quality
+              // is a RAMP, and the capsule's growing fill says that where
+              // three equal cells said only "pick one".
+              //
               // The wrapper keeps roving-nav keys out of the enclosing model
               // radiogroup — see ROVING_NAV_KEYS.
               <div
@@ -289,12 +314,10 @@ function TargetPickerSheet({
                   if (ROVING_NAV_KEYS.has(e.key)) e.stopPropagation();
                 }}
               >
-                <Segmented
-                  fill
-                  label="Auto routing preference"
-                  options={PREFERENCE_OPTIONS}
+                <AutoTuningDial
                   value={autoPreference}
                   onChange={onPickPreference}
+                  streaming={streaming ?? false}
                 />
               </div>
             )}
@@ -337,6 +360,133 @@ function TargetPickerSheet({
         ))}
       </div>
     </Sheet>
+  );
+}
+
+/**
+ * Auto's routing dial — Budget → Balanced → Quality, as a hold-slider.
+ *
+ * Same control class as the Thinking rail's (ThinkingDial's header carries
+ * the full rationale for the shape): a `role="slider"` button that states its
+ * value in that value's ink, expands into the capsule over its own footprint
+ * on tap, scrubs under a hold, and steps on the arrow keys. Three stops is a
+ * short ladder, which is exactly why the capsule is `fixed` in the owner's
+ * sense — it always opens the same size in the same place, over the label.
+ *
+ * Committing a preference also turns Auto ON, so the dial doubles as the
+ * shortcut the Segmented was. What it deliberately does NOT do any more is
+ * close the sheet: a segment tap was a discrete choice that ended the
+ * interaction, but a dial is something you adjust and look at, and closing
+ * the pane out from under a drag threw away the result the user had just
+ * dialled in.
+ */
+function AutoTuningDial({
+  value,
+  onChange,
+  streaming,
+}: {
+  value: AutoPreference;
+  onChange: (next: AutoPreference) => void;
+  /** Stands the capsule's focus blur down to dim-only while the composer
+   *  behind the sheet is repainting — see TargetPicker's `streaming`. */
+  streaming: boolean;
+}) {
+  const index = BUDGET_DETENTS.findIndex((d) => d.id === value);
+  // A stored value outside the ladder can only come from a future/edited
+  // persisted state; treat it as the middle stop rather than rendering a
+  // slider with no position.
+  const selectedIndex = index < 0 ? 1 : index;
+  const detent = BUDGET_DETENTS[selectedIndex]!;
+  const max = BUDGET_DETENTS.length - 1;
+
+  /**
+   * A COMMIT always notifies, even when it lands on the stop already stored
+   * (Codex review, PR #109).
+   *
+   * `onChange` here is not a plain setter — it is the parent's
+   * `onPickPreference`, which stores the preference AND turns Auto on. So a
+   * "nothing changed, skip it" guard was not the harmless de-duplication it
+   * looked like: it silently dropped the second half. The case it broke is
+   * the DEFAULT one — Auto off, preference already Balanced, user opens the
+   * dial and commits Balanced — where the documented shortcut ("adjusting
+   * the dial is choosing Auto", the behaviour the Segmented had) simply did
+   * not fire. Deliberately choosing a stop is an act whether or not it moves
+   * the value.
+   *
+   * Re-storing the same preference is genuinely free: the store writes an
+   * identical value, so every value-selecting subscriber sees no change.
+   */
+  const commitIndex = (next: number) => {
+    const landed = BUDGET_DETENTS[Math.max(0, Math.min(max, next))];
+    if (landed) onChange(landed.id as AutoPreference);
+  };
+
+  /** A keyboard step is the one interaction that can fail to be a choice: an
+   *  arrow at the end of the ladder moves nothing, and a key that did nothing
+   *  visible must not flip a mode. Movement first, then commit. */
+  const stepTo = (next: number) => {
+    const clamped = Math.max(0, Math.min(max, next));
+    if (clamped === selectedIndex) return;
+    commitIndex(clamped);
+  };
+
+  return (
+    <HoldSliderTrigger
+      detents={BUDGET_DETENTS}
+      selectedIndex={selectedIndex}
+      liveLabel={(d) => `Auto · ${d.label}`}
+      onCommit={commitIndex}
+      enabled
+      latchOnTap
+      peakCaption={BUDGET_PEAK_CAPTION}
+      dynamicBackdrop={streaming}
+      // Block-level here: this dial spans the sheet's column under the card
+      // it tunes, unlike the composer rail's content-width pills — which is
+      // exactly why it also declares `scrollableHost`: a full-width band
+      // across an overflowing sixteen-row list would otherwise swallow the
+      // pan that scrolls it.
+      className="flex w-full"
+      scrollableHost
+    >
+      <button
+        type="button"
+        role="slider"
+        aria-label="Auto routing preference"
+        aria-orientation="horizontal"
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-valuenow={selectedIndex}
+        aria-valuetext={detent.label}
+        onKeyDown={(e) => {
+          let next: number | null = null;
+          if (e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "PageUp") {
+            next = selectedIndex + 1;
+          } else if (
+            e.key === "ArrowLeft" ||
+            e.key === "ArrowDown" ||
+            e.key === "PageDown"
+          ) {
+            next = selectedIndex - 1;
+          } else if (e.key === "Home") {
+            next = 0;
+          } else if (e.key === "End") {
+            next = max;
+          }
+          if (next === null) return;
+          e.preventDefault();
+          stepTo(next);
+        }}
+        className="font-body flex min-h-[44px] w-full items-center gap-2 rounded-xl bg-surface px-4 py-1.5 text-sm text-text"
+      >
+        <span className="text-[0.625rem] uppercase tracking-[0.18em] text-silver">
+          Routing
+        </span>
+        <span className={`grow text-right ${TONE_INK_CLASS[detent.tone]}`}>
+          {detent.label}
+        </span>
+        <HoldSliderHint />
+      </button>
+    </HoldSliderTrigger>
   );
 }
 

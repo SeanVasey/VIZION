@@ -6,6 +6,76 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Dials, not dropdowns: the slider IS the control now
+
+The composer's Thinking pill wore a disclosure chevron and opened a five-row
+radio sheet. That is a ladder wearing a menu's clothes, and the chevron was a
+promise the control could not keep — so both are gone
+([ADR-0014](./docs/decisions/0014-dials.md), superseding
+[0012](./docs/decisions/0012-hold-slider.md)'s interaction model; the gesture
+machinery it hardened over twenty-two review passes is retained unchanged).
+
+**The pill is the slider.** `role="slider"` with the WAI-ARIA arrow-key
+ladder on the control itself, the level shown in that level's own ink, and
+the grip where the chevron was. Three ways to a value, and each is a separate
+promise: arrows step it with nothing open (which is what let the sheet go
+without losing WCAG 2.1.1), a **tap latches** the capsule so a second tap
+picks any stop with no dragging at all (WCAG 2.5.7), and a hold or sideways
+slide still scrubs it in one motion. Target keeps its chevron and its sheet,
+because it genuinely opens a list of sixteen models. That is the rule now: a
+control looks like a dropdown only if it is one.
+
+**The capsule opens on its trigger.** Centred on the button, both axes, then
+clamped into the viewport's margins — so it reads as that button expanding in
+place instead of appearing mid-screen. The property [0012]'s amendment 4 was
+actually defending is untouched and is the reason this works: placement must
+not depend on where the press landed. A button is a fixed point; a fingertip
+is not.
+
+**Auto's budget dial moved into the room it belongs to** — inside the Target
+sheet, directly under the Auto card it tunes, replacing the three-cell
+Segmented. Three equal cells said "pick one"; a dial's growing fill says what
+is true, which is that Budget → Quality is a ramp. That required rescoping
+the activation guard, which used to stand every gesture down over any open
+dialog: "a sheet is open" and "a sheet is in front of me" stopped being the
+same statement, so it now stands down only over a dialog that does **not
+contain** the trigger. Committing a preference still turns Auto on, but no
+longer closes the sheet — a dial is adjusted and looked at, and closing the
+pane out from under a drag threw away the result just dialled in.
+
+**The capsule got the reference recording's presentation**, in this app's own
+tokens: one gradient ramp laid across the track and revealed by the fill (so
+painted pixels never move or re-hue, while a level's colour still comes from
+its identity rather than its ladder position), a drifting starfield inside
+the fill, and — at the top stop only — a violet surge, a dotted ring bursting
+off the thumb, and a caption naming the cost, which is the one thing the
+words "Max" and "Quality" do not say. The caption's shimmer is
+contrast-safe **by construction**: it animates between `--ultra-ink` and a
+new `--ultra-ink-hi` that moves *away* from the surface in each theme —
+lighter on dark, darker on light. A highlight that merely brightened would
+have raised contrast on dark and dropped it below AA on light, which is the
+laser-on-light failure class one hue over. Both ends clear AA on all three
+surfaces in both themes, so every frame of the sweep does; `a11y.test.ts`
+pins the values and the direction rule itself. Every effect stands down under
+`prefers-reduced-motion` and the reduced-effects knob, with burst and
+starfield removed outright rather than frozen.
+
+A one-line how-to sits under the Thinking rail and **retires itself** the
+first time either dial commits a value — the redesign trades a legible lie (a
+chevron over no dropdown) for an invisible truth (a grip over a slider), and
+a hint proven unnecessary should not survive to be read twice.
+
+**What is verified and what is not** (guardrail §3): the gesture, both
+phases, the geometry, the shield, and the effects' presence/absence are
+pinned across `hold-slider` · `thinking-rail` · `budget-slider` ·
+`target-picker` · `a11y`, and driven through real hit-testing, real pointer
+capture and real synthesized touch in the e2e suite — Chromium **and**
+WebKitGTK. None of that is evidence about iOS. The latched phase's touch
+semantics in particular are new and unverified there: a tap that opens a
+capsule the finger has already left, and whether iOS's callout timer races
+it, are on the manual list in
+[the iOS runbook](./docs/runbooks/ios-verification.md).
+
 ### A dark Home Screen tile, so the mark stops disappearing in dark mode
 
 Installed to the Home Screen, VIZION's icon went **invisible in dark

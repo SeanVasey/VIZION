@@ -3507,3 +3507,85 @@ test:e2e` hard-fails in global-setup until
   change — a square `og:image` with the landscape card demoted to
   `twitter:image` — and surfaced a trade-off (every other platform's
   preview) that was the owner's call to make, not one to infer.
+
+## 2026-08-11 — the dials (ADR-0014)
+
+- **A control that opens a slider must not wear a chevron, and the fix is
+  not cosmetic.** The Thinking pill's disclosure chevron was honest about
+  the implementation (it opened a sheet) and dishonest about the thing (a
+  five-step ladder is a slider). Removing the chevron without removing the
+  sheet would have made it *less* honest, not more. The real move was to
+  notice that the sheet was carrying two loads — the keyboard path and
+  WCAG 2.5.7's no-dragging path — and that `role="slider"` plus a latched
+  tap-then-tap carries both with strictly less machinery. **When an
+  affordance looks wrong, check whether the affordance is lying or the
+  structure is.** Deleting a whole sheet was cheaper than restyling a
+  trigger, because the sheet was the thing that was wrong.
+
+- **A superseding ADR has to name what it is NOT superseding.** ADR-0012
+  accumulated twenty-two review passes of pointer, keyboard, concealment
+  and modality edge cases — a stranded-pointer-id ledger, a capture-lifetime
+  rule, a backdrop-animation inventory. All of that survived 0014 intact;
+  only the interaction model changed. Writing "superseded" without that
+  boundary would have invited the next reader to re-litigate hard-won
+  invariants as legacy. The header now says which three rulings are dead
+  (fixed home, budget location + gating, the dialog guard's scope) and that
+  everything else is still the reference.
+
+- **A guard written when one thing was impossible needs re-reading when it
+  becomes possible.** `activate()` stood every gesture down over any open
+  `role="dialog"`, and that was correct for as long as no slider could live
+  inside a sheet. Moving the budget dial into the Target sheet turned "a
+  sheet is open" and "a sheet is in front of me" into different statements,
+  and the guard was still testing the first one. The fix was one `.contains()`
+  — but nothing failed loudly; the dial simply never opened. **When you
+  relocate a component, grep for guards that assumed its old address.**
+
+- **Two contradictory-looking requirements usually mean the construction is
+  wrong, not that one requirement has to give.** The fill had to (a) not
+  move or re-hue already-painted pixels as the value grows — the reference
+  behaviour — and (b) keep a level's colour tied to its identity, not to
+  its ladder position, so "High" matches on a three-step and a five-step
+  ladder. A gradient anchored to the fill box satisfies (b) and breaks (a);
+  a fixed ramp the detents sample satisfies (a) and breaks (b). Building
+  the ramp FROM the detents — each tone pinned at its own detent's centre,
+  laid across the track, revealed by the fill — satisfies both, and is
+  simpler than either compromise. The first two cuts were both attempts to
+  pick a winner.
+
+- **A "shimmer" is a contrast decision.** The reference lights its warning
+  text with a bright sweep. Copying that literally raises contrast on dark
+  and lowers it on light — the exact laser-on-light failure class, one hue
+  over, and it would have passed every static token check because no token
+  changed. Building the sweep from two inks that both clear AA, with the
+  highlight moving AWAY from the surface per theme, makes every frame safe
+  *by construction* rather than by measurement. The test pins the direction
+  rule, not just the two values: a future retune that brightens
+  `--ultra-ink-hi` on light now fails.
+
+- **State that outlives its pointer needs its own teardown net.** The drag
+  phase could always be cleaned up by finding the press record. The latched
+  capsule has no press record — it is pure open state holding the app-wide
+  exclusive claim — so the concealment watch (window blur / tab hide) had
+  to learn to key off the OPEN STATE instead, or a backgrounded tab would
+  sit with a frozen world behind an invisible capsule. Same leak class
+  0012's modality audit chased through every other channel; a new phase
+  reopens every one of those channels.
+
+- **Removing a wrapper removes its guards, silently.** Unwrapping the
+  Target pill deleted the `onClickCapture` consumption that a unit test was
+  using as its proof that no sheet can open under a live capsule. The test
+  failed, which was lucky — the actual protection (a viewport-covering
+  pointer-interactive shield, plus the window key-swallow) was intact all
+  along, and the consumption had been belt-and-braces. The right response
+  to a guard test failing after a refactor is to work out which mechanism
+  it was really testing, not to restore the mechanism it happened to name.
+
+- **Playwright's browsers are pinned per project, and the preinstalled ones
+  may not match.** The environment ships `chromium-1194`; this repo's
+  `@playwright/test` wants `chromium-1223` + `webkit-2287`, and
+  `install-deps` was needed on top for WebKitGTK's GTK4/gstreamer chain.
+  The download is flaky enough to need retries. Worth knowing before
+  concluding that a suite "can't run here" — the e2e gate is not optional,
+  and 45 of 100 tests failing on missing `libgtk-4.so.1` looks exactly like
+  a code regression in the summary line.

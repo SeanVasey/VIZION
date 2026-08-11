@@ -7,17 +7,28 @@ import { tap } from "@/lib/haptics";
  * Press-and-hold → drag-between-detents, in one continuous gesture
  * (docs/decisions/0012-hold-slider.md).
  *
- * This is the accelerator half of a two-path control: a plain TAP falls
- * through to the wrapped trigger's own click (the sheet — the complete,
- * discoverable path), while holding past HOLD_MS — or sliding sideways past
- * slop in the same unbroken press, which is how the reference control is
- * actually used — expands an overlay track and the same pointer drags
- * between detents; release commits. The overlay is pointer-transparent
- * decoration — this hook owns the whole gesture from the wrapper element,
- * and owns ONLY gestures that begin in the wrapper's own DOM subtree: the
- * pickers' Sheets are body portals whose events still bubble up the React
- * tree, and they are refused at pointer-down, so an open sheet is inert
- * to the slider.
+ * The control has two ways in, and `latchOnTap` decides how many of them
+ * this instance offers:
+ *
+ *  - DRAG phase (always): holding past HOLD_MS — or sliding sideways past
+ *    slop in the same unbroken press, which is how the reference control is
+ *    actually used — expands an overlay track and the same pointer drags
+ *    between detents; release commits.
+ *  - LATCHED phase (`latchOnTap`): a plain tap opens the same capsule and
+ *    LEAVES it up. The overlay becomes interactive for that phase: a tap on
+ *    the track picks the stop under the finger, a drag on it scrubs, and a
+ *    tap anywhere else dismisses without committing. Added 2026-08-11 when
+ *    the depth sheet was retired — with no sheet behind it, a tap had
+ *    nothing to fall through to, and WCAG 2.5.7 needs a no-dragging route
+ *    to every value. Instances that still sit in front of a real dropdown
+ *    (none today; the shape is kept for a future one) pass `latchOnTap:
+ *    false` and a tap falls through to the wrapped trigger's own click.
+ *
+ * This hook owns the whole gesture from the wrapper element, and owns ONLY
+ * gestures that begin in the wrapper's own DOM subtree: a Sheet is a body
+ * portal whose events still bubble up the React tree, and those are refused
+ * at pointer-down. A slider that LIVES inside a sheet (the budget dial) is
+ * not that case and is admitted — see the activation guard.
  *
  * The gesture is claimed in two phases, extending the axis-claim rule
  * (tasks/lessons.md, 2026-07): at rest the wrapper claims every
@@ -31,9 +42,16 @@ import { tap } from "@/lib/haptics";
  * "the slider never appears" (2026-08-09, ADR-0012 amendment). Once the
  * hold fires the pointer is captured AND a non-passive window `touchmove`
  * preventDefault stops a late vertical pan from stealing the pointer
- * mid-drag. The two composer pills are not a scroll surface — unlike the
- * library's swipe rows, which rightly keep `pan-y` because a full-width
- * list row IS one.
+ * mid-drag.
+ *
+ * That default is right for a content-width pill in a rail, where the cost
+ * is a thumb-sized dead spot. It is wrong for a control that spans a
+ * scrolling pane — the shape the library's swipe rows have always had, and
+ * which they answer by keeping `pan-y`. The budget dial became that shape
+ * when it moved into the Target sheet (ADR-0014) and grew full-width across
+ * a sixteen-row `overflow-y-auto` list, so `scrollableHost` now carries the
+ * same exemption. Only the vertical axis is handed back; horizontal stays
+ * the gesture's.
  */
 
 /** Hold time before the slider engages. Above usePressable's 130ms press
@@ -77,79 +95,95 @@ export interface TrackGeometry {
 /**
  * Where the overlay track lands, PURE and exported: jsdom has no layout, so
  * geometry must derive from these constants and the few numbers passed in,
- * never from measuring rendered dots. The track has a FIXED HOME — centered
- * in the viewport the user is LOOKING AT, on the gesturing rail's row —
- * the same spot for every press (ADR-0012 amendment 4, from the owner's
- * reference recording: a capsule that lands wherever the finger happened to
- * be reads as floaty, and the first cut's anchor-under-finger placement did
- * exactly that). The finger still maps RELATIVELY through dragOffset, so
- * the press point never jumps the selection; only the capsule's home is
- * fixed.
+ * never from measuring rendered dots.
+ *
+ * The track's home is the TRIGGER — the capsule opens centered on the button
+ * that owns it, both axes, so it reads as that button expanding in place
+ * (owner direction, 2026-08-11: "always sprouts out from the same fixed
+ * button point", and the budget dial "pops out directly over where the label
+ * showing button for the slider was"). That supersedes ADR-0012 amendment
+ * 4's viewport-centered home, which was itself a correction of a first cut
+ * that anchored under the FINGER. The distinction the amendment was
+ * defending survives intact and is the whole point: placement must not
+ * depend on where the press landed, only on where the control lives. A
+ * button is a fixed point; a fingertip is not. The finger still maps
+ * RELATIVELY through dragOffset, so the press point never jumps the
+ * selection.
  *
  * `viewport` is the VISUAL viewport in layout-viewport coordinates —
  * {left: 0, width: innerWidth} unzoomed, `visualViewport`'s offset/width
  * under pinch zoom. This control deliberately preserves native pinch zoom
- * (the resting `pinch-zoom` claim), and a fixed-position capsule centered
- * on the LAYOUT viewport can open entirely outside a zoomed-in user's view
- * (Codex review, PR #103). Unzoomed, the shell is a centered
- * max-w-screen-sm column, so the visual center IS the composer's.
+ * (the resting `pinch-zoom` claim), and a fixed-position capsule can open
+ * entirely outside a zoomed-in user's view (Codex review, PR #103) — so the
+ * anchor-centered home is CLAMPED into the visible region, never placed
+ * outside it. On a phone the composer rail's pill sits within a hair of the
+ * region's own center, so the clamp is usually a no-op and the two homes
+ * agree; the clamp is what makes the rule safe for a trigger near an edge
+ * (the budget dial, inset in the side sheet).
  *
- * The home is the visible region's CENTER in every mode — placement never
- * depends on the selection, so the same rail always expands in the same
- * spot. What adapts is the spacing (Codex review, third and fourth
- * passes: a placement frozen around the selected detent kept the SPAWN
- * visible but let the drag walk the thumb out of the region, and any
- * placement that hides a center makes that value unreachable, because the
- * pointer cannot travel past the region's edge):
+ * What adapts under pressure is the spacing (Codex review, third and fourth
+ * passes: any placement that hides a center makes that value unreachable,
+ * because the pointer cannot travel past the region's edge):
  *
  * - FULL: the 44px ladder plus capsule chrome fits inside the margins —
  *   spacing stays DETENT_SPACING_PX.
  * - COMPRESSED: spacing shrinks toward MIN_DETENT_SPACING_PX so capsule,
- *   pads, and margins all still fit.
+ *   pads, and margins all still fit. Both modes clamp the anchored home
+ *   into the margins, which is possible precisely BECAUSE the chrome fits
+ *   (proof: chromeSpacing >= spacing gives width <= region - 2*margin, so
+ *   the clamp's own range is non-empty).
  * - SPAN-ONLY: below that, the geometry stops reserving the capsule's
  *   chrome — the rounded ends and margins may overflow the region (the
- *   overlay is pointer-transparent decoration) while the detent CENTERS
- *   compress into the region minus CENTER_INSET_PX. Every stop stays
- *   visible; zoom multiplies physical travel, so the tighter detents
+ *   overlay is decoration) while the detent CENTERS compress into the
+ *   region minus CENTER_INSET_PX. There is no room left to honor an
+ *   anchor, so this mode keeps the region-centered span: every stop stays
+ *   visible, and zoom multiplies physical travel, so the tighter detents
  *   cost no precision.
  *
  * Single-GESTURE reach is bounded by where the press began — a finger
  * cannot travel past the screen's edge, at any zoom, under any geometry
- * (the original anchor-under-finger placement had the same physics for
- * the top tiers on an unzoomed phone, and so does the reference
- * control). That bound is answered by COMPOSITION, not by gain: release
- * re-anchors, so the next hold starts from the new selection with fresh
- * travel room — any value is at most two centered gestures away — and
- * the sheet remains the complete single-tap path (WCAG 2.5.7). Drag gain
- * is deliberately constant and side-symmetric: the finger owns the
+ * (the reference control has the same physics). That bound is answered by
+ * COMPOSITION, not by gain: release re-anchors, so the next hold starts
+ * from the new selection with fresh travel room, and the LATCHED phase (a
+ * plain tap) reaches any stop with a single tap on the track — which is
+ * also what satisfies WCAG 2.5.7 now that the depth sheet is retired. Drag
+ * gain is deliberately constant and side-symmetric: the finger owns the
  * thumb 1:1, in both directions, always.
  */
 export function computeTrackGeometry(
-  anchorRect: { top: number; height: number },
+  anchorRect: { left: number; top: number; width: number; height: number },
   detentCount: number,
   viewport: { left: number; width: number },
 ): TrackGeometry {
   const steps = Math.max(detentCount - 1, 1);
   const chromeSpacing = (viewport.width - EDGE_MARGIN_PX * 2 - TRACK_PAD_PX * 2) / steps;
-  const spacing =
-    chromeSpacing >= MIN_DETENT_SPACING_PX
-      ? Math.min(DETENT_SPACING_PX, chromeSpacing)
-      : Math.max(
-          1,
-          Math.min(DETENT_SPACING_PX, (viewport.width - CENTER_INSET_PX * 2) / steps),
-        );
-  const width = steps * spacing + TRACK_PAD_PX * 2;
-  // Both modes center the SPAN on the region's center; centering the span
-  // and centering the capsule are the same thing (symmetric pads).
-  const first = viewport.left + (viewport.width - steps * spacing) / 2;
-  const left = first - TRACK_PAD_PX;
+  const chromeFits = chromeSpacing >= MIN_DETENT_SPACING_PX;
+  const spacing = chromeFits
+    ? Math.min(DETENT_SPACING_PX, chromeSpacing)
+    : Math.max(
+        1,
+        Math.min(DETENT_SPACING_PX, (viewport.width - CENTER_INSET_PX * 2) / steps),
+      );
+  const span = steps * spacing;
+  const width = span + TRACK_PAD_PX * 2;
+  // Centering the capsule on the anchor and centering its SPAN on the anchor
+  // are the same thing (symmetric pads).
+  const anchorCenter = anchorRect.left + anchorRect.width / 2;
+  const minLeft = viewport.left + EDGE_MARGIN_PX;
+  const maxLeft = viewport.left + viewport.width - EDGE_MARGIN_PX - width;
+  const left = chromeFits
+    ? Math.min(Math.max(anchorCenter - width / 2, minLeft), maxLeft)
+    : viewport.left + (viewport.width - width) / 2;
   const top = anchorRect.top + anchorRect.height / 2 - TRACK_HEIGHT_PX / 2;
   return {
     left,
     top,
     width,
     height: TRACK_HEIGHT_PX,
-    detentCenters: Array.from({ length: detentCount }, (_, i) => first + i * spacing),
+    detentCenters: Array.from(
+      { length: detentCount },
+      (_, i) => left + TRACK_PAD_PX + i * spacing,
+    ),
   };
 }
 
@@ -170,6 +204,27 @@ interface Press {
   y: number;
   el: HTMLElement;
 }
+
+/**
+ * The latched capsule's keyboard vocabulary — the WAI-ARIA slider ladder,
+ * which is what the trigger now declares (`role="slider"`) and therefore
+ * what it owes. Both axes move the value: the control is horizontal, but
+ * Up/Down are the pattern's, and on a ladder whose semantics are "more" and
+ * "less" they read the same way the bars do. RTL is deliberately NOT mapped
+ * — the ladder's low end is its visual left in every locale because the
+ * whole track is a meter that FILLS from that end, and the app ships no RTL
+ * surface today; the day it does, this map is the one place that changes.
+ */
+const LADDER_KEY_STEP: Record<string, 1 | -1 | "home" | "end" | undefined> = {
+  ArrowRight: 1,
+  ArrowUp: 1,
+  ArrowLeft: -1,
+  ArrowDown: -1,
+  Home: "home",
+  End: "end",
+  PageUp: 1,
+  PageDown: -1,
+};
 
 /**
  * ONE live press/gesture across every hold-slider (module scope). The two
@@ -197,25 +252,56 @@ interface Press {
  */
 let gestureOwner: object | null = null;
 
+/** Which way the capsule was opened — see the header. */
+export type HoldPhase = "drag" | "latched";
+
+export interface HoldActive {
+  phase: HoldPhase;
+  dragIndex: number;
+  geometry: TrackGeometry;
+}
+
 export function useHoldDrag({
   detentCount,
   selectedIndex,
   enabled,
+  latchOnTap = false,
+  scrollableHost = false,
   onCommit,
 }: {
   detentCount: number;
   /** The committed detent at gesture start — the drag maps relative to it
-   *  (dragOffset), wherever in the fixed-home track it sits. */
+   *  (dragOffset), wherever in the anchored track it sits. */
   selectedIndex: number;
   /** False = fully inert: no timer, no axis claim, taps untouched. */
   enabled: boolean;
+  /** True = a plain tap opens the capsule LATCHED instead of falling through
+   *  to the wrapped trigger's click. See the header. */
+  latchOnTap?: boolean;
+  /**
+   * True when the wrapper sits ON a scrollable surface it must not trap —
+   * a full-width control inside an `overflow-y-auto` pane.
+   *
+   * The default claim denies every single-finger pan, and `touch-action` is
+   * consulted ONCE at gesture start, so the y-dominant stand-down below
+   * cannot hand a pan back after the fact: it stops the SLIDER engaging, but
+   * the scroll is already lost. On a content-width pill in a rail that costs
+   * a thumb-sized dead spot and is the accepted trade (ADR-0012). Across a
+   * full-width band in a sixteen-row list it is a scroll trap (Codex review,
+   * PR #109) — the same shape as the library's swipe rows, which have always
+   * kept `pan-y` for this reason.
+   *
+   * The cost is real and bounded: with the vertical axis native, a pre-hold
+   * vertical drift lets the UA `pointercancel` the press, so a HOLD needs a
+   * steadier finger here. Tap-to-latch (no movement) and horizontal
+   * press-and-slide are both unaffected, and on the surface that sets this
+   * the tap is the primary path.
+   */
+  scrollableHost?: boolean;
   /** Called once on release with the landed detent. Must be stable. */
   onCommit: (index: number) => void;
 }) {
-  const [active, setActive] = useState<{
-    dragIndex: number;
-    geometry: TrackGeometry;
-  } | null>(null);
+  const [active, setActive] = useState<HoldActive | null>(null);
 
   const press = useRef<Press | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -304,17 +390,32 @@ export function useHoldDrag({
     if (gestureOwner === ownerToken.current) gestureOwner = null;
   }, []);
 
-  const setActiveBoth = useCallback(
-    (next: { dragIndex: number; geometry: TrackGeometry } | null) => {
-      activeRef.current = next;
-      setActive(next);
-    },
-    [],
-  );
+  const setActiveBoth = useCallback((next: HoldActive | null) => {
+    activeRef.current = next;
+    setActive(next);
+  }, []);
 
-  /** Window-scoped, added only for the active phase of a gesture. */
+  /**
+   * Window-scoped, added only for the active phase of a gesture: under a live
+   * capsule the document must not glide beneath the frozen world.
+   *
+   * MULTI-TOUCH is exempt while LATCHED (Codex review, PR #109). In the drag
+   * phase this handler blocks everything, and rightly — the gesture's own
+   * finger is down, the block is what stops a late vertical pan stealing the
+   * pointer mid-drag, and it lasts exactly as long as the press. The latched
+   * phase inverted that lifetime: the capsule outlives the finger that opened
+   * it and can stay up indefinitely, so a blanket block quietly disabled
+   * PINCH-ZOOM for its whole life. This app preserves native zoom on purpose
+   * — the resting claim is `pinch-zoom` precisely so it survives, ADR-0012
+   * refused the app-wide `none` that once killed it, and computeTrackGeometry
+   * reads the visual viewport for no other reason. Two fingers are a zoom,
+   * not a scroll; one finger stays blocked.
+   */
   const onWindowTouchMove = useCallback((e: TouchEvent) => {
-    if (activeRef.current) e.preventDefault();
+    const current = activeRef.current;
+    if (!current) return;
+    if (current.phase === "latched" && e.touches.length > 1) return;
+    e.preventDefault();
   }, []);
 
   /** Wheel is the pointer channel's scroll the shield cannot stop by
@@ -327,18 +428,67 @@ export function useHoldDrag({
     if (activeRef.current) e.preventDefault();
   }, []);
 
-  /** Escape and teardown reference each other; the ref breaks the cycle
-   *  while keeping both listener identities stable for add/remove pairing. */
+  /** The window key handler and the things it drives reference each other;
+   *  refs break the cycles while keeping every listener identity stable for
+   *  add/remove pairing. */
   const teardownRef = useRef<() => void>(() => {});
+  const disarmWindowNetRef = useRef<() => void>(() => {});
+  const releaseGestureRef = useRef(releaseGesture);
+  releaseGestureRef.current = releaseGesture;
+  const setActiveBothRef = useRef(setActiveBoth);
+  setActiveBothRef.current = setActiveBoth;
+  const commitLatchedRef = useRef<() => void>(() => {});
 
   const onWindowKey = useCallback((e: KeyboardEvent) => {
-    if (!activeRef.current) return;
+    const current = activeRef.current;
+    if (!current) return;
     if (e.type === "keydown" && e.key === "Escape") {
-      // Revert: the finger may stay down for seconds yet, so the trailing
-      // click is suppressed at the eventual pointer-up, not on a timer here.
-      cancelled.current = true;
+      // Revert. In the DRAG phase the finger may stay down for seconds yet,
+      // so the trailing click is suppressed at the eventual pointer-up, not
+      // on a timer here; the LATCHED phase has no pointer left to wait for,
+      // so it releases the claim outright.
+      if (current.phase === "latched") {
+        releaseGestureRef.current();
+      } else {
+        cancelled.current = true;
+      }
       teardownRef.current();
+      // Stopped, not merely defaulted: a latched capsule can be open INSIDE
+      // a Sheet (the budget dial), whose panel closes on a bubbled Escape.
+      // One Escape must dismiss one surface — the capsule, which is the one
+      // in front.
+      e.preventDefault();
+      e.stopPropagation();
       return;
+    }
+    // The latched phase is a live control, not a frozen picture: it owns the
+    // ladder keys outright so a keyboard user reaches every stop without the
+    // retired sheet, and Enter/Space commits what they landed on. Everything
+    // NOT in this vocabulary still dies below, exactly as in the drag phase.
+    if (current.phase === "latched" && e.type === "keydown") {
+      const step = LADDER_KEY_STEP[e.key];
+      if (step !== undefined) {
+        e.preventDefault();
+        e.stopPropagation();
+        const count = latest.current.detentCount;
+        const next =
+          step === "home"
+            ? 0
+            : step === "end"
+              ? count - 1
+              : Math.max(0, Math.min(count - 1, current.dragIndex + step));
+        if (next !== current.dragIndex) {
+          tap(5);
+          setActiveBothRef.current({ ...current, dragIndex: next });
+        }
+        return;
+      }
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        commitLatchedRef.current();
+        return;
+      }
     }
     // The focus pair shields POINTERS; keys are their own input channel
     // (fourteenth pass, then widened in the modality audit): a background
@@ -382,6 +532,14 @@ export function useHoldDrag({
     window.removeEventListener("wheel", onWindowWheel);
     window.removeEventListener("keydown", onWindowKey, true);
     window.removeEventListener("keyup", onWindowKey, true);
+    // The concealment net outlives a DRAG teardown on purpose — the Escape
+    // path leaves the finger down, and that press must still be caught if
+    // the window then goes away. With no press left there is nothing for it
+    // to watch, so it comes down here: that is what ends it for the latched
+    // phase (commit, dismiss, Escape) and for the uncaptured-exit net, which
+    // never disarmed it (harmless before, but it is the same listener the
+    // latched branch now reads).
+    if (!press.current) disarmWindowNetRef.current();
     document.documentElement.removeAttribute("data-hold-gesture");
     setActiveBoth(null);
   }, [onWindowTouchMove, onWindowWheel, onWindowKey, setActiveBoth]);
@@ -427,7 +585,21 @@ export function useHoldDrag({
       if (e.type === "visibilitychange" && document.visibilityState !== "hidden") {
         return;
       }
-      if (!press.current) return;
+      // A LATCHED capsule has no press left to abandon — it is pure open
+      // state, so concealment simply closes it (no commit, nothing to
+      // suppress: there is no stream that can still deliver a click).
+      // Registered for the latched phase too, because a capsule left up in a
+      // backgrounded tab is the same leak this net exists for, minus the
+      // pointer.
+      if (!press.current) {
+        if (activeRef.current?.phase === "latched") {
+          releaseGesture();
+          teardownRef.current();
+          window.removeEventListener("blur", onWindowConceal);
+          document.removeEventListener("visibilitychange", onWindowConceal);
+        }
+        return;
+      }
       const concealed = press.current;
       press.current = null;
       releaseGesture();
@@ -454,6 +626,14 @@ export function useHoldDrag({
     window.removeEventListener("blur", onWindowConceal);
     document.removeEventListener("visibilitychange", onWindowConceal);
   }, [onWindowPointerEnd, onWindowConceal]);
+  disarmWindowNetRef.current = disarmWindowNet;
+
+  /** The latched phase keeps only the CONCEALMENT half of the net — there is
+   *  no pointer left for the edge-exit half to catch. */
+  const armLatchedConcealWatch = useCallback(() => {
+    window.addEventListener("blur", onWindowConceal);
+    document.addEventListener("visibilitychange", onWindowConceal);
+  }, [onWindowConceal]);
 
   /** `currentX`: set when a pre-hold SLIDE engages the track — the finger
    *  has already travelled, so the first dragIndex maps its position now
@@ -461,9 +641,9 @@ export function useHoldDrag({
    *  expand, commit the unchanged selection, and read as a no-op). The
    *  timer path passes nothing: the finger is still on the anchor. */
   const activate = useCallback(
-    (currentX?: number) => {
+    (currentX?: number, phase: HoldPhase = "drag") => {
       const p = press.current;
-      if (!p) return;
+      if (!p) return false;
       // No capsule over an open sheet, enforced from the second direction
       // (thirteenth pass): the admission guard stops gestures BEGINNING over
       // a sheet, but during the pre-hold window the input shield is not yet
@@ -479,8 +659,16 @@ export function useHoldDrag({
       // as it closes still engages. (This reverses the ninth pass's
       // recorded "accepted residual" — the probe is a platform semantic,
       // not the DOM coupling that decline priced in.)
+      //
+      // Scoped to dialogs that do NOT contain this wrapper (2026-08-11): the
+      // budget dial now LIVES in the Target sheet, so "a sheet is open" and
+      // "a sheet is in front of me" stopped being the same statement. A
+      // dialog containing the trigger is the surface the slider belongs to,
+      // not one covering it, and the capsule (z-85) rides above the sheet
+      // (z-70) exactly as it rides above the composer. Every other dialog is
+      // still senior and still stands the gesture down.
       const dialogOpen = Array.from(document.querySelectorAll('[role="dialog"]')).some(
-        (d) => !d.closest('[aria-hidden="true"]'),
+        (d) => !d.closest('[aria-hidden="true"]') && !d.contains(p.el),
       );
       if (dialogOpen) {
         cancelled.current = true;
@@ -489,7 +677,7 @@ export function useHoldDrag({
         } catch {
           /* jsdom, or a pointer already ended */
         }
-        return;
+        return false;
       }
       const { detentCount: count, selectedIndex: selected } = latest.current;
       // The visual viewport, so a pinch-zoomed user gets the capsule inside
@@ -505,10 +693,14 @@ export function useHoldDrag({
       );
       // Touch/pen are implicitly captured to the pointer-down target already;
       // this is for a mouse outrunning the wrapper. try/catch for jsdom.
-      try {
-        p.el.setPointerCapture(p.pointerId);
-      } catch {
-        /* jsdom, or a pointer that ended during the hold */
+      // Skipped when latching: that pointer is already UP (the tap is what
+      // opened the capsule), so there is no stream left to route.
+      if (phase === "drag") {
+        try {
+          p.el.setPointerCapture(p.pointerId);
+        } catch {
+          /* jsdom, or a pointer that ended during the hold */
+        }
       }
       // The active-phase axis claim — see the header. Non-passive on purpose.
       window.addEventListener("touchmove", onWindowTouchMove, { passive: false });
@@ -527,15 +719,56 @@ export function useHoldDrag({
       dragOffset.current = p.x - geometry.detentCenters[selected]!;
       tap(8);
       setActiveBoth({
+        phase,
         dragIndex:
           currentX === undefined
             ? selected
             : detentIndexForX(currentX - dragOffset.current, geometry),
         geometry,
       });
+      return true;
     },
     [onWindowKey, onWindowTouchMove, onWindowWheel, setActiveBoth],
   );
+
+  // ---- the latched phase's own controls -----------------------------------
+  // The capsule outlives the pointer that opened it, so these three are the
+  // only ways it can end. Each releases the app-wide claim, which the latched
+  // phase holds for its whole life: while a capsule is up no other slider may
+  // engage, and the focus pair's input shield is the reason a stray press
+  // cannot reach the world behind it.
+
+  /** Scrub to the stop under an ABSOLUTE x — the finger is on the track
+   *  itself now, not offset from a pill it pressed, so there is no
+   *  dragOffset in this phase. */
+  const latchedScrubTo = useCallback(
+    (clientX: number) => {
+      const current = activeRef.current;
+      if (!current || current.phase !== "latched") return;
+      const next = detentIndexForX(clientX, current.geometry);
+      if (next === current.dragIndex) return;
+      tap(5);
+      setActiveBoth({ ...current, dragIndex: next });
+    },
+    [setActiveBoth],
+  );
+
+  const latchedCommit = useCallback(() => {
+    const current = activeRef.current;
+    if (!current || current.phase !== "latched") return;
+    releaseGesture();
+    latest.current.onCommit(current.dragIndex);
+    teardownRef.current();
+  }, [releaseGesture]);
+  commitLatchedRef.current = latchedCommit;
+
+  /** Dismiss with no commit — the outside tap, and the concealment revert. */
+  const latchedDismiss = useCallback(() => {
+    const current = activeRef.current;
+    if (!current || current.phase !== "latched") return;
+    releaseGesture();
+    teardownRef.current();
+  }, [releaseGesture]);
 
   // A gesture interrupted by unmount must not leave window listeners — or
   // the exclusive claim — behind.
@@ -672,22 +905,50 @@ export function useHoldDrag({
   function onPointerUp(e: React.PointerEvent) {
     const p = press.current;
     if (!p || e.pointerId !== p.pointerId) return;
+    const current = activeRef.current;
+    // The claim is released on every path EXCEPT a successful latch, which
+    // inherits it: the capsule is still up, and it is the thing the claim
+    // exists to make exclusive. Ordered before `press.current = null` only
+    // for readability — nothing here reads the record after this point
+    // except the latch, which takes the element first.
+    const el = p.el;
     press.current = null;
-    releaseGesture();
     disarmWindowNet();
     clearTimeout(timer.current);
-    const current = activeRef.current;
     if (current) {
+      releaseGesture();
       latest.current.onCommit(current.dragIndex);
       teardown();
       settle();
-    } else if (cancelled.current) {
+      return;
+    }
+    if (cancelled.current) {
       // Escape'd or moved-past-slop while down; the lift still fires a
       // click — swallow it.
+      releaseGesture();
       cancelled.current = false;
       settle();
+      return;
     }
-    // else: a plain tap — the click proceeds and opens the sheet.
+    if (latchOnTap) {
+      // A plain tap OPENS the capsule and leaves it up. The press record has
+      // to survive `activate`, which reads it for the anchor rect and the
+      // detent geometry — so it is restored for exactly that call and
+      // cleared again. The trailing click is swallowed either way: on the
+      // latch path so the tap cannot also fire whatever the trigger does on
+      // click, and on the refusal path (activate stood down over a foreign
+      // sheet) because a press this hook classified as not-a-tap must never
+      // fall through — the same rule the y-dominant stand-down applies.
+      press.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, el };
+      const opened = activate(undefined, "latched");
+      press.current = null;
+      if (opened) armLatchedConcealWatch();
+      else releaseGesture();
+      settle();
+      return;
+    }
+    releaseGesture();
+    // else: a plain tap — the click proceeds and reaches the wrapped trigger.
   }
 
   function onPointerCancel(e: React.PointerEvent) {
@@ -754,6 +1015,14 @@ export function useHoldDrag({
 
   return {
     active,
+    /** The latched capsule's controls — the overlay's own track and scrim
+     *  drive these once the opening pointer is gone. No-ops in every other
+     *  phase, so a stale handler can never commit. */
+    latched: {
+      scrubTo: latchedScrubTo,
+      commit: latchedCommit,
+      dismiss: latchedDismiss,
+    },
     props: {
       onPointerDown,
       onPointerMove,
@@ -761,12 +1030,18 @@ export function useHoldDrag({
       onPointerCancel,
       onClickCapture,
       onContextMenu,
-      // The resting claim (see the header for why it must deny every
-      // single-finger pan); omitted entirely when inert so a disabled
+      // The resting axis claim; omitted entirely when inert so a disabled
       // wrapper makes no claim at all (the swipe-actions rule).
+      //
+      // Default `pinch-zoom` denies every single-finger pan — see the header
+      // for why that is the pre-hold window's only defense. `scrollableHost`
+      // hands the VERTICAL axis back, which is the exact carve-out ADR-0012
+      // already made for the library's swipe rows ("a full-width list row IS
+      // a scroll surface"). Horizontal is still refused, so a sideways slide
+      // remains the gesture's; only the pan the host needs is given up.
       style: enabled
         ? ({
-            touchAction: "pinch-zoom",
+            touchAction: scrollableHost ? "pan-y pinch-zoom" : "pinch-zoom",
             WebkitTouchCallout: "none",
           } as React.CSSProperties)
         : undefined,

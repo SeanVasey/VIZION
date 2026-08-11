@@ -1,9 +1,25 @@
 # 12. The hold-slider: a press-and-hold drag accelerator over a tap trigger
 
 Date: 2026-08-09
-Status: accepted (extends [0004](./0004-audit-design-rulings.md)'s slider
-ruling, DSN-022); amended same day after the first on-device pass, and
-2026-08-10 six times — presses inside an open sheet, the owner's
+Status: **superseded in part** by [0014](./0014-dials.md) (2026-08-11) —
+read that first. This document remains the reference for the GESTURE:
+`use-hold-drag`'s two-phase claim, the pointer/keyboard/concealment edge
+cases accumulated over twenty-two review passes, the focus pair, the
+exclusive claim, and the backdrop inventory are all retained and still
+correct. What 0014 replaces is the INTERACTION MODEL this document's
+Decision section opens with — "tap is untouched; hold is extra… the sheet
+is the single complete path". There is no sheet behind either dial any
+more: the pill is the slider, a tap latches the capsule, and the ARIA
+slider role carries what the sheet used to. Three other rulings below are
+superseded by name: the viewport-centred FIXED HOME (§ amendment 4) is now
+anchored to the trigger, the budget slider's LOCATION and its Auto-on
+gating are replaced by a dial inside the Target sheet, and the activation
+guard's "no capsule over any open dialog" is rescoped to dialogs that do
+not contain the trigger.
+
+Originally: accepted (extends [0004](./0004-audit-design-rulings.md)'s
+slider ruling, DSN-022); amended same day after the first on-device pass,
+and 2026-08-10 six times — presses inside an open sheet, the owner's
 affordance pass, the reference-geometry pass (fixed home · thumb ·
 measured blur), the single-gesture claim, the backdrop inventory, and
 input modality under the gesture — see below

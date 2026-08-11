@@ -83,13 +83,16 @@ Qwen · Z.ai) all speak the OpenAI wire shape and share one streaming factory
 (`src/lib/providers/openai-compat.ts`). Model strings live in server config so
 swaps are a config change, not a refactor.
 
-### Thinking selector
+### Thinking dial
 
 Targets whose provider takes a per-request reasoning-depth option get a
-"Thinking" selector in the composer (`TARGET_THINKING_LEVELS` in
-`src/lib/constants.ts` — absent target = no knob = no selector). The chosen
-level rides the enhance request (validated server-side) into the provider
-adapter, which translates it onto that provider's parameter:
+"Thinking" dial in the composer (`TARGET_THINKING_LEVELS` in
+`src/lib/constants.ts` — absent target = no knob = no rail). It is a slider,
+not a menu: `role="slider"` on the pill, arrow keys stepping the ladder, and a
+capsule track that expands over the pill under a tap or a hold
+([ADR-0014](./decisions/0014-dials.md)). The chosen level rides the enhance
+request (validated server-side) into the provider adapter, which translates it
+onto that provider's parameter:
 
 | Provider                                | Parameter                                       | Levels offered                    |
 | --------------------------------------- | ----------------------------------------------- | --------------------------------- |

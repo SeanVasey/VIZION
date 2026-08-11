@@ -400,10 +400,10 @@ test.describe("new prompt + drafts", () => {
 });
 
 /**
- * The thinking rail's hold-slider (ADR-0012), driven with a real mouse —
- * which is exactly why the gesture includes mouse pointers at all. Only an
- * engine can answer whether the hold timer, pointer capture, and the
- * trailing-click suppression compose over a real event stream. This is
+ * The thinking dial's slider (ADR-0012, redesigned in ADR-0014), driven with
+ * a real mouse — which is exactly why the gesture includes mouse pointers at
+ * all. Only an engine can answer whether the hold timer, pointer capture, and
+ * the trailing-click suppression compose over a real event stream. This is
  * evidence about the RENDERING ENGINE only: the iOS half (callout
  * suppression, mid-drag pointercancel) is on the manual list in
  * docs/runbooks/ios-verification.md.
@@ -413,10 +413,10 @@ test.describe("thinking hold-slider", () => {
     await signIn(page);
   });
 
-  test("press-hold-drag commits a depth; a plain click still opens the sheet", async ({
+  test("press-hold-drag commits a depth; a plain click latches the capsule", async ({
     page,
   }) => {
-    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const pill = page.getByRole("slider", { name: "Thinking depth" });
     await expect(pill).toContainText("Auto");
     const box = (await pill.boundingBox())!;
     const cx = box.x + box.width / 2;
@@ -510,29 +510,62 @@ test.describe("thinking hold-slider", () => {
     await expect.poll(sheetInPlayState).toBe("running");
     await expect.poll(concealTransition).toBe("0.15s");
     await expect(pill).toContainText("High");
-    // The trailing click was swallowed — no sheet.
+    // The trailing click was swallowed — nothing opened.
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
 
-    // The tap path is untouched: a plain click opens the sheet as before.
+    // The tap path now LATCHES the same capsule (ADR-0014: the depth sheet
+    // is retired, so a tap has nothing to fall through to). It opens over
+    // the pill and stays up with no pointer down at all.
     await pill.click();
-    const sheet = page.getByRole("dialog", { name: "Thinking depth" });
-    await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole("radio", { name: "High", exact: true })).toHaveAttribute(
-      "aria-checked",
-      "true",
+    const latched = page.locator('[data-hold-slider-overlay][data-hold-slider-phase="latched"]');
+    await expect(latched).toBeVisible();
+    await page.waitForTimeout(400);
+    await expect(latched).toBeVisible();
+    // Anchored home, in a real engine against real layout: centred on the
+    // pill it came out of, then clamped into the viewport's margins. On this
+    // phone the clamp BINDS — Opus's six stops make a 264px capsule and the
+    // pill sits right of centre — which is exactly the case worth pinning
+    // here, because it is the one jsdom's layoutless rects cannot produce.
+    // Vertically there is nothing to clamp, so that centre is always exact.
+    const EDGE_MARGIN = 16; // use-hold-drag's EDGE_MARGIN_PX
+    const vw = page.viewportSize()!.width;
+    const pillBoxNow = (await pill.boundingBox())!;
+    const capsule = (await latched.boundingBox())!;
+    const wanted = pillBoxNow.x + pillBoxNow.width / 2 - capsule.width / 2;
+    const clamped = Math.min(
+      Math.max(wanted, EDGE_MARGIN),
+      vw - EDGE_MARGIN - capsule.width,
     );
+    expect(Math.abs(capsule.x - clamped)).toBeLessThan(2);
+    expect(capsule.x).toBeGreaterThanOrEqual(EDGE_MARGIN - 1);
+    expect(capsule.x + capsule.width).toBeLessThanOrEqual(vw - EDGE_MARGIN + 1);
+    expect(
+      Math.abs(
+        capsule.y + capsule.height / 2 - (pillBoxNow.y + pillBoxNow.height / 2),
+      ),
+    ).toBeLessThan(2);
+    // Tap a stop directly — the no-dragging route (WCAG 2.5.7).
+    const maxBar = latched.locator('[data-detent-bar="max"]');
+    const barBox = (await maxBar.boundingBox())!;
+    await page.mouse.click(barBox.x + barBox.width / 2, capsule.y + capsule.height / 2);
+    await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+    await expect(pill).toContainText("Max");
   });
 
-  test("a press held inside the open sheet never grows the track", async ({ page }) => {
-    // The sheet is a body portal but a React child of the gesture wrapper,
-    // so its presses re-dispatch through the wrapper's handlers — pre-guard,
-    // holding a row here drew the capsule across the open sheet and the
-    // trailing-click suppression ate the row's own tap (2026-08-10).
-    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
-    await pill.click();
-    const sheet = page.getByRole("dialog", { name: "Thinking depth" });
+  test("a press held inside a foreign open sheet never grows the track", async ({
+    page,
+  }) => {
+    // A Sheet is a body portal whose presses re-dispatch through the React
+    // tree, and activation stands down over any open dialog that does not
+    // CONTAIN the trigger (2026-08-10, rescoped in ADR-0014 so the budget
+    // dial can live inside its own sheet). The Thinking dial is outside the
+    // Target sheet, so a hold on a model row must be exactly a tap.
+    const pill = page.getByRole("slider", { name: "Thinking depth" });
+    await page.getByRole("button", { name: /^Target model:/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Target model" });
     await expect(sheet).toBeVisible();
-    const row = sheet.getByRole("radio", { name: "High", exact: true });
+    const row = sheet.getByRole("radio", { name: "Fable 5", exact: true });
     const box = (await row.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
@@ -540,17 +573,56 @@ test.describe("thinking hold-slider", () => {
     await page.waitForTimeout(400);
     await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
     await page.mouse.up();
-    // The row's own click landed: depth picked, sheet closed.
+    // The row's own click landed: model picked, sheet closed, dial untouched.
     await expect(sheet).toHaveCount(0);
-    await expect(pill).toContainText("High");
+    await expect(page.getByRole("button", { name: /^Target model:/ })).toContainText(
+      "Fable 5",
+    );
+    await expect(pill).toContainText("Auto");
+  });
+
+  test("the budget dial opens its capsule INSIDE the model sheet", async ({ page }) => {
+    // The one place a capsule may ride over an open dialog: the dial that
+    // lives in it. Only an engine can answer the stacking half — the capsule
+    // (z-85) must paint above the sheet panel (z-70), and its shield must
+    // intercept the sheet's own rows underneath.
+    await page.getByRole("button", { name: /^Target model:/ }).click();
+    const dial = page.getByRole("slider", { name: "Auto routing preference" });
+    await expect(dial).toBeVisible();
+    const box = (await dial.boundingBox())!;
+    const cy = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width / 2, cy);
+    await page.mouse.down();
+    const overlay = page.locator("[data-hold-slider-overlay]");
+    await expect(overlay).toBeVisible();
+    // Equal dots, three of them — never the Thinking ladder's rising bars.
+    await expect(overlay.locator("[data-detent-dot]")).toHaveCount(3);
+    await expect(overlay.locator("[data-detent-bar]")).toHaveCount(0);
+    // Centred on the dial it came out of.
+    const capsule = (await overlay.boundingBox())!;
+    expect(Math.abs(capsule.y + capsule.height / 2 - cy)).toBeLessThan(2);
+    // The shield covers the sheet beneath it.
+    await expect(
+      page
+        .getByRole("radio", { name: "Fable 5", exact: true })
+        .click({ trial: true, timeout: 800 }),
+    ).rejects.toThrow();
+    await page.mouse.move(box.x + box.width / 2 + 44, cy, { steps: 4 });
+    await page.mouse.up();
+    await expect(overlay).toHaveCount(0);
+    // Committed, Auto on, and the sheet is still open behind it.
+    await expect(dial).toContainText("Quality");
+    await expect(page.getByRole("dialog", { name: "Target model" })).toBeVisible();
   });
 
   test("the track expands in the same home for every press point", async ({ page }) => {
-    // ADR-0012 amendment 4: fixed-home geometry — the capsule must land in
-    // the identical spot whether the press began at the pill's left or
-    // right edge. Releasing without travel re-commits the anchor (Auto), so
-    // neither gesture changes state.
-    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    // The property ADR-0012 amendment 4 established and ADR-0014 kept while
+    // moving the home onto the trigger: the capsule must land in the
+    // identical spot whether the press began at the pill's left or right
+    // edge. Placement depends on the BUTTON, never on the fingertip.
+    // Releasing without travel re-commits the anchor (Auto), so neither
+    // gesture changes state.
+    const pill = page.getByRole("slider", { name: "Thinking depth" });
     const box = (await pill.boundingBox())!;
     const y = box.y + box.height / 2;
     const overlay = page.locator("[data-hold-slider-overlay]");
@@ -584,7 +656,7 @@ test.describe("thinking hold-slider", () => {
     // leaked, so every hold-slider press (and every wrapped pill's click)
     // stayed dead until remount. jsdom cannot see any of this: it has no
     // capture routing, so the unit suite's lift always lands on the pill.
-    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const pill = page.getByRole("slider", { name: "Thinking depth" });
     const box = (await pill.boundingBox())!;
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
@@ -607,12 +679,13 @@ test.describe("thinking hold-slider", () => {
     await expect(overlay).toBeVisible();
     await page.keyboard.press("Escape");
     await page.mouse.up();
-    // …and the tap path still opens the sheet (the tenth pass's click
-    // consumption must have let go with the claim).
+    // …and the tap path still latches (the tenth pass's click consumption
+    // must have let go with the claim).
     await pill.click();
-    await expect(page.getByRole("dialog", { name: "Thinking depth" })).toBeVisible();
+    await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(pill).toContainText("Auto");
+    await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
@@ -625,7 +698,7 @@ test.describe("thinking hold-slider", () => {
     // timer fired on the stale press: a phantom capsule, freeze, and input
     // shield with no pointer down, dead until remount. The window net now
     // hears the outside lift and clears the timer (twelfth pass).
-    const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+    const pill = page.getByRole("slider", { name: "Thinking depth" });
     const box = (await pill.boundingBox())!;
     const cy = box.y + box.height / 2;
     await page.mouse.move(box.x + 2, cy);
@@ -655,7 +728,7 @@ test.describe("thinking hold-slider", () => {
    */
   test.describe("under touch", () => {
     const pillBox = async (page: import("@playwright/test").Page) => {
-      const pill = page.getByRole("button", { name: /^Thinking depth:/ });
+      const pill = page.getByRole("slider", { name: "Thinking depth" });
       await expect(pill).toContainText("Auto");
       const box = (await pill.boundingBox())!;
       return { pill, cx: box.x + box.width / 2, cy: box.y + box.height / 2 };
@@ -717,22 +790,28 @@ test.describe("thinking hold-slider", () => {
       await expect(page.getByRole("dialog")).toHaveCount(0);
     });
 
-    test("a quick touch tap still opens the sheet", async ({ page }) => {
+    test("a quick touch tap latches the capsule and leaves it up", async ({ page }) => {
       const { cx, cy } = await pillBox(page);
       const touch = await touchSender(page);
 
       // Pipelined, NOT awaited in sequence: CDP commands process in order,
       // and awaiting the start's round-trip under a loaded worker pool once
       // stretched the "tap" past HOLD_MS — at which point the control
-      // rightly treated it as a hold and suppressed the click. The finger
+      // rightly treated it as a hold and committed on the lift. The finger
       // this simulates is down for milliseconds; the dispatch must be too.
       const start = touch("touchStart", [{ x: cx, y: cy }]);
       const end = touch("touchEnd", []);
       await Promise.all([start, end]);
 
-      // The resting axis claim must not cost the synthesized click.
-      await expect(page.getByRole("dialog", { name: "Thinking depth" })).toBeVisible();
-      await expect(page.locator("[data-hold-slider-overlay]")).toHaveCount(0);
+      const latched = page.locator(
+        '[data-hold-slider-overlay][data-hold-slider-phase="latched"]',
+      );
+      await expect(latched).toBeVisible();
+      // The capsule outlives the finger — that is the whole point of the
+      // phase, and the resting axis claim must not have cost the tap.
+      await page.waitForTimeout(400);
+      await expect(latched).toBeVisible();
+      await expect(page.getByRole("dialog")).toHaveCount(0);
     });
 
     test("activation keys die under a live capsule — a focused control cannot open its sheet", async ({

@@ -249,51 +249,118 @@ describe("TargetPicker — Auto routing preference", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /target model/i }));
-    expect(screen.queryByRole("group", { name: /auto routing preference/i })).toBeNull();
+    expect(screen.queryByRole("slider", { name: /auto routing preference/i })).toBeNull();
   });
 
-  it("renders the three presets as toggle buttons, not more radios", () => {
+  it("renders one dial, not three radios and not three segments", () => {
     // A second radiogroup nested in the sheet's would break the roving
-    // contract (A11Y-002); Segmented's aria-pressed is what these really do.
+    // contract (A11Y-002). ADR-0014 replaced the Segmented that solved that
+    // with a slider, which solves it the same way — one control, one tab
+    // stop — and says the extra thing three equal cells could not: Budget →
+    // Quality is a RAMP, and the capsule's growing fill is that ramp.
     openWithPreference();
-    const group = screen.getByRole("group", { name: /auto routing preference/i });
-    const segments = within(group).getAllByRole("button");
-    expect(segments.map((s) => s.textContent)).toEqual(["Quality", "Balanced", "Budget"]);
-    expect(within(group).queryAllByRole("radio")).toHaveLength(0);
-    const pressed = segments.filter((s) => s.getAttribute("aria-pressed") === "true");
-    expect(pressed).toHaveLength(1);
-    expect(pressed[0]!.textContent).toBe("Balanced");
+    const dial = screen.getByRole("slider", { name: /auto routing preference/i });
+    expect(dial).toHaveTextContent("Balanced");
+    expect(dial.getAttribute("aria-valuetext")).toBe("Balanced");
+    expect(screen.queryByRole("group", { name: /auto routing preference/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Quality" })).toBeNull();
   });
 
-  it("keeps the sheet's model radios untouched by the segments", () => {
-    // The roving radiogroup's count is a pinned contract — the segments must
+  it("keeps the sheet's model radios untouched by the dial", () => {
+    // The roving radiogroup's count is a pinned contract — the dial must
     // not leak into it.
     openWithPreference();
     const radios = screen.getAllByRole("radio");
     expect(radios).toHaveLength(TARGET_MODELS.length + 1); // models + Auto row
   });
 
-  it("picking a preset stores it AND turns Auto on", () => {
-    // Choosing how Auto should route IS choosing Auto — one tap, no separate
-    // enable step to forget.
+  it("adjusting the dial stores the preference AND turns Auto on", () => {
+    // Choosing how Auto should route IS choosing Auto — no separate enable
+    // step to forget. The sheet deliberately STAYS OPEN: a dial is adjusted
+    // and looked at, unlike the segment tap this replaced.
     const { onAutoChange, onAutoPreferenceChange, onChange } = openWithPreference();
-    fireEvent.click(screen.getByRole("button", { name: "Budget" }));
+    const dial = screen.getByRole("slider", { name: /auto routing preference/i });
+    fireEvent.keyDown(dial, { key: "Home" });
     expect(onAutoPreferenceChange).toHaveBeenCalledWith("budget");
     expect(onAutoChange).toHaveBeenCalledWith(true);
     expect(onChange).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("keeps roving-nav keys inside the segments (Codex review, PR #96)", () => {
-    // The segments render inside the sheet's radiogroup element; without a
-    // propagation stop, Arrow/Home/End would reach the roving handler, get
-    // preventDefault'd, and yank focus onto a model radio mid-interaction.
+  it("moves the roving tab stop onto Auto when the dial checks it", () => {
+    // WAI-ARIA puts a radiogroup's single tab stop on the CHECKED radio. The
+    // dial turns Auto on from outside the group without moving focus, and
+    // ADR-0014 stopped the sheet closing behind it — so a tab stop that was
+    // only initialised once left tabIndex=0 stranded on the previously
+    // selected model while Auto was the checked row, and Tab re-entered the
+    // group on an unchecked one (Codex review, PR #109).
+    const { rerender } = render(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={vi.fn()}
+        auto={false}
+        onAutoChange={vi.fn()}
+        autoPreference="balanced"
+        onAutoPreferenceChange={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /target model/i }));
+    const autoRadio = () => screen.getByRole("radio", { name: /^Auto/ });
+    const sonnet = () => screen.getByRole("radio", { name: "Sonnet 5" });
+    expect(sonnet().getAttribute("tabindex")).toBe("0");
+    expect(autoRadio().getAttribute("tabindex")).toBe("-1");
+
+    // The dial flips Auto on; the sheet stays open, so the group must retarget.
+    rerender(
+      <TargetPicker
+        label="Target model"
+        value="sonnet_5"
+        onChange={vi.fn()}
+        auto
+        onAutoChange={vi.fn()}
+        autoPreference="quality"
+        onAutoPreferenceChange={vi.fn()}
+      />,
+    );
+    expect(autoRadio().getAttribute("aria-checked")).toBe("true");
+    expect(autoRadio().getAttribute("tabindex")).toBe("0");
+    expect(sonnet().getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("does not fight arrow navigation — focus moves without a selection", () => {
+    // The tab stop follows the SELECTION, and arrows change the selection not
+    // at all (A11Y-002: selection here is expensive, so arrows move FOCUS and
+    // Enter activates). A sync that fired on every render rather than on a
+    // selection CHANGE would have yanked focus back to the checked row on the
+    // first arrow press and broken that contract.
     openWithPreference();
-    const quality = screen.getByRole("button", { name: "Quality" });
-    quality.focus();
-    for (const key of ["ArrowRight", "ArrowDown", "Home", "End"]) {
-      fireEvent.keyDown(quality, { key });
-      expect(document.activeElement).toBe(quality);
+    // Start from the checked row, which the sheet has already focused — so
+    // the handler's index and the DOM agree before the first key.
+    const sonnet = screen.getByRole("radio", { name: "Sonnet 5" });
+    expect(document.activeElement).toBe(sonnet);
+    fireEvent.keyDown(sonnet, { key: "ArrowDown" });
+    const moved = document.activeElement as HTMLElement;
+    expect(moved).not.toBe(sonnet);
+    expect(moved.getAttribute("tabindex")).toBe("0");
+    expect(sonnet.getAttribute("tabindex")).toBe("-1");
+    // …and nothing was selected on the way: Sonnet is still the checked row.
+    expect(sonnet.getAttribute("aria-checked")).toBe("true");
+    expect(moved.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("keeps roving-nav keys inside the dial (Codex review, PR #96)", () => {
+    // The dial renders inside the sheet's radiogroup element; without a
+    // propagation stop, Arrow/Home/End/PageUp would reach the roving handler,
+    // get preventDefault'd, and yank focus onto a model radio mid-adjust.
+    openWithPreference();
+    const dial = screen.getByRole("slider", { name: /auto routing preference/i });
+    dial.focus();
+    for (const key of ["ArrowRight", "ArrowDown", "Home", "End", "PageUp", "PageDown"]) {
+      fireEvent.keyDown(document.activeElement!, { key });
+      expect(document.activeElement).toBe(
+        screen.getByRole("slider", { name: /auto routing preference/i }),
+      );
     }
   });
 });
