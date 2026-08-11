@@ -23,9 +23,21 @@ const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.v
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://vizion-io.vercel.app";
 const DESCRIPTION =
   "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.";
-// The share/"template" card. Generated in-canon from tokens.css + the master
-// glyph by scripts/generate-social-card.mjs, so it can never disagree with the
-// brand green (1280×640 is GitHub's and the OG spec's large-card ratio).
+// Share artwork. Both are generated in-canon from tokens.css + the master glyph
+// by scripts/generate-social-card.mjs, so neither can disagree with the brand
+// green.
+//
+//   OG_TILE      1200×1200, Void mark on a Laser plate — the same artwork as the
+//                light app icon. This is `og:image`, and it is SQUARE on
+//                purpose: every consumer of og:image except X crops toward a
+//                square. iOS Safari's Share Sheet takes the centre 640×640,
+//                which of the landscape card kept only the right arm of the
+//                chevron and a half-sentence. A square source has no crop to
+//                survive.
+//   SOCIAL_CARD  1280×640, the full descriptive card. Now `twitter:image` only
+//                (X reads it ahead of og:image and genuinely wants 2:1), plus
+//                the GitHub → Settings → Social preview upload.
+const OG_TILE = "/brand/og-tile.png";
 const SOCIAL_CARD = "/brand/social-card.png";
 
 export const metadata: Metadata = {
@@ -45,10 +57,10 @@ export const metadata: Metadata = {
     url: "/",
     images: [
       {
-        url: SOCIAL_CARD,
-        width: 1280,
-        height: 640,
-        alt: "VIZION — a VASEY/AI prompt-engineering studio",
+        url: OG_TILE,
+        width: 1200,
+        height: 1200,
+        alt: "The VIZION mark — a chevron framing a bar and split ring, on brand green",
       },
     ],
   },
@@ -57,6 +69,47 @@ export const metadata: Metadata = {
     title: "VIZION — prompt-engineering studio",
     description: DESCRIPTION,
     images: [SOCIAL_CARD],
+  },
+  /**
+   * The whole icon head, declared here rather than left to the App Router
+   * `icon*`/`apple-icon` file convention.
+   *
+   * WHY. The convention cannot express a `media` attribute, and the dark
+   * home-screen tile needs one. Declaring `metadata.icons` is also all-or-
+   * nothing: Next merges the convention files' links only `if
+   * (!resolvedMetadata.icons)` (resolve-metadata.js), so the moment this key
+   * exists those links vanish. `src/app/icon0.svg`, `icon1.png` and
+   * `apple-icon.png` were therefore deleted rather than left to be built,
+   * served and referenced by nothing — scripts/generate-icons.mjs writes the
+   * equivalents under `public/icons/` and this block points at them.
+   *
+   * ORDER IS LOAD-BEARING on the apple pair. Apple's own rule for several
+   * same-size `apple-touch-icon` links is "the last one wins"; whether iOS
+   * evaluates `media` on them at all is undocumented and unverifiable from this
+   * repo (see BASE_INVERSE in generate-icons.mjs). So the DARK tile is declared
+   * first and carries the query, and the LIGHT tile is declared last with no
+   * query at all. A media-blind iOS lands on the light tile — exactly today's
+   * behaviour, no regression. A media-aware one can pick the dark tile in dark
+   * appearance. The arrangement can only help; it cannot cost us the light
+   * tile.
+   *
+   * The favicons do NOT invert with the OS scheme, by decision: an opaque plate
+   * is legible on any tab background, so there is no legibility case to answer.
+   */
+  icons: {
+    icon: [
+      { url: "/icons/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/icons/favicon-16.png", type: "image/png", sizes: "16x16" },
+    ],
+    apple: [
+      {
+        url: "/icons/apple-touch-icon-dark.png",
+        sizes: "180x180",
+        media: "(prefers-color-scheme: dark)",
+      },
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180" },
+    ],
   },
   // NO appleWebApp block: the two static apple metas are hand-written in the
   // <head> below. metadata.appleWebApp — even without statusBarStyle — makes

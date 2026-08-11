@@ -1,9 +1,9 @@
 // VIZION PWA icon + splash generator.
 //
 // Renders the full brand asset matrix (the transparent `any` icons, maskable
-// tiles, apple-touch-icon, favicons + favicon.ico, the Next.js App Router
-// convention icons, and the iOS splash screens) from ONE master SVG using
-// sharp. Run with: node scripts/generate-icons.mjs
+// tiles, both apple-touch-icon APPEARANCES, the scalable + raster favicons and
+// favicon.ico, and the iOS splash screens) from ONE master SVG using sharp.
+// Run with: node scripts/generate-icons.mjs
 //
 // SOURCE OF TRUTH — public/brand/vizion-glyph.svg
 // ----------------------------------------------
@@ -39,10 +39,19 @@
 //     clears Android's 80% safe-zone circle. Everything else uses 0.74.
 //   • Alpha contract (guardrail §6 / INV-09, enforced by
 //     tests/unit/icon-alpha.test.ts): the `any` matrix ships TRANSPARENT — the
-//     glyph alone, no plate. maskable, apple-touch, the favicons and the App
-//     Router icons ship OPAQUE, because iOS renders a transparent tile on
-//     black and Android's mask has nothing to fill.
+//     glyph alone, no plate. maskable, both apple-touch appearances and the
+//     favicons ship OPAQUE, because iOS renders a transparent tile on black and
+//     Android's mask has nothing to fill.
 //   • public/brand/ is never written to. This script only reads from it.
+//
+// EVERY OUTPUT LANDS UNDER public/. There are no `src/app/` convention icons
+// (icon0.svg / icon1.png / apple-icon.png) any more: the App Router convention
+// cannot express a `media` attribute, and Next drops the convention links
+// entirely as soon as a layout exports `metadata.icons`
+// (resolve-metadata.js: the static set is merged only `if (!resolvedMetadata
+// .icons)`). src/app/layout.tsx now declares the whole icon head itself so the
+// dark-appearance apple-touch-icon below can carry its media query, and the
+// declared ORDER is load-bearing — see the comment on that block.
 //
 // Idempotent: every output is overwritten on each run, so re-running yields
 // the same tree.
@@ -59,7 +68,6 @@ const repoRoot = path.resolve(scriptDir, "..");
 const BRAND_DIR = path.join(repoRoot, "public", "brand");
 export const ICONS_DIR = path.join(repoRoot, "public", "icons");
 const SPLASH_DIR = path.join(repoRoot, "public", "splash");
-const APP_DIR = path.join(repoRoot, "src", "app");
 
 const MASTER_SVG = path.join(BRAND_DIR, "vizion-glyph.svg");
 const MANIFEST = path.join(repoRoot, "public", "manifest.webmanifest");
@@ -96,10 +104,30 @@ const VOID = token("void");
 const INK = VOID;
 
 // Base appearance for the name-agnostic derivatives (favicons, apple-touch,
-// App Router icons, maskable tiles). 'light' = Laser plate + Void ink, per the
-// source spec. Flip to 'dark' (Void plate + Laser glyph) if the dark mark
-// should ever become primary — one constant, nothing else to change.
+// maskable tiles). 'light' = Laser plate + Void ink, per the source spec. Flip
+// to 'dark' (Void plate + Laser glyph) if the dark mark should ever become
+// primary — one constant, nothing else to change.
 const BASE = "light";
+
+// The OPPOSITE appearance, rendered once as `apple-touch-icon-dark.png` for the
+// media-qualified home-screen link (src/app/layout.tsx).
+//
+// WHY IT EXISTS. Left to itself, iOS derives a dark-appearance home-screen tile
+// from the light one by darkening it. Applied to the base tile — Void ink on a
+// Laser plate — that darkens the plate toward the ink and the mark disappears
+// into its own background. Shipping the inverse artwork (Laser glyph on a Void
+// plate) is the only way the dark tile can carry a legible mark.
+//
+// WHAT IS AND IS NOT VERIFIED (guardrail §3 / docs/runbooks/ios-verification.md).
+// Verified here: the PNG is generated, opaque, and linked — the tag is in the
+// SSR'd head, asserted by tests/e2e/shell.spec.ts. NOT verified, and not
+// verifiable in this repo: whether iOS Safari honours `media` on
+// `rel="apple-touch-icon"` when it captures the tile. Apple has never
+// documented that it does; the Developer Forums threads asking (761615, 787919,
+// 801448, read 2026-08-11) have no answer either way. So this is built to be a
+// no-op if it is ignored rather than a bet — see the ordering note in
+// layout.tsx. Only a physical iPhone can close it.
+const BASE_INVERSE = BASE === "light" ? "dark" : "light";
 
 // Glyph fractions. 0.74 is the artwork's own composition (see the geometry
 // check above); 0.58 pads the maskable tiles clear of the safe-zone circle.
@@ -275,9 +303,9 @@ async function writeFaviconIco(pngPaths, outPath) {
 /**
  * Read the PWA icon inventory straight out of public/manifest.webmanifest, so
  * filenames and sizes can never drift from what the manifest declares. There is
- * no index.html in this repo — the <head> is owned by src/app/layout.tsx plus
- * the App Router convention files (icon0.svg / icon1.png / apple-icon.png),
- * which are generated explicitly in main().
+ * no index.html in this repo — the <head> is owned entirely by
+ * src/app/layout.tsx's `metadata.icons`, whose hrefs point at the favicon and
+ * apple-touch files main() writes below.
  */
 async function readManifestIcons() {
   const manifest = JSON.parse(await fs.readFile(MANIFEST, "utf8"));
@@ -352,7 +380,7 @@ export function assertAnyEntriesMatchMatrix(entries, sizes, iconsDir) {
 
 async function main() {
   await Promise.all(
-    [ICONS_DIR, SPLASH_DIR, APP_DIR].map((dir) => fs.mkdir(dir, { recursive: true })),
+    [ICONS_DIR, SPLASH_DIR].map((dir) => fs.mkdir(dir, { recursive: true })),
   );
 
   const { any: manifestAny, maskable: manifestMaskable } = await readManifestIcons();
@@ -380,14 +408,25 @@ async function main() {
     await renderPng(maskableSvg, px, px, file, { flatten: maskablePlate });
   }
 
-  // 3. apple-touch-icon (opaque branded tile — iOS ignores transparency and
-  //    would composite a transparent tile onto black).
-  console.log("Rendering apple-touch-icon...");
+  // 3. apple-touch-icon, BOTH appearances (opaque branded tiles — iOS ignores
+  //    transparency and would composite a transparent tile onto black). The
+  //    dark tile is the inverse colorway; see BASE_INVERSE for why it exists
+  //    and what about it is unverified.
+  console.log("Rendering apple-touch-icons (light + dark appearance)...");
   const baseSvg = plateSVG(appearance(BASE), FRAC_STANDARD);
   const basePlate = appearance(BASE).plate;
   await renderPng(baseSvg, 180, 180, path.join(ICONS_DIR, "apple-touch-icon.png"), {
     flatten: basePlate,
   });
+  const inverseSvg = plateSVG(appearance(BASE_INVERSE), FRAC_STANDARD);
+  const inversePlate = appearance(BASE_INVERSE).plate;
+  await renderPng(
+    inverseSvg,
+    180,
+    180,
+    path.join(ICONS_DIR, "apple-touch-icon-dark.png"),
+    { flatten: inversePlate },
+  );
 
   // 4. Favicon PNGs (a plated tile reads better than a bare mark at 16px).
   console.log("Rendering favicons...");
@@ -397,35 +436,28 @@ async function main() {
     });
   }
   // Also assemble /favicon.ico from those PNGs: browsers (and the offline 404
-  // console) still request the legacy path unconditionally, and App Router's
-  // <link rel="icon"> does not cover it.
+  // console) still request the legacy root path unconditionally, and no
+  // <link rel="icon"> covers it.
   await writeFaviconIco(
     [16, 32, 48].map((size) => path.join(ICONS_DIR, `favicon-${size}.png`)),
     path.join(repoRoot, "public", "favicon.ico"),
   );
 
-  // 5. Next.js App Router auto-wired icons:
-  //    • icon0.svg  — scalable favicon (preferred by modern browsers)
-  //    • icon1.png  — raster fallback
-  //    • apple-icon.png — home-screen tile
-  // NUMBERED names, not icon.svg + icon.png: with both unnumbered files Next
-  // emitted a link for the PNG only, so the SVG was generated and served but
-  // never referenced by any tag (audit VAR-15). The numbered convention makes
-  // Next link both, SVG first.
+  // 5. The scalable favicon, linked first by layout.tsx so modern browsers
+  //    prefer it over the raster pair. It is the generated flat plate, NOT a
+  //    copy of a public/brand file — the composed brand SVGs carry the baked
+  //    squircle + gloss this pipeline forbids, and a favicon must be the same
+  //    full-bleed square as its raster siblings.
   //
-  // icon0.svg is the generated flat plate, NOT a copy of a public/brand file —
-  // the composed brand SVGs carry the baked squircle + gloss this pipeline
-  // forbids, and a favicon must be the same full-bleed square as its raster
-  // siblings.
-  console.log("Rendering Next.js App Router icons...");
-  await fs.writeFile(path.join(APP_DIR, "icon0.svg"), `${baseSvg}\n`);
-  logWrite(path.join(APP_DIR, "icon0.svg"));
-  await renderPng(baseSvg, 512, 512, path.join(APP_DIR, "icon1.png"), {
-    flatten: basePlate,
-  });
-  await renderPng(baseSvg, 180, 180, path.join(APP_DIR, "apple-icon.png"), {
-    flatten: basePlate,
-  });
+  //    It does NOT invert with the OS scheme. An opaque plate is legible on any
+  //    tab background, so there is no legibility case to answer, and the tab
+  //    mark staying one constant thing is worth more than matching the chrome.
+  //    (This is the tile the owner asked for by name: Void on Laser.) The
+  //    home-screen tile is the one surface where the dark appearance is forced
+  //    on us, and it is handled in step 3.
+  console.log("Rendering scalable favicon...");
+  await fs.writeFile(path.join(ICONS_DIR, "favicon.svg"), `${baseSvg}\n`);
+  logWrite(path.join(ICONS_DIR, "favicon.svg"));
 
   // 6. iOS splash screens. Dark appearance (Void plate + Laser glyph) so the
   //    launch image matches the manifest's background_color #0F1012 — a Laser

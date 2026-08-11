@@ -62,12 +62,12 @@ async function main() {
     // StaleWhileRevalidate image route. `icons/**/*.png` swept all 19 and
     // spent ~130 KB of first-visit data on assets no offline path uses.
     // icons/apple-touch-icon.png left the list 2026-08-09 (audit 04 pwa-04,
-    // owner-approved): no document, manifest, or platform convention requests
-    // that URL — iOS probes root /apple-touch-icon.png and the layout links
-    // /apple-icon.png (the App Router convention file), so the precached entry
-    // could never serve either (Cache Storage keys are full URLs). PERF-005's
-    // disposition listed it as offline-needed; that clause was a mistaken
-    // carry-over.
+    // owner-approved): nothing that runs offline requests a home-screen tile —
+    // iOS reads it once, at Add-to-Home-Screen time, over the network. It stays
+    // off the list now that the layout links it (and its dark twin) directly at
+    // /icons/, for the same reason: the tile is captured at install, never on a
+    // cold offline launch. PERF-005's disposition listed it as offline-needed;
+    // that clause was a mistaken carry-over.
     const { count, size, warnings } = await injectManifest({
       swSrc: bundled,
       swDest: SW_DEST,

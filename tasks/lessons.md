@@ -3427,3 +3427,65 @@ test:e2e` hard-fails in global-setup until
   a hue move, not just re-passed — brightening it to bare AA to "match the
   button" would have spent the corridor the design system deliberately
   keeps.
+
+- **When a platform behaviour is undocumented, ship the arrangement that
+  is a no-op if you guessed wrong.** The Home Screen icon vanished in dark
+  appearance (iOS darkens the light tile; Void ink on a darkened Laser
+  plate is a shadow on near-black). The obvious fix — a second, inverse
+  tile behind `media="(prefers-color-scheme: dark)"` — rests on a claim
+  nothing can verify from this repo: Apple has never documented whether
+  iOS evaluates `media` on `apple-touch-icon`, the Developer Forums
+  threads asking are unanswered, and search returns both answers stated
+  with equal confidence. §3's rule is "prefer removing the dependency to
+  documenting the uncertainty", and there was a way to do exactly that:
+  order the pair so the dark tile is declared FIRST with the query and the
+  light tile LAST with none, which is what Apple's documented "last one
+  wins" rule hands a media-blind reader. A media-aware iOS can improve;
+  a media-blind one lands precisely where it does today. The dependency is
+  gone, not annotated — the change cannot regress, and the device check is
+  now about whether it HELPED, not whether it BROKE anything. Generalises:
+  before writing a comment that hedges, look for the arrangement whose
+  worst case is the status quo.
+
+- **`align-items: center` centres a line box, and a line box is not a
+  word.** The header mark hung visibly low beside the wordmark although
+  flex had "centred" it: a line box's centre sits at
+  `baseline − (ascent − descent) / 2`, while the eye reads a word as its
+  CAP BAND, centred at `baseline − capHeight / 2`. For Bebas Neue those
+  differ, so the mark cleared the cap line by 0.99px and the baseline by
+  2.98px — the same "centred" element with nearly all its overhang on one
+  side. Two follow-ons. (1) The correction belongs in `em` against the
+  wordmark's own step, which meant putting `text-2xl` on the ROW: an svg
+  otherwise resolves `em` against the inherited 16px body size, and the
+  wordmark here is 31px — the fix would have been 40% short, silently.
+  (2) It cannot be zeroed in both engines; they select different
+  ascent/descent metrics for the same face (optima 0.058em vs 0.035em), so
+  the shipped value is the midpoint and the test tolerance has to admit
+  the residue.
+
+- **Measure type in pixels; font metrics are an opinion.** Deriving the
+  alignment above from `canvas.measureText` put the answer 1.3px from
+  where the glyphs actually landed, and the two engines'
+  `actualBoundingBoxAscent` for one vendored face disagree by 12%
+  (0.672em vs 0.75em). Worse, the first harness reproduced the cascade
+  only approximately — it modelled the wordmark at 24px because
+  `text-2xl` "is" 1.5rem in stock Tailwind, while this repo's Major-Third
+  scale makes it 1.9375rem/31px — so its absolute numbers were wrong by a
+  third while its em-relative conclusion happened to survive. What settled
+  it was screenshotting the SHIPPED header, thresholding, and comparing
+  ink band to ink band. Rule: a typographic claim is a claim about
+  rendered pixels; if the harness is not the real cascade, it is a
+  hypothesis, and the e2e test that re-measures the real thing is the
+  evidence.
+
+- **Know which surface the screenshot is actually of.** An owner report
+  that "the favicon is using the wrong image" was about neither the
+  favicon nor the app icon: the screenshot was the iOS Share Sheet, whose
+  thumbnail is `og:image` centre-cropped to a square — which of a
+  1280 × 640 card kept one arm of the chevron and half a sentence. The
+  favicon was already correct. Confirming the surface first (crop
+  arithmetic against the card's own layout: glyph at x 100–390, wordmark
+  at 470–860, window 320–960) turned "fix the favicon" into the real
+  change — a square `og:image` with the landscape card demoted to
+  `twitter:image` — and surfaced a trade-off (every other platform's
+  preview) that was the owner's call to make, not one to infer.

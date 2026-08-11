@@ -40,23 +40,35 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 
 ## Icons & splash
 
-- Regenerate with `npm run generate:icons` (uses `sharp`). Output under `public/icons/`
-  and `public/splash/`, plus `src/app/icon0.svg` / `src/app/icon1.png` /
-  `src/app/apple-icon.png` (Next auto-wires these as favicons; the numbered
-  names make it link the scalable SVG first). ONE master drives generation:
+- Regenerate with `npm run generate:icons` (uses `sharp`). Every output lands
+  under `public/icons/` and `public/splash/` — there are no `src/app/`
+  convention icons any more, because `src/app/layout.tsx` declares
+  `metadata.icons` itself (the convention cannot carry the `media` attribute
+  the dark home-screen tile needs, and declaring the key suppresses the
+  convention links wholesale). ONE master drives generation:
   `public/brand/vizion-glyph.svg` — the flat mark on a tight viewBox — painted
   with the locked Laser/Void colorways. Drop new artwork into that file and
   re-run, without touching the manifest references (DOC-010: no longer
   placeholders).
+- Adding or renaming an icon means editing the `metadata.icons` block too —
+  nothing auto-wires it now. The **order** of the `apple` array is load-bearing
+  (dark first with its media query, light last with none); the reasoning is on
+  that block and pinned by `tests/e2e/shell.spec.ts`.
+- Share artwork is a separate script: `npm run generate:social` writes
+  `public/brand/og-tile.png` (square, the `og:image`) and
+  `public/brand/social-card.png` (landscape, `twitter:image` + the GitHub social
+  preview). It needs Playwright's Chromium for the vendored Bebas Neue.
 - Do NOT point the generator at the composed previews
   (`public/brand/vizion-icon-{light,dark,clear,tinted}.svg`) or the background
   layers (`vizion-icon-bg-*.svg`): they carry a baked squircle clip and
   specular gloss, so rasterizing them double-masks the corners iOS rounds at
   runtime. They are appearance reference only.
-- The `any` matrix ships transparent and the maskable/apple-touch/favicon/App
-  Router set ships opaque — `tests/unit/icon-alpha.test.ts` enforces it
-  (guardrail §6 / INV-09), so a regeneration that flattens the wrong set fails
-  the gate rather than shipping.
+- The `any` matrix ships transparent and the maskable/apple-touch/favicon set
+  ships opaque — `tests/unit/icon-alpha.test.ts` enforces it (guardrail §6 /
+  INV-09), so a regeneration that flattens the wrong set fails the gate rather
+  than shipping. The same test pins the two apple-touch tiles as inverse
+  colorways: a "dark" tile that merely darkened the light one would put Void
+  ink on a near-Void plate, which is the bug the dark tile exists to fix.
 
 ## Playwright
 

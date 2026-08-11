@@ -69,6 +69,82 @@ test.describe("VIZION shell + auth gate", () => {
     }
   });
 
+  test("the icon head declares both home-screen appearances, light-last", async ({
+    page,
+    request,
+  }) => {
+    // layout.tsx owns `metadata.icons` outright (the App Router convention
+    // cannot carry a `media` attribute, and declaring the key at all suppresses
+    // the convention links). Two properties matter and neither is visible from
+    // a unit test, because both are about what Next actually SERIALISES:
+    //
+    //   1. ORDER. Apple's rule for several same-size apple-touch-icon links is
+    //      "last one wins", and whether iOS reads `media` on them is
+    //      undocumented. The dark tile must therefore come FIRST and carry the
+    //      query, and the light tile must come LAST with none — so a media-
+    //      blind iOS still lands on the light tile it takes today. Flip the
+    //      array in layout.tsx and dark mode would become the *unconditional*
+    //      icon on every device.
+    //   2. The hrefs resolve. These moved out of `src/app/` when the
+    //      convention files were deleted; a stale path is a 404 in the
+    //      Add-to-Home-Screen sheet, which fails silently.
+    await page.goto("/sign-in");
+    const links = await page.evaluate(() =>
+      Array.from(document.head.querySelectorAll<HTMLLinkElement>("link[rel]")).map(
+        (l) => ({ rel: l.rel, href: l.getAttribute("href"), media: l.media }),
+      ),
+    );
+
+    const apple = links.filter((l) => l.rel === "apple-touch-icon");
+    expect(apple).toHaveLength(2);
+    expect(apple[0]!.href).toBe("/icons/apple-touch-icon-dark.png");
+    expect(apple[0]!.media).toBe("(prefers-color-scheme: dark)");
+    expect(apple[1]!.href).toBe("/icons/apple-touch-icon.png");
+    expect(apple[1]!.media, "the light tile must be unconditional").toBe("");
+
+    // Scalable favicon first, raster fallbacks after.
+    const icons = links.filter((l) => l.rel === "icon");
+    expect(icons[0]!.href).toBe("/icons/favicon.svg");
+    expect(icons.map((i) => i.href)).toContain("/icons/favicon-32.png");
+
+    // The deleted convention files must not be referenced by anything.
+    for (const dead of ["/icon0.svg", "/icon1.png", "/apple-icon.png"]) {
+      expect(links.some((l) => l.href?.startsWith(dead))).toBe(false);
+    }
+
+    for (const href of [...apple.map((a) => a.href), ...icons.map((i) => i.href)]) {
+      expect((await request.get(href!)).status(), `${href} is a 404`).toBe(200);
+    }
+  });
+
+  test("shares a square og:image and keeps the landscape card for X", async ({
+    page,
+    request,
+  }) => {
+    // Everything that reads og:image except X crops it toward a square — iOS
+    // Safari's Share Sheet takes the centre 640×640 — so og:image is the
+    // 1200×1200 brand tile and only `twitter:image` keeps the 2:1 card.
+    // Asserting the DIMENSIONS, not just the paths: a landscape file put back
+    // behind the og name would restore the crop bug while every path assertion
+    // stayed green.
+    await page.goto("/sign-in");
+    const meta = await page.evaluate(() =>
+      Object.fromEntries(
+        Array.from(document.head.querySelectorAll<HTMLMetaElement>("meta")).map((m) => [
+          m.getAttribute("property") ?? m.name,
+          m.content,
+        ]),
+      ),
+    );
+    expect(meta["og:image"]).toMatch(/\/brand\/og-tile\.png$/);
+    expect(meta["og:image:width"]).toBe(meta["og:image:height"]);
+    expect(meta["twitter:image"]).toMatch(/\/brand\/social-card\.png$/);
+
+    for (const src of ["/brand/og-tile.png", "/brand/social-card.png"]) {
+      expect((await request.get(src)).status(), `${src} is a 404`).toBe(200);
+    }
+  });
+
   test("manifest is reachable and declares any + maskable icons", async ({ request }) => {
     const res = await request.get("/manifest.webmanifest");
     expect(res.ok()).toBeTruthy();

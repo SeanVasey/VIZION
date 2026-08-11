@@ -98,6 +98,23 @@ make that go away.
 
 The open questions. The first is no longer depended on; the rest are:
 
+- whether iOS honours `media="(prefers-color-scheme: dark)"` on
+  `<link rel="apple-touch-icon">` when it captures the Home Screen tile.
+  Apple has never documented it either way, and the Developer Forums threads
+  asking (761615, 787919, 801448 — read 2026-08-11) are unanswered. Searching
+  is worse than useless here: results confidently assert both answers.
+  `apple-touch-icon-dark.png` and its link ship anyway, because the arrangement
+  is built to be a no-op if ignored — the dark tile is declared first with the
+  query, the light tile last with none, so a media-blind iOS lands exactly where
+  it does today (see the `metadata.icons` block in `src/app/layout.tsx`). What a
+  device settles is whether the dark appearance actually picks the inverse
+  artwork up. If it does not, the fallback is a product decision, not a bug fix:
+  either accept iOS's auto-darkened tile, or flip `BASE` in
+  `scripts/generate-icons.mjs` to `"dark"` so the ONE tile is Laser-on-Void and
+  legible under every appearance — at the cost of the Laser plate in light mode.
+  **Do not** write "iOS supports/ignores this" into the tree from a search
+  result.
+
 - whether iOS still ignores `:active` for touch without a document touch
   listener (and whether the documented workaround still causes controls to
   flash active during scroll)
