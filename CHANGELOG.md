@@ -46,7 +46,13 @@ visible viewport, which is what the capsule itself has been placed inside since
 [ADR-0012]. An absolute measurement is only "local" relative to a region: 196px
 per side was measured on a 393×660 phone, and on the 320×640 viewport this repo
 supports it overran the bottom nav, as it would far more sharply under pinch
-zoom. The
+zoom. That region is now re-read whenever it moves: a capsule left open across
+an orientation change, a window resize or a pinch-zoom re-anchors itself and
+re-sizes its halo instead of sitting where the old viewport used to be. The
+pinch case is the one that matters, because zoom is deliberately kept alive
+under an open capsule — permitting the gesture and then ignoring its result
+would put the capsule outside the region the placement rule exists to keep it
+inside. The
 two layers get there from opposite ends, and the asymmetry is deliberate — the
 dim keeps its viewport-covering box because that box *is* the input shield,
 and localizes in its paint; the blur localizes in its **box**, and only

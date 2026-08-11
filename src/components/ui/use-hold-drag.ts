@@ -198,6 +198,38 @@ export function detentIndexForX(x: number, geometry: TrackGeometry): number {
   return Math.max(0, Math.min(centers.length - 1, raw));
 }
 
+/**
+ * The visible region, both axes, from ONE sample: the horizontal half is what
+ * computeTrackGeometry clamps the capsule into, the vertical half is what
+ * HoldActive carries for the halo. Written once so activation and every later
+ * recomputation read the viewport the same way — a capsule placed against one
+ * region with a halo sized against another is exactly the disagreement the
+ * pairing exists to prevent.
+ *
+ * `visualViewport` is the pinch-zoomed user's real window onto the page; jsdom
+ * and old engines fall back to the layout viewport, where the two coincide.
+ */
+function sampleRegion(): { left: number; width: number; top: number; height: number } {
+  const vv = window.visualViewport;
+  return vv
+    ? { left: vv.offsetLeft, width: vv.width, top: vv.offsetTop, height: vv.height }
+    : { left: 0, width: window.innerWidth, top: 0, height: window.innerHeight };
+}
+
+/** Value equality for a recomputed geometry — the guard that keeps a resize
+ *  burst which moves nothing from re-rendering (and so re-filtering) the
+ *  overlay on every event in it. */
+function sameGeometry(a: TrackGeometry, b: TrackGeometry): boolean {
+  return (
+    a.left === b.left &&
+    a.top === b.top &&
+    a.width === b.width &&
+    a.height === b.height &&
+    a.detentCenters.length === b.detentCenters.length &&
+    a.detentCenters.every((x, i) => x === b.detentCenters[i])
+  );
+}
+
 interface Press {
   pointerId: number;
   x: number;
@@ -260,10 +292,11 @@ export interface HoldActive {
   dragIndex: number;
   geometry: TrackGeometry;
   /**
-   * The VISIBLE region's vertical extent at activation, in layout-viewport
-   * coordinates — `visualViewport`'s offsetTop/height under pinch zoom, the
-   * layout viewport otherwise. Sampled in the same breath as `geometry`, so
-   * the two can never disagree about which region the gesture opened into.
+   * The VISIBLE region's vertical extent, in layout-viewport coordinates —
+   * `visualViewport`'s offsetTop/height under pinch zoom, the layout viewport
+   * otherwise. Sampled in the same breath as `geometry` (one `sampleRegion`
+   * call feeds both), so the two can never disagree about which region the
+   * capsule is in — at activation and on every viewport change after it.
    *
    * `computeTrackGeometry` only ever needed the HORIZONTAL half (the capsule
    * is a fixed 48px tall and the ladder runs sideways), which is why the
@@ -335,6 +368,13 @@ export function useHoldDrag({
    *  already is, or the first move teleports the value to whatever detent
    *  the clamp happened to leave underneath. */
   const dragOffset = useRef(0);
+  /** The trigger the capsule opened from, held for the capsule's whole life.
+   *  The LATCHED phase outlives its press record, and re-anchoring on a
+   *  viewport change needs the very element `activate` measured. */
+  const anchorEl = useRef<HTMLElement | null>(null);
+  /** Last pointer x seen while a press is live — onViewportChange re-derives
+   *  dragOffset from it, or the value teleports under the hand. */
+  const lastPointerX = useRef(0);
   /** Props can change mid-gesture (they don't in practice, but a stale
    *  closure in a window listener is not worth the bet). */
   const latest = useRef({ detentCount, selectedIndex, onCommit });
@@ -455,6 +495,80 @@ export function useHoldDrag({
   setActiveBothRef.current = setActiveBoth;
   const commitLatchedRef = useRef<() => void>(() => {});
 
+  /**
+   * Re-anchor a live capsule when the viewport moves under it.
+   *
+   * `geometry` and `region` are a snapshot of the window taken at activation,
+   * and the LATCHED phase can outlive that window indefinitely — it stays up
+   * until a commit, a dismiss, an Escape or a concealment. Two things move the
+   * window in the meantime, and the second is a design commitment rather than
+   * an edge case:
+   *
+   *  - an ORIENTATION CHANGE or window resize, after which a fixed capsule
+   *    placed for the old viewport can sit partly or wholly outside the new
+   *    one, with a halo clamped against chrome bars that have since moved;
+   *  - PINCH ZOOM, which this control deliberately keeps alive while latched
+   *    (onWindowTouchMove's multi-touch exemption). Zooming and panning changes
+   *    `visualViewport`'s offset and size — the exact numbers the placement
+   *    clamp was added to respect, because a fixed capsule can otherwise open
+   *    entirely outside a zoomed-in user's view (Codex review, PR #103). To
+   *    permit the gesture and then ignore its result is to reopen that hole one
+   *    moment after activation.
+   *
+   * Recompute rather than dismiss, for that second reason: dismissing on a
+   * visual-viewport change would cancel the capsule on the very zoom the
+   * exemption exists to allow. The anchor is re-measured with it — the pill is
+   * still in layout beneath the capsule (concealed by opacity, never
+   * unmounted), so it carries any reflow for free.
+   *
+   * In the DRAG phase the finger is still down and `dragOffset` was measured
+   * against the OLD centers, so it is re-derived from the last pointer x. That
+   * keeps the current selection under the hand, which is the same invariant the
+   * offset exists for at activation — the drag is relative to where the hand
+   * already is, never to where the clamp happens to leave a detent.
+   */
+  const onViewportChange = useCallback(() => {
+    const current = activeRef.current;
+    const el = anchorEl.current;
+    if (!current || !el) return;
+    const view = sampleRegion();
+    const geometry = computeTrackGeometry(
+      el.getBoundingClientRect(),
+      latest.current.detentCount,
+      view,
+    );
+    const region = { top: view.top, height: view.height };
+    if (
+      sameGeometry(geometry, current.geometry) &&
+      region.top === current.region.top &&
+      region.height === current.region.height
+    ) {
+      return;
+    }
+    if (press.current) {
+      dragOffset.current =
+        lastPointerX.current - geometry.detentCenters[current.dragIndex]!;
+    }
+    setActiveBothRef.current({ ...current, geometry, region });
+  }, []);
+
+  /** Armed for the ACTIVE phase only — a resting wrapper watches nothing.
+   *  Both visual-viewport events, for the reason use-keyboard-inset gives:
+   *  WebKit SLIDES the visual viewport (a scroll, not a resize) in some of the
+   *  cases that move it, and a capsule pinned to a stale region is the same
+   *  class of bug as chrome pinned to a stale inset. */
+  const armViewportWatch = useCallback(() => {
+    window.addEventListener("resize", onViewportChange);
+    window.visualViewport?.addEventListener("resize", onViewportChange);
+    window.visualViewport?.addEventListener("scroll", onViewportChange);
+  }, [onViewportChange]);
+
+  const disarmViewportWatch = useCallback(() => {
+    window.removeEventListener("resize", onViewportChange);
+    window.visualViewport?.removeEventListener("resize", onViewportChange);
+    window.visualViewport?.removeEventListener("scroll", onViewportChange);
+  }, [onViewportChange]);
+
   const onWindowKey = useCallback((e: KeyboardEvent) => {
     const current = activeRef.current;
     if (!current) return;
@@ -548,6 +662,11 @@ export function useHoldDrag({
     window.removeEventListener("wheel", onWindowWheel);
     window.removeEventListener("keydown", onWindowKey, true);
     window.removeEventListener("keyup", onWindowKey, true);
+    // The re-anchor watch is the capsule's, not the press's: it comes down
+    // wherever the capsule does, and the anchor goes with it so a stale
+    // element can never be measured by a listener that outlived its removal.
+    disarmViewportWatch();
+    anchorEl.current = null;
     // The concealment net outlives a DRAG teardown on purpose — the Escape
     // path leaves the finger down, and that press must still be caught if
     // the window then goes away. With no press left there is nothing for it
@@ -558,7 +677,13 @@ export function useHoldDrag({
     if (!press.current) disarmWindowNetRef.current();
     document.documentElement.removeAttribute("data-hold-gesture");
     setActiveBoth(null);
-  }, [onWindowTouchMove, onWindowWheel, onWindowKey, setActiveBoth]);
+  }, [
+    onWindowTouchMove,
+    onWindowWheel,
+    onWindowKey,
+    disarmViewportWatch,
+    setActiveBoth,
+  ]);
   teardownRef.current = teardown;
 
   /** The pre-hold safety net for UNCAPTURED exits (twelfth pass). A mouse
@@ -696,21 +821,15 @@ export function useHoldDrag({
         return false;
       }
       const { detentCount: count, selectedIndex: selected } = latest.current;
-      // The visual viewport, so a pinch-zoomed user gets the capsule inside
-      // the region they are looking at; jsdom (and old engines) fall back to
-      // the layout viewport, where the two are the same thing.
-      const vv = window.visualViewport;
-      const geometry = computeTrackGeometry(
-        p.el.getBoundingClientRect(),
-        count,
-        vv
-          ? { left: vv.offsetLeft, width: vv.width }
-          : { left: 0, width: window.innerWidth },
-      );
-      // Same sample, vertical half — see HoldActive.region.
-      const region = vv
-        ? { top: vv.offsetTop, height: vv.height }
-        : { top: 0, height: window.innerHeight };
+      // One sample of the visible region — the horizontal half places and
+      // clamps the capsule, the vertical half sizes the halo. See sampleRegion.
+      const view = sampleRegion();
+      const geometry = computeTrackGeometry(p.el.getBoundingClientRect(), count, view);
+      const region = { top: view.top, height: view.height };
+      // Both survive the press, because the capsule can: the latched phase has
+      // no press record left for onViewportChange to re-measure from.
+      anchorEl.current = p.el;
+      lastPointerX.current = currentX ?? p.x;
       // Touch/pen are implicitly captured to the pointer-down target already;
       // this is for a mouse outrunning the wrapper. try/catch for jsdom.
       // Skipped when latching: that pointer is already UP (the tap is what
@@ -729,6 +848,9 @@ export function useHoldDrag({
       // before any focused control's own handlers see them.
       window.addEventListener("keydown", onWindowKey, true);
       window.addEventListener("keyup", onWindowKey, true);
+      // The capsule's placement is a snapshot of the viewport, and the latched
+      // phase outlives the snapshot — see onViewportChange.
+      armViewportWatch();
       // The world pauses under the gesture: this attribute freezes the
       // ambient field (AmbientNebula's canvas gate + the blooms'
       // animation-play-state), which is what makes the focus blur's
@@ -749,7 +871,7 @@ export function useHoldDrag({
       });
       return true;
     },
-    [onWindowKey, onWindowTouchMove, onWindowWheel, setActiveBoth],
+    [onWindowKey, onWindowTouchMove, onWindowWheel, armViewportWatch, setActiveBoth],
   );
 
   // ---- the latched phase's own controls -----------------------------------
@@ -862,6 +984,10 @@ export function useHoldDrag({
   function onPointerMove(e: React.PointerEvent) {
     const p = press.current;
     if (!p || e.pointerId !== p.pointerId) return;
+    // Where the hand is, for onViewportChange's offset re-derivation. Recorded
+    // for every move, pre-hold included: a resize can land between the slop
+    // window's last move and the hold timer's fire.
+    lastPointerX.current = e.clientX;
     const current = activeRef.current;
     if (!current) {
       if (cancelled.current) return;

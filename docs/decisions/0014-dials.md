@@ -349,10 +349,39 @@ guessable from the CSS:
    fraction that satisfies that depends on `room`, so no single fraction holds
    as the region shrinks, and it fails hardest exactly where the clamp matters
    most. A subtraction generalizes; a ratio tuned to one viewport does not.
-   The cost is that a `ui/` primitive now carries one number about the app's
-   chrome — accepted, because the alternative (measuring the bars from inside
-   the primitive) couples far worse, and three viewport sizes of e2e coverage
-   turn a retuned bar into a failing test rather than a silent overrun.
+   The cost is that a `ui/` primitive now knows the app has fixed chrome at
+   all — accepted, and paid down to a single attribute lookup plus an 8px gap
+   by measuring rather than hardcoding, with three viewport sizes of e2e
+   coverage turning a retuned bar into a failing test rather than a silent
+   overrun.
+5. **A placement is a snapshot, and the latched capsule outlives it** (Codex
+   review, PR #110). `geometry` and `region` were sampled once, at activation,
+   and never again — so an orientation change or a window resize left a fixed
+   capsule sitting where the old viewport was, with its halo clamped against
+   chrome bars that had since moved.
+
+   The case that makes this a defect rather than an exotic one is pinch zoom,
+   because the control **permits it on purpose**: `onWindowTouchMove` exempts
+   multi-touch while latched precisely so the page can still be zoomed under an
+   open capsule (amendment to ADR-0012, PR #109). Zooming and panning changes
+   `visualViewport`'s offset and size — the very numbers point 4 above and the
+   PR #103 placement clamp exist to respect. Allowing the gesture and then
+   ignoring its result reopened, one moment after activation, the hole the
+   clamp was added to close.
+
+   So a live capsule re-anchors: `visualViewport` resize **and scroll** (WebKit
+   slides the visual viewport without resizing it — the same pairing
+   `use-keyboard-inset` subscribes to), plus window `resize` for engines with no
+   `visualViewport` at all. Recompute rather than dismiss, for that same reason:
+   dismissing on a visual-viewport change would cancel the capsule on the one
+   gesture the exemption exists to allow. The anchor pill is re-measured with
+   it — it is concealed by opacity beneath the capsule, never unmounted, so it
+   carries any reflow for free. In the DRAG phase `dragOffset` is re-derived
+   from the last pointer x, or re-anchoring would teleport the value to whatever
+   detent the new clamp left under the finger: the exact failure the offset
+   exists to prevent, arriving through the fix for a different one. A value
+   equality guard drops resize bursts that move nothing, so a no-op event costs
+   no render and no re-filter.
 
 **One asymmetry is accepted and named.** The dim is `--void`-based so it inverts
 with the theme, and on light `--void` is a near-white: measured, the light veil

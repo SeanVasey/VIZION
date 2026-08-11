@@ -720,6 +720,190 @@ describe("tap vs hold", () => {
     render(<Host />);
     expect(pill().parentElement!.style.touchAction).toBe("pinch-zoom");
   });
+
+  /**
+   * A capsule is placed against a SNAPSHOT of the viewport, and the latched
+   * phase outlives the snapshot — it stays up until a commit, a dismiss, an
+   * Escape or a concealment. Rotate the phone or pinch-zoom in the meantime and
+   * a fixed capsule sits where the old viewport was, with a halo clamped
+   * against chrome bars that have since moved (Codex review, PR #110).
+   *
+   * The pinch case is the load-bearing one: this control keeps zoom alive while
+   * latched ON PURPOSE (the multi-touch exemption), and the placement clamp
+   * exists precisely because a fixed capsule can otherwise open outside a
+   * zoomed-in user's view (Codex review, PR #103). Permitting the gesture and
+   * then ignoring its result reopens that hole one moment after activation.
+   */
+  const vvStub = (init: {
+    offsetLeft: number;
+    width: number;
+    offsetTop: number;
+    height: number;
+  }) => {
+    const bus = new EventTarget();
+    const vv = {
+      ...init,
+      scale: 1,
+      addEventListener: bus.addEventListener.bind(bus),
+      removeEventListener: bus.removeEventListener.bind(bus),
+    };
+    Object.defineProperty(window, "visualViewport", { value: vv, configurable: true });
+    return {
+      vv,
+      fire: (type: "resize" | "scroll") =>
+        act(() => {
+          bus.dispatchEvent(new Event(type));
+        }),
+      restore: () => Reflect.deleteProperty(window, "visualViewport"),
+    };
+  };
+
+  it("re-anchors a latched capsule when a pinch-zoom moves the visible region", () => {
+    const restore = withRealLayout();
+    const region = vvStub({ offsetLeft: 0, width: 1024, offsetTop: 0, height: 660 });
+    try {
+      render(<Host latchOnTap />);
+      down();
+      up();
+      const before = { left: overlay()!.style.left, halo: haloBox().h };
+
+      // A ~2× pinch, panned right and down: a smaller window onto the page,
+      // offset within it. The capsule's unclamped home is now off the left of
+      // that window, and 196px of halo per side no longer fits inside it.
+      Object.assign(region.vv, {
+        offsetLeft: 300,
+        width: 512,
+        offsetTop: 200,
+        height: 330,
+      });
+      region.fire("resize");
+
+      expect(overlay()!.style.left).not.toBe(before.left);
+      // Inside the region the user is actually looking at, margins honoured —
+      // the same guarantee computeTrackGeometry gives at activation.
+      const left = Number.parseFloat(overlay()!.style.left);
+      const width = Number.parseFloat(overlay()!.style.width);
+      expect(left).toBeGreaterThanOrEqual(300 + EDGE_MARGIN_PX);
+      expect(left + width).toBeLessThanOrEqual(300 + 512 - EDGE_MARGIN_PX);
+      // And the halo gives way with it, or the treatment it replaced comes
+      // back: an absolute reach is only "local" relative to a region.
+      expect(haloBox().h).toBeLessThan(before.halo);
+    } finally {
+      region.restore();
+      restore();
+    }
+  });
+
+  it("re-anchors on a visual-viewport SCROLL, not only a resize", () => {
+    // WebKit slides the visual viewport without resizing it — the same reason
+    // use-keyboard-inset subscribes to both. A capsule pinned to a region it
+    // has been panned out of is that bug wearing the overlay's clothes.
+    const restore = withRealLayout();
+    const region = vvStub({ offsetLeft: 0, width: 512, offsetTop: 0, height: 660 });
+    try {
+      render(<Host latchOnTap />);
+      down();
+      up();
+      const before = overlay()!.style.left;
+      Object.assign(region.vv, { offsetLeft: 260 });
+      region.fire("scroll");
+      expect(overlay()!.style.left).not.toBe(before);
+    } finally {
+      region.restore();
+      restore();
+    }
+  });
+
+  it("re-anchors a latched capsule across a window resize", () => {
+    // The orientation change, on an engine with no visualViewport at all.
+    const restore = withRealLayout();
+    try {
+      render(<Host latchOnTap />);
+      down();
+      up();
+      const before = haloBox().h;
+      Object.defineProperty(window, "innerHeight", { value: 440, configurable: true });
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+      expect(haloBox().h).toBeLessThan(before);
+      const box = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+      expect(Number.parseFloat(box.style.top)).toBeGreaterThanOrEqual(0);
+      expect(Number.parseFloat(box.style.top) + haloBox().h).toBeLessThanOrEqual(440);
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the selection under the hand when the viewport moves mid-drag", () => {
+    // dragOffset is measured against the centers that existed at activation.
+    // Re-anchoring without re-deriving it teleports the value to whatever
+    // detent the new clamp left under the finger — the exact failure the
+    // offset exists to prevent, arriving through the fix for a different one.
+    const restore = withRealLayout();
+    const innerWidth = window.innerWidth;
+    try {
+      render(<Host />);
+      down();
+      hold();
+      expect(screen.getByText("Auto")).toBeTruthy();
+
+      // Narrow enough that the capsule's clamp actually displaces it.
+      Object.defineProperty(window, "innerWidth", { value: 350, configurable: true });
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+      // The recompute moves the track; it must not move the VALUE.
+      expect(screen.getByText("Auto")).toBeTruthy();
+      // Still at the same x — still the same detent.
+      moveTo(DOWN_X);
+      expect(screen.getByText("Auto")).toBeTruthy();
+      // And one spacing along is one detent along, from where the hand is now.
+      moveTo(DOWN_X + DETENT_SPACING_PX);
+      expect(screen.getByText("Low")).toBeTruthy();
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        value: innerWidth,
+        configurable: true,
+      });
+      restore();
+    }
+  });
+
+  it("takes the re-anchor watch down with the capsule", () => {
+    // A watch that outlives its capsule would measure an anchor the gesture
+    // has finished with, on every resize for the rest of the page's life.
+    const added: unknown[] = [];
+    const removed: unknown[] = [];
+    const realAdd = window.addEventListener.bind(window);
+    const realRemove = window.removeEventListener.bind(window);
+    const addSpy = vi
+      .spyOn(window, "addEventListener")
+      .mockImplementation((type, listener, options) => {
+        if (type === "resize") added.push(listener);
+        realAdd(type, listener, options);
+      });
+    const removeSpy = vi
+      .spyOn(window, "removeEventListener")
+      .mockImplementation((type, listener, options) => {
+        if (type === "resize") removed.push(listener);
+        realRemove(type, listener, options);
+      });
+    try {
+      render(<Host />);
+      // Nothing at rest: a wrapper that has not opened a capsule watches
+      // nothing, the same rule the axis claim follows.
+      expect(added).toHaveLength(0);
+      down();
+      hold();
+      expect(added).toHaveLength(1);
+      up();
+      expect(removed).toContain(added[0]);
+    } finally {
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    }
+  });
 });
 
 describe("drag, commit, and the trailing click", () => {

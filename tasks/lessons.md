@@ -3765,3 +3765,20 @@ test:e2e` hard-fails in global-setup until
   rather than documenting it. When a number describes something the platform
   owns, prefer measuring the thing to encoding a guess about it — and pin the
   contract that makes measuring possible, since losing it fails silently.
+
+- **A snapshot of the viewport is only true while the viewport holds still —
+  and a latched overlay outlives it.** The hold-slider sampled `geometry` and
+  `region` once, at activation, which is correct for a drag phase that lasts as
+  long as a finger and wrong for a capsule that stays up until it is dismissed.
+  An orientation change or a resize left it placed for the old viewport. The
+  sharp version is the one the design invites: multi-touch is exempted from the
+  gesture's scroll block *precisely so pinch-zoom keeps working under an open
+  capsule*, and zooming is exactly what changes `visualViewport`'s offset and
+  size — so the feature that was deliberately permitted was the feature that
+  invalidated the snapshot. When a control opts into a platform gesture, check
+  what that gesture changes and whether anything cached is still true after it;
+  permitting a gesture and ignoring its result is worse than refusing it.
+  Related: re-anchoring is not free of its own trap — `dragOffset` was measured
+  against the old detent centers, so recomputing geometry without re-deriving it
+  teleported the value under the hand, which is the exact failure that offset
+  exists to prevent, arriving through the fix for a different one.
