@@ -210,6 +210,95 @@ explicit "Got it" writes the same `dialTipSeen` flag.
   whether iOS's callout timer races it — are on the manual list in
   `docs/runbooks/ios-verification.md`.
 
+## Amendment 1 — the button says slider, the backdrop stays local
+
+Date: 2026-08-11 (same day; the owner's second pass on the shipped result)
+
+Two things were kept and two rejected. The gesture, the geometry, the shield,
+the latched phase and the capsule's internals are all untouched.
+
+### The resting affordance is a MINIATURE of the track (supersedes §4's grip)
+
+_"I want the button to be obvious with indications to press or an animation to
+press and hold to drag and slide it or a permanently visible slider."_
+
+The grip ticks were right about what to avoid and wrong about what to offer.
+[0012]'s reasoning — not dots (a text ellipsis at that size), not a chevron (a
+promise of a dropdown) — still holds; what it never established is that a grip
+says SLIDER. It says grippable. So `HoldSliderHint` is now a short rail filled
+to the current level in that level's own tone, with a thumb on the fill's
+leading edge: the owner's third option at pill scale, the control showing the
+thing it becomes. It reads `TONE_COLOR`, the same map the capsule's ramp is
+built from, so the pill and the track can never disagree about a level.
+
+A genuinely full-size rail on the composer was the alternative and is declined
+on geometry, not taste: Opus's six-stop ladder is 264px of a 390px viewport,
+which forces the rail to a second row and pushes the Target pill off its line.
+
+The owner's middle option is folded in rather than dropped — a ring pulses off
+the mini thumb until the first commit, gated on the same `dialTipSeen` flag as
+§5's how-to line, so the moving hint and the written one retire together.
+
+Two numbers in that hint are load-bearing, and both were found by looking at a
+render rather than by a test, which is why they now have one. The thumb is
+TALLER than its rail, and its travel is INSET from both ends. A knob of the
+rail's own height sitting flush against the rail's end is a toggle switch, and
+the bottom of the Thinking ladder is "Auto" — the value every new device opens
+on. The first cut shipped a switch in the off position.
+
+### The focus pair is a HALO, not a wash (supersedes §4's full-viewport pair)
+
+_"the entire screen shouldn't white out to only show the slider when it's
+held. It should popup and blur out the direct area underneath it and that
+blurring fades into the area … that becomes clear again."_
+
+The dim was `color-mix(in srgb, var(--void) 62%, transparent)` over `fixed
+inset-0`. On the light theme `--void` is `#eef0f4`, so that is 62% of a
+near-white across the whole viewport — the complaint is a measurement, not a
+preference. The treatment is now an ellipse centred on the capsule that falls
+off to untouched screen.
+
+The two layers localize from OPPOSITE ENDS, and that asymmetry is the decision:
+
+- The DIM keeps its viewport-covering box, because that box is the input
+  shield [0012]'s ninth pass added and the outside-tap dismiss target. It
+  localizes in its PAINT — a radial gradient — and a background never affects
+  hit-testing, so the shield is bit-for-bit what it was.
+- The BLUR localizes in its BOX, sized to the halo, and only SOFTENS that box's
+  edge with a mask.
+
+That split is what makes the mask non-load-bearing, and it is the whole reason
+the split exists. Measured 2026-08-11: Chromium gates a `backdrop-filter` with
+`mask-image` exactly as intended. WebKitGTK could not answer the question,
+because that build paints no `backdrop-filter` whatsoever — plain, masked, or
+on a promoted `::before` — while `filter: blur` works on the same page. So the
+suite's second engine is silent here, real Safari is unmeasured, and the whole
+`.glass` family's blur turns out to have only ever been asserted there by
+computed style. Every rung of the ladder is acceptable: mask honoured → soft
+halo; mask dropped → hard-edged but still LOCAL halo, seamed by the dim's
+slightly wider ellipse; filter dropped → the dim alone, which is already what
+both stand-downs ship. None of them is the wash that was rejected.
+
+### The capsule reads as a pane, not a chip
+
+_"the popup with the blurred background and the slider has glass backgrounds
+super opaque blurring the content and also shadows dropping over at the edge
+blurs to give it style."_
+
+`.hold-slider-glass` is a tier of its own rather than a new general member of
+the glass family, because this is the one surface in the app that floats over
+a blur of its own making: the halo paints at z-84 and the capsule at z-85, so
+the frost samples an already-blurred backdrop. It goes on the round box INSIDE
+the track, never the track itself — the track is `position: fixed`, which is
+the iOS async-scrolling trap the chrome bars and the FAB already dodge.
+`.hold-slider-lift` composes the drop shadow OVER `--glass-sheen` rather than
+replacing it, since `box-shadow` is one property and the level chip also wears
+`.glass-solid`.
+
+The peak caption gained a chip too. As bare text it was legible only because
+the old backdrop flattened everything behind it; over a local halo it landed
+directly on the coach line under the rail and the two sentences interleaved.
+
 ## Alternatives considered
 
 - **Keep the sheet, drop only the chevron.** Cheapest, and it was offered.

@@ -65,6 +65,20 @@ describe("UI contracts", () => {
         .filter((h) => h.includes("[data-scrolling]"));
       expect(new Set(heads)).toEqual(new Set(["[data-scrolling] .fab-glass::before"]));
     });
+
+    it("pauses the resting dial's pulse under a live capsule", () => {
+      // The blur's whole performance case is one filter pass over a backdrop
+      // that genuinely holds still, and "static" is a claim about the CONTENT
+      // beneath it, not about the layer (lessons.md, twentieth pass). The mini
+      // hint's ring is an `infinite` animation on the RESTING pill — the
+      // object dead centre under the halo — and `.hold-slider-conceal` hides
+      // that pill by OPACITY, so it is still painted and still invalidating.
+      // Unpaused, it would re-filter the halo every frame of every gesture.
+      expect(
+        block(/\[data-hold-gesture\]\s+\.hold-hint-pulse::after/),
+        "the mini-hint pulse is missing from the world-pause list",
+      ).toMatch(/animation-play-state:\s*paused/);
+    });
   });
 
   describe("long lists stop scaling with content", () => {

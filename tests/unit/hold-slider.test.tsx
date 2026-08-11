@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createPortal } from "react-dom";
 import {
+  HoldSliderHint,
   HoldSliderTrigger,
   type Detent,
   type DetentMarker,
@@ -319,6 +320,85 @@ describe("tap vs hold", () => {
     expect(scrim()).toBeNull();
     expect(blur()).toBeNull();
     expect(frozen()).toBe(false);
+  });
+
+  it("treats a halo around the capsule, not the whole viewport", () => {
+    // What shipped first washed `fixed inset-0` flat — on the light theme,
+    // 62% of a near-white over the entire screen (owner's red X, 2026-08-11:
+    // "the entire screen shouldn't white out … it should popup and blur out
+    // the direct area underneath it and that blurring fades into the area …
+    // that becomes clear again").
+    //
+    // The two layers localize from opposite ends, and the asymmetry is the
+    // contract. The DIM keeps its viewport-covering box, because that box IS
+    // the input shield, and localizes in its paint — the four --dial-*
+    // properties globals.css reads for its radial gradient. The BLUR
+    // localizes in its BOX, which is what keeps the treatment local even on
+    // an engine that ignores the mask softening its edge.
+    render(<Host />);
+    down();
+    hold();
+    const track = overlay()!;
+    const blur = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+    const scrim = document.querySelector<HTMLElement>("[data-hold-slider-scrim]")!;
+    const px = (v: string) => Number.parseFloat(v);
+
+    // The blur is a finite box, concentric with the capsule and larger on
+    // both axes. Derived from the same geometry, so this holds wherever the
+    // capsule's clamp puts it.
+    expect(blur.className).not.toContain("inset-0");
+    const trackCx = px(track.style.left) + px(track.style.width) / 2;
+    const trackCy = px(track.style.top) + px(track.style.height) / 2;
+    expect(px(blur.style.left) + px(blur.style.width) / 2).toBeCloseTo(trackCx, 5);
+    expect(px(blur.style.top) + px(blur.style.height) / 2).toBeCloseTo(trackCy, 5);
+    expect(px(blur.style.width)).toBeGreaterThan(px(track.style.width));
+    // Vertically the halo has to clear the floating level chip ABOVE the
+    // capsule and the peak caption BELOW it, or they read as text over
+    // untouched screen. Both are ~40px out, so the margin is generous.
+    expect(px(blur.style.height)).toBeGreaterThan(px(track.style.height) + 160);
+
+    // The dim keeps the shield's box and carries the centre instead.
+    expect(scrim.className).toContain("fixed inset-0");
+    expect(px(scrim.style.getPropertyValue("--dial-cx"))).toBeCloseTo(trackCx, 5);
+    expect(px(scrim.style.getPropertyValue("--dial-cy"))).toBeCloseTo(trackCy, 5);
+    // Its ellipse reaches at least as far as the blur's box, so where an
+    // engine drops the mask the hard edge lands inside the wash, not on it.
+    expect(px(scrim.style.getPropertyValue("--dial-rx"))).toBeGreaterThanOrEqual(
+      px(blur.style.width) / 2,
+    );
+    expect(px(scrim.style.getPropertyValue("--dial-ry"))).toBeGreaterThanOrEqual(
+      px(blur.style.height) / 2,
+    );
+    // No flat fill left in the component: the wash is a gradient in CSS now,
+    // and this was the last hardcoded backdrop colour outside the stylesheet.
+    expect(scrim.style.backgroundColor).toBe("");
+  });
+
+  it("puts the capsule on frosted glass with an edge shadow", () => {
+    // "the popup with the blurred background and the slider has glass
+    // backgrounds super opaque blurring the content and also shadows dropping
+    // over at the edge blurs to give it style" — the capsule is the one
+    // surface that floats over a blur of its own making, so it gets a tier of
+    // its own rather than the flat `.glass-solid` chip it wore before.
+    render(<Host peakCaption="Costs more" selectedIndex={DETENTS.length - 1} />);
+    down();
+    hold();
+    const el = overlay()!;
+    const capsule = el.querySelector<HTMLElement>(".hold-slider-glass")!;
+    expect(capsule).not.toBeNull();
+    expect(capsule.className).toContain("hold-slider-lift");
+    // The frost goes on the ROUND box inside the track, never on the track
+    // itself: the track is position:fixed, and a backdrop-filter on fixed
+    // chrome is the iOS async-scrolling trap the chrome bars already dodge.
+    expect(el.className).not.toContain("hold-slider-glass");
+    // The chip and the cost caption ride the same shadow, so all three
+    // floating pieces sit at one elevation over the halo.
+    expect(
+      el.querySelector("[data-hold-slider-label]")!.className,
+    ).toContain("hold-slider-lift");
+    expect(
+      el.querySelector("[data-hold-slider-caption]")!.closest(".hold-slider-lift"),
+    ).not.toBeNull();
   });
 
   it("stands the blur down over a declared dynamic backdrop — dim only", () => {
@@ -1640,5 +1720,83 @@ describe("one gesture at a time, app-wide", () => {
     expect(overlays()).toHaveLength(1);
     fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
     expect(onCommitB).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the resting mini-track", () => {
+  /**
+   * The affordance that replaced three grip ticks (owner's second pass,
+   * 2026-08-11: "I want the button to be obvious with indications to press or
+   * an animation to press and hold to drag and slide it or a permanently
+   * visible slider"). It is the third of those at pill scale — the control
+   * showing the slider it becomes, at the value it holds.
+   *
+   * Two of the assertions below are the anti-TOGGLE properties. Both were
+   * found by looking at a capture rather than by a test, which is exactly why
+   * they need one: the first cut put a knob of the rail's own height flush
+   * against the rail's end, and at the bottom of the Thinking ladder — "Auto",
+   * where every new device starts — that is a switch in the off position.
+   */
+  const parts = () => {
+    const root = document.querySelector<HTMLElement>("[data-hold-hint]")!;
+    return {
+      root,
+      rootW: Number.parseFloat(root.style.width),
+      fill: document.querySelector<HTMLElement>("[data-hold-hint-fill]")!,
+      thumb: document.querySelector<HTMLElement>("[data-hold-hint-thumb]")!,
+    };
+  };
+
+  it("fills to the committed value in that value's own tone", () => {
+    const { rerender } = render(<HoldSliderHint value={0} max={5} tone="faint" />);
+    const bottom = Number.parseFloat(parts().thumb.style.left);
+    const bottomFill = Number.parseFloat(parts().fill.style.width);
+
+    rerender(<HoldSliderHint value={5} max={5} tone="ultra" />);
+    const top = Number.parseFloat(parts().thumb.style.left);
+    expect(top).toBeGreaterThan(bottom);
+    expect(Number.parseFloat(parts().fill.style.width)).toBeGreaterThan(bottomFill);
+    // The same TONE_COLOR map the capsule's ramp is built from, so the pill
+    // and the track it opens can never disagree about a level's colour.
+    expect(parts().fill.style.backgroundColor).toContain("--ultra-ink");
+
+    rerender(<HoldSliderHint value={2} max={5} tone="laser" />);
+    const mid = Number.parseFloat(parts().thumb.style.left);
+    expect(mid).toBeGreaterThan(bottom);
+    expect(mid).toBeLessThan(top);
+  });
+
+  it("keeps the thumb taller than its rail — a slider, not a switch", () => {
+    render(<HoldSliderHint value={2} max={5} tone="laser" />);
+    const { fill, thumb } = parts();
+    expect(Number.parseFloat(thumb.style.height)).toBeGreaterThan(
+      Number.parseFloat(fill.style.height),
+    );
+  });
+
+  it("never parks the thumb flush against either end — a switch always does", () => {
+    const { rerender } = render(<HoldSliderHint value={0} max={5} tone="faint" />);
+    const width = parts().rootW;
+    const half = Number.parseFloat(parts().thumb.style.width) / 2;
+    // Centre-anchored, so "flush left" is left === half.
+    expect(Number.parseFloat(parts().thumb.style.left)).toBeGreaterThan(half);
+    rerender(<HoldSliderHint value={5} max={5} tone="ultra" />);
+    expect(Number.parseFloat(parts().thumb.style.left)).toBeLessThan(width - half);
+  });
+
+  it("pulses only until the user has driven a dial once", () => {
+    // The owner's "animation to press and hold to drag and slide it". The
+    // hosts gate it on the same dialTipSeen flag as the coach line, so the
+    // moving hint and the written one retire together on the first commit.
+    const { rerender } = render(<HoldSliderHint value={0} max={5} tone="faint" pulse />);
+    expect(parts().thumb.className).toContain("hold-hint-pulse");
+    rerender(<HoldSliderHint value={0} max={5} tone="faint" />);
+    expect(parts().thumb.className).not.toContain("hold-hint-pulse");
+  });
+
+  it("stays decoration — the pill's label and role are the readout", () => {
+    render(<HoldSliderHint value={3} max={5} tone="laser" />);
+    expect(parts().root.getAttribute("aria-hidden")).toBe("true");
+    expect(parts().root.textContent).toBe("");
   });
 });

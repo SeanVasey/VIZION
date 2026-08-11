@@ -135,26 +135,99 @@ const LABEL_CLASS: Record<Detent["tone"], string> = {
 export type DetentMarker = "dot" | "bar";
 
 /**
- * Resting affordance for the slider — three slim vertical ticks at the pill's
- * trailing edge: the app's grip/detent vocabulary (the Sheet's grab rail is
- * the same slim rounded bar), NOT dots, which at this size read as a text
- * ellipsis, and NOT a chevron, which promises a dropdown the control does not
- * have (owner direction, 2026-08-11 — "I would prefer they not appear as
- * dropdowns unless they actually utilize one"). Static, aria-hidden
- * decoration: the pill label stays the readout, and the hosts render it only
- * while their slider is actually enabled — a hint that outlived its gesture
- * would be a lie.
+ * Mini-track geometry. A scale model of the capsule: one rail, one fill, one
+ * thumb on the fill's leading edge, with travel inset by half the thumb so it
+ * never overhangs the ends.
+ *
+ * Two of these numbers exist to keep it from reading as a TOGGLE SWITCH, which
+ * is what the first cut looked like at the bottom of the ladder — and the
+ * bottom of the Thinking ladder is "Auto", the default every new device opens
+ * on. Both were found by looking at a capture, not by a test.
+ *
+ *  - The thumb is TALLER than the rail. A knob sitting flush inside a
+ *    pill-shaped track of its own height is a switch; a round thumb
+ *    overhanging a thin rail is a slider.
+ *  - Travel is INSET from both ends, so rail stays visible on the far side of
+ *    the thumb at every value. A switch knob is always flush against the end
+ *    it is parked at; this one never is.
  */
-export function HoldSliderHint() {
+const HINT_W_PX = 40;
+const HINT_H_PX = 12;
+const HINT_RAIL_H_PX = 5;
+const HINT_THUMB_PX = 12;
+const HINT_INSET_PX = 10;
+
+/**
+ * Resting affordance for the slider — a MINIATURE of the track it opens: a
+ * short rail, filled in the level's own tone up to a small thumb.
+ *
+ * This replaced three slim grip ticks on 2026-08-11. The ticks were right
+ * about what to avoid — a chevron promises a dropdown the control does not
+ * have — and wrong about what to offer: a grip reads as a grip. The owner's
+ * second pass asked for a button that is obvious on sight, offering three
+ * routes ("indications to press or an animation to press and hold to drag and
+ * slide it or a permanently visible slider"), and picked this one. It is
+ * literally the third route at pill scale: the control shows the slider it
+ * becomes, at the value it currently holds, in the colour that value has
+ * inside the capsule (same `TONE_COLOR` map, so the two can never disagree).
+ *
+ * A full-size rail on the composer rail was the alternative and was declined:
+ * Opus's six-stop ladder needs 264px of the 390px phone, which forces the rail
+ * to a second row and pushes the Target pill off its line.
+ *
+ * Still aria-hidden decoration — the pill's label is the readout, the pill's
+ * `role="slider"` is the semantics — and the hosts render it only while their
+ * slider is actually enabled, because a hint that outlived its gesture would
+ * be a lie.
+ */
+export function HoldSliderHint({
+  value,
+  max,
+  tone,
+  pulse = false,
+}: {
+  /** The committed detent index. */
+  value: number;
+  /** The ladder's top index (`aria-valuemax`), never below 1 in practice. */
+  max: number;
+  /** The committed detent's tone — keys the fill to the capsule's ramp. */
+  tone: Detent["tone"];
+  /** True until the user has driven any dial once: a soft ring pulses off the
+   *  thumb, which is the owner's "animation to press and hold". Retires on the
+   *  first commit through the host's `dialTipSeen` flag — the same one the
+   *  coach line uses, so the two hints appear and leave together. */
+  pulse?: boolean;
+}) {
+  const fraction = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  const x = HINT_INSET_PX + (HINT_W_PX - HINT_INSET_PX * 2) * fraction;
   return (
     <span
       aria-hidden="true"
       data-hold-hint=""
-      className="inline-flex shrink-0 items-center gap-[3px]"
+      className="relative inline-flex shrink-0 items-center"
+      style={{ width: HINT_W_PX, height: HINT_H_PX }}
     >
-      <span className="h-[7px] w-[2px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
-      <span className="h-[9px] w-[2px] rounded-full bg-[color-mix(in_srgb,var(--silver)_55%,transparent)]" />
-      <span className="h-[11px] w-[2px] rounded-full bg-[color-mix(in_srgb,var(--silver)_45%,transparent)]" />
+      <span
+        className="absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-full bg-[color-mix(in_srgb,var(--silver)_26%,transparent)]"
+        style={{ height: HINT_RAIL_H_PX }}
+      />
+      <span
+        data-hold-hint-fill=""
+        className="hold-hint-fill absolute left-0 top-1/2 -translate-y-1/2 rounded-full"
+        style={{ width: x, height: HINT_RAIL_H_PX, backgroundColor: TONE_COLOR[tone] }}
+      />
+      {/* --chalk, not the tone: the thumb is the moving OBJECT and the fill
+          behind it is the value, exactly as in the capsule (whose thumb is
+          glass with a tone core — too fussy to reproduce at 10px). As the
+          primary-text role it inverts with the theme, so it stays legible on
+          both pill surfaces. */}
+      <span
+        data-hold-hint-thumb=""
+        className={`hold-hint-thumb absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-hair bg-chalk ${
+          pulse ? "hold-hint-pulse" : ""
+        }`}
+        style={{ left: x, width: HINT_THUMB_PX, height: HINT_THUMB_PX }}
+      />
     </span>
   );
 }
@@ -303,6 +376,30 @@ const BAR_MIN_PX = 8;
 const BAR_MAX_PX = 20;
 
 /**
+ * How far the treated halo reaches past the capsule, per axis.
+ *
+ * Asymmetric on purpose, and the phone is what sets both numbers. Opus's
+ * six-stop capsule is already 264px of a 390px viewport, so there is barely
+ * any horizontal room left to fade in — the halo spans most of the width
+ * either way, and pushing X further only wastes filter area. Vertically there
+ * are ~780px to work with and the popup is taller than the capsule: the level
+ * chip sits 36px above it and the peak caption 32px below, both of which have
+ * to land inside the treated region or they read as floating over untouched
+ * screen. Y therefore clears both with margin, and the ellipse takes the
+ * corners back out so the result is a lens, not a band.
+ */
+const HALO_X_PX = 72;
+const HALO_Y_PX = 128;
+/**
+ * The dim's ellipse, relative to the blur's box. Slightly WIDER on purpose:
+ * where an engine ignores the mask the blur ends on its box edge, and the
+ * dim still having a little left there turns a rectangle into a seam. On
+ * engines that honour the mask (Chromium, measured) both fade together and
+ * the spread is invisible.
+ */
+const DIM_SPREAD = 1.16;
+
+/**
  * The expanded track — pure presentation plus, in the latched phase, its own
  * pointer handling; the suites (unit and e2e) reach it through the
  * `data-hold-slider-overlay` DOM hook, not an import. Portalled to
@@ -423,6 +520,19 @@ function HoldSliderOverlay({
   if (!detent) return null;
   const tone = detent.tone;
   const peak = dragIndex === detents.length - 1;
+  // The halo — the treated region around the capsule, in viewport pixels. The
+  // capsule is anchor-centred, so its centre IS the button's centre and no
+  // extra geometry has to be carried out of use-hold-drag.
+  const haloWidth = geometry.width + HALO_X_PX * 2;
+  const haloHeight = geometry.height + HALO_Y_PX * 2;
+  const haloLeft = geometry.left - HALO_X_PX;
+  const haloTop = geometry.top - HALO_Y_PX;
+  const haloVars = {
+    "--dial-cx": `${geometry.left + geometry.width / 2}px`,
+    "--dial-cy": `${geometry.top + geometry.height / 2}px`,
+    "--dial-rx": `${(haloWidth / 2) * DIM_SPREAD}px`,
+    "--dial-ry": `${(haloHeight / 2) * DIM_SPREAD}px`,
+  } as React.CSSProperties;
   // Offsets inside the track, from viewport-x detent centers.
   const centers = geometry.detentCenters.map((x) => x - geometry.left);
   const rampWidth = geometry.width - FILL_INSET_PX * 2;
@@ -446,6 +556,30 @@ function HoldSliderOverlay({
           under a backdrop-filter re-filters every frame — so a declared
           dynamicBackdrop stands the blur down instead.
 
+          Both are LOCAL now (owner direction, 2026-08-11 — "the entire
+          screen shouldn't white out to only show the slider when it's held.
+          It should popup and blur out the direct area underneath it and
+          that blurring fades into the area … that becomes clear again").
+          What shipped was a flat 62%-Void fill edge to edge, which on the
+          light theme is 62% of a near-white (#eef0f4) over the whole
+          viewport. The treatment is now an ellipse around the capsule that
+          falls off to untouched screen, and the two layers reach that the
+          same way from opposite ends:
+
+           - the DIM stays fixed inset-0 and localizes in its PAINT, a
+             radial-gradient background centred on the capsule. It has to
+             stay viewport-covering because it is also the shield (below),
+             and a background gradient never affects hit-testing.
+           - the BLUR localizes in its BOX, sized to the halo, and softens
+             its edge with a mask. Measured 2026-08-11: Chromium gates a
+             backdrop-filter with mask-image exactly as intended. WebKitGTK
+             could not answer — that build renders NO backdrop-filter at
+             all, masked or not, promoted or not (filter: blur works, so it
+             is the compositor, not the syntax), which is also why the box
+             carries the localization and the mask only softens it: an
+             engine that drops the mask still gets a LOCAL blur, and an
+             engine that drops the filter gets today's dim-only stand-down.
+
           pointer-events AUTO, deliberately: the pair doubles as the
           gesture's input shield. A second pointer mid-DRAG otherwise reaches
           whatever it lands on — on hybrid-input devices its synthesized
@@ -454,21 +588,29 @@ function HoldSliderOverlay({
           captured streams bypass hit-testing, so the shield can never steal
           the drag it guards. In the LATCHED phase the same surface earns a
           second job: it is the outside-tap DISMISS target, which is the
-          only reason a latched capsule is escapable by pointer at all. */}
+          only reason a latched capsule is escapable by pointer at all. The
+          shield is carried by the DIM specifically — it is the layer that
+          mounts unconditionally and the one holding the dismiss handler, so
+          shrinking the blur's box costs it nothing. (Masking does not clip
+          hit-testing in either engine — measured alongside the above.) */}
       {!dynamicBackdrop && (
         <div
           aria-hidden="true"
           data-hold-slider-blur=""
-          className="hold-slider-blur pointer-events-auto fixed inset-0 z-[84]"
+          className="hold-slider-blur pointer-events-auto fixed z-[84]"
+          style={{
+            left: haloLeft,
+            top: haloTop,
+            width: haloWidth,
+            height: haloHeight,
+          }}
         />
       )}
       <div
         aria-hidden="true"
         data-hold-slider-scrim=""
         className="hold-slider-scrim pointer-events-auto fixed inset-0 z-[84]"
-        style={{
-          backgroundColor: "color-mix(in srgb, var(--void) 62%, transparent)",
-        }}
+        style={haloVars}
         onPointerDown={
           isLatched
             ? (e) => {
@@ -522,12 +664,21 @@ function HoldSliderOverlay({
         <p className="pointer-events-none absolute -top-9 left-1/2 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 justify-center">
           <span
             data-hold-slider-label=""
-            className={`glass-solid font-body max-w-full truncate rounded-full px-3 py-1 text-sm font-medium ${LABEL_CLASS[tone]}`}
+            className={`glass-solid hold-slider-lift font-body max-w-full truncate rounded-full px-3 py-1 text-sm font-medium ${LABEL_CLASS[tone]}`}
           >
             {detent.label}
           </span>
         </p>
-        <div className="glass-solid relative h-full w-full overflow-hidden rounded-full border border-hair">
+        {/* `hold-slider-glass`, not `glass-solid`: the capsule is the one
+            surface in the app that sits on a blur of its own making, and the
+            owner asked for it to look like it ("the popup with the blurred
+            background and the slider has glass backgrounds super opaque
+            blurring the content"). The halo paints at z-84 and this at z-85,
+            so the frost samples an already-blurred backdrop — a lens over a
+            lens, which is what gives the capsule its depth. `hold-slider-lift`
+            is the shadow that drops it over that halo; it composes the glass
+            sheen rather than replacing it (box-shadow is one property). */}
+        <div className="hold-slider-glass hold-slider-lift relative h-full w-full overflow-hidden rounded-full">
           <div
             data-tone={tone}
             data-peak={peak ? "" : undefined}
@@ -633,12 +784,23 @@ function HoldSliderOverlay({
           )}
         </div>
         {peak && peakCaption && (
-          <p className="pointer-events-none absolute -bottom-8 left-1/2 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 justify-center">
-            <span
-              data-hold-slider-caption=""
-              className="hold-slider-caption font-body max-w-full truncate text-center text-xs font-medium"
-            >
-              {peakCaption}
+          <p className="pointer-events-none absolute -bottom-10 left-1/2 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 justify-center">
+            {/* On a chip of its own, like the level readout above. As bare
+                text it was legible only because the old backdrop washed the
+                whole viewport flat; over a LOCAL halo it landed directly on
+                the coach line beneath the rail and the two sentences
+                interleaved (seen in capture, 2026-08-11). The chip is a
+                separate node from the caption because `.hold-slider-caption`
+                owns `background-image` and `background-clip: text` for its
+                shimmer — putting glass on the same element would clip the
+                pane to the glyphs. */}
+            <span className="glass-solid hold-slider-lift max-w-full rounded-full px-3 py-1">
+              <span
+                data-hold-slider-caption=""
+                className="hold-slider-caption font-body block max-w-full truncate text-center text-xs font-medium"
+              >
+                {peakCaption}
+              </span>
             </span>
           </p>
         )}

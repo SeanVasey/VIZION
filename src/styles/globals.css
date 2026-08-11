@@ -542,6 +542,143 @@
     transition: none;
   }
 
+  /* The capsule's own ground — the "super opaque glass" tier (owner
+     direction, 2026-08-11: "the popup with the blurred background and the
+     slider has glass backgrounds super opaque blurring the content").
+
+     Deliberately NOT a new general member of the .glass family. It exists
+     because this is the one surface in the app that floats over a blur of its
+     own making: the halo paints at z-84 and the capsule at z-85, so this
+     filter samples an already-blurred backdrop and the capsule reads as a
+     pane in FRONT of the treated region. `.glass-solid` (opaque, no filter)
+     could not say that — it read as a flat chip sitting on the halo.
+
+     92% of the already-composited --glass-still keeps it firmly on the opaque
+     side of the family, so the tone inks on it measure as they do on
+     .glass-solid, while leaving just enough alpha for the frost beneath to
+     register as depth rather than as content. The radius is heavier than
+     .glass's 16px on purpose: it is softening something already soft, and
+     anything lighter reads as a second helping of the same blur instead of a
+     separate pane.
+
+     It goes on the rounded box INSIDE the track, never on the track itself —
+     the track is `position: fixed`, and a backdrop-filter on fixed chrome is
+     the iOS async-scrolling trap (.glass-chrome's note, lessons.md 777).
+     Nothing scrolls under a live capsule (the shield sees to that), so this
+     is belt-and-braces rather than a live bug — but the safe shape costs
+     nothing here, since the inner box is the one that is actually round and
+     actually visible. */
+  .hold-slider-glass {
+    background-color: color-mix(in srgb, var(--glass-still) 92%, transparent);
+    background-image: var(--grain, none);
+    backdrop-filter: blur(28px) saturate(1.3);
+    -webkit-backdrop-filter: blur(28px) saturate(1.3);
+    border: 1px solid var(--hair);
+  }
+  /* The frost stands down WITH the halo blur, not independently: both gates
+     null the halo below, and a frost left filtering an unblurred backdrop is
+     a smear on live content rather than a pane over a lens. Falling back to
+     flat --glass-still lands it exactly on .glass-solid, which is the surface
+     the capsule wore before this rule existed. */
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-glass {
+      background-color: var(--glass-still);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-glass {
+    background-color: var(--glass-still);
+    background-image: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* The edge shadow that drops the capsule and its level chip over the halo
+     ("shadows dropping over at the edge blurs to give it style"). Two casts:
+     a tight contact shadow that seats the object, and a wide soft one that
+     puts real distance between it and the blurred region.
+
+     COMPOSED, sheen first — box-shadow is a single property, and the chip
+     carries `.glass-solid`, whose own box-shadow this would otherwise replace
+     outright (the trap on --focus-ring above, and lessons.md 2243). Declared
+     after .glass-solid so source order settles the tie at equal specificity.
+     Neither node this lands on is focusable — they are aria-hidden overlay
+     decoration — so unlike .glass / .fab-glass there is no :focus-visible
+     variant to re-compose; that is a property of these two call sites, not a
+     licence for the next one.
+
+     Void-based rather than a literal rgba so it inverts with the theme: a
+     fixed black cast under a near-white light-theme capsule was the same
+     mistake --scrim-heavy already exists to prevent. No reduced-* gate — a
+     static shadow on a control's own surface is not background decoration,
+     the same call .glass's blur and .fab-glass's shadow already make. */
+  .hold-slider-lift {
+    box-shadow:
+      var(--glass-sheen),
+      0 2px 10px color-mix(in srgb, var(--void) 42%, transparent),
+      0 20px 52px -14px color-mix(in srgb, var(--void) 72%, transparent);
+  }
+
+  /* The resting mini-track inside the pill (HoldSlider's HoldSliderHint) —
+     the affordance that replaced three grip ticks. Its fill and thumb move on
+     the same eased snap as the capsule's, because it is the same control at
+     pill scale and a hint that jumped while the capsule glided would read as
+     a different widget. */
+  .hold-hint-fill {
+    transition:
+      width var(--motion-quick) ease-out,
+      background-color var(--motion-quick) ease-out;
+  }
+  .hold-hint-thumb {
+    transition: left var(--motion-quick) ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-hint-fill,
+    .hold-hint-thumb {
+      transition: none;
+    }
+  }
+  [data-reduced-effects] .hold-hint-fill,
+  [data-reduced-effects] .hold-hint-thumb {
+    transition: none;
+  }
+
+  /* The press-and-hold pulse: a ring blooming off the mini thumb until the
+     user has driven any dial once (the host gates it on the same dialTipSeen
+     flag as the coach line, so both hints leave together). This is the
+     owner's "animation to press and hold to drag and slide it" — the moving
+     half of making the button obvious, where the mini-track is the static
+     half. Both stand-downs remove it outright rather than freezing it: a
+     stopped ring is a stray circle around the thumb. */
+  .hold-hint-pulse::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 9999px;
+    border: 1.5px solid color-mix(in srgb, var(--silver) 55%, transparent);
+    animation: hold-hint-pulse 2.6s ease-out infinite;
+  }
+  @keyframes hold-hint-pulse {
+    0% {
+      opacity: 0.8;
+      transform: scale(0.62);
+    }
+    60%,
+    100% {
+      opacity: 0;
+      transform: scale(1.55);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-hint-pulse::after {
+      display: none;
+    }
+  }
+  [data-reduced-effects] .hold-hint-pulse::after {
+    display: none;
+  }
+
   /* The focus pair behind an active hold-slider: while the capsule is up,
      everything else drops back so the eye holds only the track, the thumb,
      the level chip, and its tone; release returns the composer instantly.
@@ -559,10 +696,44 @@
      see ADR-0012 amendment 4). The DIM layer above it carries the
      entrance fade, so the blur layer never animates. Both stand-downs
      drop the blur entirely and make the dim instant — dim-only is exactly
-     the pre-blur shipped behaviour. */
+     the pre-blur shipped behaviour.
+
+     Both are LOCAL to the capsule (owner direction, 2026-08-11: "the entire
+     screen shouldn't white out … it should popup and blur out the direct area
+     underneath it and that blurring fades into the area … that becomes clear
+     again"). They get there from opposite ends, and the asymmetry is the
+     point: the DIM keeps its viewport-covering box because it is also the
+     input shield, and localizes in its PAINT — a background gradient, which
+     never affects hit-testing. The BLUR localizes in its BOX, which HoldSlider
+     sizes to the halo, and only SOFTENS that box with a mask.
+
+     Splitting it that way is what makes the mask non-load-bearing, which
+     matters because of what the 2026-08-11 measurement found. Chromium gates
+     a backdrop-filter with mask-image exactly as intended (soft elliptical
+     falloff, verified by render). WebKitGTK could not answer the question:
+     that build paints NO backdrop-filter at all — plain, masked, or on a
+     promoted ::before — while `filter: blur` works on the same page, so it is
+     the compositor and not the syntax, and it means the whole .glass family's
+     blur has only ever been asserted there by computed style, never rendered.
+     Real Safari/iOS therefore remains unmeasured (ios-verification.md). The
+     degradation ladder is honest at every rung: mask honoured → soft halo;
+     mask dropped → hard-edged but still LOCAL halo, seamed by the dim's
+     slightly wider ellipse; filter dropped → dim only, which is already the
+     shipped stand-down. None of them is the full-viewport wash. */
   .hold-slider-blur {
-    backdrop-filter: blur(14px) saturate(1.05);
-    -webkit-backdrop-filter: blur(14px) saturate(1.05);
+    backdrop-filter: blur(16px) saturate(1.05);
+    -webkit-backdrop-filter: blur(16px) saturate(1.05);
+    /* Inscribed in the element's own box, so the halo's extent is HoldSlider's
+       geometry and this rule only has to say "fade to nothing at the edge".
+       Paired prefixes for the same reason backdrop-filter and
+       background-clip: text carry them. */
+    -webkit-mask-image: radial-gradient(
+      ellipse closest-side,
+      #000 0%,
+      #000 42%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(ellipse closest-side, #000 0%, #000 42%, transparent 100%);
   }
   @media (prefers-reduced-motion: reduce) {
     .hold-slider-blur {
@@ -574,7 +745,22 @@
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
+  /* The dim. Was a flat `color-mix(in srgb, var(--void) 62%, transparent)`
+     set inline in HoldSlider — the last hardcoded backdrop colour left in a
+     component, and on the light theme 62% of a near-white (#eef0f4) laid edge
+     to edge, which is precisely the "white out" the owner rejected. Now a
+     radial wash centred on the capsule and gone by the halo's edge, at a
+     little over half the old strength: the capsule's own frost and lift carry
+     the separation the flat dim used to buy by force.
+     The four --dial-* properties come from HoldSlider (viewport pixels); the
+     fallbacks keep this rule legible, and renderable, on its own. */
   .hold-slider-scrim {
+    background-image: radial-gradient(
+      var(--dial-rx, 260px) var(--dial-ry, 300px) at var(--dial-cx, 50%) var(--dial-cy, 50%),
+      color-mix(in srgb, var(--void) 38%, transparent) 0%,
+      color-mix(in srgb, var(--void) 32%, transparent) 42%,
+      transparent 100%
+    );
     animation: hold-slider-scrim-in var(--motion-quick) ease-out;
   }
   @keyframes hold-slider-scrim-in {
@@ -607,7 +793,8 @@
   [data-hold-gesture] .bg-nebula-bloom,
   [data-hold-gesture] .horizon[data-state] .horizon-node,
   [data-hold-gesture] .footer-fade-in,
-  [data-hold-gesture] .sheet-in {
+  [data-hold-gesture] .sheet-in,
+  [data-hold-gesture] .hold-hint-pulse::after {
     animation-play-state: paused;
   }
   /* The pause list is the OUTCOME of a full sweep of every `animation:`
@@ -629,7 +816,14 @@
      composer's spinners render only while pending — re-verified,
      twentieth pass); `.sheet-in-side` and `.scrim-in` stay exempt as
      dialog-locked TODAY, and any non-dialog adopter must join this list
-     — that is precisely how `.sheet-in` got here; and sheet EXIT
+     — that is precisely how `.sheet-in` got here; the mini-hint's pulse
+     (twenty-third pass) is the one ADDITION the halo redesign owes this
+     list, and it is the sharpest case yet for keeping it: an `infinite`
+     ring on the RESTING pill, which is the object sitting dead centre
+     under the halo. The pill is concealed while the capsule is up, but
+     `.hold-slider-conceal` conceals by OPACITY — still painted, still
+     invalidating, so an unpaused ring would have re-filtered the blur
+     every frame for the life of every gesture; and sheet EXIT
      may overlap a new press by at most its 180ms self-terminating fade —
      pausing that would freeze a vanishing surface mid-fade for the whole
      gesture, a worse artifact than 180ms of re-filtering. */

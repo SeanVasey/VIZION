@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { HoldSliderHint } from "@/components/ui/HoldSlider";
 import { LEVEL_TONE, TONE_INK_CLASS } from "@/components/models/dial-detents";
+import { useUIStore } from "@/stores/ui";
 import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
 
 /**
@@ -19,9 +20,11 @@ import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
  * So the pill IS the slider now, in three senses at once:
  *
  *  - VISUALLY it is a button that states the current level in that level's
- *    own ink, with the meter glyph filled to match and the grip ticks where
- *    the chevron used to be — a control that expands, not one that drops
- *    down.
+ *    own ink, with the meter glyph filled to match and, where the chevron
+ *    used to be, a MINIATURE of the track it opens — filled to this level, in
+ *    this level's colour. A control that expands, not one that drops down,
+ *    and one that shows what it expands into (owner's second pass,
+ *    2026-08-11; HoldSliderHint's header carries the full rationale).
  *  - BY POINTER, through the HoldSliderTrigger the composer wraps it in: a
  *    tap opens the capsule latched over this exact button, a hold or a
  *    sideways slide scrubs it directly.
@@ -66,9 +69,13 @@ function ThinkingDialImpl({
   label: string;
   triggerClassName?: string;
   /** True while a HoldSliderTrigger around this pill is live — renders the
-   *  resting grip affordance. */
+   *  resting mini-track affordance. */
   holdHint?: boolean;
 }) {
+  // Read, not passed: this is the one-time coaching flag, it flips once per
+  // device, and threading it through the composer would put a value that
+  // never changes into the memo boundary this component exists behind.
+  const dialTipSeen = useUIStore((s) => s.dialTipSeen);
   // The dial's ladder is [Auto, ...the target's own levels], so index 0 is
   // always "send nothing" and the capsule's detents line up 1:1 with these
   // values (buildThinkingDetents composes the same list).
@@ -125,7 +132,9 @@ function ThinkingDialImpl({
           mirrors the target trigger so a full-width variant pushes the grip
           to the edge; in the composer's content-width pill it is a no-op. */}
       <span className={`grow truncate text-left ${TONE_INK_CLASS[tone]}`}>{text}</span>
-      {holdHint && <HoldSliderHint />}
+      {holdHint && (
+        <HoldSliderHint value={index} max={max} tone={tone} pulse={!dialTipSeen} />
+      )}
     </button>
   );
 }

@@ -3589,3 +3589,53 @@ test:e2e` hard-fails in global-setup until
   concluding that a suite "can't run here" — the e2e gate is not optional,
   and 45 of 100 tests failing on missing `libgtk-4.so.1` looks exactly like
   a code regression in the summary line.
+
+## Phase — dials, amendment 1: the halo and the mini-track (2026-08-11)
+
+- **"WebKit supports it" and "WebKit paints it" are different measurements,
+  and this suite has only ever taken the first.** The halo needed to know
+  whether `mask-image` gates a `backdrop-filter`. `CSS.supports` says yes in
+  both engines; the ios-verification table has said "supported" for
+  `-webkit-backdrop-filter` since July. A RENDER probe says the Playwright
+  WebKitGTK build paints no `backdrop-filter` at all — not plain, not masked,
+  not on a promoted `::before` — while `filter: blur` on the same page works
+  fine, so it is the compositor, not the syntax. Every `.glass` blur in this
+  app has therefore been asserted on that engine by computed style and never
+  by pixels. The lesson is not "distrust WebKitGTK", which the runbook already
+  says; it is that a capability table full of `CSS.supports` answers is
+  evidence about the PARSER, and a visual decision needs a screenshot.
+
+- **When an engine can't answer, move the load off the thing it can't
+  answer.** The first design put the halo's localization in the mask. That
+  makes an unmeasurable property load-bearing: an engine that ignores the mask
+  blurs the whole viewport, which is exactly the bug being fixed. Sizing the
+  blur element's BOX to the halo and letting the mask only soften its edge
+  costs one line and turns an unknown into a cosmetic difference. Ask what
+  ships if the unverified thing is simply absent, and arrange for the answer
+  to be "something slightly worse" rather than "the original defect".
+
+- **A knob the height of its rail is a switch, whatever you meant.** The
+  resting mini-track shipped its first cut as a 10px thumb flush inside a
+  10px pill-shaped rail. At the ladder's bottom stop — "Auto", the value every
+  new device opens on — it read unmistakably as a toggle in the OFF position,
+  i.e. as a control with two states rather than six. Two numbers fixed it:
+  the thumb is taller than the rail, and its travel is inset from both ends so
+  rail stays visible past it at every value. Neither was findable from the
+  DOM; both came from looking at a capture and are now pinned, because a test
+  is the only thing that stops the next person tidying them away.
+
+- **Look at the defaults, not the interesting state.** Both visual defects
+  this round were in states a capture only shows if you ask for them: the
+  toggle read is at index 0, and the peak caption's collision with the coach
+  line is at index max WITH the one-time tip still on screen. The states worth
+  rendering are the first-run one and the extreme one, not the mid-ladder one
+  that looks best.
+
+- **Splitting a layer's two jobs is cheaper than moving one.** The scrim was
+  both the rejected full-viewport wash and the input shield an e2e
+  actionability test pins by real hit-testing. The instinct was to add a third
+  layer. The actual fix was to notice the jobs use different mechanisms —
+  hit-testing follows the BOX, the wash follows the PAINT — so the box could
+  stay exactly as pinned while only the paint became local. Zero existing
+  assertions changed. When one element does two things, check whether they are
+  even expressed in the same CSS property before restructuring.

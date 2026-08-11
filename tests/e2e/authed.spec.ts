@@ -441,6 +441,33 @@ test.describe("thinking hold-slider", () => {
     await expect(page.locator("[data-hold-slider-blur]")).toBeVisible();
     // So does the thumb — the moving object the reference control carries.
     await expect(page.locator("[data-hold-slider-thumb]")).toBeVisible();
+    // The treatment is LOCAL (owner direction, 2026-08-11: the full-viewport
+    // wash is out). Two independent halves, pinned in a real engine because
+    // jsdom has no layout to measure and no computed backdrop to read:
+    //
+    //  · the blur's BOX is a halo around the capsule — comfortably inside the
+    //    viewport on both axes, and concentric with the track. That box is
+    //    what makes the treatment local at all; the mask below only softens
+    //    its edge, which is deliberate, because the WebKitGTK build this
+    //    suite also runs paints no backdrop-filter whatsoever and real Safari
+    //    is therefore unmeasured (docs/runbooks/ios-verification.md).
+    const halo = await page.locator("[data-hold-slider-blur]").boundingBox();
+    const vp = page.viewportSize()!;
+    expect(halo!.height).toBeLessThan(vp.height * 0.7);
+    expect(halo!.y).toBeGreaterThan(0);
+    expect(halo!.y + halo!.height).toBeLessThan(vp.height);
+    const track = (await page.locator("[data-hold-slider-overlay]").boundingBox())!;
+    expect(Math.abs(halo!.y + halo!.height / 2 - (track.y + track.height / 2))).toBeLessThan(2);
+    //  · the dim keeps the viewport-covering box — it is the shield — and
+    //    localizes in its PAINT instead: a radial gradient, never the flat
+    //    fill that washed the light theme near-white edge to edge.
+    const dim = page.locator("[data-hold-slider-scrim]");
+    await expect
+      .poll(() => dim.evaluate((el) => getComputedStyle(el).backgroundImage))
+      .toContain("radial-gradient");
+    await expect
+      .poll(() => dim.evaluate((el) => getComputedStyle(el).backgroundColor))
+      .toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
     // The thinking capsule wears rising bars (the DepthGlyph vocabulary),
     // six for Opus's ladder — the budget capsule keeps equal dots.
     await expect(

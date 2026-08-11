@@ -25,7 +25,8 @@ Taken in an iPhone 14 Pro device context, on a confirmed secure context
 | `navigator.vibrate`                                                              | absent                                                                                     | absent (MDN BCD: `safari`/`safari_ios` false)                                                                   | consistent — `lib/haptics.ts`'s HONEST SCOPE note stands                                                                                           |
 | Background Sync                                                                  | absent                                                                                     | absent                                                                                                          | consistent — `OutboxFlusher`'s premise stands                                                                                                      |
 | `:active` on touch                                                               | applies regardless of any document touch listener; `touchscreen.tap()` cannot hold a press | widely reported to require a document touch listener, all reporting 2011–2015                                   | unresolvable here; the app was changed so nothing depends on it                                                                                    |
-| `-webkit-backdrop-filter`                                                        | supported (Chromium: **not** supported)                                                    | supported                                                                                                       | keep both prefixed and unprefixed declarations                                                                                                     |
+| `-webkit-backdrop-filter` — the PROPERTY                                         | supported (Chromium: **not** supported)                                                    | supported                                                                                                       | keep both prefixed and unprefixed declarations                                                                                                     |
+| `backdrop-filter` — actually PAINTING (2026-08-11)                               | **never renders.** Plain, masked, or on a promoted `::before`; `filter: blur` works on the same page, so it is the compositor, not the syntax | renders                                                                                                         | the whole `.glass` family's blur is asserted here only by computed style, never by pixels; any decision that depends on the blur being VISIBLE — or on how it composites with something else — has to be measured in Chromium and then confirmed on a device |
 | `inert`, `content-visibility`, `contain-intrinsic-size`, `color-mix`, `text-box` | all supported                                                                              | —                                                                                                               | safe to rely on                                                                                                                                    |
 
 ## The rule
@@ -165,8 +166,8 @@ The open questions. The first is no longer depended on; the rest are:
   the callout/loupe timer does not fire on the pill during the tap that
   latches — the tap is short, so this should be strictly easier than the
   hold path, but it is a different code path; (2) that scrubbing the open
-  track works, i.e. `touch-action: none` on the overlay is honoured and
-  iOS does not treat a drag beginning on a `position: fixed` portalled
+  track works, i.e. `touch-action: pinch-zoom` on the overlay is honoured
+  and iOS does not treat a drag beginning on a `position: fixed` portalled
   element as a page pan; and (3) that the outside-tap dismiss lands on the
   scrim rather than being eaten as a "dismiss the keyboard" gesture when
   the composer's textarea is focused. Failure mode here is NOT graceful in
@@ -174,4 +175,22 @@ The open questions. The first is no longer depended on; the rest are:
   so a latched capsule that cannot be scrubbed or dismissed leaves the
   pointer user with only the drag path. Check this one first.
 
-A single pass on a physical iPhone, in the installed PWA, would close all six.
+- **the capsule's HALO — the masked blur and the frosted capsule (ADR-0014
+  amendment 1, new 2026-08-11 — unverified on device).** The halo's soft
+  edge is `mask-image` over a `backdrop-filter`, the app's first use of a
+  mask anywhere, and the capsule sits on a second `backdrop-filter` that
+  samples the halo's output. Chromium renders both as intended (measured by
+  render). This engine cannot check either, for the reason now in the table
+  above: it paints no `backdrop-filter` at all, so there is nothing for a
+  mask to gate and nothing for the frost to sample. Two questions for a
+  device: whether Safari gates the filter with the mask, and whether
+  stacking a filtered capsule over a filtered halo composites or flattens.
+  The failure mode is graceful by construction and that is deliberate —
+  the localization lives in the blur ELEMENT'S BOX, not in the mask, so an
+  iOS that ignores the mask still gets a local halo with a harder edge, and
+  an iOS that drops the filter gets the dim alone. Neither is the
+  full-viewport wash the amendment exists to remove. Do not "simplify" the
+  box down to `inset-0` on the grounds that the mask handles it.
+
+A single pass on a physical iPhone, in the installed PWA, would close every
+one of these.
