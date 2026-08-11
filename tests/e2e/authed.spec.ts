@@ -202,6 +202,33 @@ test.describe("authenticated app", () => {
     }
   });
 
+  test("every mode label stays on one line from 320 to 430px", async ({ page }) => {
+    // CMC-06/VAR-01 fixed the mode-rail labels and recorded "all six fit at
+    // 320" — but the label steps UP 10px→11px at ≥360px, and at 11px with
+    // tracking-wide "Condense" wrapped to two lines at 393px (the default
+    // iPhone width) — a fit claim proven only on the branch it measured. This
+    // pins the WHOLE range: no label may wrap at any supported width. Detection
+    // is relative and font-agnostic — a wrapped label is ~2× the single-line
+    // height of its unwrapped siblings, so the tallest must stay near the
+    // shortest. (The `overflow-wrap:anywhere` text-scale valve is untouched;
+    // this only asserts the DEFAULT type never needs it.)
+    const labels = page
+      .getByRole("radiogroup", { name: "Enhancement mode" })
+      .locator('[role="radio"] span');
+    await expect(labels).toHaveCount(6);
+    for (const width of [320, 360, 390, 430]) {
+      await page.setViewportSize({ width, height: 860 });
+      const heights = await labels.evaluateAll((els) =>
+        els.map((e) => Math.round(e.getBoundingClientRect().height)),
+      );
+      const min = Math.min(...heights);
+      const max = Math.max(...heights);
+      expect(max, `a mode label wraps at ${width}px — heights ${heights.join(",")}`).toBeLessThan(
+        min * 1.6,
+      );
+    }
+  });
+
   test("settings renders the signed-in identity", async ({ page }) => {
     await page.getByRole("navigation").getByRole("link", { name: "Settings" }).click();
     await page.waitForURL(/\/profile/);

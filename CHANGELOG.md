@@ -6,6 +6,46 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The mode rail's labels fit on one line again — at every width
+
+A cross-width guard (no mode label may wrap at 320/360/390/430) failed at
+**320px**, where **both "Condense" and "Reformat"** rendered as two lines — so
+CMC-06/VAR-01's "all six fit at 320" record had gone stale, not just the ≥360
+branch the label steps up to 11px on. The rail is now uniform **10px / tight
+tracking** with `px-0` cells (the 11px step and `px-1` each cost more room than
+the widest 8-character word has), and `authed.spec.ts` pins the whole range so
+the fit cannot silently regrow. The `overflow-wrap:anywhere` text-scale valve
+(VAR-01) is untouched — this only asserts the DEFAULT type never needs it.
+
+### The brand green comes back off yellow — `--laser` `#dffa04` → `#c7fd26`
+
+The Liquid Glass retune (`#b7ff3c` → `#dffa04`, ADR-0013) had moved the brand
+green to hue **66.6°** — a chartreuse that read, on the owner's eye, **too
+yellow** beside the neon buttons, most visibly in light mode. Measured, the
+perception held: `#dffa04` genuinely sits closer to yellow than the pre-refresh
+82° neon. `--laser` now moves to **`#c7fd26`** (hue ~75°), a deliberate middle —
+clearly less yellow, without reverting all the way.
+
+This re-separates the token from the artwork (ADR-0013 amendment): the **token
+leads**, and every _generated_ derivative follows it — the favicon, the
+`any`/maskable matrix, apple-touch, the App Router icons, the splash set, and the
+social card all read `--laser` out of `tokens.css`, so regenerating repainted
+**33 icon files + the social card** to `#c7fd26`. The Liquid Glass **source**
+SVGs in `public/brand/` stay at `#dffa04` as Icon Composer artwork for a future
+native `.icon` build — never rasterized into the PWA — so their green is
+independent until that art is re-exported (an owner follow-up).
+
+The literal mirrors moved with the token: `--laser-glow`, the light
+`--accent-ink` in both light blocks (`#5b6600` → `#526810`, re-derived to the new
+hue while HOLDING its corridor — page 5.50 / glass 6.13 / surface 6.06), the
+`AmbientNebula` canvas mirror (`223, 250, 4` → `199, 253, 38`), and the
+`safe-area` test's `LASER` constant. `--on-laser` does **not** move — Void on the
+new Laser measures 15.87:1, so the §6 contrast law and every button's ink are
+unchanged. All twelve developer accents still clear 0003's 20 ΔE floor (google
+stays tightest at 34.7); `developer-accents.test.ts` reads the floors from
+`tokens.css` and passes unmodified. README hero + gallery + social card were
+recaptured/regenerated at the new green and pixel-verified to ΔE 0.0.
+
 ### Both e2e engines run, and the visual contract widens to more surfaces and both themes
 
 The `mobile-safari` (WebKitGTK) project had no browser installed in this
@@ -37,9 +77,9 @@ reusing the same stub + sign-in the suite already drives.
 `docs/preview.png` — the README hero — was last recaptured before the `--laser`
 retune and the Liquid Glass icon set, so the repo's front door still showed the
 retired **I›O** mark in the old green, and its alt text still named it. It is
-recaptured from the current production build (the new "V" mark, `#DFFA04`), the
-alt text corrected, and a small gallery of the shipped composer and library
-added.
+recaptured from the current production build (the new "V" mark, in the retuned
+`#c7fd26` brand green — see the retune entry above), the alt text corrected, and
+a small gallery of the shipped composer and library added.
 
 The app also carried **no** Open Graph / Twitter metadata, so a shared link (and
 the GitHub repo card) rendered nothing branded. `src/app/layout.tsx` now sets

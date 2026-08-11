@@ -118,7 +118,13 @@ export const ModeRig = memo(function ModeRig({
               onFocus={() => setPreviewMode(mode.id)}
               onBlur={() => setPreviewMode(null)}
               className={[
-                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 overflow-hidden rounded-xl px-1 py-2 text-[0.6875rem] font-medium transition-colors max-[359px]:text-[0.625rem] max-[359px]:tracking-tight",
+                // Type is uniform 10px / tight tracking at EVERY width and the
+                // cell keeps only px-0.5, because the two 8-char labels
+                // (Condense, Reformat) wrap otherwise — the 11px ≥360 step and
+                // px-1 both cost more horizontal room than the widest word has,
+                // even at 320. Pinned across 320–430 by authed.spec's "one
+                // line" guard so the fit can't silently regress again.
+                "font-body relative z-10 flex min-h-[56px] flex-col items-center justify-center gap-1 overflow-hidden rounded-xl px-0 py-2 text-[0.625rem] font-medium transition-colors",
                 active ? "text-on-laser" : "text-silver hover:text-chalk",
               ].join(" ")}
             >
@@ -126,20 +132,22 @@ export const ModeRig = memo(function ModeRig({
                   inherits the cell's --on-laser so it stays legible on the
                   Laser lens-lock fill. */}
               <ModeIcon id={mode.id} className={active ? undefined : "text-accent"} />
-              {/* The sub-360 tracking must live HERE, not only on the button:
-                  this span's own tracking-wide beats an inherited value, so
-                  the cell-level max-[359px]:tracking-tight never reached the
-                  label and Condense/Reformat overflowed their cells at 320.
+              {/* Tracking lives HERE, not only on the button: this span's own
+                  letter-spacing beats an inherited value, so a cell-level class
+                  never reaches the label — the trap that let Condense/Reformat
+                  overflow before. `tracking-tight` at every width is the
+                  compaction that (with px-0.5 and 10px above) fits all six on
+                  one line 320–430.
                   overflow-wrap:anywhere is the 200%-text-scale valve (audit
-                  VAR-01): at default root sizes every label fits and nothing
-                  breaks, but under OS/browser font scaling a single word may
-                  exceed the cell — breaking mid-word and letting the cell
-                  grow taller beats clipping to fragments ('xpan', 'nden').
+                  VAR-01), left intact: at default sizes every label fits and
+                  nothing breaks, but under OS/browser font scaling a single
+                  word may exceed the cell — breaking mid-word and letting the
+                  cell grow taller beats clipping to fragments ('xpan', 'nden').
                   `anywhere`, not break-words: this span is a FLEX item, and
                   overflow-wrap:break-word does not lower min-content sizing
                   there, so the word sized the box and clipped instead of
                   breaking (measured). */}
-              <span className="cap-trim leading-none tracking-wide [overflow-wrap:anywhere] max-[359px]:tracking-tight">
+              <span className="cap-trim leading-none tracking-tight [overflow-wrap:anywhere]">
                 {mode.label}
               </span>
             </button>

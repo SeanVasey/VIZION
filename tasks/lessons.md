@@ -3399,3 +3399,31 @@ test:e2e` hard-fails in global-setup until
   metrics were an owner call — but the lesson is general: a responsive
   control that changes type at a breakpoint has to be re-measured on BOTH
   sides of it, or the fit claim only covers the branch that was checked.
+  (The owner then called it in, and the measurement told a bigger story:
+  a guard asserting no label wraps at 320/360/390/430 failed at 320 — both
+  Condense AND Reformat were two lines even at the audit's own width, so
+  the "fits at 320" record had gone stale, not just the ≥360 branch. Fixed
+  by dropping to a uniform 10px / tight tracking and `px-0` cells, and the
+  guard now pins the whole range so it cannot silently regrow. The general
+  point sharpens: a fit ruling is not a property of the component, it is a
+  property of the measurement — re-run it, do not cite it.)
+
+- **A token retune is a find-every-mirror job, and the ADR that recorded
+  the last one is the map.** Pulling `--laser` `#dffa04` → `#c7fd26`
+  (owner call: too yellow) had to move six sites, not one: the token, its
+  `--laser-glow` rgba, the light `--accent-ink` in BOTH light blocks
+  (`:root[data-theme="light"]` and the system-light `@media` mirror), the
+  `AmbientNebula` canvas literals (`LASER_RGB` + the `accentRgb` fallback,
+  which a canvas needs because it cannot read a custom property), and the
+  `safe-area` test's `LASER` constant. Missing any one repaints one green
+  while the rest paint another — the exact class of drift the earlier
+  "tile is a token consumer" lesson is about. What made this a lookup
+  rather than a hunt: ADR-0013's own Decision table had enumerated those
+  mirror sites for the previous retune, so the map already existed. The
+  prior audit's rule — "put the table in the ADR so the next finding is a
+  table lookup" — paid out here directly. Corollary: derived values with
+  headroom (the light `--accent-ink` sits at a ~5.5:1 "corridor position",
+  not the bare 4.5:1 AA floor) must be re-derived to hold that position on
+  a hue move, not just re-passed — brightening it to bare AA to "match the
+  button" would have spent the corridor the design system deliberately
+  keeps.
