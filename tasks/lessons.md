@@ -3752,3 +3752,16 @@ test:e2e` hard-fails in global-setup until
   that nothing downstream can move the result back across it — and prefer
   `min(preferred, cap)` to `max(floor, min(preferred, cap))` unless the floor
   has a reason that survives the cap binding.
+
+- **A constant that encodes platform chrome is an unverifiable claim; measure
+  instead.** The halo's clearance was a 72px constant sized against
+  `--bottom-nav-h` (4rem). Both chrome bars are `pt-safe`/`pb-safe`, so their
+  real heights are `4rem + env(safe-area-inset-*)` — ~98px on a notched phone,
+  leaving the constant ~26px short — and Playwright cannot emulate a non-zero
+  safe-area inset, so no test in this repo could ever have caught it. That is
+  the shape the ios-verification runbook warns about: a claim about iOS,
+  written into the tree, that the suite structurally cannot falsify. Reading
+  the bars' live rects through a `data-chrome-bar` contract deletes the claim
+  rather than documenting it. When a number describes something the platform
+  owns, prefer measuring the thing to encoding a guess about it — and pin the
+  contract that makes measuring possible, since losing it fails silently.

@@ -318,6 +318,19 @@ guessable from the CSS:
    half-height is capped at the distance to the nearer region edge less an
    allowance for the chrome inside it.
 
+   The chrome the clamp clears is **measured**, not assumed. A constant was
+   tried — 72px, sized against `--bottom-nav-h` (4rem) plus margin — and it
+   cannot be right: both bars are `pt-safe`/`pb-safe`, so their real heights
+   are `4rem + env(safe-area-inset-*)`, about 98px on a notched phone. Nor
+   could any test here catch the shortfall, since Playwright cannot emulate a
+   non-zero safe-area inset — the constant was an unverifiable iOS claim
+   sitting in the tree, which is precisely what the ios-verification runbook
+   exists to forbid. The bars carry a `data-chrome-bar` contract and the halo
+   reads their live rects instead, which removes the claim rather than
+   documenting it. `ui-contracts` pins the attribute, because losing it fails
+   nothing else: the clamp would quietly fall back to the viewport edges and
+   overrun the bar again on exactly the devices no suite covers.
+
    The clamp went wrong twice more before it was right, and both are worth
    keeping because both were the same mistake in different clothes: something
    layered OVER the cap, taking back the guarantee. First a 96px floor applied

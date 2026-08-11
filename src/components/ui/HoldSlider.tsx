@@ -439,8 +439,19 @@ const COMPACT_HALO_SCALE = 0.5;
  * treatment quietly becomes the full-screen wash it exists to replace.
  *
  * So the halo's half-height is capped at the distance from the capsule's
- * centre to the nearer edge of the region the gesture actually opened into,
- * MINUS an allowance for the chrome that sits inside that edge.
+ * centre to the nearest OBSTACLE on that side — a chrome bar if one is in the
+ * way, the region's own edge otherwise.
+ *
+ * The obstacles are MEASURED, via the `data-chrome-bar` contract the header
+ * and the bottom nav carry, and that is not fastidiousness. A constant was
+ * tried: 72px, sized against `--bottom-nav-h` (4rem) plus margin. It cannot be
+ * right, because both bars are `pt-safe`/`pb-safe` — their real heights are
+ * `4rem + env(safe-area-inset-*)`, about 98px on a notched phone, so the
+ * constant fell ~26px short exactly there. Worse, no test in this repo can
+ * catch it: Playwright cannot emulate a non-zero safe-area inset, so the
+ * constant was an unverifiable claim about iOS sitting in the tree, which is
+ * the thing `docs/runbooks/ios-verification.md` exists to forbid (Codex
+ * review, PR #110). Measuring removes the claim rather than documenting it.
  *
  * A subtraction, not a fraction — the first cut of this clamp used a fraction
  * and the 320×640 e2e test caught it overrunning the nav by 11px. The
@@ -449,12 +460,6 @@ const COMPACT_HALO_SCALE = 0.5;
  * `room` and no single value can hold as the region shrinks. A fraction
  * tuned to one viewport is a clamp that fails hardest exactly where it is
  * most needed.
- *
- * The allowance does mean a `ui/` primitive carries a number about the app's
- * chrome, which is the cost of the correct shape. It is one constant, it is
- * generous against `--bottom-nav-h` (4rem), and the e2e suite measures the
- * REAL bars at three viewport sizes — so if a bar is ever retuned past this,
- * a test says so rather than the halo quietly overrunning it.
  *
  * There is deliberately NO floor. The first version of this clamp had one, as
  * a `Math.max` OUTSIDE the cap — which let the floor win whenever the region
@@ -472,7 +477,7 @@ const COMPACT_HALO_SCALE = 0.5;
  * — and the ellipse's horizontal reach cannot make the treatment less local,
  * because there is no chrome on the left or right to overrun.
  */
-const HALO_CHROME_INSET_PX = 72;
+const HALO_CHROME_GAP_PX = 8;
 /**
  * The dim's ellipse, relative to the blur's box — HORIZONTALLY ONLY.
  *
@@ -619,21 +624,29 @@ function HoldSliderOverlay({
   // extra geometry has to be carried out of use-hold-drag.
   const haloScale = compactHalo ? COMPACT_HALO_SCALE : 1;
   const haloX = HALO_X_PX * haloScale;
-  // Clamped to the region the gesture opened into — see HALO_REGION_FRACTION.
-  // Measured from the capsule's CENTRE to the nearer region edge, because the
-  // halo is centred on the capsule and has to clear on both sides at once;
-  // taking the nearer edge is what keeps it symmetric while staying inside.
+  // Clamped to the nearest obstacle on each side — see HALO_CHROME_GAP_PX.
+  // Measured from the capsule's CENTRE, because the halo is centred on the
+  // capsule and has to clear on both sides at once; taking the nearer side is
+  // what keeps it symmetric while staying inside.
   const capsuleCenterY = geometry.top + geometry.height / 2;
-  const roomY = Math.min(
-    capsuleCenterY - active.region.top,
-    active.region.top + active.region.height - capsuleCenterY,
-  );
+  let limitTop = active.region.top;
+  let limitBottom = active.region.top + active.region.height;
+  // The app's fixed bars, wherever they actually are. A zero-height rect is
+  // jsdom (or a bar that is not rendered) and is ignored, so the region's own
+  // edges remain the fallback and the unit suite keeps its layout-free run.
+  for (const bar of document.querySelectorAll("[data-chrome-bar]")) {
+    const r = bar.getBoundingClientRect();
+    if (r.height <= 0) continue;
+    if (r.bottom <= capsuleCenterY) limitTop = Math.max(limitTop, r.bottom);
+    else if (r.top >= capsuleCenterY) limitBottom = Math.min(limitBottom, r.top);
+  }
+  const roomY = Math.min(capsuleCenterY - limitTop, limitBottom - capsuleCenterY);
   // The cap is on the halo's HALF-HEIGHT, which includes the capsule's own
   // 24px — that is the edge that has to clear the bar, not the reach past it.
   // Nothing may raise the result above this: the cap is the whole guarantee,
   // and a floor layered over it takes the guarantee away in precisely the
   // cramped regions the cap exists for.
-  const capY = Math.max(0, roomY - HALO_CHROME_INSET_PX - geometry.height / 2);
+  const capY = Math.max(0, roomY - HALO_CHROME_GAP_PX - geometry.height / 2);
   const haloY = Math.min(HALO_Y_PX * haloScale, capY);
   const haloWidth = geometry.width + haloX * 2;
   const haloHeight = geometry.height + haloY * 2;
