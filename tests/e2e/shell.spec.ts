@@ -69,44 +69,72 @@ test.describe("VIZION shell + auth gate", () => {
     }
   });
 
-  test("the icon head declares both home-screen appearances, light-last", async ({
+  test("the icon head declares both home-screen appearances, dark-last", async ({
     page,
     request,
   }) => {
-    // layout.tsx owns `metadata.icons` outright (the App Router convention
-    // cannot carry a `media` attribute, and declaring the key at all suppresses
-    // the convention links). Three properties matter and none is visible from a
-    // unit test, because all are about what Next actually SERIALISES:
+    // layout.tsx owns `metadata.icons` outright (declaring the key at all
+    // suppresses the App Router convention links). Three properties matter and
+    // none is visible from a unit test, because all are about what Next
+    // actually SERIALISES:
     //
     //   1. BOTH apple links carry a query, and the two queries are
-    //      COMPLEMENTARY. Leaving the light one unconditional (the first cut,
-    //      caught in review) leaves it matching in dark mode as well, so a
-    //      media-aware last-wins reader keeps choosing light and the dark tile
-    //      is dead on arrival.
+    //      COMPLEMENTARY, so a UA that does honour `media` has exactly one
+    //      eligible link per scheme. iOS is not such a UA — measured on device
+    //      2026-08-12, `media` selects `apple-touch-startup-image` but NOT
+    //      icons — but the queries cost nothing and keep the pair correct for
+    //      any reader that does evaluate them.
     //   2. ORDER. Apple's rule for several same-size apple-touch-icon links is
-    //      "last one wins", so the LIGHT tile must come last: that is what a
-    //      media-blind iOS — which ignores both queries and sees two equal
-    //      candidates — ends up with, i.e. exactly today's behaviour. Flip the
-    //      array and a media-blind device would switch to the dark tile.
+    //      "last one wins", and that is the rule iOS actually applies. The DARK
+    //      tile must therefore come last: it is the one colorway legible under
+    //      every appearance, because iOS's auto-darkening is a no-op on artwork
+    //      that is already dark. With the LIGHT tile last (the previous order)
+    //      every no-JS capture took the Laser plate and iOS darkened its Void
+    //      mark into an invisible emboss — the reported bug. Flip this array
+    //      back and that returns.
     //   3. The hrefs resolve. These moved out of `src/app/` when the
     //      convention files were deleted; a stale path is a 404 in the
     //      Add-to-Home-Screen sheet, which fails silently.
-    await page.goto("/sign-in");
-    const links = await page.evaluate(() =>
-      Array.from(document.head.querySelectorAll<HTMLLinkElement>("link[rel]")).map(
-        (l) => ({ rel: l.rel, href: l.getAttribute("href"), media: l.media }),
-      ),
+    //
+    // The third, appearance-MATCHED link that <AppleTouchIcon /> appends is
+    // asserted separately below; this test is about the static floor beneath
+    // it, so it reads the SSR'd markup rather than the hydrated head.
+    const html = await (await request.get("/sign-in")).text();
+    const staticApple = [...html.matchAll(/<link[^>]*rel="apple-touch-icon"[^>]*>/g)].map(
+      (m) => m[0],
     );
-
-    const apple = links.filter((l) => l.rel === "apple-touch-icon");
-    expect(apple).toHaveLength(2);
-    expect(apple[0]!.href).toBe("/icons/apple-touch-icon-dark.png");
-    expect(apple[0]!.media).toBe("(prefers-color-scheme: dark)");
-    expect(apple[1]!.href).toBe("/icons/apple-touch-icon.png");
+    expect(staticApple).toHaveLength(2);
+    expect(staticApple[0]).toContain("/icons/apple-touch-icon.png");
+    expect(staticApple[0]).toContain("(prefers-color-scheme: light)");
     expect(
-      apple[1]!.media,
-      "the light tile must be scheme-qualified, or it also matches in dark",
-    ).toBe("(prefers-color-scheme: light)");
+      staticApple[1],
+      "the dark tile must be declared LAST — it is what iOS's last-one-wins resolves to",
+    ).toContain("/icons/apple-touch-icon-dark.png");
+    expect(staticApple[1]).toContain("(prefers-color-scheme: dark)");
+
+    await page.goto("/sign-in");
+    const readLinks = () =>
+      page.evaluate(() =>
+        Array.from(document.head.querySelectorAll<HTMLLinkElement>("link[rel]")).map(
+          (l) => ({
+            rel: l.rel,
+            href: l.getAttribute("href"),
+            media: l.media,
+            ours: l.hasAttribute("data-appearance-matched"),
+          }),
+        ),
+      );
+
+    // Two static + the one <AppleTouchIcon /> appends, which must be LAST so
+    // "last one wins" resolves to the appearance-matched tile rather than to
+    // the static floor beneath it. Polled — the third arrives with hydration.
+    await expect
+      .poll(async () => (await readLinks()).filter((l) => l.rel === "apple-touch-icon").length)
+      .toBe(3);
+
+    const links = await readLinks();
+    const apple = links.filter((l) => l.rel === "apple-touch-icon");
+    expect(apple.at(-1)!.ours).toBe(true);
 
     // Scalable favicon first, raster fallbacks after.
     const icons = links.filter((l) => l.rel === "icon");
@@ -121,6 +149,48 @@ test.describe("VIZION shell + auth gate", () => {
     for (const href of [...apple.map((a) => a.href), ...icons.map((i) => i.href)]) {
       expect((await request.get(href!)).status(), `${href} is a 404`).toBe(200);
     }
+  });
+
+  test("the home-screen tile follows the live appearance", async ({ page }) => {
+    // The mechanism iOS actually reads. It resolves `apple-touch-icon` from the
+    // head at "Add to Home Screen" and takes the LAST one — so the tile a user
+    // captures is whatever is last in the head at that moment. Keeping that
+    // link matched to `prefers-color-scheme` is what makes an install in light
+    // mode capture the Laser plate and an install in dark mode capture the
+    // inverse. `media` cannot do this: measured on device 2026-08-12, iOS does
+    // not evaluate it on icons (only on apple-touch-startup-image).
+    //
+    // Asserted WITHOUT a reload, because the appearance can change while the
+    // page is open and the next capture must already be correct.
+    const matched = () =>
+      page.evaluate(() => {
+        const links = document.head.querySelectorAll<HTMLLinkElement>(
+          'link[rel="apple-touch-icon"]',
+        );
+        const last = links[links.length - 1];
+        return {
+          href: last?.getAttribute("href"),
+          isOurs: last?.hasAttribute("data-appearance-matched"),
+        };
+      });
+
+    // Polled, not read once: the link is appended by an effect, so a bare read
+    // straight after goto() races hydration and sees the static floor instead.
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto("/sign-in");
+    await expect
+      .poll(matched, { message: "the matched tile never took over the head" })
+      .toEqual({ href: "/icons/apple-touch-icon.png", isOurs: true });
+
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect
+      .poll(matched, { message: "a scheme change must re-point the tile, and keep it last" })
+      .toEqual({ href: "/icons/apple-touch-icon-dark.png", isOurs: true });
+
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect
+      .poll(matched, { message: "and back again" })
+      .toEqual({ href: "/icons/apple-touch-icon.png", isOurs: true });
   });
 
   test("shares a square og:image and keeps the landscape card for X", async ({

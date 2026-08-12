@@ -135,17 +135,20 @@ const APPLE_DARK = "dark";
 // into its own background. Shipping the inverse artwork (Laser glyph on a Void
 // plate) is the only way the dark tile can carry a legible mark.
 //
-// WHAT IS AND IS NOT VERIFIED (guardrail §3 / docs/runbooks/ios-verification.md).
-// Verified here: the PNG is generated, opaque, and linked — the tag is in the
-// SSR'd head, asserted by tests/e2e/shell.spec.ts. NOT verified, and not
-// verifiable in this repo: whether iOS Safari honours `media` on
-// `rel="apple-touch-icon"` when it captures the tile. Apple has never
-// documented that it does; the Developer Forums threads asking (761615, 787919,
-// 801448, read 2026-08-11) have no answer either way. So the link pair is built
-// to answer both ways at once — complementary queries for a media-aware reader,
-// light declared last for a media-blind one — rather than betting on either;
-// see the note on `metadata.icons` in layout.tsx, which is where that lives and
-// where it is easy to get half right. Only a physical iPhone can close it.
+// HOW THE TWO ARE SELECTED — measured on device 2026-08-12, and the answer is
+// not the one this comment used to hedge across. iOS reads
+// `<link rel="apple-touch-icon">` out of the head at "Add to Home Screen"
+// (never the manifest), does NOT evaluate `media` on icons, applies Apple's
+// "last one wins", and then FREEZES the tile it captured. So the selection
+// happens in the head, at capture time, and nothing declarative can change it
+// afterwards: `src/components/pwa/AppleTouchIcon.tsx` keeps the matched link
+// last, and layout.tsx's static pair is the no-JS floor with the DARK tile last.
+// The full result table is in docs/runbooks/ios-verification.md.
+//
+// This generator's only job is that the two files exist, are opaque, and are
+// genuine inverses — tests/unit/icon-alpha.test.ts pins all three. Do not
+// re-derive either from BASE (Codex review, #108): they are pinned to fixed
+// scheme names so a BASE flip cannot install them backwards.
 
 // Glyph fractions. 0.74 is the artwork's own composition (see the geometry
 // check above); 0.58 pads the maskable tiles clear of the safe-zone circle.

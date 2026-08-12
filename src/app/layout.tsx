@@ -10,6 +10,7 @@ import { ScrollStateManager } from "@/components/ScrollStateManager";
 import { AmbientNebula } from "@/components/background/AmbientNebula";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { AppleTouchIcon } from "@/components/pwa/AppleTouchIcon";
 
 const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.variable}`;
 
@@ -83,29 +84,36 @@ export const metadata: Metadata = {
    * served and referenced by nothing — scripts/generate-icons.mjs writes the
    * equivalents under `public/icons/` and this block points at them.
    *
-   * THE APPLE PAIR IS BUILT AROUND TWO UNKNOWNS, and both halves matter.
-   * Apple's own rule for several same-size `apple-touch-icon` links is "the last
-   * one wins"; whether iOS evaluates `media` on them at all is undocumented and
-   * unverifiable from this repo (see BASE_INVERSE in generate-icons.mjs). So:
-   * the queries are COMPLEMENTARY — every link carries one, and between them
-   * they cover both schemes — and the LIGHT tile is declared LAST.
+   * THE APPLE PAIR IS THE NO-JS FLOOR, and the DARK tile is declared LAST.
    *
-   *   • A media-blind iOS ignores both queries, sees two equal candidates, and
-   *     takes the last: the light tile. Exactly today's behaviour.
-   *   • A media-aware iOS has exactly ONE eligible link per scheme, so it lands
-   *     on the right tile whether it resolves first-match or last-match.
+   * The unknown this pair used to hedge across is now measured (on device,
+   * 2026-08-12 — see AppleTouchIcon.tsx and the iOS runbook). `media` does NOT
+   * select icons on iOS. It selects `apple-touch-startup-image`, which is why
+   * the splash links below resolve per device, but for `apple-touch-icon` iOS
+   * falls back to Apple's documented "last one wins". So the previous
+   * arrangement — complementary queries with the LIGHT tile last — resolved to
+   * light every time, its dark half unreachable, and iOS then auto-darkened
+   * that light tile into an invisible mark whenever the phone was in dark
+   * appearance. That was the reported bug, not a theoretical branch.
    *
-   * Leaving the light link UNCONDITIONAL instead (the first cut of this, caught
-   * in review on #108) breaks the second bullet: an unconditional link matches
-   * in dark mode too, so a media-aware last-wins reader — the likeliest shape,
-   * given last-wins is Apple's own stated rule — would keep choosing light and
-   * the dark tile could never be selected at all.
+   * Two changes follow, and they are layered:
    *
-   * The one branch the unconditional link covered and this does not is a UA that
-   * evaluates `media` but reports neither scheme. `prefers-color-scheme` has had
-   * no such value since `no-preference` was dropped from the spec in 2020 —
-   * Safari reports `light` when there is no preference — so that branch is not
-   * reachable on any iOS this ships to.
+   *   • ORDER FLIPPED — the DARK tile is last, so "last one wins" now lands on
+   *     the one colorway that stays legible under EVERY appearance (iOS's
+   *     auto-darkening is a no-op on artwork that is already dark). The old
+   *     order made the always-broken tile the default; this makes the
+   *     never-broken one the default. The queries stay complementary, so a UA
+   *     that does honour `media` still gets exactly one eligible link per
+   *     scheme and resolves correctly either way.
+   *   • `<AppleTouchIcon />` (mounted in <body>) appends a third link, kept
+   *     LAST and matched to the live `prefers-color-scheme`, so a capture made
+   *     with JS available gets the artwork for the appearance the user is
+   *     actually in — the Laser plate in light mode, the inverse in dark. That
+   *     is the mechanism iOS actually reads; this static pair is what a
+   *     pre-hydration or no-JS capture falls back to.
+   *
+   * iOS resolves the tile ONCE, at "Add to Home Screen", and freezes it. No
+   * arrangement can re-resolve it later — re-adding is the only refresh.
    *
    * The favicons do NOT invert with the OS scheme, by decision: an opaque plate
    * is legible on any tab background, so there is no legibility case to answer.
@@ -118,14 +126,14 @@ export const metadata: Metadata = {
     ],
     apple: [
       {
-        url: "/icons/apple-touch-icon-dark.png",
-        sizes: "180x180",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
         url: "/icons/apple-touch-icon.png",
         sizes: "180x180",
         media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/icons/apple-touch-icon-dark.png",
+        sizes: "180x180",
+        media: "(prefers-color-scheme: dark)",
       },
     ],
   },
@@ -224,6 +232,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         <QueryProvider>
+          <AppleTouchIcon />
           <ThemeManager />
           <ReducedEffectsManager />
           <ScrollStateManager />

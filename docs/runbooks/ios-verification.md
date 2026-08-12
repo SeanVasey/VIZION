@@ -95,42 +95,60 @@ Browsers are not installed in every container. `tests/e2e/global-setup.ts`
 fails with the install command if one is missing; do not delete a project to
 make that go away.
 
+## Settled on device — the Home Screen tile (2026-08-12)
+
+This was the longest-standing open question here, and it is now **closed by
+measurement**: the owner photographed two installs of the app side by side, in
+both appearances, on an iOS 26 device. Recorded here because the answer is the
+opposite of what this runbook previously told the next reader to assume.
+
+| Question                                                     | Answer                                                                                                                              |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Does iOS use the manifest `icons` for the Home Screen tile?  | **No.** It reads `<link rel="apple-touch-icon">` from the document head at "Add to Home Screen". The transparent `any` matrix never reaches this surface. |
+| Does iOS evaluate `media` on `apple-touch-icon`?             | **No.** `media` selects `apple-touch-startup-image` (which is why the splash links resolve per device) but not icons. Apple's "last one wins" is what applies. |
+| Does iOS re-resolve the tile when the appearance changes?    | **No.** It resolves ONCE, at capture, and freezes. Re-adding to the Home Screen is the only refresh.                                  |
+| What does iOS do with a single tile under dark appearance?   | **Auto-darkens it.** On the light tile (Void ink on a Laser plate) that pulls the plate to near-black and leaves the mark an invisible emboss. |
+
+The consequence: the complementary-query pair shipped in #108 could never have
+worked. Its dark half was unreachable, and because the LIGHT tile was declared
+last, "last one wins" resolved to the one artwork that iOS then destroys. That
+is exactly the failure the owner reported.
+
+**What ships now**, layered so the worst case is legible and the best case is
+matched:
+
+1. `src/components/pwa/AppleTouchIcon.tsx` keeps a single `apple-touch-icon`
+   link last in the head with its href matched to the live
+   `prefers-color-scheme`. Because iOS reads the head at capture, an install
+   made in light mode captures the Laser plate and one made in dark mode
+   captures the inverse. This is the only technique developers report working
+   (Apple Developer Forums 761615); threads 787919 and 801448 ask for a
+   declarative equivalent and remain unanswered, and Safari 26.0 / 26.2 release
+   notes add nothing here.
+2. The static pair in `metadata.icons` is the pre-hydration / no-JS floor, with
+   the **DARK tile declared last** so "last one wins" lands on the colorway
+   that survives every appearance (auto-darkening is a no-op on dark artwork).
+   The queries stay complementary so a UA that _does_ honour `media` still
+   resolves correctly.
+
+Residual, and unfixable from the web: an install captured in light mode that is
+later viewed in dark appearance still gets iOS's auto-darkened Laser plate.
+Nothing declarative can re-resolve a frozen tile — Apple's dark-icon model
+(transparent background + foreground, system supplies the #313131→#141414
+gradient) is available to native apps via Icon Composer and has no web-clip
+equivalent. Tell users to re-add the app if they switch appearance and want the
+matched tile.
+
+**Do not reach for `BASE` in `scripts/generate-icons.mjs` for any of this.** An
+earlier revision of this runbook said to flip it to `"dark"`, and that was wrong:
+`BASE` governs the scheme-agnostic favicons and maskable tiles, and flipping it
+would put the LIGHT colorway in the file named `-dark` (Codex review, #108). The
+two tiles are pinned to fixed scheme names — the lever is the head, not the
+generator.
+
 ## What still needs a real device
 
 The open questions. The first is no longer depended on; the rest are:
-
-- whether iOS honours `media="(prefers-color-scheme: dark)"` on
-  `<link rel="apple-touch-icon">` when it captures the Home Screen tile.
-  Apple has never documented it either way, and the Developer Forums threads
-  asking (761615, 787919, 801448 — read 2026-08-11) are unanswered. Searching
-  is worse than useless here: results confidently assert both answers.
-  `apple-touch-icon-dark.png` and its link ship anyway, because the arrangement
-  is built to answer both ways at once: the two queries are COMPLEMENTARY, so a
-  media-aware iOS has exactly one eligible link per scheme, and the LIGHT tile
-  is declared LAST, so a media-blind iOS — which ignores the queries and sees
-  two equal candidates — lands exactly where it does today (see the
-  `metadata.icons` block in `src/app/layout.tsx`). Getting only the second half
-  right is not enough, and the first cut of this got it wrong: with the light
-  link left unconditional it also matched in dark mode, and a media-aware
-  last-wins reader would have gone on choosing light forever. What a device
-  settles is whether the dark appearance actually picks the inverse artwork up.
-  If it does not, the fallback is a product decision, not a bug fix: either
-  accept iOS's auto-darkened tile, or — knowing at that point that `media` is
-  being ignored — collapse the `apple` array in `src/app/layout.tsx` to a single
-  unconditional link at `/icons/apple-touch-icon-dark.png`, so the one tile iOS
-  installs is Laser-on-Void and legible under every appearance, at the cost of
-  the Laser plate in light mode. (`apple-touch-icon.png` is then unreferenced;
-  drop it from the generator in the same change.)
-  **Do not reach for `BASE` in `scripts/generate-icons.mjs` for this.** An
-  earlier revision of this runbook said to flip it to `"dark"`, and that was
-  wrong: `BASE` governs the scheme-agnostic favicons and maskable tiles, and
-  while the dark tile was generated as its inverse, flipping it would have put
-  the LIGHT colorway in the file named `-dark` and installed both appearances
-  backwards (Codex review, #108). The two tiles are pinned to fixed scheme names
-  now, so `BASE` no longer reaches them — the lever is the head, not the
-  generator.
-  **Do not** write "iOS supports/ignores this" into the tree from a search
-  result.
 
 - whether iOS still ignores `:active` for touch without a document touch
   listener (and whether the documented workaround still causes controls to
