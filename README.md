@@ -132,18 +132,30 @@ The appearances are:
 - **Dark** (Void plate + Laser glyph) — the iOS splash screens, matching the
   manifest's `background_color`, and `apple-touch-icon-dark.png`.
 
-**The dark home-screen tile.** Left alone, iOS builds a dark-appearance tile by
-darkening the light one — which, on Void ink over a Laser plate, darkens the
-plate down toward the ink and the mark disappears. `apple-touch-icon-dark.png`
-is the inverse artwork, linked from `metadata.icons` behind
-`media="(prefers-color-scheme: dark)"`. Whether iOS honours `media` on
-`apple-touch-icon` is undocumented and cannot be checked from this repo, so the
-pair is built for both answers: the two queries are **complementary** (a
-media-aware iOS has exactly one eligible link per scheme) and the **light tile
-is declared last** (a media-blind iOS ignores the queries, sees two equal
-candidates, and takes the last — exactly today's behaviour). See
-[the iOS runbook](./docs/runbooks/ios-verification.md) — this is one for a
-physical device.
+**The home-screen tile — three layers, and the ORDER is load-bearing.** Left
+alone, iOS builds a dark-appearance tile by darkening the light one, which on
+Void ink over a Laser plate darkens the plate toward the ink until the mark
+disappears. A device pass (2026-08-12) established that iOS reads
+`apple-touch-icon` from the head, does **not** evaluate `media` on icons,
+applies Apple's "last one wins", and freezes the tile at capture. So:
+
+1. `/icons/app-icon.svg` carries **both** colorways in one file behind
+   `prefers-color-scheme`, linked as `rel="icon"` and declared first in the
+   manifest. It is the only route that could invert without a re-install. Its
+   artwork is proven by render; whether iOS ever SELECTS it is **not**
+   established — treat it as a bet, never as a delivered capability. It is
+   deliberately not an `apple-touch-icon`, which is PNG-only.
+2. `AppleTouchIcon` keeps one `apple-touch-icon` link **last** in the head,
+   matched to the live `prefers-color-scheme`, so a capture takes the artwork
+   for the appearance the user is in.
+3. The static pair in `metadata.icons` is the no-JS floor, with the **dark tile
+   declared last** — under last-one-wins that is the colorway legible in every
+   appearance, because auto-darkening is a no-op on artwork already dark.
+   **Do not flip this back to light-last**: that is precisely the arrangement
+   that shipped the invisible dark-mode mark.
+
+See [the iOS runbook](./docs/runbooks/ios-verification.md) for the measured
+result table, what remains unestablished, and the one-step device check.
 
 There are no `src/app/icon*`/`apple-icon` convention files. The App Router
 convention cannot express `media`, and declaring `metadata.icons` at all

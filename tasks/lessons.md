@@ -3467,8 +3467,8 @@ test:e2e` hard-fails in global-setup until
 
   **Amendment 2 (2026-08-12) — the device answered, and the hedge had
   picked the losing branch.** Two installs photographed side by side in
-  both appearances settled it: iOS reads `apple-touch-icon` from the head
-  (never the manifest), does NOT evaluate `media` on icons, applies
+  both appearances settled it: iOS reads `apple-touch-icon` from the head,
+  does NOT evaluate `media` on icons, applies
   "last one wins", and freezes the tile at capture. So the whole pair
   resolved to its LAST entry — the light tile — which iOS then
   auto-darkened into the invisible mark the original bug was about. The
@@ -3501,6 +3501,33 @@ test:e2e` hard-fails in global-setup until
   narrow true statement and the broad false one lead to different work:
   the broad one ends the conversation, the narrow one finds the head as
   the lever and ships the matched link.
+
+  **Amendment 3 (same day, Codex review on #111) — the over-claim was
+  mine, and retracting it in four files left it standing in the two that
+  get read first.** "iOS never uses the manifest" went into this file, the
+  runbook, the generator header, `layout.tsx` and the changelog as a
+  MEASURED fact. It was an inference: the photographs prove
+  `apple-touch-icon` is read (one install carried the light colorway,
+  which exists in no other asset), but the second install renders
+  identically whether it came from the dark tile or a transparent manifest
+  glyph composited on black — and the observation was taken against a
+  build whose manifest held no SVG at all. Two lessons, and the second is
+  the one that cost a review round:
+
+  1. **"Measured" is a claim about the experiment, not about how sure you
+     feel.** Before writing it, ask what OTHER state would have produced
+     the same photograph. Here a second candidate rendered pixel-identical
+     and I never enumerated it. This is the third wrong iOS claim to reach
+     the tree, which is why `docs/runbooks/ios-verification.md` exists.
+  2. **A retraction has the same blast radius as the claim — grep for it.**
+     I corrected the runbook, the generator, `layout.tsx` and the
+     changelog, then stopped, because those were the files I had been
+     editing. The claim also sat in THIS file and in `README.md` — the two
+     an agent is told to read before starting — so the corrected tree
+     still fed the error to the next reader first. When a claim is
+     retracted, `grep -r` its distinctive phrasing and fix every hit in
+     the same commit; the files you did not touch on the way in are
+     exactly the ones that will outlive the correction.
 
 - **`align-items: center` centres a line box, and a line box is not a
   word.** The header mark hung visibly low beside the wordmark although
