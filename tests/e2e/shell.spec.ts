@@ -138,7 +138,7 @@ test.describe("VIZION shell + auth gate", () => {
 
     // Scalable favicon first, raster fallbacks after.
     const icons = links.filter((l) => l.rel === "icon");
-    expect(icons[0]!.href).toBe("/icons/favicon.svg");
+    expect(icons[0]!.href).toBe("/icons/app-icon.svg");
     expect(icons.map((i) => i.href)).toContain("/icons/favicon-32.png");
 
     // The deleted convention files must not be referenced by anything.
@@ -149,6 +149,83 @@ test.describe("VIZION shell + auth gate", () => {
     for (const href of [...apple.map((a) => a.href), ...icons.map((i) => i.href)]) {
       expect((await request.get(href!)).status(), `${href} is a 404`).toBe(200);
     }
+  });
+
+  test("the app icon inverts with the appearance, in one file", async ({
+    page,
+    browserName,
+  }) => {
+    // MEASURED ENGINE DIVERGENCE (2026-08-12, and see the iOS runbook): WebKit
+    // does not apply `prefers-color-scheme` to an SVG pulled in through <img>
+    // — it paints the light colorway under both schemes, so `dark.plate` comes
+    // back Laser. Chromium follows the embedding document. The assertion is
+    // therefore scoped to Chromium, deliberately: pinning "WebKit cannot do
+    // this" is the exact mistake docs/runbooks/ios-verification.md exists to
+    // prevent, and it would fail as a bug report the day WebKitGTK adds it.
+    //
+    // What that divergence does NOT settle is the surface this file is FOR.
+    // Rasterizing a linked icon is the browser's own path, not an <img> in a
+    // document, and iOS Safari is not WebKitGTK. So the SVG ships as the route
+    // that inverts live wherever it is honoured, with the apple-touch PNG pair
+    // underneath it for everywhere it is not — neither bet, both covered.
+    test.skip(
+      browserName !== "chromium",
+      "WebKit paints <img>-embedded SVG as light-scheme; see ios-verification.md",
+    );
+
+    // The requirement, stated as pixels: light = Laser plate with the Void mark,
+    // dark = the exact inverse. A PNG cannot do this — it is one set of pixels,
+    // chosen once — which is why the apple-touch pair needs two files and a
+    // capture-time choice. `/icons/app-icon.svg` carries both colorways behind a
+    // `prefers-color-scheme` rule, so it follows the appearance live.
+    //
+    // RENDERED, not read: asserting the media query is in the markup would pass
+    // on an SVG whose rule never actually applies (wrong selector, a fill
+    // attribute shadowing the class, a renderer that ignores <style>). These are
+    // the painted pixels, sampled through an <img> because that is how an icon
+    // consumer embeds it.
+    const sample = async (scheme: "light" | "dark") => {
+      await page.emulateMedia({ colorScheme: scheme });
+      const svg = await (await page.request.get("/icons/app-icon.svg")).text();
+      const uri = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+      await page.setContent(
+        `<body style="margin:0"><img id="i" src="${uri}" width="400" height="400"></body>`,
+      );
+      // Decoded in-page rather than with an image library: the e2e project has
+      // no raster dependency, and a canvas read-back is the same pixels. The
+      // canvas inherits the emulated scheme, so the SVG's media query resolves
+      // against it exactly as it would when the browser paints the icon.
+      // (8,8) is plate in both colorways; (200,151) sits inside the mark's
+      // vertical bar at this 400px render.
+      const px = await page.evaluate(
+        async (args: { dataUri: string; points: number[][] }) => {
+          const img = new Image();
+          img.src = args.dataUri;
+          await img.decode();
+          const c = document.createElement("canvas");
+          c.width = 400;
+          c.height = 400;
+          const ctx = c.getContext("2d")!;
+          ctx.drawImage(img, 0, 0, 400, 400);
+          return args.points.map(([x, y]) => {
+            const d = ctx.getImageData(x!, y!, 1, 1).data;
+            return `#${[d[0], d[1], d[2]].map((v) => v!.toString(16).padStart(2, "0")).join("")}`;
+          });
+        },
+        { dataUri: uri, points: [[8, 8], [200, 151]] },
+      );
+      return { plate: px[0], mark: px[1] };
+    };
+
+    const light = await sample("light");
+    const dark = await sample("dark");
+
+    expect(light.plate, "a plate equal to its mark shows nothing").not.toBe(light.mark);
+    expect(dark.plate).not.toBe(dark.mark);
+    expect(dark.plate, "the dark plate must be the light mark — a true inverse").toBe(
+      light.mark,
+    );
+    expect(dark.mark, "the dark mark must be the light plate").toBe(light.plate);
   });
 
   test("the home-screen tile follows the live appearance", async ({ page }) => {

@@ -115,12 +115,23 @@ export const metadata: Metadata = {
    * iOS resolves the tile ONCE, at "Add to Home Screen", and freezes it. No
    * arrangement can re-resolve it later — re-adding is the only refresh.
    *
-   * The favicons do NOT invert with the OS scheme, by decision: an opaque plate
-   * is legible on any tab background, so there is no legibility case to answer.
+   * THE SCALABLE ICON IS THE ONE SURFACE THAT CAN ACTUALLY INVERT, and it is
+   * declared first so a modern browser prefers it over the raster pair.
+   * `/icons/app-icon.svg` carries BOTH colorways in a single file behind a
+   * `prefers-color-scheme` rule — Laser plate with the Void mark in light, the
+   * exact inverse in dark — so it follows the appearance live rather than being
+   * frozen at capture. Safari 26 uses this same icon to represent the site on
+   * the Home Screen, which makes it the only declarative route to the
+   * appearance-following app icon; the apple-touch PNGs below are the fallback
+   * for everything that predates that. Measured by render in both schemes
+   * (tests/e2e/shell.spec.ts), not asserted from the markup alone.
+   *
+   * The raster favicons do NOT invert — a PNG cannot — and stay the house
+   * colorway, which is legible on any tab background.
    */
   icons: {
     icon: [
-      { url: "/icons/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/app-icon.svg", type: "image/svg+xml" },
       { url: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
       { url: "/icons/favicon-16.png", type: "image/png", sizes: "16x16" },
     ],

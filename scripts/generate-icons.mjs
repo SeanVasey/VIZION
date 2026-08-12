@@ -248,6 +248,65 @@ function glyphOnlySVG(fill, frac, size = CANVAS) {
   );
 }
 
+/**
+ * The SELF-INVERTING app icon — one file that carries both appearances.
+ *
+ * Light: Laser plate, Void mark. Dark: the exact inverse, which is Apple's own
+ * dark-icon shape (a dark ground, the mark carrying the colour the light ground
+ * used). A raster tile cannot do this — it is one set of pixels — which is why
+ * the PNG pair needs two files and a choice made at capture. An SVG can, because
+ * the swap is a CSS rule the renderer re-evaluates.
+ *
+ * WHY IT EXISTS. Safari 26 added SVG support for icons "everyplace there are
+ * icons in the interface", explicitly including the icon that "represents the
+ * website on the user's Home Screen or in their Dock", and the WebKit notes say
+ * manifest-declared icons are used. So this is the one declarative channel on
+ * which the inversion can happen WITHOUT a re-install — the thing the PNG pair
+ * structurally cannot deliver.
+ *
+ * The swap is written twice on purpose:
+ *   • `@media (prefers-color-scheme: dark)` — the appearance signal.
+ *   • `color-scheme: light dark` on the root, so a renderer that honours the
+ *     property (rather than the media query) still resolves a scheme at all
+ *     instead of falling back to light unconditionally.
+ *
+ * NOT declared as `apple-touch-icon`. That rel has been PNG-only for its whole
+ * life and Safari 26's SVG support is documented for the `icon`/manifest side,
+ * not for it — pointing an `apple-touch-icon` at an SVG an older iOS cannot
+ * decode makes it fall back to a blurry screenshot of the page, which is far
+ * worse than a tile that does not invert. The PNG pair stays the apple-touch
+ * path; this is additive.
+ */
+function selfInvertingSVG(frac, size = CANVAS) {
+  const light = appearance("light");
+  const dark = appearance("dark");
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" ` +
+    `viewBox="0 0 ${size} ${size}">` +
+    `<style>` +
+    `:root{color-scheme:light dark}` +
+    `.plate{fill:${light.plate}}` +
+    `.glyph{fill:${light.glyph}}` +
+    `@media (prefers-color-scheme:dark){` +
+    `.plate{fill:${dark.plate}}` +
+    `.glyph{fill:${dark.glyph}}` +
+    `}` +
+    `</style>` +
+    `<rect class="plate" width="${size}" height="${size}"/>` +
+    glyphGroupClassed(size, size, frac, "glyph", 0.0156) +
+    `</svg>`
+  );
+}
+
+/** As glyphGroup, but the mark carries a CSS class instead of a literal fill. */
+function glyphGroupClassed(canvasW, canvasH, frac, className, lift) {
+  const { tx, ty, scale } = placeGlyph(canvasW, canvasH, frac, lift);
+  return (
+    `<g transform="translate(${tx.toFixed(2)},${ty.toFixed(2)}) scale(${scale.toFixed(5)})">` +
+    `<path class="${className}" d="${GLYPH_D}" fill-rule="evenodd"/></g>`
+  );
+}
+
 /** Portrait splash: full-bleed plate with the glyph centred at `frac` width. */
 function splashSVG({ plate, glyph }, width, height, frac) {
   return (
@@ -468,21 +527,32 @@ async function main() {
     path.join(repoRoot, "public", "favicon.ico"),
   );
 
-  // 5. The scalable favicon, linked first by layout.tsx so modern browsers
-  //    prefer it over the raster pair. It is the generated flat plate, NOT a
-  //    copy of a public/brand file — the composed brand SVGs carry the baked
-  //    squircle + gloss this pipeline forbids, and a favicon must be the same
-  //    full-bleed square as its raster siblings.
+  // 5. The scalable icon — ONE self-inverting SVG serving the tab, the manifest
+  //    and, on Safari 26, the Home Screen. It is generated flat, NOT a copy of a
+  //    public/brand file: the composed brand SVGs carry the baked squircle +
+  //    gloss this pipeline forbids, and this must be the same full-bleed square
+  //    as its raster siblings.
   //
-  //    It does NOT invert with the OS scheme. An opaque plate is legible on any
-  //    tab background, so there is no legibility case to answer, and the tab
-  //    mark staying one constant thing is worth more than matching the chrome.
-  //    (This is the tile the owner asked for by name: Void on Laser.) The
-  //    home-screen tile is the one surface where the dark appearance is forced
-  //    on us, and it is handled in step 3.
-  console.log("Rendering scalable favicon...");
-  await fs.writeFile(path.join(ICONS_DIR, "favicon.svg"), `${baseSvg}\n`);
-  logWrite(path.join(ICONS_DIR, "favicon.svg"));
+  //    IT NOW INVERTS, and that reverses a standing decision worth stating.
+  //    The old rule was that the scalable icon stays one constant thing (Void on
+  //    Laser) because an opaque plate is legible on any tab background — true,
+  //    but it was answering a legibility question when the live one is identity:
+  //    Safari 26 uses this same icon to represent the site on the Home Screen,
+  //    so it is the only declarative surface on which the app icon can follow
+  //    the appearance WITHOUT a re-install. The raster pair in step 3 cannot —
+  //    a PNG is one set of pixels, chosen once at capture. Inverting costs
+  //    nothing on the tab (both colorways are legible on any chrome) and is the
+  //    whole point on the Home Screen, so the two uses no longer conflict.
+  //
+  //    `favicon.svg` was this file's old name and is gone rather than left
+  //    behind: nothing referenced it once layout.tsx moved, and the repo does
+  //    not ship assets nothing requests.
+  console.log("Rendering the self-inverting scalable icon...");
+  await fs.writeFile(
+    path.join(ICONS_DIR, "app-icon.svg"),
+    `${selfInvertingSVG(FRAC_STANDARD)}\n`,
+  );
+  logWrite(path.join(ICONS_DIR, "app-icon.svg"));
 
   // 6. iOS splash screens. Dark appearance (Void plate + Laser glyph) so the
   //    launch image matches the manifest's background_color #0F1012 — a Laser
