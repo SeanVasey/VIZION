@@ -210,6 +210,211 @@ explicit "Got it" writes the same `dialTipSeen` flag.
   whether iOS's callout timer races it — are on the manual list in
   `docs/runbooks/ios-verification.md`.
 
+## Amendment 1 — the button says slider, the backdrop stays local
+
+Date: 2026-08-11 (same day; the owner's second pass on the shipped result)
+
+Two things were kept and two rejected. The gesture, the geometry, the shield,
+the latched phase and the capsule's internals are all untouched.
+
+### The resting affordance is a MINIATURE of the track (supersedes §4's grip)
+
+_"I want the button to be obvious with indications to press or an animation to
+press and hold to drag and slide it or a permanently visible slider."_
+
+The grip ticks were right about what to avoid and wrong about what to offer.
+[0012]'s reasoning — not dots (a text ellipsis at that size), not a chevron (a
+promise of a dropdown) — still holds; what it never established is that a grip
+says SLIDER. It says grippable. So `HoldSliderHint` is now a short rail filled
+to the current level in that level's own tone, with a thumb on the fill's
+leading edge: the owner's third option at pill scale, the control showing the
+thing it becomes. It reads `TONE_COLOR`, the same map the capsule's ramp is
+built from, so the pill and the track can never disagree about a level.
+
+A genuinely full-size rail on the composer was the alternative and is declined
+on geometry, not taste: Opus's six-stop ladder is 264px of a 390px viewport,
+which forces the rail to a second row and pushes the Target pill off its line.
+
+The owner's middle option is folded in rather than dropped — a ring pulses off
+the mini thumb until the first commit, gated on the same `dialTipSeen` flag as
+§5's how-to line, so the moving hint and the written one retire together.
+
+Two numbers in that hint are load-bearing, and both were found by looking at a
+render rather than by a test, which is why they now have one. The thumb is
+TALLER than its rail, and its travel is INSET from both ends. A knob of the
+rail's own height sitting flush against the rail's end is a toggle switch, and
+the bottom of the Thinking ladder is "Auto" — the value every new device opens
+on. The first cut shipped a switch in the off position.
+
+### The focus pair is a HALO, not a wash (supersedes §4's full-viewport pair)
+
+_"the entire screen shouldn't white out to only show the slider when it's
+held. It should popup and blur out the direct area underneath it and that
+blurring fades into the area … that becomes clear again."_
+
+The dim was `color-mix(in srgb, var(--void) 62%, transparent)` over `fixed
+inset-0`. On the light theme `--void` is `#eef0f4`, so that is 62% of a
+near-white across the whole viewport — the complaint is a measurement, not a
+preference. The treatment is now an ellipse centred on the capsule that falls
+off to untouched screen.
+
+The two layers localize from OPPOSITE ENDS, and that asymmetry is the decision:
+
+- The DIM keeps its viewport-covering box, because that box is the input
+  shield [0012]'s ninth pass added and the outside-tap dismiss target. It
+  localizes in its PAINT — a radial gradient — and a background never affects
+  hit-testing, so the shield is bit-for-bit what it was.
+- The BLUR localizes in its BOX, sized to the halo, and only SOFTENS that box's
+  edge with a mask.
+
+That split is what makes the mask non-load-bearing, and it is the whole reason
+the split exists. Measured 2026-08-11: Chromium gates a `backdrop-filter` with
+`mask-image` exactly as intended. WebKitGTK could not answer the question,
+because that build paints no `backdrop-filter` whatsoever — plain, masked, or
+on a promoted `::before` — while `filter: blur` works on the same page. So the
+suite's second engine is silent here, real Safari is unmeasured, and the whole
+`.glass` family's blur turns out to have only ever been asserted there by
+computed style. Every rung of the ladder is acceptable: mask honoured → soft
+halo; mask dropped → hard-edged but still LOCAL halo, seamed by the dim's
+slightly wider ellipse; filter dropped → the dim alone, which is already what
+both stand-downs ship. None of them is the wash that was rejected.
+
+**The halo's reach and density are MEASURED, and the first cut of them was too
+timid.** The owner's third pass asked for exactly that: _"the radius of blurring
+and the glass effect … needs to extend further … to completely obscure the
+underneath text and shapes or icons of the button and the surrounding areas of
+the prompt input area."_ Twelve parameterizations were rendered against the real
+app and scored by the HIGH-PASS energy of each screen band relative to the same
+band with no capsule open — a stand-in for "is there readable text here" that
+plain variance gets backwards, because a large blur smears bright content around
+and raises variance without making anything legible. Three results, none of them
+guessable from the CSS:
+
+1. **The mask's plateau is the lever, not the blur radius.** blur(38px) at an
+   84% plateau obscures materially better than blur(54px) at 78% — the coach
+   line goes 0.06 vs 0.16, the first prompt line 0.04 vs 0.14. Chromium appears
+   to trade filter quality for area as the element and the radius grow, so past
+   a point a bigger blur on a bigger box buys a coarser result. Widen the opaque
+   core before reaching for the radius, and re-measure.
+2. **X wants to be larger than the viewport, and that is not waste.** The capsule
+   clamps right-of-centre on a phone (x=245 of 393), so an ellipse sized to it
+   falls off soonest on the LEFT and left the left column of the prompt readable.
+   X is set so the plateau still spans the full width from that off-centre origin.
+3. **The Y ceiling is the chrome bars, and it binds.** The first cut of this pass
+   used 209 and the e2e invariant caught the box overlapping the bottom nav by
+   4px. 196 leaves ~9px of clearance and measures indistinguishably. That
+   assertion is now stated against the real bars rather than as a fraction of the
+   viewport, because the moment the halo reaches one, localization stops being a
+   property of the box and starts depending on the mask — the one property that
+   cannot be verified on WebKit.
+4. **An absolute reach is only local relative to a REGION, so it has to be
+   clamped** (Codex review, PR #110). 196px per side was measured on a 393×660
+   phone; this repo also supports 320×640, where the fixed nav sits higher, and
+   pinch zoom can shrink the visible region to a fraction of the layout viewport
+   — a case the control already takes seriously, since `computeTrackGeometry`
+   places the capsule inside `visualViewport` for exactly that reason. The halo
+   was ignoring the same constraint. `HoldActive` now carries the region's
+   vertical extent, sampled in the same breath as the geometry, and the halo's
+   half-height is capped at the distance to the nearer region edge less an
+   allowance for the chrome inside it.
+
+   The chrome the clamp clears is **measured**, not assumed. A constant was
+   tried — 72px, sized against `--bottom-nav-h` (4rem) plus margin — and it
+   cannot be right: both bars are `pt-safe`/`pb-safe`, so their real heights
+   are `4rem + env(safe-area-inset-*)`, about 98px on a notched phone. Nor
+   could any test here catch the shortfall, since Playwright cannot emulate a
+   non-zero safe-area inset — the constant was an unverifiable iOS claim
+   sitting in the tree, which is precisely what the ios-verification runbook
+   exists to forbid. The bars carry a `data-chrome-bar` contract and the halo
+   reads their live rects instead, which removes the claim rather than
+   documenting it. `ui-contracts` pins the attribute, because losing it fails
+   nothing else: the clamp would quietly fall back to the viewport edges and
+   overrun the bar again on exactly the devices no suite covers.
+
+   The clamp went wrong twice more before it was right, and both are worth
+   keeping because both were the same mistake in different clothes: something
+   layered OVER the cap, taking back the guarantee. First a 96px floor applied
+   as an outer `Math.max`, which won whenever the region was cramped enough to
+   matter — under ~2× pinch zoom it forced a 240px treatment into a region
+   that could be smaller than that. Then the dim's spread, applied on both
+   axes, which reached past the clamped blur into the nav while the blur's own
+   clearance assertion stayed green. The rule the third attempt encodes: the
+   cap is the whole guarantee, so nothing may raise a result above it, and the
+   containment property has to be asserted on the OUTERMOST painted extent
+   rather than on whichever layer owns the geometry.
+
+   The clamp's SHAPE was also wrong on the first attempt, and the new 320×640
+   e2e test is what said so — it caught a fraction-based cap overrunning the nav
+   by 11px. Clearing a fixed-height bar requires `half ≤ room − bar`; the
+   fraction that satisfies that depends on `room`, so no single fraction holds
+   as the region shrinks, and it fails hardest exactly where the clamp matters
+   most. A subtraction generalizes; a ratio tuned to one viewport does not.
+   The cost is that a `ui/` primitive now knows the app has fixed chrome at
+   all — accepted, and paid down to a single attribute lookup plus an 8px gap
+   by measuring rather than hardcoding, with three viewport sizes of e2e
+   coverage turning a retuned bar into a failing test rather than a silent
+   overrun.
+5. **A placement is a snapshot, and the latched capsule outlives it** (Codex
+   review, PR #110). `geometry` and `region` were sampled once, at activation,
+   and never again — so an orientation change or a window resize left a fixed
+   capsule sitting where the old viewport was, with its halo clamped against
+   chrome bars that had since moved.
+
+   The case that makes this a defect rather than an exotic one is pinch zoom,
+   because the control **permits it on purpose**: `onWindowTouchMove` exempts
+   multi-touch while latched precisely so the page can still be zoomed under an
+   open capsule (amendment to ADR-0012, PR #109). Zooming and panning changes
+   `visualViewport`'s offset and size — the very numbers point 4 above and the
+   PR #103 placement clamp exist to respect. Allowing the gesture and then
+   ignoring its result reopened, one moment after activation, the hole the
+   clamp was added to close.
+
+   So a live capsule re-anchors: `visualViewport` resize **and scroll** (WebKit
+   slides the visual viewport without resizing it — the same pairing
+   `use-keyboard-inset` subscribes to), plus window `resize` for engines with no
+   `visualViewport` at all. Recompute rather than dismiss, for that same reason:
+   dismissing on a visual-viewport change would cancel the capsule on the one
+   gesture the exemption exists to allow. The anchor pill is re-measured with
+   it — it is concealed by opacity beneath the capsule, never unmounted, so it
+   carries any reflow for free. In the DRAG phase `dragOffset` is re-derived
+   from the last pointer x, or re-anchoring would teleport the value to whatever
+   detent the new clamp left under the finger: the exact failure the offset
+   exists to prevent, arriving through the fix for a different one. A value
+   equality guard drops resize bursts that move nothing, so a no-op event costs
+   no render and no re-filter.
+
+**One asymmetry is accepted and named.** The dim is `--void`-based so it inverts
+with the theme, and on light `--void` is a near-white: measured, the light veil
+moves the page ground 238 → 239, i.e. essentially nothing, and the Laser
+"Clarify" chip 214 → **222** — it gets brighter under focus while its neighbours
+recede. A dark veil on the light theme was built and measured as the fix. It was
+rejected on the evidence: it obscures LESS (prompt line 4 at 0.22 vs 0.18, the
+mode rail 0.44 vs 0.37) and it renders as a murky grey cloud whose ellipse is
+visible as a shape — against a brief whose words are "a smooth and clean
+appearance of a popup". On light the obscuring is carried by the blur, and the
+dim's job there is depth rather than dimming. The active mode chip not receding
+is the residue; the capsule still dominates the frame at these values.
+
+### The capsule reads as a pane, not a chip
+
+_"the popup with the blurred background and the slider has glass backgrounds
+super opaque blurring the content and also shadows dropping over at the edge
+blurs to give it style."_
+
+`.hold-slider-glass` is a tier of its own rather than a new general member of
+the glass family, because this is the one surface in the app that floats over
+a blur of its own making: the halo paints at z-84 and the capsule at z-85, so
+the frost samples an already-blurred backdrop. It goes on the round box INSIDE
+the track, never the track itself — the track is `position: fixed`, which is
+the iOS async-scrolling trap the chrome bars and the FAB already dodge.
+`.hold-slider-lift` composes the drop shadow OVER `--glass-sheen` rather than
+replacing it, since `box-shadow` is one property and the level chip also wears
+`.glass-solid`.
+
+The peak caption gained a chip too. As bare text it was legible only because
+the old backdrop flattened everything behind it; over a local halo it landed
+directly on the coach line under the rail and the two sentences interleaved.
+
 ## Alternatives considered
 
 - **Keep the sheet, drop only the chevron.** Cheapest, and it was offered.

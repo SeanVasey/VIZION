@@ -22,7 +22,11 @@ export function ScreenHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="glass-chrome sticky top-0 z-40 pt-safe">
+    // data-chrome-bar: the contract ui/HoldSlider reads to know where the
+    // app's fixed chrome actually is. Measured, never assumed — this bar's
+    // height includes env(safe-area-inset-top), which no constant can predict
+    // and no desktop engine can emulate (Codex review, PR #110).
+    <header data-chrome-bar="" className="glass-chrome sticky top-0 z-40 pt-safe">
       <div className="mx-auto flex max-w-screen-sm items-center justify-between gap-3 px-4 py-3">
         {brand ? (
           // `text-2xl` on the ROW, the wordmark's own step (1.9375rem = 31px),

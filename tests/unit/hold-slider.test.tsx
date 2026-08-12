@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createPortal } from "react-dom";
 import {
+  HoldSliderHint,
   HoldSliderTrigger,
   type Detent,
   type DetentMarker,
@@ -51,6 +52,7 @@ function Host({
   onOpen = () => {},
   detentMarker,
   dynamicBackdrop,
+  compactHalo,
   latchOnTap,
   peakCaption,
 }: {
@@ -60,6 +62,7 @@ function Host({
   onOpen?: () => void;
   detentMarker?: DetentMarker;
   dynamicBackdrop?: boolean;
+  compactHalo?: boolean;
   latchOnTap?: boolean;
   peakCaption?: string | null;
 }) {
@@ -72,6 +75,7 @@ function Host({
       enabled={enabled}
       detentMarker={detentMarker}
       dynamicBackdrop={dynamicBackdrop}
+      compactHalo={compactHalo}
       latchOnTap={latchOnTap}
       peakCaption={peakCaption}
     >
@@ -321,6 +325,205 @@ describe("tap vs hold", () => {
     expect(frozen()).toBe(false);
   });
 
+  /**
+   * jsdom has no layout, so every rect is zeros and the capsule lands at the
+   * very top of the region — where the halo's clamp correctly collapses it to
+   * the floor. These tests are about the halo's SIZE, so they need a trigger
+   * that sits somewhere plausible: the composer pill's real measured rect on
+   * the 393×660 target, with the region to match. Restores on teardown.
+   */
+  const PILL_RECT = { x: 239, y: 345, width: 125, height: 44 } as const;
+  function withRealLayout() {
+    const rect = Element.prototype.getBoundingClientRect;
+    const innerHeight = window.innerHeight;
+    Element.prototype.getBoundingClientRect = function () {
+      return {
+        ...PILL_RECT,
+        left: PILL_RECT.x,
+        top: PILL_RECT.y,
+        right: PILL_RECT.x + PILL_RECT.width,
+        bottom: PILL_RECT.y + PILL_RECT.height,
+        toJSON: () => ({}),
+      } as DOMRect;
+    };
+    Object.defineProperty(window, "innerHeight", { value: 660, configurable: true });
+    return () => {
+      Element.prototype.getBoundingClientRect = rect;
+      Object.defineProperty(window, "innerHeight", {
+        value: innerHeight,
+        configurable: true,
+      });
+    };
+  }
+  const haloBox = () => {
+    const el = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+    return {
+      w: Number.parseFloat(el.style.width),
+      h: Number.parseFloat(el.style.height),
+    };
+  };
+
+  it("clamps the halo to the region the gesture opened into", () => {
+    // The reach is an absolute measurement taken on a 393×660 phone, and an
+    // absolute number is only "local" relative to a region. On the 320×640
+    // viewport this repo supports — and far more so under pinch zoom, where
+    // the visible region can be a fraction of the layout viewport — an
+    // unclamped 196px per side stops clearing the chrome bars, and the
+    // treatment quietly becomes the full-screen wash it exists to replace
+    // (Codex review, PR #110). `useHoldDrag` samples the visual viewport for
+    // the capsule's own placement already; the halo now reads the same sample.
+    const restore = withRealLayout();
+    try {
+      render(<Host />);
+      down();
+      hold();
+      const roomy = haloBox().h;
+      up();
+
+      // Same trigger, a much shorter region: the halo must give way.
+      Object.defineProperty(window, "innerHeight", { value: 440, configurable: true });
+      down();
+      hold();
+      const cramped = haloBox().h;
+      expect(cramped).toBeLessThan(roomy);
+      // The cap is AUTHORITATIVE — nothing may raise the result above it. An
+      // earlier cut layered a 96px floor over the cap with an outer Math.max,
+      // which let the floor win in exactly the cramped regions the cap exists
+      // for: under ~2× pinch zoom the computed room falls below the floor, so
+      // the floor forced a 240px treatment into a region that could be smaller
+      // than that — the full-screen wash, rebuilt by its own guard (Codex
+      // review, PR #110). A region with no room now gets no halo, which is
+      // what "under-treating is the better failure" actually means in code.
+      const box = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+      const top = Number.parseFloat(box.style.top);
+      expect(top).toBeGreaterThanOrEqual(0);
+      expect(top + cramped).toBeLessThanOrEqual(440);
+      up();
+    } finally {
+      restore();
+    }
+  });
+
+  it("treats a halo around the capsule, not the whole viewport", () => {
+    // What shipped first washed `fixed inset-0` flat — on the light theme,
+    // 62% of a near-white over the entire screen (owner's red X, 2026-08-11:
+    // "the entire screen shouldn't white out … it should popup and blur out
+    // the direct area underneath it and that blurring fades into the area …
+    // that becomes clear again").
+    //
+    // The two layers localize from opposite ends, and the asymmetry is the
+    // contract. The DIM keeps its viewport-covering box, because that box IS
+    // the input shield, and localizes in its paint — the four --dial-*
+    // properties globals.css reads for its radial gradient. The BLUR
+    // localizes in its BOX, which is what keeps the treatment local even on
+    // an engine that ignores the mask softening its edge.
+    const restore = withRealLayout();
+    render(<Host />);
+    down();
+    hold();
+    const track = overlay()!;
+    const blur = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+    const scrim = document.querySelector<HTMLElement>("[data-hold-slider-scrim]")!;
+    const px = (v: string) => Number.parseFloat(v);
+
+    // The blur is a finite box, concentric with the capsule and larger on
+    // both axes. Derived from the same geometry, so this holds wherever the
+    // capsule's clamp puts it.
+    expect(blur.className).not.toContain("inset-0");
+    const trackCx = px(track.style.left) + px(track.style.width) / 2;
+    const trackCy = px(track.style.top) + px(track.style.height) / 2;
+    expect(px(blur.style.left) + px(blur.style.width) / 2).toBeCloseTo(trackCx, 5);
+    expect(px(blur.style.top) + px(blur.style.height) / 2).toBeCloseTo(trackCy, 5);
+    expect(px(blur.style.width)).toBeGreaterThan(px(track.style.width));
+    // Vertically the halo has to reach well past the floating level chip ABOVE
+    // the capsule and the peak caption BELOW it — and, after the owner's
+    // second pass, past the whole composer row into the prompt area, so the
+    // text under and around the popup stops reading rather than merely going
+    // soft. The floor is deliberately far above the two chips' ~40px: this
+    // number regressing to "just clears the chips" is the shipped-too-small
+    // state the second pass rejected. The real ceiling — that the box still
+    // ends clear of the chrome bars — needs layout and is pinned in e2e.
+    expect(px(blur.style.height)).toBeGreaterThan(px(track.style.height) + 380);
+    // Wider than the viewport is CORRECT here, not a bug: the capsule clamps
+    // off-centre on a phone, so the ellipse needs a horizontal radius large
+    // enough that its opaque core still spans the full width from that origin.
+    expect(px(blur.style.width)).toBeGreaterThan(px(track.style.width) + 380);
+
+    // The dim keeps the shield's box and carries the centre instead.
+    expect(scrim.className).toContain("fixed inset-0");
+    expect(px(scrim.style.getPropertyValue("--dial-cx"))).toBeCloseTo(trackCx, 5);
+    expect(px(scrim.style.getPropertyValue("--dial-cy"))).toBeCloseTo(trackCy, 5);
+    // Its ellipse reaches at least as far as the blur's box, so where an
+    // engine drops the mask the hard edge lands inside the wash, not on it.
+    expect(px(scrim.style.getPropertyValue("--dial-rx"))).toBeGreaterThanOrEqual(
+      px(blur.style.width) / 2,
+    );
+    expect(px(scrim.style.getPropertyValue("--dial-ry"))).toBeGreaterThanOrEqual(
+      px(blur.style.height) / 2,
+    );
+    // No flat fill left in the component: the wash is a gradient in CSS now,
+    // and this was the last hardcoded backdrop colour outside the stylesheet.
+    expect(scrim.style.backgroundColor).toBe("");
+    restore();
+  });
+
+  it("pulls the halo in for a capsule inside a sheet", () => {
+    // The halo's reach was measured against the COMPOSER — a full page with a
+    // header, a mode rail, a card and a textarea to obscure. On a ~320px sheet
+    // panel the same numbers swallowed the sheet's own title, its model list,
+    // and the Auto card the dial exists to tune, which is the one thing that
+    // has to stay visible while you tune it (seen in capture, 2026-08-11). A
+    // sheet is also already a focus surface — its own scrim handled the world
+    // behind it — so the halo's job there is only the panel's surroundings.
+    const restore = withRealLayout();
+    const { unmount } = render(<Host />);
+    down();
+    hold();
+    const full = haloBox();
+    up();
+    unmount();
+
+    render(<Host compactHalo />);
+    down();
+    hold();
+    const compact = haloBox();
+    // Strictly smaller on both axes, and still larger than the capsule — a
+    // compact halo is a smaller lens, never no lens.
+    expect(compact.w).toBeLessThan(full.w);
+    expect(compact.h).toBeLessThan(full.h);
+    const track = overlay()!;
+    expect(compact.w).toBeGreaterThan(Number.parseFloat(track.style.width));
+    expect(compact.h).toBeGreaterThan(Number.parseFloat(track.style.height));
+    restore();
+  });
+
+  it("puts the capsule on frosted glass with an edge shadow", () => {
+    // "the popup with the blurred background and the slider has glass
+    // backgrounds super opaque blurring the content and also shadows dropping
+    // over at the edge blurs to give it style" — the capsule is the one
+    // surface that floats over a blur of its own making, so it gets a tier of
+    // its own rather than the flat `.glass-solid` chip it wore before.
+    render(<Host peakCaption="Costs more" selectedIndex={DETENTS.length - 1} />);
+    down();
+    hold();
+    const el = overlay()!;
+    const capsule = el.querySelector<HTMLElement>(".hold-slider-glass")!;
+    expect(capsule).not.toBeNull();
+    expect(capsule.className).toContain("hold-slider-lift");
+    // The frost goes on the ROUND box inside the track, never on the track
+    // itself: the track is position:fixed, and a backdrop-filter on fixed
+    // chrome is the iOS async-scrolling trap the chrome bars already dodge.
+    expect(el.className).not.toContain("hold-slider-glass");
+    // The chip and the cost caption ride the same shadow, so all three
+    // floating pieces sit at one elevation over the halo.
+    expect(
+      el.querySelector("[data-hold-slider-label]")!.className,
+    ).toContain("hold-slider-lift");
+    expect(
+      el.querySelector("[data-hold-slider-caption]")!.closest(".hold-slider-lift"),
+    ).not.toBeNull();
+  });
+
   it("stands the blur down over a declared dynamic backdrop — dim only", () => {
     // The blur's performance case is a STATIC backdrop filtered once. The
     // world-pause freezes the idle ornaments, but a streaming run's surface
@@ -343,6 +546,55 @@ describe("tap vs hold", () => {
     up(DOWN_X + DETENT_SPACING_PX);
     expect(onCommit).toHaveBeenCalledWith(1);
     expect(document.querySelector("[data-hold-slider-scrim]")).toBeNull();
+  });
+
+  it("stands the CAPSULE FROST down over a dynamic backdrop too", () => {
+    // `dynamicBackdrop` is a JS-side withdrawal — the halo element is simply
+    // not rendered — so the two CSS stand-downs on `.hold-slider-glass` cannot
+    // see it. The frost shipped without its own answer, leaving a 40px
+    // backdrop-filter re-filtering the streaming result on every token frame:
+    // the exact per-frame cost this prop exists to prevent, reintroduced by
+    // the layer meant to stand down alongside the halo (Codex review, PR
+    // #110). `.glass-solid` is what both CSS gates already collapse it to.
+    const restore = withRealLayout();
+    const { unmount } = render(<Host />);
+    down();
+    hold();
+    expect(overlay()!.querySelector(".hold-slider-glass")).not.toBeNull();
+    up();
+    unmount();
+
+    render(<Host dynamicBackdrop />);
+    down();
+    hold();
+    expect(overlay()!.querySelector(".hold-slider-glass")).toBeNull();
+    const capsule = overlay()!.querySelector<HTMLElement>(".glass-solid.hold-slider-lift")!;
+    expect(capsule).not.toBeNull();
+    up();
+    restore();
+  });
+
+  it("ends the dim exactly where the blur box does, vertically", () => {
+    // The spread that softens the mask-less seam is HORIZONTAL only. Applied
+    // to Y it pushed the painted dim ~35px past the blur's clamped edge and
+    // into the bottom nav — still around half strength there, because the fade
+    // only starts at 84% — so the blur was localized and the treatment as a
+    // whole was not (Codex review, PR #110).
+    const restore = withRealLayout();
+    render(<Host />);
+    down();
+    hold();
+    const blur = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+    const scrim = document.querySelector<HTMLElement>("[data-hold-slider-scrim]")!;
+    const px = (v: string) => Number.parseFloat(v);
+    const halfHeight = px(blur.style.height) / 2;
+    expect(px(scrim.style.getPropertyValue("--dial-ry"))).toBeCloseTo(halfHeight, 5);
+    // Horizontally the spread survives — there is no chrome to overrun there.
+    expect(px(scrim.style.getPropertyValue("--dial-rx"))).toBeGreaterThan(
+      px(blur.style.width) / 2,
+    );
+    up();
+    restore();
   });
 
   it("conceals the pill while the capsule is up — the track replaces it", () => {
@@ -467,6 +719,190 @@ describe("tap vs hold", () => {
     // `none`, the value that killed zoom app-wide once (zoom-and-share).
     render(<Host />);
     expect(pill().parentElement!.style.touchAction).toBe("pinch-zoom");
+  });
+
+  /**
+   * A capsule is placed against a SNAPSHOT of the viewport, and the latched
+   * phase outlives the snapshot — it stays up until a commit, a dismiss, an
+   * Escape or a concealment. Rotate the phone or pinch-zoom in the meantime and
+   * a fixed capsule sits where the old viewport was, with a halo clamped
+   * against chrome bars that have since moved (Codex review, PR #110).
+   *
+   * The pinch case is the load-bearing one: this control keeps zoom alive while
+   * latched ON PURPOSE (the multi-touch exemption), and the placement clamp
+   * exists precisely because a fixed capsule can otherwise open outside a
+   * zoomed-in user's view (Codex review, PR #103). Permitting the gesture and
+   * then ignoring its result reopens that hole one moment after activation.
+   */
+  const vvStub = (init: {
+    offsetLeft: number;
+    width: number;
+    offsetTop: number;
+    height: number;
+  }) => {
+    const bus = new EventTarget();
+    const vv = {
+      ...init,
+      scale: 1,
+      addEventListener: bus.addEventListener.bind(bus),
+      removeEventListener: bus.removeEventListener.bind(bus),
+    };
+    Object.defineProperty(window, "visualViewport", { value: vv, configurable: true });
+    return {
+      vv,
+      fire: (type: "resize" | "scroll") =>
+        act(() => {
+          bus.dispatchEvent(new Event(type));
+        }),
+      restore: () => Reflect.deleteProperty(window, "visualViewport"),
+    };
+  };
+
+  it("re-anchors a latched capsule when a pinch-zoom moves the visible region", () => {
+    const restore = withRealLayout();
+    const region = vvStub({ offsetLeft: 0, width: 1024, offsetTop: 0, height: 660 });
+    try {
+      render(<Host latchOnTap />);
+      down();
+      up();
+      const before = { left: overlay()!.style.left, halo: haloBox().h };
+
+      // A ~2× pinch, panned right and down: a smaller window onto the page,
+      // offset within it. The capsule's unclamped home is now off the left of
+      // that window, and 196px of halo per side no longer fits inside it.
+      Object.assign(region.vv, {
+        offsetLeft: 300,
+        width: 512,
+        offsetTop: 200,
+        height: 330,
+      });
+      region.fire("resize");
+
+      expect(overlay()!.style.left).not.toBe(before.left);
+      // Inside the region the user is actually looking at, margins honoured —
+      // the same guarantee computeTrackGeometry gives at activation.
+      const left = Number.parseFloat(overlay()!.style.left);
+      const width = Number.parseFloat(overlay()!.style.width);
+      expect(left).toBeGreaterThanOrEqual(300 + EDGE_MARGIN_PX);
+      expect(left + width).toBeLessThanOrEqual(300 + 512 - EDGE_MARGIN_PX);
+      // And the halo gives way with it, or the treatment it replaced comes
+      // back: an absolute reach is only "local" relative to a region.
+      expect(haloBox().h).toBeLessThan(before.halo);
+    } finally {
+      region.restore();
+      restore();
+    }
+  });
+
+  it("re-anchors on a visual-viewport SCROLL, not only a resize", () => {
+    // WebKit slides the visual viewport without resizing it — the same reason
+    // use-keyboard-inset subscribes to both. A capsule pinned to a region it
+    // has been panned out of is that bug wearing the overlay's clothes.
+    const restore = withRealLayout();
+    const region = vvStub({ offsetLeft: 0, width: 512, offsetTop: 0, height: 660 });
+    try {
+      render(<Host latchOnTap />);
+      down();
+      up();
+      const before = overlay()!.style.left;
+      Object.assign(region.vv, { offsetLeft: 260 });
+      region.fire("scroll");
+      expect(overlay()!.style.left).not.toBe(before);
+    } finally {
+      region.restore();
+      restore();
+    }
+  });
+
+  it("re-anchors a latched capsule across a window resize", () => {
+    // The orientation change, on an engine with no visualViewport at all.
+    const restore = withRealLayout();
+    try {
+      render(<Host latchOnTap />);
+      down();
+      up();
+      const before = haloBox().h;
+      Object.defineProperty(window, "innerHeight", { value: 440, configurable: true });
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+      expect(haloBox().h).toBeLessThan(before);
+      const box = document.querySelector<HTMLElement>("[data-hold-slider-blur]")!;
+      expect(Number.parseFloat(box.style.top)).toBeGreaterThanOrEqual(0);
+      expect(Number.parseFloat(box.style.top) + haloBox().h).toBeLessThanOrEqual(440);
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the selection under the hand when the viewport moves mid-drag", () => {
+    // dragOffset is measured against the centers that existed at activation.
+    // Re-anchoring without re-deriving it teleports the value to whatever
+    // detent the new clamp left under the finger — the exact failure the
+    // offset exists to prevent, arriving through the fix for a different one.
+    const restore = withRealLayout();
+    const innerWidth = window.innerWidth;
+    try {
+      render(<Host />);
+      down();
+      hold();
+      expect(screen.getByText("Auto")).toBeTruthy();
+
+      // Narrow enough that the capsule's clamp actually displaces it.
+      Object.defineProperty(window, "innerWidth", { value: 350, configurable: true });
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+      // The recompute moves the track; it must not move the VALUE.
+      expect(screen.getByText("Auto")).toBeTruthy();
+      // Still at the same x — still the same detent.
+      moveTo(DOWN_X);
+      expect(screen.getByText("Auto")).toBeTruthy();
+      // And one spacing along is one detent along, from where the hand is now.
+      moveTo(DOWN_X + DETENT_SPACING_PX);
+      expect(screen.getByText("Low")).toBeTruthy();
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        value: innerWidth,
+        configurable: true,
+      });
+      restore();
+    }
+  });
+
+  it("takes the re-anchor watch down with the capsule", () => {
+    // A watch that outlives its capsule would measure an anchor the gesture
+    // has finished with, on every resize for the rest of the page's life.
+    const added: unknown[] = [];
+    const removed: unknown[] = [];
+    const realAdd = window.addEventListener.bind(window);
+    const realRemove = window.removeEventListener.bind(window);
+    const addSpy = vi
+      .spyOn(window, "addEventListener")
+      .mockImplementation((type, listener, options) => {
+        if (type === "resize") added.push(listener);
+        realAdd(type, listener, options);
+      });
+    const removeSpy = vi
+      .spyOn(window, "removeEventListener")
+      .mockImplementation((type, listener, options) => {
+        if (type === "resize") removed.push(listener);
+        realRemove(type, listener, options);
+      });
+    try {
+      render(<Host />);
+      // Nothing at rest: a wrapper that has not opened a capsule watches
+      // nothing, the same rule the axis claim follows.
+      expect(added).toHaveLength(0);
+      down();
+      hold();
+      expect(added).toHaveLength(1);
+      up();
+      expect(removed).toContain(added[0]);
+    } finally {
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    }
   });
 });
 
@@ -1640,5 +2076,83 @@ describe("one gesture at a time, app-wide", () => {
     expect(overlays()).toHaveLength(1);
     fireEvent.pointerUp(pillB(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
     expect(onCommitB).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the resting mini-track", () => {
+  /**
+   * The affordance that replaced three grip ticks (owner's second pass,
+   * 2026-08-11: "I want the button to be obvious with indications to press or
+   * an animation to press and hold to drag and slide it or a permanently
+   * visible slider"). It is the third of those at pill scale — the control
+   * showing the slider it becomes, at the value it holds.
+   *
+   * Two of the assertions below are the anti-TOGGLE properties. Both were
+   * found by looking at a capture rather than by a test, which is exactly why
+   * they need one: the first cut put a knob of the rail's own height flush
+   * against the rail's end, and at the bottom of the Thinking ladder — "Auto",
+   * where every new device starts — that is a switch in the off position.
+   */
+  const parts = () => {
+    const root = document.querySelector<HTMLElement>("[data-hold-hint]")!;
+    return {
+      root,
+      rootW: Number.parseFloat(root.style.width),
+      fill: document.querySelector<HTMLElement>("[data-hold-hint-fill]")!,
+      thumb: document.querySelector<HTMLElement>("[data-hold-hint-thumb]")!,
+    };
+  };
+
+  it("fills to the committed value in that value's own tone", () => {
+    const { rerender } = render(<HoldSliderHint value={0} max={5} tone="faint" />);
+    const bottom = Number.parseFloat(parts().thumb.style.left);
+    const bottomFill = Number.parseFloat(parts().fill.style.width);
+
+    rerender(<HoldSliderHint value={5} max={5} tone="ultra" />);
+    const top = Number.parseFloat(parts().thumb.style.left);
+    expect(top).toBeGreaterThan(bottom);
+    expect(Number.parseFloat(parts().fill.style.width)).toBeGreaterThan(bottomFill);
+    // The same TONE_COLOR map the capsule's ramp is built from, so the pill
+    // and the track it opens can never disagree about a level's colour.
+    expect(parts().fill.style.backgroundColor).toContain("--ultra-ink");
+
+    rerender(<HoldSliderHint value={2} max={5} tone="laser" />);
+    const mid = Number.parseFloat(parts().thumb.style.left);
+    expect(mid).toBeGreaterThan(bottom);
+    expect(mid).toBeLessThan(top);
+  });
+
+  it("keeps the thumb taller than its rail — a slider, not a switch", () => {
+    render(<HoldSliderHint value={2} max={5} tone="laser" />);
+    const { fill, thumb } = parts();
+    expect(Number.parseFloat(thumb.style.height)).toBeGreaterThan(
+      Number.parseFloat(fill.style.height),
+    );
+  });
+
+  it("never parks the thumb flush against either end — a switch always does", () => {
+    const { rerender } = render(<HoldSliderHint value={0} max={5} tone="faint" />);
+    const width = parts().rootW;
+    const half = Number.parseFloat(parts().thumb.style.width) / 2;
+    // Centre-anchored, so "flush left" is left === half.
+    expect(Number.parseFloat(parts().thumb.style.left)).toBeGreaterThan(half);
+    rerender(<HoldSliderHint value={5} max={5} tone="ultra" />);
+    expect(Number.parseFloat(parts().thumb.style.left)).toBeLessThan(width - half);
+  });
+
+  it("pulses only until the user has driven a dial once", () => {
+    // The owner's "animation to press and hold to drag and slide it". The
+    // hosts gate it on the same dialTipSeen flag as the coach line, so the
+    // moving hint and the written one retire together on the first commit.
+    const { rerender } = render(<HoldSliderHint value={0} max={5} tone="faint" pulse />);
+    expect(parts().thumb.className).toContain("hold-hint-pulse");
+    rerender(<HoldSliderHint value={0} max={5} tone="faint" />);
+    expect(parts().thumb.className).not.toContain("hold-hint-pulse");
+  });
+
+  it("stays decoration — the pill's label and role are the readout", () => {
+    render(<HoldSliderHint value={3} max={5} tone="laser" />);
+    expect(parts().root.getAttribute("aria-hidden")).toBe("true");
+    expect(parts().root.textContent).toBe("");
   });
 });

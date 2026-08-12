@@ -6,6 +6,80 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The dial says it is a slider, and only the area under it goes soft
+
+A second owner pass on the dials kept the mechanism and rejected two things
+about how it looked ([ADR-0014](./docs/decisions/0014-dials.md), amendment 1).
+
+**The resting pill now carries a miniature of the track it opens** — a short
+rail, filled to the current level in that level's own colour, with a thumb on
+the fill's edge. The three grip ticks it replaces were right about what to
+avoid (a chevron promises a dropdown this control does not have) and wrong
+about what to offer: a grip reads as a grip. Until the first dial commit a
+soft ring pulses off that thumb, retiring on the same flag as the how-to line,
+so the written hint and the moving one leave together. Two details are load-
+bearing and both came from looking at a capture: the thumb is **taller than
+its rail** and its travel is **inset from both ends**, because a knob of the
+rail's own height parked flush against the end is a toggle switch — and the
+bottom of the Thinking ladder is "Auto", where every new device starts.
+
+**The held state no longer washes the screen.** It used to lay a flat
+`--void 62%` over `fixed inset-0`, which on the light theme is 62% of a
+near-white edge to edge. Now the treatment is a **halo**: an ellipse around
+the capsule that blurs and dims, falling off to untouched screen — reaching far
+enough, and dense enough, that the text and icons under and around the dial and
+across the top of the prompt area stop reading rather than merely going soft.
+The reach and density are **measured, not chosen**: twelve parameterizations
+were rendered against the real app and scored by the high-pass energy of each
+screen band against the same band with no capsule open. The shipped values take
+the Target row from 0.51 to 0.25, the coach line from 0.32 to 0.06 and the first
+three prompt lines from 0.61 / 0.82 / 0.97 to 0.04 / 0.05 / 0.08, while leaving
+the page header at 1.00 and the bottom nav at 0.91. Two of those numbers are
+counter-intuitive enough to be worth stating: the mask's **plateau is the lever,
+not the blur radius** (blur 38px at an 84% plateau beats blur 54px at 78% on
+every band), and the halo is deliberately **wider than the viewport**, because
+the capsule clamps off-centre on a phone and an ellipse sized to it fades
+soonest on the side with the most text.
+
+Vertically the reach is **clamped to the region the gesture opened into** — the
+visible viewport, which is what the capsule itself has been placed inside since
+[ADR-0012]. An absolute measurement is only "local" relative to a region: 196px
+per side was measured on a 393×660 phone, and on the 320×640 viewport this repo
+supports it overran the bottom nav, as it would far more sharply under pinch
+zoom. That region is now re-read whenever it moves: a capsule left open across
+an orientation change, a window resize or a pinch-zoom re-anchors itself and
+re-sizes its halo instead of sitting where the old viewport used to be. The
+pinch case is the one that matters, because zoom is deliberately kept alive
+under an open capsule — permitting the gesture and then ignoring its result
+would put the capsule outside the region the placement rule exists to keep it
+inside. The
+two layers get there from opposite ends, and the asymmetry is deliberate — the
+dim keeps its viewport-covering box because that box *is* the input shield,
+and localizes in its paint; the blur localizes in its **box**, and only
+softens that box's edge with a mask. That split is what keeps the mask
+non-load-bearing, which matters (see below). The capsule itself sits on a new
+super-opaque frosted tier that samples the halo it created, with an edge
+shadow dropping it over that blur; the peak cost caption got a chip of its own,
+because over a local halo it landed straight on the coach line beneath the
+rail. All of it reaches the tuning dial in the Target sheet for free — same
+primitive, same capsule.
+
+**What is verified and what is not** (guardrail §3): the halo's geometry, the
+dim's gradient, the frost, the composed lift shadow and the mini-track's two
+anti-toggle properties are pinned in `hold-slider` · `thinking-rail` ·
+`budget-slider` · `reduced-effects` · `ui-contracts`, and the halo's box and
+computed paint are measured in a real engine in the e2e suite. The mask over
+the blur is verified **in Chromium only, by render**. It could not be answered
+on the WebKitGTK e2e engine, because that build paints no `backdrop-filter`
+at all — plain, masked, or on a promoted `::before`, while `filter: blur`
+works on the same page — which also means the whole `.glass` family's blur has
+only ever been asserted there by computed style. Real Safari and iOS are
+therefore unverified, and are on the manual list in
+[the iOS runbook](./docs/runbooks/ios-verification.md). The degradation ladder
+is honest at every rung: mask honoured → soft halo; mask dropped → hard-edged
+but still local halo; filter dropped → the dim alone, which is already the
+shipped stand-down. None of them is the full-viewport wash.
+
 ### Dials, not dropdowns: the slider IS the control now
 
 The composer's Thinking pill wore a disclosure chevron and opened a five-row

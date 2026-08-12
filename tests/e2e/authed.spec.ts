@@ -441,6 +441,51 @@ test.describe("thinking hold-slider", () => {
     await expect(page.locator("[data-hold-slider-blur]")).toBeVisible();
     // So does the thumb — the moving object the reference control carries.
     await expect(page.locator("[data-hold-slider-thumb]")).toBeVisible();
+    // The treatment is LOCAL (owner direction, 2026-08-11: the full-viewport
+    // wash is out). Two independent halves, pinned in a real engine because
+    // jsdom has no layout to measure and no computed backdrop to read:
+    //
+    //  · the blur's BOX is a halo around the capsule, concentric with the
+    //    track and ENDING CLEAR OF THE CHROME BARS on both sides. That last
+    //    property is the whole containment argument and it is deliberately
+    //    stated against the real bars rather than as a fraction of the
+    //    viewport: the box is what makes the treatment local, and the mask
+    //    only softens its edge — which matters because the WebKitGTK build
+    //    this suite also runs paints no backdrop-filter whatsoever, so real
+    //    Safari is unmeasured (docs/runbooks/ios-verification.md). If the halo
+    //    ever grows past a chrome bar, localization starts depending on the
+    //    one property that cannot be verified there.
+    const halo = (await page.locator("[data-hold-slider-blur]").boundingBox())!;
+    const header = (await page.locator(".glass-chrome").first().boundingBox())!;
+    const nav = (await page.locator(".glass-nav").first().boundingBox())!;
+    expect(halo.y).toBeGreaterThanOrEqual(header.y + header.height);
+    expect(halo.y + halo.height).toBeLessThanOrEqual(nav.y + 1);
+    const track = (await page.locator("[data-hold-slider-overlay]").boundingBox())!;
+    expect(Math.abs(halo.y + halo.height / 2 - (track.y + track.height / 2))).toBeLessThan(2);
+    // The DIM has to clear the bars too, not just the blur box. Its painted
+    // ellipse is a gradient, so measure the radius it was handed rather than a
+    // bounding box: a vertical spread here put it into the nav while the blur
+    // stayed clear (Codex review, PR #110).
+    const dimReach = await page
+      .locator("[data-hold-slider-scrim]")
+      .evaluate((el) => {
+        const s = el.style;
+        return (
+          Number.parseFloat(s.getPropertyValue("--dial-cy")) +
+          Number.parseFloat(s.getPropertyValue("--dial-ry"))
+        );
+      });
+    expect(dimReach).toBeLessThanOrEqual(nav.y + 1);
+    //  · the dim keeps the viewport-covering box — it is the shield — and
+    //    localizes in its PAINT instead: a radial gradient, never the flat
+    //    fill that washed the light theme near-white edge to edge.
+    const dim = page.locator("[data-hold-slider-scrim]");
+    await expect
+      .poll(() => dim.evaluate((el) => getComputedStyle(el).backgroundImage))
+      .toContain("radial-gradient");
+    await expect
+      .poll(() => dim.evaluate((el) => getComputedStyle(el).backgroundColor))
+      .toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
     // The thinking capsule wears rising bars (the DepthGlyph vocabulary),
     // six for Opus's ladder — the budget capsule keeps equal dots.
     await expect(
@@ -579,6 +624,44 @@ test.describe("thinking hold-slider", () => {
       "Fable 5",
     );
     await expect(pill).toContainText("Auto");
+  });
+
+  test("the halo stays clear of the chrome bars on the smallest supported viewport", async ({
+    page,
+  }) => {
+    // The halo's reach is an absolute measurement taken on a ~393×660 phone,
+    // and an absolute number is only "local" relative to a region. This repo
+    // supports 320×640 (the reflow check in a11y.spec.ts), where the fixed
+    // bottom nav sits higher — so an unclamped halo would overrun it and stop
+    // being the localized treatment this whole change is (Codex review, PR
+    // #110). The clamp lives in HoldSlider; this is the test that makes the
+    // clamp's headroom a measured claim rather than an assumed one, because
+    // only a real engine can say where the bars actually are.
+    await page.setViewportSize({ width: 320, height: 640 });
+    const dial = page.getByRole("slider", { name: "Thinking depth" });
+    await dial.click();
+    await expect(page.locator("[data-hold-slider-overlay]")).toBeVisible();
+
+    const halo = (await page.locator("[data-hold-slider-blur]").boundingBox())!;
+    const header = (await page.locator(".glass-chrome").first().boundingBox())!;
+    const nav = (await page.locator(".glass-nav").first().boundingBox())!;
+    expect(halo.y).toBeGreaterThanOrEqual(header.y + header.height);
+    expect(halo.y + halo.height).toBeLessThanOrEqual(nav.y + 1);
+    // Still a halo, not a hairline: the clamp gives way to the region, but it
+    // must not collapse the treatment to the capsule itself.
+    const track = (await page.locator("[data-hold-slider-overlay]").boundingBox())!;
+    expect(halo.height).toBeGreaterThan(track.height * 2);
+    // …and the dim clears the nav here too, on the viewport that binds hardest.
+    const dimReach = await page
+      .locator("[data-hold-slider-scrim]")
+      .evaluate((el) => {
+        const s = el.style;
+        return (
+          Number.parseFloat(s.getPropertyValue("--dial-cy")) +
+          Number.parseFloat(s.getPropertyValue("--dial-ry"))
+        );
+      });
+    expect(dimReach).toBeLessThanOrEqual(nav.y + 1);
   });
 
   test("the budget dial opens its capsule INSIDE the model sheet", async ({ page }) => {

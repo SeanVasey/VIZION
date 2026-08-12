@@ -56,6 +56,11 @@ describe("reduced-effects gate covers every ambient layer", () => {
     ".glass-solid",
     ".dev-edge",
     ".horizon-node",
+    // The capsule's frosted ground and the resting dial's pulse ring — both
+    // added with the halo redesign, both decorative, both therefore owing the
+    // toggle an answer.
+    ".hold-slider-glass",
+    ".hold-hint-pulse::after",
   ])("%s is gated", (selector) => {
     expect(
       GATED_SELECTORS.some((s) => s.endsWith(` ${selector}`)),
@@ -99,6 +104,44 @@ describe("glass depth tokens", () => {
     const barRule = /\n\s*\.glass-chrome,\s*\n\s*\.glass-nav\s*\{([^}]*)\}/.exec(CSS);
     expect(barRule).not.toBeNull();
     expect(barRule![1]).not.toMatch(/backdrop-filter/);
+  });
+
+  it("ships the halo's mask both prefixed and unprefixed", () => {
+    // The halo's soft edge is a mask over a backdrop-filter — the app's first
+    // use of mask-image anywhere. It carries the -webkit- prefix for the same
+    // reason backdrop-filter and background-clip: text do, and the unprefixed
+    // property so it survives the prefix's retirement. Measured 2026-08-11:
+    // Chromium gates the filter with it; the WebKitGTK e2e build paints no
+    // backdrop-filter at all, so real Safari is unverified — which is exactly
+    // why the localization lives in the ELEMENT'S BOX (HoldSlider sizes it)
+    // and this mask only softens the edge.
+    const rule = /\n\s*\.hold-slider-blur\s*\{([^}]*)\}/.exec(CSS);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/-webkit-mask-image:\s*radial-gradient/);
+    expect(rule![1]).toMatch(/(^|[\s;])mask-image:\s*radial-gradient/);
+  });
+
+  it("localizes the dim instead of washing the viewport", () => {
+    // What shipped first was a flat `--void 62%` fill over `fixed inset-0`,
+    // which on the light theme is 62% of a near-white across the whole screen
+    // (owner's red X, 2026-08-11). The dim keeps its full-viewport BOX — it is
+    // the input shield — and localizes in its paint, so this rule must be a
+    // radial gradient reading the capsule's centre, never a flat fill.
+    const rule = /\n\s*\.hold-slider-scrim\s*\{([^}]*)\}/.exec(CSS);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/background-image:\s*radial-gradient/);
+    expect(rule![1]).toMatch(/var\(--dial-cx/);
+    expect(rule![1]).not.toMatch(/background-color/);
+  });
+
+  it("composes the capsule's lift shadow over the sheen, never replacing it", () => {
+    // box-shadow is a single property and the level chip also carries
+    // `.glass-solid`, whose sheen this would otherwise wipe. Sheen first.
+    const rule = /\n\s*\.hold-slider-lift\s*\{([^}]*)\}/.exec(CSS);
+    expect(rule).not.toBeNull();
+    const shadow = /box-shadow:\s*([\s\S]*?);/.exec(rule![1]!)![1]!;
+    expect(shadow.trim().startsWith("var(--glass-sheen)")).toBe(true);
+    expect(shadow).toMatch(/var\(--void\)/);
   });
 
   it("leaves the FAB's blur on its ::before layer too (same iOS rule)", () => {

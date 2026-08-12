@@ -155,11 +155,15 @@ export function BottomNav() {
 
   return (
     <nav
+      data-chrome-bar=""
       aria-label="Primary"
       // inert (Safari 15.5+) removes the slid-away bar from both the a11y
       // tree and tab order — stronger than aria-hidden on focusable content.
       inert={keyboardVisible || undefined}
       className={[
+        // data-chrome-bar — see ScreenHeader. `pb-safe` makes this bar
+        // 4rem + env(safe-area-inset-bottom) tall, ~98px on a notched phone
+        // against the 64px the token alone suggests.
         "glass-nav fixed inset-x-0 bottom-0 z-50 pb-safe",
         "transition-transform duration-200",
         keyboardVisible ? "pointer-events-none translate-y-full" : "translate-y-0",

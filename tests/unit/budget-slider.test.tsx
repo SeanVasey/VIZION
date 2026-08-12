@@ -122,6 +122,30 @@ describe("where the tuning dial lives", () => {
     expect(tuningDial().querySelector("[data-hold-hint]")).not.toBeNull();
   });
 
+  it("wears the same resting mini-track as the Thinking dial", () => {
+    // One control class, one affordance. The owner asked for the redesign to
+    // reach both dials ("the same thing should apply to the slider for the
+    // dropdown into model auto selecting"), and it does so by construction —
+    // the hint is the shared primitive's, not either host's.
+    renderComposer();
+    openSheet();
+    const thumbX = () =>
+      Number.parseFloat(
+        tuningDial().querySelector<HTMLElement>("[data-hold-hint-thumb]")!.style.left,
+      );
+    const fill = () =>
+      tuningDial().querySelector<HTMLElement>("[data-hold-hint-fill]")!.style
+        .backgroundColor;
+    expect(tuningDial().getAttribute("aria-valuenow")).toBe("1");
+    const balanced = thumbX();
+    holdAndDrag(1);
+    expect(tuningDial().getAttribute("aria-valuenow")).toBe("2");
+    expect(thumbX()).toBeGreaterThan(balanced);
+    // Quality is the ultra tier, so the mini fill states the tier the same
+    // way the capsule's ramp does at that stop.
+    expect(fill()).toContain("--ultra-ink");
+  });
+
   it("still names the live preference on the rail pill at rest", () => {
     // The dial is behind a sheet, so the pill is the only place the choice
     // is visible without opening anything. It must keep saying it.

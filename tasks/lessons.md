@@ -3589,3 +3589,196 @@ test:e2e` hard-fails in global-setup until
   concluding that a suite "can't run here" — the e2e gate is not optional,
   and 45 of 100 tests failing on missing `libgtk-4.so.1` looks exactly like
   a code regression in the summary line.
+
+## Phase — dials, amendment 1: the halo and the mini-track (2026-08-11)
+
+- **"WebKit supports it" and "WebKit paints it" are different measurements,
+  and this suite has only ever taken the first.** The halo needed to know
+  whether `mask-image` gates a `backdrop-filter`. `CSS.supports` says yes in
+  both engines; the ios-verification table has said "supported" for
+  `-webkit-backdrop-filter` since July. A RENDER probe says the Playwright
+  WebKitGTK build paints no `backdrop-filter` at all — not plain, not masked,
+  not on a promoted `::before` — while `filter: blur` on the same page works
+  fine, so it is the compositor, not the syntax. Every `.glass` blur in this
+  app has therefore been asserted on that engine by computed style and never
+  by pixels. The lesson is not "distrust WebKitGTK", which the runbook already
+  says; it is that a capability table full of `CSS.supports` answers is
+  evidence about the PARSER, and a visual decision needs a screenshot.
+
+- **When an engine can't answer, move the load off the thing it can't
+  answer.** The first design put the halo's localization in the mask. That
+  makes an unmeasurable property load-bearing: an engine that ignores the mask
+  blurs the whole viewport, which is exactly the bug being fixed. Sizing the
+  blur element's BOX to the halo and letting the mask only soften its edge
+  costs one line and turns an unknown into a cosmetic difference. Ask what
+  ships if the unverified thing is simply absent, and arrange for the answer
+  to be "something slightly worse" rather than "the original defect".
+
+- **A knob the height of its rail is a switch, whatever you meant.** The
+  resting mini-track shipped its first cut as a 10px thumb flush inside a
+  10px pill-shaped rail. At the ladder's bottom stop — "Auto", the value every
+  new device opens on — it read unmistakably as a toggle in the OFF position,
+  i.e. as a control with two states rather than six. Two numbers fixed it:
+  the thumb is taller than the rail, and its travel is inset from both ends so
+  rail stays visible past it at every value. Neither was findable from the
+  DOM; both came from looking at a capture and are now pinned, because a test
+  is the only thing that stops the next person tidying them away.
+
+- **Look at the defaults, not the interesting state.** Both visual defects
+  this round were in states a capture only shows if you ask for them: the
+  toggle read is at index 0, and the peak caption's collision with the coach
+  line is at index max WITH the one-time tip still on screen. The states worth
+  rendering are the first-run one and the extreme one, not the mid-ladder one
+  that looks best.
+
+- **Splitting a layer's two jobs is cheaper than moving one.** The scrim was
+  both the rejected full-viewport wash and the input shield an e2e
+  actionability test pins by real hit-testing. The instinct was to add a third
+  layer. The actual fix was to notice the jobs use different mechanisms —
+  hit-testing follows the BOX, the wash follows the PAINT — so the box could
+  stay exactly as pinned while only the paint became local. Zero existing
+  assertions changed. When one element does two things, check whether they are
+  even expressed in the same CSS property before restructuring.
+
+## Phase — dials, amendment 1b: measuring the halo instead of eyeballing it (2026-08-11)
+
+- **When a visual judgement gets close, stop looking and build a metric.** Two
+  halo variants differing only by a 48px shift "looked" very different, and a
+  strictly stronger one "looked" weaker. Both readings were mine, and both were
+  wrong. A per-band ratio — high-pass energy with the capsule open, over the
+  same band with it closed — settled twelve variants in one run, in both
+  themes, and produced an ordering that held up. The rule is not "measure
+  everything"; it is that once you are choosing between options that are close,
+  eyes stop being evidence and start being noise.
+
+- **Pick the metric for the failure mode, not for convenience.** The first
+  version used luminance VARIANCE, and it ranked a 54px blur as less obscuring
+  than a 38px one — because a big blur smears bright content (the Laser chip,
+  the capsule) across a band and RAISES its variance while making nothing
+  readable. A high-pass filter (mean |2L(x) − L(x−3) − L(x+3)|) answers the
+  question actually being asked, "are there glyph edges here", and smooth
+  gradients contribute nothing to it. A metric that moves the wrong way on the
+  effect you are tuning is worse than no metric.
+
+- **Never mutate a live `backdrop-filter` through a sweep in one page.** Round
+  one drove six variants through a single open capsule, and the results were
+  not reproducible — Chromium appears to keep some of the previous filter's
+  composited state. A clean page per variant, with the parameters applied
+  BEFORE the capsule mounts, gave stable numbers. Sweeps over compositor-level
+  effects need fresh documents the way benchmarks need fresh processes.
+
+- **Bigger blur is not more blur past a point.** blur(54px) on a 744×488 box
+  measured worse on every band than blur(38px) on a 704×466 one; Chromium
+  appears to trade filter quality for area. The lever that actually works is
+  the mask's opaque plateau. Generalize: for compositor effects, the parameter
+  the API names is not necessarily the parameter that controls the outcome.
+
+- **A structural invariant catches what a fraction-of-viewport assertion
+  wouldn't.** The halo's containment was first pinned as "height < 70% of the
+  viewport". Restating it as "the box ends clear of the chrome bars" caught a
+  4px overlap with the bottom nav on WebKit that the fraction would have waved
+  through — and it says the thing that is actually true, which is that once the
+  halo touches a bar, localization stops being a property of the BOX and starts
+  depending on the mask, which WebKit cannot verify.
+
+- **Verify an adversarial finding's MECHANISM separately from its FIX.** A
+  review pass reported that the light theme's veil brightens the Laser mode
+  chip instead of dimming it, and prescribed inverting the veil to a dark
+  scrim. The mechanism was real and measured (page ground 238 → 239, chip
+  214 → 222 — a near-white veil cannot dim near-white content). The prescribed
+  fix was built and measured too, and it was worse: less obscuring on every
+  band and a murky grey cloud against a brief asking for "a smooth and clean
+  appearance". Accepting the finding and rejecting the remedy is a legitimate
+  outcome, and it only exists if you test the remedy rather than the argument.
+
+- **An absolute overlay measurement is only "local" relative to a REGION.** The
+  halo's reach was measured on a 393×660 phone and hard-coded. It was correct
+  there and wrong everywhere else: on the 320×640 viewport the repo supports it
+  overran the bottom nav, and under pinch zoom — where the visible region can be
+  a fraction of the layout viewport — it would swamp the screen entirely. The
+  tell was already in the codebase: `computeTrackGeometry` had taken
+  `visualViewport` seriously since PR #103 for exactly this reason, and the new
+  halo simply did not consult it. When one part of a control already clamps to a
+  region, anything else that sizes itself in absolute pixels beside it is a bug
+  waiting for a smaller screen.
+
+- **To clear a fixed-height obstacle, subtract; do not scale.** The first clamp
+  capped the halo at a FRACTION of the room to the region's edge, and the
+  320×640 test caught it overrunning the nav by 11px. The flaw is structural,
+  not a bad constant: clearing a bar needs `half ≤ room − bar`, so the fraction
+  that satisfies it depends on `room` — meaning any fixed fraction fails as the
+  region shrinks, which is precisely when the clamp is load-bearing. A ratio
+  tuned on the roomiest case is a safety margin that evaporates under pressure.
+
+- **Write the test at the size you did NOT measure at.** Every number in this
+  change was measured on one device profile, and both e2e projects are near that
+  profile, so the whole suite agreed with the assumption it was built on. One
+  test that resizes to the smallest supported viewport found a real overrun
+  immediately — and then found the flawed shape of the first fix too. The cheap
+  general move after tuning anything against a viewport is a single assertion at
+  the other end of the supported range.
+
+- **A stand-down expressed in JS is invisible to the CSS that thinks it owns
+  it.** The halo has three stand-downs: `prefers-reduced-motion` and
+  `[data-reduced-effects]` null the filter in CSS, while `dynamicBackdrop`
+  withdraws the element in TSX. When the capsule gained its own
+  `backdrop-filter`, it got the two CSS gates and silently missed the third —
+  so a streaming run, the one case the third gate exists for, re-filtered the
+  repainting result on every token frame through the very layer that was
+  supposed to stand down alongside the halo. The comment on the new rule even
+  claimed it "stands down WITH the halo blur", which was true of two gates out
+  of three. Before adding a filter beside an existing one, enumerate the
+  existing one's gates and check where each is *expressed*, not just that they
+  exist.
+
+- **Clamping the element is not clamping the treatment.** The halo's blur box
+  was clamped to the visible region; the dim was a separate layer whose radius
+  was multiplied by a spread constant, so it kept reaching ~35px past the
+  clamped edge and into the bottom nav — still around half strength, because
+  its fade only starts at 84%. The blur passed its own clearance assertion the
+  whole time. When a visual effect is composed of more than one layer, the
+  containment property has to be asserted on the OUTERMOST painted extent, not
+  on whichever layer happens to own the geometry.
+
+- **A floor layered over a cap deletes the cap, exactly where the cap matters.**
+  The halo's reach was clamped to the visible region, then given a 96px minimum
+  as an outer `Math.max`. That reads as "never collapse to nothing" and behaves
+  as "ignore the clamp whenever the region is small" — which is precisely the
+  case the clamp exists for. Under ~2× pinch zoom the computed room drops below
+  the floor, so the floor won and painted a 240px treatment into a region that
+  could be smaller than that: the full-screen wash, rebuilt by its own guard.
+  The comment on the floor even argued that under-treating was the better
+  failure while the code chose the opposite. When a guarantee is a bound, check
+  that nothing downstream can move the result back across it — and prefer
+  `min(preferred, cap)` to `max(floor, min(preferred, cap))` unless the floor
+  has a reason that survives the cap binding.
+
+- **A constant that encodes platform chrome is an unverifiable claim; measure
+  instead.** The halo's clearance was a 72px constant sized against
+  `--bottom-nav-h` (4rem). Both chrome bars are `pt-safe`/`pb-safe`, so their
+  real heights are `4rem + env(safe-area-inset-*)` — ~98px on a notched phone,
+  leaving the constant ~26px short — and Playwright cannot emulate a non-zero
+  safe-area inset, so no test in this repo could ever have caught it. That is
+  the shape the ios-verification runbook warns about: a claim about iOS,
+  written into the tree, that the suite structurally cannot falsify. Reading
+  the bars' live rects through a `data-chrome-bar` contract deletes the claim
+  rather than documenting it. When a number describes something the platform
+  owns, prefer measuring the thing to encoding a guess about it — and pin the
+  contract that makes measuring possible, since losing it fails silently.
+
+- **A snapshot of the viewport is only true while the viewport holds still —
+  and a latched overlay outlives it.** The hold-slider sampled `geometry` and
+  `region` once, at activation, which is correct for a drag phase that lasts as
+  long as a finger and wrong for a capsule that stays up until it is dismissed.
+  An orientation change or a resize left it placed for the old viewport. The
+  sharp version is the one the design invites: multi-touch is exempted from the
+  gesture's scroll block *precisely so pinch-zoom keeps working under an open
+  capsule*, and zooming is exactly what changes `visualViewport`'s offset and
+  size — so the feature that was deliberately permitted was the feature that
+  invalidated the snapshot. When a control opts into a platform gesture, check
+  what that gesture changes and whether anything cached is still true after it;
+  permitting a gesture and ignoring its result is worse than refusing it.
+  Related: re-anchoring is not free of its own trap — `dragOffset` was measured
+  against the old detent centers, so recomputing geometry without re-deriving it
+  teleported the value under the hand, which is the exact failure that offset
+  exists to prevent, arriving through the fix for a different one.

@@ -148,13 +148,53 @@ describe("thinking rail sizing", () => {
 
   it("wears the hold affordance at rest — decoration only, name untouched", () => {
     renderComposer();
-    // This rail's slider is enabled unconditionally, so the grip always
+    // This rail's slider is enabled unconditionally, so the mini-track always
     // shows. aria-hidden: the value is carried by aria-valuetext, and the
-    // grip is for eyes only.
+    // mini-track is for eyes only.
     const hint = thinkingTrigger().querySelector("[data-hold-hint]");
     expect(hint).not.toBeNull();
     expect(hint!.getAttribute("aria-hidden")).toBe("true");
     expect(thinkingTrigger()).toHaveAccessibleName("Thinking depth");
+  });
+
+  it("shows the resting mini-track at the level the pill names", () => {
+    // The affordance is a scale model of the capsule, so it has to be wired
+    // to the SAME index the ARIA contract publishes — a hint that lagged the
+    // label would be a second, wrong readout rather than a picture of the
+    // first one.
+    useUIStore.setState({ thinkingLevels: { opus_5: "high" } });
+    renderComposer();
+    const thumbX = () =>
+      Number.parseFloat(
+        thinkingTrigger().querySelector<HTMLElement>("[data-hold-hint-thumb]")!.style.left,
+      );
+    expect(thinkingTrigger().getAttribute("aria-valuenow")).toBe("3");
+    const atHigh = thumbX();
+
+    act(() => useUIStore.setState({ thinkingLevels: { opus_5: "max" } }));
+    expect(thinkingTrigger().getAttribute("aria-valuenow")).toBe("5");
+    expect(thumbX()).toBeGreaterThan(atHigh);
+
+    act(() => useUIStore.setState({ thinkingLevels: {} }));
+    expect(thinkingTrigger().getAttribute("aria-valuenow")).toBe("0");
+    expect(thumbX()).toBeLessThan(atHigh);
+  });
+
+  it("retires the press-and-hold pulse with the coach line, not separately", () => {
+    // Two hints for one lesson: the written sentence under the rail and the
+    // ring pulsing off the mini thumb. They read the same dialTipSeen flag,
+    // so learning the control silences both — a pulse that outlived the
+    // sentence would be a hint for something already learned.
+    useUIStore.setState({ dialTipSeen: false });
+    renderComposer();
+    const thumb = () =>
+      thinkingTrigger().querySelector<HTMLElement>("[data-hold-hint-thumb]")!;
+    expect(thumb().className).toContain("hold-hint-pulse");
+    expect(document.querySelector("[data-dial-coach-tip]")).not.toBeNull();
+
+    act(() => useUIStore.setState({ dialTipSeen: true }));
+    expect(thumb().className).not.toContain("hold-hint-pulse");
+    expect(document.querySelector("[data-dial-coach-tip]")).toBeNull();
   });
 });
 

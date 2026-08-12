@@ -65,6 +65,36 @@ describe("UI contracts", () => {
         .filter((h) => h.includes("[data-scrolling]"));
       expect(new Set(heads)).toEqual(new Set(["[data-scrolling] .fab-glass::before"]));
     });
+
+    it("keeps the chrome bars discoverable to the halo's clamp", () => {
+      // The halo clamps to the app's fixed bars by MEASURING them through the
+      // `data-chrome-bar` contract, because their real heights include
+      // env(safe-area-inset-*) — about 98px on a notched phone against the
+      // 64px `--bottom-nav-h` alone suggests, and no test here can emulate a
+      // non-zero inset (Codex review, PR #110). Losing the attribute would not
+      // fail anything else: the clamp silently falls back to the viewport
+      // edges and the halo paints into the bar again on exactly the devices no
+      // suite covers. Both bars, by their real class, must carry it.
+      const files = ["src/components/ScreenHeader.tsx", "src/components/nav/BottomNav.tsx"];
+      for (const file of files) {
+        const src = readFileSync(join(ROOT, file), "utf8");
+        expect(src, `${file} lost data-chrome-bar`).toContain('data-chrome-bar=""');
+      }
+    });
+
+    it("pauses the resting dial's pulse under a live capsule", () => {
+      // The blur's whole performance case is one filter pass over a backdrop
+      // that genuinely holds still, and "static" is a claim about the CONTENT
+      // beneath it, not about the layer (lessons.md, twentieth pass). The mini
+      // hint's ring is an `infinite` animation on the RESTING pill — the
+      // object dead centre under the halo — and `.hold-slider-conceal` hides
+      // that pill by OPACITY, so it is still painted and still invalidating.
+      // Unpaused, it would re-filter the halo every frame of every gesture.
+      expect(
+        block(/\[data-hold-gesture\]\s+\.hold-hint-pulse::after/),
+        "the mini-hint pulse is missing from the world-pause list",
+      ).toMatch(/animation-play-state:\s*paused/);
+    });
   });
 
   describe("long lists stop scaling with content", () => {

@@ -5,6 +5,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { CheckGlyph } from "@/components/ui/CheckGlyph";
 import { HoldSliderHint, HoldSliderTrigger } from "@/components/ui/HoldSlider";
 import { useRovingRadios } from "@/components/models/use-roving-radios";
+import { useUIStore } from "@/stores/ui";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
 import { targetLabel } from "@/components/models/target-label";
 import {
@@ -87,7 +88,6 @@ function TargetPickerImpl({
   label,
   triggerClassName,
   disabled,
-  holdHint,
   auto,
   onAutoChange,
   autoPreference,
@@ -100,10 +100,6 @@ function TargetPickerImpl({
   label: string;
   triggerClassName?: string;
   disabled?: boolean;
-  /** True while a HoldSliderTrigger around this pill is live — renders the
-   *  resting detent-dot affordance. The composer passes its slider's own
-   *  `enabled`; surfaces with no slider (Settings) omit it and stay clean. */
-  holdHint?: boolean;
   /**
    * Auto routing. Pass BOTH to offer it — omitting them hides the row
    * entirely, which is how Settings keeps `profiles.default_model` a real
@@ -169,7 +165,12 @@ function TargetPickerImpl({
               : "Auto"
             : targetLabel(value)}
         </span>
-        {holdHint && <HoldSliderHint />}
+        {/* No hold hint here, and no prop to ask for one. ADR-0014 moved the
+            budget dial into the sheet below, which left this pill with no
+            slider of its own — the opt-in survived that move with zero call
+            sites, and a slider hint on a control that only opens a list is
+            the same lie the chevron would be on a control that doesn't. The
+            chevron is honest: this one genuinely drops down. */}
         <PickerChevron />
       </button>
       <TargetPickerSheet
@@ -398,6 +399,10 @@ function AutoTuningDial({
   const selectedIndex = index < 0 ? 1 : index;
   const detent = BUDGET_DETENTS[selectedIndex]!;
   const max = BUDGET_DETENTS.length - 1;
+  // Same one-time coaching flag the Thinking dial and the coach line read —
+  // learning either dial retires the pulse on both, because they are the same
+  // control and the sentence under the rail says so.
+  const dialTipSeen = useUIStore((s) => s.dialTipSeen);
 
   /**
    * A COMMIT always notifies, even when it lands on the stop already stored
@@ -440,6 +445,10 @@ function AutoTuningDial({
       latchOnTap
       peakCaption={BUDGET_PEAK_CAPTION}
       dynamicBackdrop={streaming}
+      // This dial is inside the sheet, so its halo is the compact one — see
+      // COMPACT_HALO_SCALE. The composer's reach would obscure this panel's
+      // own title, its model list, and the Auto card the dial is tuning.
+      compactHalo
       // Block-level here: this dial spans the sheet's column under the card
       // it tunes, unlike the composer rail's content-width pills — which is
       // exactly why it also declares `scrollableHost`: a full-width band
@@ -484,7 +493,12 @@ function AutoTuningDial({
         <span className={`grow text-right ${TONE_INK_CLASS[detent.tone]}`}>
           {detent.label}
         </span>
-        <HoldSliderHint />
+        <HoldSliderHint
+          value={selectedIndex}
+          max={max}
+          tone={detent.tone}
+          pulse={!dialTipSeen}
+        />
       </button>
     </HoldSliderTrigger>
   );
