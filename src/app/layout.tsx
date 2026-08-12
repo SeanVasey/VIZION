@@ -115,16 +115,21 @@ export const metadata: Metadata = {
    * iOS resolves the tile ONCE, at "Add to Home Screen", and freezes it. No
    * arrangement can re-resolve it later — re-adding is the only refresh.
    *
-   * THE SCALABLE ICON IS THE ONE SURFACE THAT CAN ACTUALLY INVERT, and it is
-   * declared first so a modern browser prefers it over the raster pair.
+   * THE SCALABLE ICON IS THE ONE SURFACE THAT COULD INVERT, and it is declared
+   * first so a modern browser prefers it over the raster pair.
    * `/icons/app-icon.svg` carries BOTH colorways in a single file behind a
    * `prefers-color-scheme` rule — Laser plate with the Void mark in light, the
-   * exact inverse in dark — so it follows the appearance live rather than being
-   * frozen at capture. Safari 26 uses this same icon to represent the site on
-   * the Home Screen, which makes it the only declarative route to the
-   * appearance-following app icon; the apple-touch PNGs below are the fallback
-   * for everything that predates that. Measured by render in both schemes
-   * (tests/e2e/shell.spec.ts), not asserted from the markup alone.
+   * exact inverse in dark — so wherever it is honoured it follows the
+   * appearance live rather than being frozen at capture. Safari 26 says this
+   * same icon represents the site on the Home Screen, which is what puts the
+   * route in reach.
+   *
+   * SCOPE OF THE CLAIM. The render test (tests/e2e/shell.spec.ts) proves the
+   * ARTWORK inverts, in both schemes, from painted pixels. It does not prove
+   * iOS ever SELECTS this file for the Home Screen — manifest precedence on iOS
+   * is unestablished (docs/runbooks/ios-verification.md). So this is a bet with
+   * a graceful downside, not a delivered capability, and the apple-touch pair
+   * below is what carries the tile whenever the bet does not pay.
    *
    * The raster favicons do NOT invert — a PNG cannot — and stay the house
    * colorway, which is legible on any tab background.

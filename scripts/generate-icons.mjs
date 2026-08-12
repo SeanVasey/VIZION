@@ -137,9 +137,11 @@ const APPLE_DARK = "dark";
 //
 // HOW THE TWO ARE SELECTED — measured on device 2026-08-12, and the answer is
 // not the one this comment used to hedge across. iOS reads
-// `<link rel="apple-touch-icon">` out of the head at "Add to Home Screen"
-// (never the manifest), does NOT evaluate `media` on icons, applies Apple's
-// "last one wins", and then FREEZES the tile it captured. So the selection
+// `<link rel="apple-touch-icon">` out of the head at "Add to Home Screen",
+// does NOT evaluate `media` on icons, applies Apple's "last one wins", and then
+// FREEZES the tile it captured. (Whether it ALSO consults the manifest is NOT
+// established — see the runbook; an earlier draft of this comment said "never
+// the manifest", which the photographs do not support.) So the selection
 // happens in the head, at capture time, and nothing declarative can change it
 // afterwards: `src/components/pwa/AppleTouchIcon.tsx` keeps the matched link
 // last, and layout.tsx's static pair is the no-JS floor with the DARK tile last.
@@ -160,6 +162,11 @@ const FRAC_MASKABLE = 0.58;
 // asserted by tests/unit/icon-alpha.test.ts (which requires ≥13). Sizes are
 // FROZEN — the manifest's `any` entries must stay a subset (asserted below).
 export const ANY_SIZES = [48, 72, 96, 128, 144, 152, 167, 180, 192, 256, 384, 512, 1024];
+
+// The self-inverting scalable icon's frozen filename. Named once, read by BOTH
+// the writer in main() and assertScalableEntries, so the manifest and the file
+// on disk cannot drift apart the way a restated literal would let them.
+export const SCALABLE_ICON = "app-icon.svg";
 
 // iOS splash device classes (portrait, width × height in px). Each pairs with a
 // media-qualified <link rel="apple-touch-startup-image"> in src/app/layout.tsx
@@ -391,8 +398,22 @@ async function readManifestIcons() {
   const manifest = JSON.parse(await fs.readFile(MANIFEST, "utf8"));
   const any = [];
   const maskable = [];
+  const scalable = [];
   for (const icon of manifest.icons ?? []) {
-    if (!icon.src || !/\.png$/i.test(icon.src)) continue;
+    if (!icon.src) continue;
+    // SVG entries carry no pixel size, so they cannot go through the size-based
+    // matrix check below — they get their own guard (assertScalableEntries).
+    // Collected rather than skipped: an unvalidated manifest entry is exactly
+    // the silent 404 the `any` guard was written for (Codex review, PR #105),
+    // and leaving `continue` here would have reopened it for the SVG.
+    if (/\.svg$/i.test(icon.src)) {
+      scalable.push({
+        src: icon.src,
+        file: path.join(repoRoot, "public", icon.src.replace(/^\//, "")),
+      });
+      continue;
+    }
+    if (!/\.png$/i.test(icon.src)) continue;
     const px = Math.max(
       ...(String(icon.sizes || "").match(/(\d+)x\1/g) ?? ["512x512"]).map((s) =>
         parseInt(s, 10),
@@ -407,7 +428,36 @@ async function readManifestIcons() {
       px,
     });
   }
-  return { any, maskable };
+  return { any, maskable, scalable };
+}
+
+/**
+ * Assert every SVG manifest entry names the scalable icon this generator
+ * actually writes.
+ *
+ * Same failure this file's `any` guard exists for, in the one shape that guard
+ * cannot see: it keys on pixel size, and an SVG has none, so before this the
+ * manifest could name `/icons/anything.svg` and nothing would notice. The
+ * generator would write `app-icon.svg` as always and the manifest would point at
+ * a file that does not exist — a silent 404 in the install prompt, which for the
+ * SCALABLE entry is worse than for a raster one, because it is declared first
+ * and is the entry a modern consumer reaches for before any PNG.
+ */
+export function assertScalableEntries(entries, iconsDir) {
+  const expected = path.join(iconsDir, SCALABLE_ICON);
+  const problems = entries
+    .filter(({ file }) => file !== expected)
+    .map(
+      ({ src }) =>
+        `  ${src} — the scalable icon is generated at a frozen path; expected ` +
+        `/icons/${SCALABLE_ICON}. Rename it back, or teach this script the new name.`,
+    );
+  if (problems.length) {
+    throw new Error(
+      `manifest.webmanifest declares SVG icons this generator does not ` +
+        `produce:\n${problems.join("\n")}`,
+    );
+  }
 }
 
 /**
@@ -463,11 +513,18 @@ async function main() {
     [ICONS_DIR, SPLASH_DIR].map((dir) => fs.mkdir(dir, { recursive: true })),
   );
 
-  const { any: manifestAny, maskable: manifestMaskable } = await readManifestIcons();
+  const {
+    any: manifestAny,
+    maskable: manifestMaskable,
+    scalable: manifestScalable,
+  } = await readManifestIcons();
 
-  // Every `any` entry must name a file this script actually writes — size AND
-  // path. Fail loudly here rather than shipping a 404 in the install prompt.
+  // Every declared entry must name a file this script actually writes. Fail
+  // loudly here rather than shipping a 404 in the install prompt — by size AND
+  // path for the raster matrix, by path for the scalable icon (which has no
+  // size to key on, and so needs its own guard).
   assertAnyEntriesMatchMatrix(manifestAny, ANY_SIZES, ICONS_DIR);
+  assertScalableEntries(manifestScalable, ICONS_DIR);
 
   // 1. Transparent `any` matrix: the glyph alone in Laser, no plate. Laser (not
   //    Void ink) because there is no plate behind it here — this is the same
@@ -549,10 +606,10 @@ async function main() {
   //    not ship assets nothing requests.
   console.log("Rendering the self-inverting scalable icon...");
   await fs.writeFile(
-    path.join(ICONS_DIR, "app-icon.svg"),
+    path.join(ICONS_DIR, SCALABLE_ICON),
     `${selfInvertingSVG(FRAC_STANDARD)}\n`,
   );
-  logWrite(path.join(ICONS_DIR, "app-icon.svg"));
+  logWrite(path.join(ICONS_DIR, SCALABLE_ICON));
 
   // 6. iOS splash screens. Dark appearance (Void plate + Laser glyph) so the
   //    launch image matches the manifest's background_color #0F1012 — a Laser

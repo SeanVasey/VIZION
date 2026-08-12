@@ -105,7 +105,8 @@ opposite of what this runbook previously told the next reader to assume.
 
 | Question                                                     | Answer                                                                                                                              |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Does iOS use the manifest `icons` for the Home Screen tile?  | **No.** It reads `<link rel="apple-touch-icon">` from the document head at "Add to Home Screen". The transparent `any` matrix never reaches this surface. |
+| Does iOS read `<link rel="apple-touch-icon">` for the tile?  | **Yes, definitely.** One install carried the light colorway (Void ink on a Laser plate), and that artwork exists nowhere but `apple-touch-icon.png` — the manifest's `any` entries were transparent Laser glyphs. |
+| Does iOS ALSO use the manifest `icons`, and at what precedence? | **Not established — do not read a "no" here.** The other install showed a Laser mark on black, which is `apple-touch-icon-dark.png` and the manifest's transparent glyph composited on black *rendered identically*. The photographs cannot separate them. An earlier revision of this row asserted "No, the manifest never reaches this surface"; that was an inference dressed as a measurement, and it was made against a build whose manifest contained no SVG at all. |
 | Does iOS evaluate `media` on `apple-touch-icon`?             | **No.** `media` selects `apple-touch-startup-image` (which is why the splash links resolve per device) but not icons. Apple's "last one wins" is what applies. |
 | Does iOS re-resolve the tile when the appearance changes?    | **No.** It resolves ONCE, at capture, and freezes. Re-adding to the Home Screen is the only refresh.                                  |
 | What does iOS do with a single tile under dark appearance?   | **Auto-darkens it.** On the light tile (Void ink on a Laser plate) that pulls the plate to near-black and leaves the mark an invisible emboss. |
@@ -119,19 +120,28 @@ is exactly the failure the owner reported.
 middle case is matched at install, and the best case follows the appearance
 live:
 
-1. **`/icons/app-icon.svg` — one file, both colorways.** A full-bleed square
-   whose plate and mark swap behind `@media (prefers-color-scheme: dark)`:
-   Laser plate with the Void mark in light, the exact inverse in dark. This is
-   the ONLY route that can invert without a re-install, because the swap is a
-   CSS rule the renderer re-evaluates rather than a fixed set of pixels. It is
-   linked as `rel="icon"` and declared first in the manifest; Safari 26 added
-   SVG support for icons "everyplace there are icons in the interface" and says
+1. **`/icons/app-icon.svg` — one file, both colorways. UNVERIFIED ON iOS.**
+   A full-bleed square whose plate and mark swap behind
+   `@media (prefers-color-scheme: dark)`: Laser plate with the Void mark in
+   light, the exact inverse in dark. It is the only route that *could* invert
+   without a re-install, because the swap is a CSS rule the renderer
+   re-evaluates rather than a fixed set of pixels. Linked as `rel="icon"` and
+   declared first in the manifest, on the strength of Safari 26 adding SVG
+   support for icons "everyplace there are icons in the interface" and stating
    that for web apps "this same icon represents the website on the user's Home
-   Screen or in their Dock", which is what puts this route in reach of the app
-   icon at all. Proven by render in Chromium (`tests/e2e/shell.spec.ts`).
-   **Not** declared as `apple-touch-icon`: that rel has been PNG-only for its
-   whole life, and pointing it at an SVG an older iOS cannot decode makes the
-   tile fall back to a blurry screenshot of the page.
+   Screen or in their Dock".
+   **What is proven is the artwork, not the selection.** The Chromium render
+   test (`tests/e2e/shell.spec.ts`) shows the file inverts; nothing here shows
+   that iOS ever *picks* it for the Home Screen. Row 2 of the table above is
+   explicit that manifest precedence on iOS is unestablished, so treat this as a
+   well-founded bet with a cheap device check, never as a delivered capability.
+   Do not write "the icon inverts live on iOS" anywhere until the check below
+   passes.
+   **Not** declared as `apple-touch-icon`, which is the one channel iOS is known
+   to consume: that rel has been PNG-only for its whole life, and pointing it at
+   an SVG an older iOS cannot decode makes the tile fall back to a blurry
+   screenshot of the page. Moving it there would trade a bet that degrades
+   gracefully for one that degrades badly.
 2. `src/components/pwa/AppleTouchIcon.tsx` keeps a single `apple-touch-icon`
    link last in the head with its href matched to the live
    `prefers-color-scheme`. Because iOS reads the head at capture, an install

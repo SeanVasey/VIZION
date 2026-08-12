@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import {
   ANY_SIZES,
   ICONS_DIR,
+  SCALABLE_ICON,
   assertAnyEntriesMatchMatrix,
+  assertScalableEntries,
 } from "../../scripts/generate-icons.mjs";
 
 /**
@@ -98,5 +100,61 @@ describe("assertAnyEntriesMatchMatrix", () => {
   it("accepts every frozen size at its canonical path", () => {
     const all = ANY_SIZES.map((px: number) => entry(`/icons/icon-${px}.png`));
     expect(() => assertAnyEntriesMatchMatrix(all, ANY_SIZES, ICONS_DIR)).not.toThrow();
+  });
+});
+
+/**
+ * The SAME guard, for the shape the one above structurally cannot see.
+ *
+ * `assertAnyEntriesMatchMatrix` keys on pixel size, and an SVG has none — so
+ * when the self-inverting scalable icon was added to the manifest it went
+ * through `readManifestIcons()` unvalidated, and the manifest could have named
+ * any path at all while the generator wrote `app-icon.svg` as always. That is
+ * the #105 failure reopened in a new shape, and it is worse here than for a
+ * raster entry: the scalable icon is declared FIRST, so it is what a modern
+ * consumer reaches for before any PNG, and a 404 there is the whole icon.
+ */
+function svgEntry(src: string) {
+  return { src, file: join(ROOT, "public", src.replace(/^\//, "")) };
+}
+
+describe("assertScalableEntries", () => {
+  it("accepts the real manifest as committed", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(ROOT, "public", "manifest.webmanifest"), "utf8"),
+    );
+    const scalable = (manifest.icons ?? [])
+      .filter((i: { src?: string }) => i.src && /\.svg$/i.test(i.src))
+      .map((i: { src: string }) => svgEntry(i.src));
+
+    expect(
+      scalable.length,
+      "the manifest should declare the self-inverting scalable icon",
+    ).toBeGreaterThan(0);
+    expect(() => assertScalableEntries(scalable, ICONS_DIR)).not.toThrow();
+  });
+
+  it("rejects a renamed scalable entry — the silent 404 this guard exists for", () => {
+    expect(() =>
+      assertScalableEntries([svgEntry("/icons/vizion-app.svg")], ICONS_DIR),
+    ).toThrow(/frozen path/);
+  });
+
+  it("names the offending manifest src, so the error is actionable", () => {
+    expect(() =>
+      assertScalableEntries([svgEntry("/icons/vizion-app.svg")], ICONS_DIR),
+    ).toThrow(/\/icons\/vizion-app\.svg/);
+  });
+
+  it("rejects the retired favicon.svg, which nothing writes any more", () => {
+    expect(() => assertScalableEntries([svgEntry("/icons/favicon.svg")], ICONS_DIR)).toThrow(
+      new RegExp(SCALABLE_ICON),
+    );
+  });
+
+  it("accepts the canonical path", () => {
+    expect(() =>
+      assertScalableEntries([svgEntry(`/icons/${SCALABLE_ICON}`)], ICONS_DIR),
+    ).not.toThrow();
   });
 });

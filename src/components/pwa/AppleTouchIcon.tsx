@@ -12,10 +12,13 @@ import { useEffect } from "react";
  * docs/runbooks/ios-verification.md called them unverifiable, and the hedge it
  * shipped guessed wrong on the one that mattered):
  *
- *   1. iOS does NOT use the manifest for the Home-Screen tile. It reads
- *      `<link rel="apple-touch-icon">` out of the document head at "Add to
- *      Home Screen". The transparent `any` matrix in manifest.webmanifest is
- *      therefore not part of this picture at all.
+ *   1. iOS DOES read `<link rel="apple-touch-icon">` from the head at "Add to
+ *      Home Screen" — one install carried the light colorway, which exists in
+ *      no other asset. Whether it ALSO consults the manifest, and at what
+ *      precedence, is NOT established: the second install rendered identically
+ *      whether it came from the dark tile or from a transparent manifest glyph
+ *      composited on black. This component therefore owns the channel iOS is
+ *      known to read; it does not claim to own the only one.
  *   2. `media` does NOT select icons. It works on `apple-touch-startup-image`
  *      — which is why the splash links in layout.tsx do resolve per device —
  *      but for `apple-touch-icon` iOS falls back to Apple's documented "last
