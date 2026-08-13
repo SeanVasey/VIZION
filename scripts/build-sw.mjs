@@ -61,13 +61,15 @@ async function main() {
     // DEAD-001) — still served on demand and runtime-cached by the
     // StaleWhileRevalidate image route. `icons/**/*.png` swept all 19 and
     // spent ~130 KB of first-visit data on assets no offline path uses.
-    // icons/apple-touch-icon.png left the list 2026-08-09 (audit 04 pwa-04,
-    // owner-approved): nothing that runs offline requests a home-screen tile —
-    // iOS reads it once, at Add-to-Home-Screen time, over the network. It stays
-    // off the list now that the layout links it (and its dark twin) directly at
-    // /icons/, for the same reason: the tile is captured at install, never on a
-    // cold offline launch. PERF-005's disposition listed it as offline-needed;
-    // that clause was a mistaken carry-over.
+    // The home-screen tile left the list 2026-08-09 (audit 04 pwa-04,
+    // owner-approved): nothing that runs offline requests one — iOS reads it
+    // once, at Add-to-Home-Screen time, over the network. It stays off now that
+    // the layout links it directly at /icons/, for the same reason: the tile is
+    // captured at install, never on a cold offline launch. (There is one tile
+    // now, `icons/apple-touch-icon-dark.png`; the light twin this comment used
+    // to name was deleted with the media pair — ADR-0015.) PERF-005's
+    // disposition listed it as offline-needed; that clause was a mistaken
+    // carry-over.
     const { count, size, warnings } = await injectManifest({
       swSrc: bundled,
       swDest: SW_DEST,

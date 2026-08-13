@@ -75,7 +75,10 @@ describe("UI contracts", () => {
       // fail anything else: the clamp silently falls back to the viewport
       // edges and the halo paints into the bar again on exactly the devices no
       // suite covers. Both bars, by their real class, must carry it.
-      const files = ["src/components/ScreenHeader.tsx", "src/components/nav/BottomNav.tsx"];
+      const files = [
+        "src/components/ScreenHeader.tsx",
+        "src/components/nav/BottomNav.tsx",
+      ];
       for (const file of files) {
         const src = readFileSync(join(ROOT, file), "utf8");
         expect(src, `${file} lost data-chrome-bar`).toContain('data-chrome-bar=""');

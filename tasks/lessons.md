@@ -3529,6 +3529,35 @@ test:e2e` hard-fails in global-setup until
      the same commit; the files you did not touch on the way in are
      exactly the ones that will outlive the correction.
 
+  **Amendment 4 (2026-08-13) — the bet lost, and losing it cost three
+  arrangements.** The device answered: iOS keeps ONE tile, frozen at
+  capture, and does not select the SVG. The icon is now pinned dark
+  (ADR-0015) and the matcher, the pair and the light 180px tile are
+  deleted. Two lessons, and the second is the sharper one:
+
+  1. **A route whose only proof is "the artwork is correct" is not a
+     route.** The SVG was tested end-to-end on its RENDERING half and
+     never on its SELECTION half, because selection was untestable here —
+     and the write-ups said so honestly, in four places. It was still
+     built out as a component, a unit suite and two e2e tests. When the
+     untestable half is the half the feature depends on, the honest shape
+     is a one-line additive declaration, not an architecture; the effort
+     spent on the testable half reads, to the next person, as confidence
+     in the whole. Corollary: when such a bet settles negative, delete the
+     MECHANISM, not just the claim. A hedge left in place is a moving part
+     whose only remaining effect is to undo the decision that replaced it.
+  2. **Grep for the mechanism, not for the sentence you wrote.** Amendment
+     3 established "a retraction has the same blast radius as the claim —
+     `grep -r` it", and I did exactly that, and `docs/runbooks/local-dev.md`
+     still slipped through BOTH correction rounds. It had paraphrased
+     rather than quoted: my regexes hunted "light tile is declared last"
+     while the file said "the **light** one must come **last**". And it
+     was not merely stale — it was an INSTRUCTION to reproduce the bug, in
+     the file `AGENTS.md` points contributors at for icon work. Grepping
+     your own phrasing finds the files that quoted you; grepping the
+     mechanism (`apple-touch-icon`, `prefers-color-scheme`) finds the ones
+     that paraphrased you, and those are the ones written as instructions.
+
 - **`align-items: center` centres a line box, and a line box is not a
   word.** The header mark hung visibly low beside the wordmark although
   flex had "centred" it: a line box's centre sits at
@@ -3578,7 +3607,7 @@ test:e2e` hard-fails in global-setup until
   not cosmetic.** The Thinking pill's disclosure chevron was honest about
   the implementation (it opened a sheet) and dishonest about the thing (a
   five-step ladder is a slider). Removing the chevron without removing the
-  sheet would have made it *less* honest, not more. The real move was to
+  sheet would have made it _less_ honest, not more. The real move was to
   notice that the sheet was carrying two loads — the keyboard path and
   WCAG 2.5.7's no-dragging path — and that `role="slider"` plus a latched
   tap-then-tap carries both with strictly less machinery. **When an
@@ -3623,7 +3652,7 @@ test:e2e` hard-fails in global-setup until
   over, and it would have passed every static token check because no token
   changed. Building the sweep from two inks that both clear AA, with the
   highlight moving AWAY from the surface per theme, makes every frame safe
-  *by construction* rather than by measurement. The test pins the direction
+  _by construction_ rather than by measurement. The test pins the direction
   rule, not just the two values: a future retune that brightens
   `--ultra-ink-hi` on light now fails.
 
@@ -3792,7 +3821,7 @@ test:e2e` hard-fails in global-setup until
   supposed to stand down alongside the halo. The comment on the new rule even
   claimed it "stands down WITH the halo blur", which was true of two gates out
   of three. Before adding a filter beside an existing one, enumerate the
-  existing one's gates and check where each is *expressed*, not just that they
+  existing one's gates and check where each is _expressed_, not just that they
   exist.
 
 - **Clamping the element is not clamping the treatment.** The halo's blur box
@@ -3836,8 +3865,8 @@ test:e2e` hard-fails in global-setup until
   long as a finger and wrong for a capsule that stays up until it is dismissed.
   An orientation change or a resize left it placed for the old viewport. The
   sharp version is the one the design invites: multi-touch is exempted from the
-  gesture's scroll block *precisely so pinch-zoom keeps working under an open
-  capsule*, and zooming is exactly what changes `visualViewport`'s offset and
+  gesture's scroll block _precisely so pinch-zoom keeps working under an open
+  capsule_, and zooming is exactly what changes `visualViewport`'s offset and
   size — so the feature that was deliberately permitted was the feature that
   invalidated the snapshot. When a control opts into a platform gesture, check
   what that gesture changes and whether anything cached is still true after it;

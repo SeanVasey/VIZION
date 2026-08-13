@@ -918,9 +918,7 @@ function HoldSliderOverlay({
               moment the top stop is reached. `key` on the peak flag so it
               REPLAYS on every arrival rather than animating once and sitting
               spent for the rest of the gesture. */}
-          {peak && (
-            <BurstRing key={`burst-${dragIndex}`} x={centers[dragIndex]!} />
-          )}
+          {peak && <BurstRing key={`burst-${dragIndex}`} x={centers[dragIndex]!} />}
         </div>
         {peak && peakCaption && (
           <p className="pointer-events-none absolute -bottom-10 left-1/2 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 justify-center">

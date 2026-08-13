@@ -677,13 +677,7 @@ export function useHoldDrag({
     if (!press.current) disarmWindowNetRef.current();
     document.documentElement.removeAttribute("data-hold-gesture");
     setActiveBoth(null);
-  }, [
-    onWindowTouchMove,
-    onWindowWheel,
-    onWindowKey,
-    disarmViewportWatch,
-    setActiveBoth,
-  ]);
+  }, [onWindowTouchMove, onWindowWheel, onWindowKey, disarmViewportWatch, setActiveBoth]);
   teardownRef.current = teardown;
 
   /** The pre-hold safety net for UNCAPTURED exits (twelfth pass). A mouse

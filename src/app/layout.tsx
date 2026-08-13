@@ -10,7 +10,6 @@ import { ScrollStateManager } from "@/components/ScrollStateManager";
 import { AmbientNebula } from "@/components/background/AmbientNebula";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
-import { AppleTouchIcon } from "@/components/pwa/AppleTouchIcon";
 
 const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.variable}`;
 
@@ -28,8 +27,9 @@ const DESCRIPTION =
 // by scripts/generate-social-card.mjs, so neither can disagree with the brand
 // green.
 //
-//   OG_TILE      1200×1200, Void mark on a Laser plate — the same artwork as the
-//                light app icon. This is `og:image`, and it is SQUARE on
+//   OG_TILE      1200×1200, Void mark on a Laser plate — the house colorway,
+//                as on the favicons and maskable tiles (the home-screen tile is
+//                pinned to its inverse). This is `og:image`, and it is SQUARE on
 //                purpose: every consumer of og:image except X crops toward a
 //                square. iOS Safari's Share Sheet takes the centre 640×640,
 //                which of the landscape card kept only the right arm of the
@@ -75,61 +75,47 @@ export const metadata: Metadata = {
    * The whole icon head, declared here rather than left to the App Router
    * `icon*`/`apple-icon` file convention.
    *
-   * WHY. The convention cannot express a `media` attribute, and the dark
-   * home-screen tile needs one. Declaring `metadata.icons` is also all-or-
-   * nothing: Next merges the convention files' links only `if
-   * (!resolvedMetadata.icons)` (resolve-metadata.js), so the moment this key
-   * exists those links vanish. `src/app/icon0.svg`, `icon1.png` and
-   * `apple-icon.png` were therefore deleted rather than left to be built,
-   * served and referenced by nothing — scripts/generate-icons.mjs writes the
-   * equivalents under `public/icons/` and this block points at them.
+   * WHY. Declaring `metadata.icons` is all-or-nothing: Next merges the
+   * convention files' links only `if (!resolvedMetadata.icons)`
+   * (resolve-metadata.js), so the moment this key exists those links vanish.
+   * `src/app/icon0.svg`, `icon1.png` and `apple-icon.png` were therefore
+   * deleted rather than left to be built, served and referenced by nothing —
+   * scripts/generate-icons.mjs writes the equivalents under `public/icons/` and
+   * this block points at them. (This used to cite the convention's inability to
+   * express `media` as the first reason. No link here carries `media` any more;
+   * the all-or-nothing merge is the reason that survives.)
    *
-   * THE APPLE PAIR IS THE NO-JS FLOOR, and the DARK tile is declared LAST.
+   * ONE apple-touch-icon, UNCONDITIONAL, and it is the DARK tile.
    *
-   * The unknown this pair used to hedge across is now measured (on device,
-   * 2026-08-12 — see AppleTouchIcon.tsx and the iOS runbook). `media` does NOT
-   * select icons on iOS. It selects `apple-touch-startup-image`, which is why
-   * the splash links below resolve per device, but for `apple-touch-icon` iOS
-   * falls back to Apple's documented "last one wins". So the previous
-   * arrangement — complementary queries with the LIGHT tile last — resolved to
-   * light every time, its dark half unreachable, and iOS then auto-darkened
-   * that light tile into an invisible mark whenever the phone was in dark
-   * appearance. That was the reported bug, not a theoretical branch.
+   * Everything about how iOS picks this is now measured, across two device
+   * passes (2026-08-12 and -13; result table in the iOS runbook). iOS reads
+   * `apple-touch-icon` from the head at "Add to Home Screen", does NOT evaluate
+   * `media` on icons (it does on `apple-touch-startup-image` — which is why the
+   * splash links below resolve per device), applies Apple's "last one wins",
+   * FREEZES what it captured, and auto-darkens that frozen tile under dark
+   * appearance. Nothing re-resolves it afterwards.
    *
-   * Two changes follow, and they are layered:
+   * So there is one link and no query. A `media` attribute here would be
+   * decoration implying a selection that never happens, and with a single link
+   * "last one wins" is a tautology — there is no order left to get wrong. The
+   * tile is the DARK colorway because auto-darkening artwork that is already
+   * dark is a no-op, while auto-darkening the Laser plate crushes it toward the
+   * Void mark and leaves an invisible emboss. That is the whole decision
+   * (ADR-0015); the accepted cost is that the Laser plate never reaches the
+   * Home Screen.
    *
-   *   • ORDER FLIPPED — the DARK tile is last, so "last one wins" now lands on
-   *     the one colorway that stays legible under EVERY appearance (iOS's
-   *     auto-darkening is a no-op on artwork that is already dark). The old
-   *     order made the always-broken tile the default; this makes the
-   *     never-broken one the default. The queries stay complementary, so a UA
-   *     that does honour `media` still gets exactly one eligible link per
-   *     scheme and resolves correctly either way.
-   *   • `<AppleTouchIcon />` (mounted in <body>) appends a third link, kept
-   *     LAST and matched to the live `prefers-color-scheme`, so a capture made
-   *     with JS available gets the artwork for the appearance the user is
-   *     actually in — the Laser plate in light mode, the inverse in dark. That
-   *     is the mechanism iOS actually reads; this static pair is what a
-   *     pre-hydration or no-JS capture falls back to.
+   * Three arrangements have shipped here and all three shipped that invisible
+   * mark: a complementary `media` pair, the same pair reordered, and a JS
+   * matcher that rewrote the href per appearance. Do not reintroduce any of
+   * them. What is left is deliberately the least clever thing that works.
    *
-   * iOS resolves the tile ONCE, at "Add to Home Screen", and freezes it. No
-   * arrangement can re-resolve it later — re-adding is the only refresh.
-   *
-   * THE SCALABLE ICON IS THE ONE SURFACE THAT COULD INVERT, and it is declared
-   * first so a modern browser prefers it over the raster pair.
-   * `/icons/app-icon.svg` carries BOTH colorways in a single file behind a
-   * `prefers-color-scheme` rule — Laser plate with the Void mark in light, the
-   * exact inverse in dark — so wherever it is honoured it follows the
-   * appearance live rather than being frozen at capture. Safari 26 says this
-   * same icon represents the site on the Home Screen, which is what puts the
-   * route in reach.
-   *
-   * SCOPE OF THE CLAIM. The render test (tests/e2e/shell.spec.ts) proves the
-   * ARTWORK inverts, in both schemes, from painted pixels. It does not prove
-   * iOS ever SELECTS this file for the Home Screen — manifest precedence on iOS
-   * is unestablished (docs/runbooks/ios-verification.md). So this is a bet with
-   * a graceful downside, not a delivered capability, and the apple-touch pair
-   * below is what carries the tile whenever the bet does not pay.
+   * The scalable icon stays FIRST among `rel="icon"` so a modern browser
+   * prefers it over the rasters. `/icons/app-icon.svg` still carries both
+   * colorways behind `prefers-color-scheme`, and still inverts wherever that is
+   * honoured — the browser tab, and non-iOS installs. It is NOT a Home Screen
+   * route: the device check ran and iOS did not select it. Its default rules
+   * are the dark colorway, so a renderer that ignores the query also lands on
+   * the colorway that cannot degrade.
    *
    * The raster favicons do NOT invert — a PNG cannot — and stay the house
    * colorway, which is legible on any tab background.
@@ -140,18 +126,7 @@ export const metadata: Metadata = {
       { url: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
       { url: "/icons/favicon-16.png", type: "image/png", sizes: "16x16" },
     ],
-    apple: [
-      {
-        url: "/icons/apple-touch-icon.png",
-        sizes: "180x180",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icons/apple-touch-icon-dark.png",
-        sizes: "180x180",
-        media: "(prefers-color-scheme: dark)",
-      },
-    ],
+    apple: [{ url: "/icons/apple-touch-icon-dark.png", sizes: "180x180" }],
   },
   // NO appleWebApp block: the two static apple metas are hand-written in the
   // <head> below. metadata.appleWebApp — even without statusBarStyle — makes
@@ -248,7 +223,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         <QueryProvider>
-          <AppleTouchIcon />
           <ThemeManager />
           <ReducedEffectsManager />
           <ScrollStateManager />

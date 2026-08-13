@@ -49,8 +49,7 @@ export function DialCoachTip() {
     >
       <SlideGlyph className="mt-[2px] h-3.5 w-3.5 shrink-0 text-silver" />
       <span className="grow">
-        Tap a dial to open its slider — or press and hold to slide straight to a
-        level.
+        Tap a dial to open its slider — or press and hold to slide straight to a level.
       </span>
       <button
         type="button"
@@ -86,7 +85,14 @@ function SlideGlyph({ className }: { className?: string }) {
         strokeWidth="1.75"
         strokeLinecap="round"
       />
-      <circle cx="15" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.75" />
+      <circle
+        cx="15"
+        cy="12"
+        r="3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
     </svg>
   );
 }

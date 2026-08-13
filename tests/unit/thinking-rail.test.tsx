@@ -166,7 +166,8 @@ describe("thinking rail sizing", () => {
     renderComposer();
     const thumbX = () =>
       Number.parseFloat(
-        thinkingTrigger().querySelector<HTMLElement>("[data-hold-hint-thumb]")!.style.left,
+        thinkingTrigger().querySelector<HTMLElement>("[data-hold-hint-thumb]")!.style
+          .left,
       );
     expect(thinkingTrigger().getAttribute("aria-valuenow")).toBe("3");
     const atHigh = thumbX();
@@ -485,7 +486,11 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientY: 400,
       button: 0,
     });
-    fireEvent.pointerUp(thinkingTrigger(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+    });
     // No hold, no drag, no sheet — the capsule is simply up and stays up.
     expect(overlay()).not.toBeNull();
     expect(overlay()!.dataset.holdSliderPhase).toBe("latched");
@@ -499,8 +504,9 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     // the track itself, so there is no press-point offset to preserve.
     const track = overlay()!;
     const x = Number(
-      overlay()!.querySelector<HTMLElement>('[data-detent-bar="high"]')!.style.left
-        .replace("px", ""),
+      overlay()!
+        .querySelector<HTMLElement>('[data-detent-bar="high"]')!
+        .style.left.replace("px", ""),
     );
     const left = Number(String(track.style.left).replace("px", ""));
     fireEvent.pointerDown(track, { pointerId: 2, clientX: left + x, clientY: 400 });
@@ -518,7 +524,11 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientY: 400,
       button: 0,
     });
-    fireEvent.pointerUp(thinkingTrigger(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+    });
     expect(overlay()).not.toBeNull();
     const scrim = document.querySelector("[data-hold-slider-scrim]")!;
     fireEvent.pointerDown(scrim, { pointerId: 2, clientX: 10, clientY: 10 });
@@ -532,7 +542,11 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientY: 400,
       button: 0,
     });
-    fireEvent.pointerUp(thinkingTrigger(), { pointerId: 3, clientX: DOWN_X, clientY: 400 });
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 3,
+      clientX: DOWN_X,
+      clientY: 400,
+    });
     expect(overlay()).not.toBeNull();
   });
 
@@ -544,7 +558,11 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientY: 400,
       button: 0,
     });
-    fireEvent.pointerUp(thinkingTrigger(), { pointerId: 1, clientX: DOWN_X, clientY: 400 });
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X,
+      clientY: 400,
+    });
     // Arrows drive the OPEN track (use-hold-drag claims them at window
     // capture), so the dial's own rest-time handler never sees them and the
     // value is not committed until Enter.
@@ -563,7 +581,11 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientY: 400,
       button: 0,
     });
-    fireEvent.pointerUp(thinkingTrigger(), { pointerId: 2, clientX: DOWN_X, clientY: 400 });
+    fireEvent.pointerUp(thinkingTrigger(), {
+      pointerId: 2,
+      clientX: DOWN_X,
+      clientY: 400,
+    });
     fireEvent.keyDown(window, { key: "End" });
     expect(overlay()!.textContent).toContain("Max");
     fireEvent.keyDown(window, { key: "Escape" });

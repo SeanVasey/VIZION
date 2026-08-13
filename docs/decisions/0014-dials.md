@@ -354,6 +354,7 @@ guessable from the CSS:
    by measuring rather than hardcoding, with three viewport sizes of e2e
    coverage turning a retuned bar into a failing test rather than a silent
    overrun.
+
 5. **A placement is a snapshot, and the latched capsule outlives it** (Codex
    review, PR #110). `geometry` and `region` were sampled once, at activation,
    and never again — so an orientation change or a window resize left a fixed

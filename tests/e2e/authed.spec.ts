@@ -461,20 +461,20 @@ test.describe("thinking hold-slider", () => {
     expect(halo.y).toBeGreaterThanOrEqual(header.y + header.height);
     expect(halo.y + halo.height).toBeLessThanOrEqual(nav.y + 1);
     const track = (await page.locator("[data-hold-slider-overlay]").boundingBox())!;
-    expect(Math.abs(halo.y + halo.height / 2 - (track.y + track.height / 2))).toBeLessThan(2);
+    expect(
+      Math.abs(halo.y + halo.height / 2 - (track.y + track.height / 2)),
+    ).toBeLessThan(2);
     // The DIM has to clear the bars too, not just the blur box. Its painted
     // ellipse is a gradient, so measure the radius it was handed rather than a
     // bounding box: a vertical spread here put it into the nav while the blur
     // stayed clear (Codex review, PR #110).
-    const dimReach = await page
-      .locator("[data-hold-slider-scrim]")
-      .evaluate((el) => {
-        const s = el.style;
-        return (
-          Number.parseFloat(s.getPropertyValue("--dial-cy")) +
-          Number.parseFloat(s.getPropertyValue("--dial-ry"))
-        );
-      });
+    const dimReach = await page.locator("[data-hold-slider-scrim]").evaluate((el) => {
+      const s = el.style;
+      return (
+        Number.parseFloat(s.getPropertyValue("--dial-cy")) +
+        Number.parseFloat(s.getPropertyValue("--dial-ry"))
+      );
+    });
     expect(dimReach).toBeLessThanOrEqual(nav.y + 1);
     //  · the dim keeps the viewport-covering box — it is the shield — and
     //    localizes in its PAINT instead: a radial gradient, never the flat
@@ -563,7 +563,9 @@ test.describe("thinking hold-slider", () => {
     // is retired, so a tap has nothing to fall through to). It opens over
     // the pill and stays up with no pointer down at all.
     await pill.click();
-    const latched = page.locator('[data-hold-slider-overlay][data-hold-slider-phase="latched"]');
+    const latched = page.locator(
+      '[data-hold-slider-overlay][data-hold-slider-phase="latched"]',
+    );
     await expect(latched).toBeVisible();
     await page.waitForTimeout(400);
     await expect(latched).toBeVisible();
@@ -586,9 +588,7 @@ test.describe("thinking hold-slider", () => {
     expect(capsule.x).toBeGreaterThanOrEqual(EDGE_MARGIN - 1);
     expect(capsule.x + capsule.width).toBeLessThanOrEqual(vw - EDGE_MARGIN + 1);
     expect(
-      Math.abs(
-        capsule.y + capsule.height / 2 - (pillBoxNow.y + pillBoxNow.height / 2),
-      ),
+      Math.abs(capsule.y + capsule.height / 2 - (pillBoxNow.y + pillBoxNow.height / 2)),
     ).toBeLessThan(2);
     // Tap a stop directly — the no-dragging route (WCAG 2.5.7).
     const maxBar = latched.locator('[data-detent-bar="max"]');
@@ -652,15 +652,13 @@ test.describe("thinking hold-slider", () => {
     const track = (await page.locator("[data-hold-slider-overlay]").boundingBox())!;
     expect(halo.height).toBeGreaterThan(track.height * 2);
     // …and the dim clears the nav here too, on the viewport that binds hardest.
-    const dimReach = await page
-      .locator("[data-hold-slider-scrim]")
-      .evaluate((el) => {
-        const s = el.style;
-        return (
-          Number.parseFloat(s.getPropertyValue("--dial-cy")) +
-          Number.parseFloat(s.getPropertyValue("--dial-ry"))
-        );
-      });
+    const dimReach = await page.locator("[data-hold-slider-scrim]").evaluate((el) => {
+      const s = el.style;
+      return (
+        Number.parseFloat(s.getPropertyValue("--dial-cy")) +
+        Number.parseFloat(s.getPropertyValue("--dial-ry"))
+      );
+    });
     expect(dimReach).toBeLessThanOrEqual(nav.y + 1);
   });
 

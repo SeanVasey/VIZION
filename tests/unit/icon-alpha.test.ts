@@ -63,7 +63,6 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
   const opaqueSet = [
     join(ICONS, "maskable-192.png"),
     join(ICONS, "maskable-512.png"),
-    join(ICONS, "apple-touch-icon.png"),
     join(ICONS, "apple-touch-icon-dark.png"),
     join(ICONS, "favicon-16.png"),
     join(ICONS, "favicon-32.png"),
@@ -78,72 +77,68 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
   }
 
   /**
-   * The two home-screen appearances must be genuine INVERSES of each other —
-   * that is the whole point of shipping a second tile. A dark tile that merely
-   * darkened the light one (which is what iOS does unaided) would leave Void
-   * ink on a near-Void plate: the mark invisible, the bug this fixes.
+   * ONE home-screen tile ships, and it must carry the DARK colorway.
    *
-   * Sampled, not restated: the hexes live in tokens.css and the generator reads
-   * them from there, so asserting `light.plate === dark.glyph` pins the
-   * relationship without giving this file a second opinion about the brand
-   * green. (2, 2) is plate on both; (90, 90) is inside the glyph's vertical bar
-   * on both (the bar spans y 31.7–113.8 of the 180px tile at frac 0.74).
+   * iOS resolves `apple-touch-icon` once, at "Add to Home Screen", freezes what
+   * it captured, and auto-darkens that frozen tile under dark appearance. On the
+   * light colorway (Void ink on a Laser plate) that pulls the plate toward the
+   * ink and leaves the mark an invisible emboss — the reported bug, twice. On
+   * artwork already dark it is a no-op, which is why the tile is pinned dark
+   * (ADR-0015). The light 180px tile and the matcher that chose between them are
+   * deleted; these two tests replace the pair assertions that stood here.
+   *
+   * Stated as a luminance ORDER, not a hex, so it survives a retune of either
+   * token and still cannot be satisfied by the light artwork under this name.
    */
-  it("the two apple-touch appearances are inverse colorways", async () => {
-    const light = await sampleTile(join(ICONS, "apple-touch-icon.png"));
-    const dark = await sampleTile(join(ICONS, "apple-touch-icon-dark.png"));
+  it("the shipped home-screen tile is the dark colorway", async () => {
+    const tile = await sampleTile(join(ICONS, "apple-touch-icon-dark.png"));
 
-    expect(light.plate.rgb, "a tile whose plate equals its glyph shows nothing").not.toBe(
-      light.glyph.rgb,
+    expect(tile.plate.rgb, "a tile whose plate equals its mark shows nothing").not.toBe(
+      tile.glyph.rgb,
     );
-    expect(dark.plate.rgb).not.toBe(dark.glyph.rgb);
-    expect(dark.plate.rgb, "the dark tile's plate must be the light tile's ink").toBe(
-      light.glyph.rgb,
-    );
-    expect(dark.glyph.rgb, "the dark tile's mark must be the light tile's plate").toBe(
-      light.plate.rgb,
-    );
+    expect(
+      tile.plate.luma,
+      "the plate must be the darker of the two, or iOS's auto-darkening is not a no-op on it",
+    ).toBeLessThan(tile.glyph.luma);
   });
 
   /**
-   * ...and each tile must carry the appearance its NAME and its media query
-   * claim. Inversion alone does not pin that: swap the two files and every
-   * assertion above still passes, while a media-aware iOS installs a lime plate
-   * for dark mode and a near-black one for light.
+   * ...and it must be the exact INVERSE of the house colorway, not a darkened
+   * copy of it. A merely-darkened light tile is Void ink on a near-Void plate,
+   * which is the failure itself — and luminance order alone would accept it.
    *
-   * That swap was reachable (Codex review, #108): the dark tile was generated as
-   * `BASE === "light" ? "dark" : "light"`, so flipping `BASE` to `"dark"` — which
-   * the iOS runbook told the next reader to do — would have rendered the light
-   * colorway into the file named `-dark`. The generator now pins both to fixed
-   * scheme names, and this is the guard that keeps them pinned.
-   *
-   * Stated as a luminance ORDER rather than a hex, so it survives a retune of
-   * either token and still cannot be satisfied by the swap.
+   * The reference is SAMPLED from a sibling the generator paints with `BASE`
+   * (maskable-512: opaque, full-bleed, same plate+glyph structure) rather than
+   * restated as hexes, for the reason generate-icons.mjs reads tokens.css — this
+   * file must not hold a second opinion about the brand green.
    */
-  it("each apple-touch tile carries the appearance its name claims", async () => {
-    const light = await sampleTile(join(ICONS, "apple-touch-icon.png"));
-    const dark = await sampleTile(join(ICONS, "apple-touch-icon-dark.png"));
+  it("the tile is the inverse of the house colorway, not a darkened copy", async () => {
+    const tile = await sampleTile(join(ICONS, "apple-touch-icon-dark.png"));
+    const house = await sampleTile(join(ICONS, "maskable-512.png"));
 
-    expect(
-      dark.plate.luma,
-      "the -dark tile is linked behind (prefers-color-scheme: dark); its plate must be the darker one",
-    ).toBeLessThan(light.plate.luma);
-    expect(
-      dark.glyph.luma,
-      "the -dark tile's mark must be the lighter ink, or it vanishes into its own plate",
-    ).toBeGreaterThan(light.glyph.luma);
+    expect(tile.plate.rgb, "the tile's plate must be the house ink").toBe(
+      house.glyph.rgb,
+    );
+    expect(tile.glyph.rgb, "the tile's mark must be the house plate").toBe(
+      house.plate.rgb,
+    );
   });
 });
 
 /**
- * Plate and glyph pixels of a 180px home-screen tile, as an rgb string plus a
+ * Plate and glyph pixels of any full-bleed opaque tile, as an rgb string plus a
  * relative luminance.
  *
  * Sampled, not restated: the hexes live in tokens.css and the generator reads
- * them from there, so comparing the two tiles pins their relationship without
- * giving this file a second opinion about the brand green. (2, 2) is plate on
- * both; (90, 90) is inside the glyph's vertical bar on both (the bar spans
- * y 31.7–113.8 of the 180px tile at frac 0.74).
+ * them from there, so comparing tiles pins their relationship without giving
+ * this file a second opinion about the brand green.
+ *
+ * (2, 2) is plate on any full-bleed tile — these are flattened, so every pixel
+ * outside the mark is exactly the plate colour. The CENTRE is inside the mark's
+ * vertical bar at both glyph fractions this pipeline renders: frac 0.74 puts the
+ * bar at 45.8–54.2 % of the width, frac 0.58 at 46.7–53.3 %, and the bar spans
+ * the vertical centre in both. Taking the centre rather than a hard-coded
+ * (90, 90) is what lets this read the 512px maskable reference too.
  */
 async function sampleTile(file: string) {
   const { data, info } = await raw(file);
@@ -152,5 +147,5 @@ async function sampleTile(file: string) {
     const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!];
     return { rgb: `${r},${g},${b}`, luma: 0.2126 * r + 0.7152 * g + 0.0722 * b };
   };
-  return { plate: at(2, 2), glyph: at(90, 90) };
+  return { plate: at(2, 2), glyph: at(info.width >> 1, info.height >> 1) };
 }

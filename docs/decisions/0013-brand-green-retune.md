@@ -193,13 +193,13 @@ So the split is made explicit and owned:
 The same literal-mirror sites move with the token (the discipline the body of
 this ADR established):
 
-| Site                                               | From                       | To                        |
-| -------------------------------------------------- | -------------------------- | ------------------------- |
-| `tokens.css` `--laser`                             | `#dffa04`                  | `#c7fd26`                 |
-| `tokens.css` `--laser-glow`                        | `rgba(223, 250, 4, 0.25)`  | `rgba(199, 253, 38, 0.25)`|
-| `tokens.css` `--accent-ink` (light, **×2 blocks**) | `#5b6600`                  | `#526810`                 |
-| `AmbientNebula.tsx` `LASER_RGB` / `accentRgb`      | `"223, 250, 4"`            | `"199, 253, 38"`          |
-| `tests/unit/safe-area.test.ts` `LASER`             | `#DFFA04`                  | `#C7FD26`                 |
+| Site                                               | From                      | To                         |
+| -------------------------------------------------- | ------------------------- | -------------------------- |
+| `tokens.css` `--laser`                             | `#dffa04`                 | `#c7fd26`                  |
+| `tokens.css` `--laser-glow`                        | `rgba(223, 250, 4, 0.25)` | `rgba(199, 253, 38, 0.25)` |
+| `tokens.css` `--accent-ink` (light, **×2 blocks**) | `#5b6600`                 | `#526810`                  |
+| `AmbientNebula.tsx` `LASER_RGB` / `accentRgb`      | `"223, 250, 4"`           | `"199, 253, 38"`           |
+| `tests/unit/safe-area.test.ts` `LASER`             | `#DFFA04`                 | `#C7FD26`                  |
 
 **`--on-laser` still does not move.** Void on `#c7fd26` measures **15.87:1** —
 comfortably over the §6 floor — so the button/chip/FAB ink is unchanged.

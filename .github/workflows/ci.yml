@@ -46,6 +46,34 @@ jobs:
       - name: Generate icons
         run: npm run generate:icons
 
+      - name: The generated tree is committed and reproducible
+        # The step above only proved the script does not throw. THIS is what
+        # makes it a check: the committed art must be what a fresh run produces,
+        # so a generator change that alters output — or silently stops writing a
+        # file — fails here instead of shipping. (A comment in generate-icons.mjs
+        # used to claim a unit test covered this. None ever did; a test cannot
+        # re-run a generator that writes to fixed paths without clobbering the
+        # working tree.)
+        #
+        # `git status --porcelain`, not `git diff --exit-code`: it also catches a
+        # NEW untracked output, which a diff of tracked files cannot see. It does
+        # NOT catch an ORPHAN — a file the generator stopped writing but that
+        # stays committed — so removing an output still needs an explicit
+        # `git rm` in the same change.
+        #
+        # This makes sharp/libvips byte output a CI contract. Safe here: the
+        # lockfile pins both, and substantial generator edits have left the PNG
+        # bytes untouched. If cross-platform drift ever appears, narrow the byte
+        # check to app-icon.svg and compare the PNGs by decoded-pixel hash.
+        run: |
+          DRIFT="$(git status --porcelain -- public/icons public/splash public/favicon.ico)"
+          if [ -n "$DRIFT" ]; then
+            echo "::error::The committed icon tree differs from a fresh \`npm run generate:icons\`. Regenerate and commit."
+            echo "$DRIFT"
+            git --no-pager diff --stat -- public/icons public/splash public/favicon.ico
+            exit 1
+          fi
+
       - name: Unit tests
         run: npm run test
 

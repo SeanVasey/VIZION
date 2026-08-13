@@ -37,11 +37,21 @@ function token(name: string) {
 const LASER = token("laser");
 const VOID = token("void");
 
-/** The fills declared for `.plate` / `.glyph` inside a given rule block. */
+/**
+ * The fills declared for `.plate` / `.glyph` in each branch.
+ *
+ * The DEFAULT rules are the DARK colorway, deliberately: a renderer that ignores
+ * `prefers-color-scheme` inside an SVG paints the default, so the default has to
+ * be the colorway that cannot degrade to an invisible emboss. The LIGHT colorway
+ * is the OVERRIDE. Flipping these back puts the fragile artwork in the fallback
+ * branch — see the "defaults to the dark colorway" test below.
+ */
 function fills(scope: "light" | "dark") {
-  const dark = SVG.match(/@media\s*\(prefers-color-scheme:\s*dark\)\s*\{(.+?)\}\s*<\/style>/s);
-  if (!dark) throw new Error("app-icon.svg: no prefers-color-scheme:dark block");
-  const block = scope === "dark" ? dark[1]! : SVG.slice(0, SVG.indexOf("@media"));
+  const override = SVG.match(
+    /@media\s*\(prefers-color-scheme:\s*light\)\s*\{(.+?)\}\s*<\/style>/s,
+  );
+  if (!override) throw new Error("app-icon.svg: no prefers-color-scheme:light block");
+  const block = scope === "light" ? override[1]! : SVG.slice(0, SVG.indexOf("@media"));
   const read = (cls: string) => {
     const m = block.match(new RegExp(`\\.${cls}\\{fill:(#[0-9a-fA-F]{3,8})\\}`));
     if (!m) throw new Error(`app-icon.svg: no .${cls} fill in the ${scope} rules`);
@@ -74,6 +84,29 @@ describe("app-icon.svg — one file, both appearances", () => {
 
   it("declares color-scheme so a renderer resolves a scheme at all", () => {
     expect(SVG).toContain("color-scheme:light dark");
+  });
+
+  /**
+   * The FALLBACK branch is the decision, not an implementation detail.
+   *
+   * A renderer that ignores `prefers-color-scheme` inside an SVG paints the
+   * DEFAULT rules — and plenty do; WebKitGTK does, through `<img>` (measured,
+   * docs/runbooks/ios-verification.md). So the default has to be the colorway
+   * that stays legible under every appearance. The light colorway in that slot
+   * is what put an invisible emboss on the home-screen tile: iOS auto-darkens a
+   * captured tile, and darkening Void ink on a Laser plate crushes both toward
+   * each other. Same rule as pinning the apple-touch tile dark — make the branch
+   * a renderer reaches when it understands nothing the one that cannot degrade.
+   */
+  it("defaults to the dark colorway, so a media-blind renderer lands on the safe one", () => {
+    const beforeMedia = SVG.slice(0, SVG.indexOf("@media"));
+
+    expect(beforeMedia).toContain(`.plate{fill:${VOID}}`);
+    expect(beforeMedia).toContain(`.glyph{fill:${LASER}}`);
+    expect(
+      SVG,
+      "the only appearance branch is the light OVERRIDE; a dark branch means the default flipped back",
+    ).not.toContain("prefers-color-scheme:dark");
   });
 
   /**

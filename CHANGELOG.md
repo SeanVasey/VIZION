@@ -6,6 +6,52 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The inversion bet is settled — one Home Screen tile, pinned dark
+
+A second device pass closed the last open question, negatively: **iOS does not
+select the linked SVG for the Home Screen tile.** Together with what the first
+pass established — iOS reads `apple-touch-icon` from the head, ignores `media` on
+icons, freezes the tile at capture and auto-darkens it thereafter — that removes
+every mechanism a web app could use to make the icon follow the appearance.
+
+The requirement was an icon showing the Laser plate with the Void mark in light
+and the exact inverse in dark. **It is not reachable from a web app**, and the
+reason is structural rather than a gap in our markup: a native target declares a
+_layered_ icon and the system composes light/dark/tinted from those layers at
+display time; a web clip declares a single flat image, chosen once and never
+looked at again.
+
+So the icon is now **one unconditional `apple-touch-icon` at the dark colorway**
+([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)). Auto-darkening
+artwork that is already dark is a no-op, so it is the only colorway legible under
+every appearance — and since nobody can be relied on to install in a particular
+one, that is the only property worth optimising for. Deleted with it: the
+client-side matcher, its unit suite, the light 180 px tile, and the `media`
+queries. Three arrangements shipped before this — a `media` pair, that pair
+reordered plus the matcher, and the SVG route — and each shipped the same
+invisible mark, because each bet that iOS would re-resolve or select something.
+
+`app-icon.svg` keeps both colorways and still inverts, for the browser tab and
+non-iOS installs. Its **default** rules are now the dark colorway with light as
+the override, on the same principle: the branch a renderer reaches when it
+ignores the query has to be the one that cannot degrade. One consequence worth
+stating rather than discovering — on a media-blind rasteriser the Android/desktop
+`any` icon shows the Void plate while the maskable launcher tile still shows the
+Laser one.
+
+**The accepted cost:** the Laser plate never reaches the Home Screen. It stays on
+the favicons, the maskable/Android tiles and `og:image`. Existing installs keep
+whatever tile they captured — iOS caches web-clip icons aggressively, and
+delete-and-re-add is the only refresh.
+
+Also fixed here: CI ran `npm run generate:icons` and read nothing, so a generator
+change that altered output shipped silently — this change would itself have
+slipped through. A new step fails on any drift in the generated tree. And
+`docs/runbooks/local-dev.md` was still instructing contributors to declare the
+**light** tile last, the arrangement that caused the original bug; it survived
+two correction rounds because the grep hunted the retracted sentence rather than
+the mechanism.
+
 ### Fixed — the Home Screen tile picks the appearance it is actually installed into
 
 The iOS app icon shipped the wrong artwork and there was no way for it to ship
@@ -62,7 +108,8 @@ and no-JS floor, with the **dark tile declared last**, so a capture that never
 sees JS lands on the colorway that survives every appearance instead of the one
 that cannot.
 
-One question stays open, and it is now narrow: whether iOS Safari applies
+**Closed 2026-08-13 — negative; see the entry above.** One question stayed
+open at the time of this entry, and it was narrow: whether iOS Safari applies
 `prefers-color-scheme` when it rasterizes a linked SVG icon. WebKitGTK does not
 apply it to an SVG pulled in through `<img>` (measured, and now a row in the
 divergence table) — but that is a different code path, and WebKitGTK is not iOS.
