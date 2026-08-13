@@ -752,7 +752,12 @@
       #000 84%,
       transparent 100%
     );
-    mask-image: radial-gradient(ellipse closest-side, #000 0%, #000 84%, transparent 100%);
+    mask-image: radial-gradient(
+      ellipse closest-side,
+      #000 0%,
+      #000 84%,
+      transparent 100%
+    );
   }
   @media (prefers-reduced-motion: reduce) {
     .hold-slider-blur {
@@ -782,7 +787,8 @@
      reading rather than merely go soft. */
   .hold-slider-scrim {
     background-image: radial-gradient(
-      var(--dial-rx, 260px) var(--dial-ry, 300px) at var(--dial-cx, 50%) var(--dial-cy, 50%),
+      var(--dial-rx, 260px) var(--dial-ry, 300px) at var(--dial-cx, 50%)
+        var(--dial-cy, 50%),
       color-mix(in srgb, var(--void) 60%, transparent) 0%,
       color-mix(in srgb, var(--void) 52%, transparent) 84%,
       transparent 100%

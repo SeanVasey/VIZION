@@ -147,9 +147,9 @@ describe("assertScalableEntries", () => {
   });
 
   it("rejects the retired favicon.svg, which nothing writes any more", () => {
-    expect(() => assertScalableEntries([svgEntry("/icons/favicon.svg")], ICONS_DIR)).toThrow(
-      new RegExp(SCALABLE_ICON),
-    );
+    expect(() =>
+      assertScalableEntries([svgEntry("/icons/favicon.svg")], ICONS_DIR),
+    ).toThrow(new RegExp(SCALABLE_ICON));
   });
 
   it("accepts the canonical path", () => {

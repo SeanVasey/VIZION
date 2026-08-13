@@ -516,9 +516,9 @@ describe("tap vs hold", () => {
     expect(el.className).not.toContain("hold-slider-glass");
     // The chip and the cost caption ride the same shadow, so all three
     // floating pieces sit at one elevation over the halo.
-    expect(
-      el.querySelector("[data-hold-slider-label]")!.className,
-    ).toContain("hold-slider-lift");
+    expect(el.querySelector("[data-hold-slider-label]")!.className).toContain(
+      "hold-slider-lift",
+    );
     expect(
       el.querySelector("[data-hold-slider-caption]")!.closest(".hold-slider-lift"),
     ).not.toBeNull();
@@ -568,7 +568,9 @@ describe("tap vs hold", () => {
     down();
     hold();
     expect(overlay()!.querySelector(".hold-slider-glass")).toBeNull();
-    const capsule = overlay()!.querySelector<HTMLElement>(".glass-solid.hold-slider-lift")!;
+    const capsule = overlay()!.querySelector<HTMLElement>(
+      ".glass-solid.hold-slider-lift",
+    )!;
     expect(capsule).not.toBeNull();
     up();
     restore();
@@ -1298,10 +1300,9 @@ describe("the latched phase (latchOnTap)", () => {
     const touchMove = (touches: number) =>
       fireEvent(
         window,
-        Object.assign(
-          new Event("touchmove", { bubbles: true, cancelable: true }),
-          { touches: Array.from({ length: touches }, () => ({})) },
-        ),
+        Object.assign(new Event("touchmove", { bubbles: true, cancelable: true }), {
+          touches: Array.from({ length: touches }, () => ({})),
+        }),
       );
 
     render(<Host latchOnTap />);
@@ -1322,10 +1323,9 @@ describe("the latched phase (latchOnTap)", () => {
     const touchMove = (touches: number) =>
       fireEvent(
         window,
-        Object.assign(
-          new Event("touchmove", { bubbles: true, cancelable: true }),
-          { touches: Array.from({ length: touches }, () => ({})) },
-        ),
+        Object.assign(new Event("touchmove", { bubbles: true, cancelable: true }), {
+          touches: Array.from({ length: touches }, () => ({})),
+        }),
       );
     render(<Host />);
     down();

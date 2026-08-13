@@ -62,8 +62,7 @@ function renderComposer() {
 }
 
 const targetTrigger = () => screen.getByRole("button", { name: /^Target model:/ });
-const tuningDial = () =>
-  screen.getByRole("slider", { name: "Auto routing preference" });
+const tuningDial = () => screen.getByRole("slider", { name: "Auto routing preference" });
 const overlay = () => document.querySelector<HTMLElement>("[data-hold-slider-overlay]");
 
 const openSheet = () => {

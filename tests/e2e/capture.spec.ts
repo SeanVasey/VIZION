@@ -20,7 +20,12 @@ import { signIn } from "./support/auth";
  * identity (audit VAR-D1 recaptured it once; this encodes the recipe as code so
  * it never goes stale silently again).
  */
-const DOCS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "docs");
+const DOCS = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "docs",
+);
 
 // Settle every finite entrance animation before the shutter, so nothing is
 // caught mid-fade (the footer rise, the hero lockup). Infinite animations (the
@@ -35,7 +40,10 @@ async function settle(page: Page) {
 }
 
 test.describe("README capture", () => {
-  test.skip(!process.env.CAPTURE, "capture-only; set CAPTURE=1 to regenerate README imagery");
+  test.skip(
+    !process.env.CAPTURE,
+    "capture-only; set CAPTURE=1 to regenerate README imagery",
+  );
   test.beforeEach(({ browserName }) => {
     test.skip(browserName !== "chromium", "one engine for deterministic committed PNGs");
   });
