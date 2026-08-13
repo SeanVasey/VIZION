@@ -1,7 +1,7 @@
 // VIZION PWA icon + splash generator.
 //
 // Renders the full brand asset matrix (the transparent `any` icons, maskable
-// tiles, both apple-touch-icon APPEARANCES, the scalable + raster favicons and
+// tiles, the pinned dark apple-touch tile, the scalable + raster favicons and
 // favicon.ico, and the iOS splash screens) from ONE master SVG using sharp.
 // Run with: node scripts/generate-icons.mjs
 //
@@ -45,13 +45,13 @@
 //   • public/brand/ is never written to. This script only reads from it.
 //
 // EVERY OUTPUT LANDS UNDER public/. There are no `src/app/` convention icons
-// (icon0.svg / icon1.png / apple-icon.png) any more: the App Router convention
-// cannot express a `media` attribute, and Next drops the convention links
-// entirely as soon as a layout exports `metadata.icons`
-// (resolve-metadata.js: the static set is merged only `if (!resolvedMetadata
-// .icons)`). src/app/layout.tsx now declares the whole icon head itself so the
-// dark-appearance apple-touch-icon below can carry its media query, and the
-// declared ORDER is load-bearing — see the comment on that block.
+// (icon0.svg / icon1.png / apple-icon.png) any more. The reason is Next's
+// all-or-nothing merge, not the `media` attribute the head once needed: the
+// convention links are folded in only `if (!resolvedMetadata.icons)`
+// (resolve-metadata.js), so the moment a layout exports `metadata.icons` they
+// vanish. src/app/layout.tsx declares the whole icon head itself, and the
+// convention files were deleted rather than left to be built, served and
+// referenced by nothing.
 //
 // Idempotent: every output is overwritten on each run, so re-running yields
 // the same tree.
@@ -113,44 +113,37 @@ const INK = VOID;
 // without eventually contradicting the query it is linked behind.
 const BASE = "light";
 
-// The two home-screen appearances, pinned to fixed scheme names.
+// The home-screen tile's appearance, pinned to a fixed scheme name.
 //
 // WHY PINNED, not `BASE === "light" ? "dark" : "light"` (which is what this was,
-// until review caught it on #108). `apple-touch-icon-dark.png` is linked behind
-// `media="(prefers-color-scheme: dark)"`. Its name and its query both say dark,
-// so its ARTWORK has to be dark — full stop, independent of any default. Derived
-// from BASE, flipping BASE to "dark" would have rendered the LIGHT colorway into
-// the file named `-dark` and the dark colorway into the one behind the light
-// query: a media-aware iOS would install both appearances inverted. That is not
-// hypothetical — flipping BASE was, until this commit, the fallback the iOS
-// runbook told the next reader to reach for.
-const APPLE_LIGHT = "light";
-const APPLE_DARK = "dark";
+// until review caught it on #108). The tile's ARTWORK has to be dark — full
+// stop, independent of any default. Derived from BASE, flipping BASE to "dark"
+// would have rendered the LIGHT colorway into the file named `-dark`, which is
+// the one outcome this whole saga exists to prevent.
+const APPLE_TILE = "dark";
 
-// `apple-touch-icon-dark.png` — the dark-appearance home-screen tile.
+// `apple-touch-icon-dark.png` — THE home-screen tile. There is only one.
 //
-// WHY IT EXISTS. Left to itself, iOS derives a dark-appearance home-screen tile
-// from the light one by darkening it. Applied to the base tile — Void ink on a
-// Laser plate — that darkens the plate toward the ink and the mark disappears
-// into its own background. Shipping the inverse artwork (Laser glyph on a Void
-// plate) is the only way the dark tile can carry a legible mark.
+// WHAT iOS DOES, measured on device across two passes (2026-08-12 and -13):
+// it reads `<link rel="apple-touch-icon">` out of the head at "Add to Home
+// Screen", does NOT evaluate `media` on icons, applies Apple's "last one wins",
+// FREEZES the tile it captured, and auto-darkens that frozen tile whenever the
+// system is in dark appearance. Nothing re-resolves it afterwards — delete and
+// re-add is the only refresh. The full result table is in
+// docs/runbooks/ios-verification.md.
 //
-// HOW THE TWO ARE SELECTED — measured on device 2026-08-12, and the answer is
-// not the one this comment used to hedge across. iOS reads
-// `<link rel="apple-touch-icon">` out of the head at "Add to Home Screen",
-// does NOT evaluate `media` on icons, applies Apple's "last one wins", and then
-// FREEZES the tile it captured. (Whether it ALSO consults the manifest is NOT
-// established — see the runbook; an earlier draft of this comment said "never
-// the manifest", which the photographs do not support.) So the selection
-// happens in the head, at capture time, and nothing declarative can change it
-// afterwards: `src/components/pwa/AppleTouchIcon.tsx` keeps the matched link
-// last, and layout.tsx's static pair is the no-JS floor with the DARK tile last.
-// The full result table is in docs/runbooks/ios-verification.md.
+// WHY THE TILE IS PINNED DARK. Auto-darkening the LIGHT colorway (Void ink on a
+// Laser plate) pulls the plate down toward the ink and leaves the mark an
+// invisible emboss — the reported bug, twice. Auto-darkening artwork that is
+// ALREADY dark is a no-op. Since iOS keeps exactly one image and the user cannot
+// be relied on to have installed it in any particular appearance, the only
+// arrangement that is legible under EVERY appearance is a single dark tile. The
+// accepted cost is that the Laser plate never reaches the Home Screen; it stays
+// on the favicons, the maskable tiles and og:image (ADR-0015).
 //
-// This generator's only job is that the two files exist, are opaque, and are
-// genuine inverses — tests/unit/icon-alpha.test.ts pins all three. Do not
-// re-derive either from BASE (Codex review, #108): they are pinned to fixed
-// scheme names so a BASE flip cannot install them backwards.
+// The light 180px tile and the JS matcher that chose between them are gone. Do
+// not reintroduce either, nor a `media` query on this link: all three have
+// shipped here, and all three shipped the invisible mark.
 
 // Glyph fractions. 0.74 is the artwork's own composition (see the geometry
 // check above); 0.58 pads the maskable tiles clear of the safe-zone circle.
@@ -272,10 +265,18 @@ function glyphOnlySVG(fill, frac, size = CANVAS) {
  * structurally cannot deliver.
  *
  * The swap is written twice on purpose:
- *   • `@media (prefers-color-scheme: dark)` — the appearance signal.
+ *   • `@media (prefers-color-scheme: light)` — the appearance signal.
  *   • `color-scheme: light dark` on the root, so a renderer that honours the
- *     property (rather than the media query) still resolves a scheme at all
- *     instead of falling back to light unconditionally.
+ *     property (rather than the media query) still resolves a scheme at all.
+ *
+ * THE DEFAULT RULES ARE THE DARK COLORWAY, deliberately, and the LIGHT one is
+ * the override. Plenty of renderers ignore `prefers-color-scheme` inside an SVG
+ * — WebKitGTK does, through `<img>` (measured; see the runbook's divergence
+ * table) — and whatever they ignore, they paint the default. So the default has
+ * to be the colorway that survives being chosen by a renderer that understood
+ * nothing. The light colorway in that slot is what put an invisible emboss on
+ * the home-screen tile; this is the same "make the fallback branch the safe
+ * one" rule that pins the apple-touch tile dark, applied to the file itself.
  *
  * NOT declared as `apple-touch-icon`. That rel has been PNG-only for its whole
  * life and Safari 26's SVG support is documented for the `icon`/manifest side,
@@ -292,11 +293,11 @@ function selfInvertingSVG(frac, size = CANVAS) {
     `viewBox="0 0 ${size} ${size}">` +
     `<style>` +
     `:root{color-scheme:light dark}` +
-    `.plate{fill:${light.plate}}` +
-    `.glyph{fill:${light.glyph}}` +
-    `@media (prefers-color-scheme:dark){` +
     `.plate{fill:${dark.plate}}` +
     `.glyph{fill:${dark.glyph}}` +
+    `@media (prefers-color-scheme:light){` +
+    `.plate{fill:${light.plate}}` +
+    `.glyph{fill:${light.glyph}}` +
     `}` +
     `</style>` +
     `<rect class="plate" width="${size}" height="${size}"/>` +
@@ -545,25 +546,18 @@ async function main() {
     await renderPng(maskableSvg, px, px, file, { flatten: maskablePlate });
   }
 
-  // 3. apple-touch-icon, BOTH appearances (opaque branded tiles — iOS ignores
-  //    transparency and would composite a transparent tile onto black). Each
-  //    file is pinned to the scheme its media query names — see APPLE_LIGHT /
-  //    APPLE_DARK for why these do not follow BASE, and what about them is
-  //    unverified.
-  console.log("Rendering apple-touch-icons (light + dark appearance)...");
-  for (const [name, scheme] of [
-    ["apple-touch-icon.png", APPLE_LIGHT],
-    ["apple-touch-icon-dark.png", APPLE_DARK],
-  ]) {
-    const { plate } = appearance(scheme);
-    await renderPng(
-      plateSVG(appearance(scheme), FRAC_STANDARD),
-      180,
-      180,
-      path.join(ICONS_DIR, name),
-      { flatten: plate },
-    );
-  }
+  // 3. THE apple-touch-icon — one tile, pinned to the dark appearance (see
+  //    APPLE_TILE above for why, and why it does not follow BASE). Opaque:
+  //    iOS composites a transparent tile onto black.
+  console.log("Rendering the apple-touch-icon (dark, pinned)...");
+  const appleTile = appearance(APPLE_TILE);
+  await renderPng(
+    plateSVG(appleTile, FRAC_STANDARD),
+    180,
+    180,
+    path.join(ICONS_DIR, "apple-touch-icon-dark.png"),
+    { flatten: appleTile.plate },
+  );
 
   // The house colorway, for the scheme-agnostic favicons below.
   const baseSvg = plateSVG(appearance(BASE), FRAC_STANDARD);
@@ -635,13 +629,17 @@ async function main() {
 
 // Generate only when invoked directly — `node scripts/generate-icons.mjs`, and
 // so `npm run generate:icons` and the CI step that calls it. The module is also
-// IMPORTED, by tests/unit/generate-icons-guard.test.ts, to reach the validator
-// above; without this check that import would rewrite 33 files as a side effect
+// IMPORTED, by tests/unit/generate-icons-guard.test.ts, to reach the validators
+// above; without this check that import would rewrite 31 files as a side effect
 // of running the test suite.
 //
 // If this guard ever evaluates false under the CLI, generation silently stops
-// while every test stays green — so the test asserts the byte-identical re-run,
-// not just the validator.
+// while every unit test stays green. What catches that is CI's "the generated
+// tree is committed and reproducible" step, which diffs public/ after running
+// this script. There is deliberately NO unit test for it: a test cannot re-run
+// a generator that writes to fixed paths without either clobbering the working
+// tree or reimplementing the whole pipeline. (An earlier revision of this
+// comment claimed such a test existed. It never did.)
 const invokedDirectly =
   Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
 

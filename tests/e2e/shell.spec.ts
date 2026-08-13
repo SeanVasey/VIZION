@@ -69,7 +69,7 @@ test.describe("VIZION shell + auth gate", () => {
     }
   });
 
-  test("the icon head declares both home-screen appearances, dark-last", async ({
+  test("the icon head pins ONE home-screen tile, unconditionally, and it is the dark one", async ({
     page,
     request,
   }) => {
@@ -78,39 +78,29 @@ test.describe("VIZION shell + auth gate", () => {
     // none is visible from a unit test, because all are about what Next
     // actually SERIALISES:
     //
-    //   1. BOTH apple links carry a query, and the two queries are
-    //      COMPLEMENTARY, so a UA that does honour `media` has exactly one
-    //      eligible link per scheme. iOS is not such a UA — measured on device
-    //      2026-08-12, `media` selects `apple-touch-startup-image` but NOT
-    //      icons — but the queries cost nothing and keep the pair correct for
-    //      any reader that does evaluate them.
-    //   2. ORDER. Apple's rule for several same-size apple-touch-icon links is
-    //      "last one wins", and that is the rule iOS actually applies. The DARK
-    //      tile must therefore come last: it is the one colorway legible under
-    //      every appearance, because iOS's auto-darkening is a no-op on artwork
-    //      that is already dark. With the LIGHT tile last (the previous order)
-    //      every no-JS capture took the Laser plate and iOS darkened its Void
-    //      mark into an invisible emboss — the reported bug. Flip this array
-    //      back and that returns.
+    //   1. EXACTLY ONE apple link. iOS resolves this at "Add to Home Screen",
+    //      freezes it, and auto-darkens the frozen tile under dark appearance —
+    //      which on the Laser plate leaves an invisible emboss. One dark tile is
+    //      the only arrangement legible under every appearance (ADR-0015). Three
+    //      arrangements preceded it — a complementary `media` pair, that pair
+    //      reordered, and a JS matcher — and all three shipped the emboss.
+    //   2. NO `media` on it. iOS does not evaluate `media` on icons (it does on
+    //      apple-touch-startup-image, which is why the splash links resolve per
+    //      device). A query here would imply a selection that never happens.
     //   3. The hrefs resolve. These moved out of `src/app/` when the
     //      convention files were deleted; a stale path is a 404 in the
     //      Add-to-Home-Screen sheet, which fails silently.
-    //
-    // The third, appearance-MATCHED link that <AppleTouchIcon /> appends is
-    // asserted separately below; this test is about the static floor beneath
-    // it, so it reads the SSR'd markup rather than the hydrated head.
     const html = await (await request.get("/sign-in")).text();
     const staticApple = [...html.matchAll(/<link[^>]*rel="apple-touch-icon"[^>]*>/g)].map(
       (m) => m[0],
     );
-    expect(staticApple).toHaveLength(2);
-    expect(staticApple[0]).toContain("/icons/apple-touch-icon.png");
-    expect(staticApple[0]).toContain("(prefers-color-scheme: light)");
+    expect(staticApple).toHaveLength(1);
+    expect(staticApple[0]).toContain("/icons/apple-touch-icon-dark.png");
+    expect(staticApple[0]).toContain('sizes="180x180"');
     expect(
-      staticApple[1],
-      "the dark tile must be declared LAST — it is what iOS's last-one-wins resolves to",
-    ).toContain("/icons/apple-touch-icon-dark.png");
-    expect(staticApple[1]).toContain("(prefers-color-scheme: dark)");
+      staticApple[0],
+      "a query here implies a selection iOS never makes — see the metadata comment",
+    ).not.toContain("media=");
 
     await page.goto("/sign-in");
     const readLinks = () =>
@@ -125,16 +115,24 @@ test.describe("VIZION shell + auth gate", () => {
         ),
       );
 
-    // Two static + the one <AppleTouchIcon /> appends, which must be LAST so
-    // "last one wins" resolves to the appearance-matched tile rather than to
-    // the static floor beneath it. Polled — the third arrives with hydration.
-    await expect
-      .poll(async () => (await readLinks()).filter((l) => l.rel === "apple-touch-icon").length)
-      .toBe(3);
+    // Gate on a client effect having run before asserting the count. ThemeManager
+    // creates this tag on the client — layout.tsx hand-writes only -capable and
+    // -title — so its presence proves hydration is done. Without the gate,
+    // "there is exactly one tile" would pass by racing hydration and could never
+    // catch an appender being added back.
+    await page.waitForFunction(
+      () =>
+        !!document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'),
+    );
 
     const links = await readLinks();
     const apple = links.filter((l) => l.rel === "apple-touch-icon");
-    expect(apple.at(-1)!.ours).toBe(true);
+    expect(apple).toHaveLength(1);
+    expect(apple[0]!.href).toBe("/icons/apple-touch-icon-dark.png");
+    expect(
+      links.some((l) => l.ours),
+      "nothing appends an appearance-matched tile any more",
+    ).toBe(false);
 
     // Scalable favicon first, raster fallbacks after.
     const icons = links.filter((l) => l.rel === "icon");
@@ -156,21 +154,22 @@ test.describe("VIZION shell + auth gate", () => {
     browserName,
   }) => {
     // MEASURED ENGINE DIVERGENCE (2026-08-12, and see the iOS runbook): WebKit
-    // does not apply `prefers-color-scheme` to an SVG pulled in through <img>
-    // — it paints the light colorway under both schemes, so `dark.plate` comes
-    // back Laser. Chromium follows the embedding document. The assertion is
-    // therefore scoped to Chromium, deliberately: pinning "WebKit cannot do
+    // does not apply `prefers-color-scheme` to an SVG pulled in through <img>.
+    // It paints whatever the file's DEFAULT rules declare, under both schemes —
+    // which since the default flipped is the dark colorway, deliberately: that
+    // is the branch a renderer reaches when it understands nothing, so it has to
+    // be the one that cannot degrade. Chromium follows the embedding document.
+    //
+    // The assertion is scoped to Chromium on purpose: pinning "WebKit cannot do
     // this" is the exact mistake docs/runbooks/ios-verification.md exists to
     // prevent, and it would fail as a bug report the day WebKitGTK adds it.
     //
-    // What that divergence does NOT settle is the surface this file is FOR.
-    // Rasterizing a linked icon is the browser's own path, not an <img> in a
-    // document, and iOS Safari is not WebKitGTK. So the SVG ships as the route
-    // that inverts live wherever it is honoured, with the apple-touch PNG pair
-    // underneath it for everywhere it is not — neither bet, both covered.
+    // This file is no longer an iOS Home Screen route — the device check ran and
+    // iOS did not select it (runbook, 2026-08-13). It inverts for the browser tab
+    // and non-iOS installs; the Home Screen tile is the pinned dark PNG.
     test.skip(
       browserName !== "chromium",
-      "WebKit paints <img>-embedded SVG as light-scheme; see ios-verification.md",
+      "WebKit does not apply prefers-color-scheme to <img>-embedded SVG; see ios-verification.md",
     );
 
     // The requirement, stated as pixels: light = Laser plate with the Void mark,
@@ -212,7 +211,13 @@ test.describe("VIZION shell + auth gate", () => {
             return `#${[d[0], d[1], d[2]].map((v) => v!.toString(16).padStart(2, "0")).join("")}`;
           });
         },
-        { dataUri: uri, points: [[8, 8], [200, 151]] },
+        {
+          dataUri: uri,
+          points: [
+            [8, 8],
+            [200, 151],
+          ],
+        },
       );
       return { plate: px[0], mark: px[1] };
     };
@@ -228,46 +233,41 @@ test.describe("VIZION shell + auth gate", () => {
     expect(dark.mark, "the dark mark must be the light plate").toBe(light.plate);
   });
 
-  test("the home-screen tile follows the live appearance", async ({ page }) => {
-    // The mechanism iOS actually reads. It resolves `apple-touch-icon` from the
-    // head at "Add to Home Screen" and takes the LAST one — so the tile a user
-    // captures is whatever is last in the head at that moment. Keeping that
-    // link matched to `prefers-color-scheme` is what makes an install in light
-    // mode capture the Laser plate and an install in dark mode capture the
-    // inverse. `media` cannot do this: measured on device 2026-08-12, iOS does
-    // not evaluate it on icons (only on apple-touch-startup-image).
+  test("the home-screen tile does NOT move with the appearance", async ({ page }) => {
+    // The inverse of the test that stood here, and the inversion is the point.
     //
-    // Asserted WITHOUT a reload, because the appearance can change while the
-    // page is open and the next capture must already be correct.
-    const matched = () =>
-      page.evaluate(() => {
-        const links = document.head.querySelectorAll<HTMLLinkElement>(
-          'link[rel="apple-touch-icon"]',
-        );
-        const last = links[links.length - 1];
-        return {
-          href: last?.getAttribute("href"),
-          isOurs: last?.hasAttribute("data-appearance-matched"),
-        };
-      });
+    // This used to assert that the tile TRACKED `prefers-color-scheme`, so an
+    // install made in light mode captured the Laser plate. A device pass killed
+    // that: iOS freezes the tile at "Add to Home Screen" and auto-darkens the
+    // frozen copy under dark appearance, so a light-mode capture becomes an
+    // invisible emboss the moment the phone switches. Matching could only ever
+    // choose WHICH failure a user got, never avoid one. Invariance is the fix —
+    // one dark tile, legible under every appearance (ADR-0015).
+    //
+    // Checked WITHOUT a reload: an appearance change while the page is open must
+    // not move the tile, because whatever is in the head is what the next capture
+    // freezes.
+    const tiles = () =>
+      page.evaluate(() =>
+        Array.from(
+          document.head.querySelectorAll<HTMLLinkElement>('link[rel="apple-touch-icon"]'),
+        ).map((l) => l.getAttribute("href")),
+      );
 
-    // Polled, not read once: the link is appended by an effect, so a bare read
-    // straight after goto() races hydration and sees the static floor instead.
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/sign-in");
-    await expect
-      .poll(matched, { message: "the matched tile never took over the head" })
-      .toEqual({ href: "/icons/apple-touch-icon.png", isOurs: true });
+    // Hydration gate — see the head test above for why a bare read is not enough.
+    await page.waitForFunction(
+      () =>
+        !!document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'),
+    );
 
-    await page.emulateMedia({ colorScheme: "dark" });
-    await expect
-      .poll(matched, { message: "a scheme change must re-point the tile, and keep it last" })
-      .toEqual({ href: "/icons/apple-touch-icon-dark.png", isOurs: true });
-
-    await page.emulateMedia({ colorScheme: "light" });
-    await expect
-      .poll(matched, { message: "and back again" })
-      .toEqual({ href: "/icons/apple-touch-icon.png", isOurs: true });
+    for (const scheme of ["light", "dark", "light"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      expect(await tiles(), `the tile moved under ${scheme}`).toEqual([
+        "/icons/apple-touch-icon-dark.png",
+      ]);
+    }
   });
 
   test("shares a square og:image and keeps the landscape card for X", async ({

@@ -123,44 +123,44 @@ change a derivative.
 
 The appearances are:
 
-- **Light** (Laser plate + Void ink) — the base. Drives the opaque surfaces:
-  the iOS Add-to-Home-Screen tile (`apple-touch-icon.png`), the scalable and
-  raster favicons plus `favicon.ico`, the maskable tiles, and the square
+- **Light** (Laser plate + Void ink) — the house colorway. Drives the scalable
+  and raster favicons plus `favicon.ico`, the maskable tiles, and the square
   `og:image` share tile.
 - **Laser glyph on transparent** — the `any` PWA icon matrix, which ships
   transparent per guardrail §6.
-- **Dark** (Void plate + Laser glyph) — the iOS splash screens, matching the
-  manifest's `background_color`, and `apple-touch-icon-dark.png`.
+- **Dark** (Void plate + Laser glyph) — the iOS splash screens (matching the
+  manifest's `background_color`), the Add-to-Home-Screen tile
+  (`apple-touch-icon-dark.png`), and `app-icon.svg`'s default rules.
 
-**The home-screen tile — three layers, and the ORDER is load-bearing.** Left
-alone, iOS builds a dark-appearance tile by darkening the light one, which on
-Void ink over a Laser plate darkens the plate toward the ink until the mark
-disappears. A device pass (2026-08-12) established that iOS reads
-`apple-touch-icon` from the head, does **not** evaluate `media` on icons,
-applies Apple's "last one wins", and freezes the tile at capture. So:
+**The home-screen tile — ONE tile, pinned dark.** Left alone, iOS builds a
+dark-appearance tile by darkening whatever it captured, which on Void ink over a
+Laser plate darkens the plate toward the ink until the mark disappears. Device
+passes (2026-08-12 and -13) established that iOS reads `apple-touch-icon` from
+the head, does **not** evaluate `media` on icons, **freezes** the tile at capture,
+and does not select the linked SVG for it. Since iOS keeps exactly one image and
+never re-resolves it, the only arrangement legible under every appearance is a
+single dark tile — so `metadata.icons.apple` holds one unconditional link at
+`/icons/apple-touch-icon-dark.png`, and the accepted cost is that the Laser plate
+never reaches the Home Screen ([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)).
 
-1. `/icons/app-icon.svg` carries **both** colorways in one file behind
-   `prefers-color-scheme`, linked as `rel="icon"` and declared first in the
-   manifest. It is the only route that could invert without a re-install. Its
-   artwork is proven by render; whether iOS ever SELECTS it is **not**
-   established — treat it as a bet, never as a delivered capability. It is
-   deliberately not an `apple-touch-icon`, which is PNG-only.
-2. `AppleTouchIcon` keeps one `apple-touch-icon` link **last** in the head,
-   matched to the live `prefers-color-scheme`, so a capture takes the artwork
-   for the appearance the user is in.
-3. The static pair in `metadata.icons` is the no-JS floor, with the **dark tile
-   declared last** — under last-one-wins that is the colorway legible in every
-   appearance, because auto-darkening is a no-op on artwork already dark.
-   **Do not flip this back to light-last**: that is precisely the arrangement
-   that shipped the invisible dark-mode mark.
+**Do not add a second `apple-touch-icon` link, a `media` query, or a JS
+matcher.** Each has shipped here, and each shipped the invisible mark: a `media`
+pair (#108), that pair reordered plus a client-side matcher (#111), and the
+self-inverting SVG as a Home Screen route (#111). Every one bet that iOS would
+re-resolve or select something; it does not.
+
+`/icons/app-icon.svg` still carries both colorways behind `prefers-color-scheme`
+and still inverts — for the browser tab and non-iOS installs, not the Home
+Screen. Its **default** rules are the dark colorway so that a renderer ignoring
+the query also lands on the colorway that cannot degrade.
 
 See [the iOS runbook](./docs/runbooks/ios-verification.md) for the measured
-result table, what remains unestablished, and the one-step device check.
+result table and the superseded arrangements.
 
-There are no `src/app/icon*`/`apple-icon` convention files. The App Router
-convention cannot express `media`, and declaring `metadata.icons` at all
-suppresses the convention links, so `layout.tsx` declares the whole icon head
-and every file lives under `public/icons/`.
+There are no `src/app/icon*`/`apple-icon` convention files. Declaring
+`metadata.icons` at all suppresses the convention links — it is an
+all-or-nothing merge — so `layout.tsx` declares the whole icon head and every
+file lives under `public/icons/`.
 
 **Share artwork** (`npm run generate:social`, also token-driven) is the one
 other pair of generated files:

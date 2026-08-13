@@ -51,9 +51,13 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
   re-run, without touching the manifest references (DOC-010: no longer
   placeholders).
 - Adding or renaming an icon means editing the `metadata.icons` block too —
-  nothing auto-wires it now. The `apple` array is load-bearing twice over: both
-  links must carry **complementary** `prefers-color-scheme` queries, and the
-  **light** one must come **last**. The reasoning is on that block and pinned by
+  nothing auto-wires it now. The `apple` array holds **exactly one** link, with
+  **no `media` query**, pointing at the dark tile. That is a decision, not an
+  oversight ([ADR-0015](../decisions/0015-pinned-home-screen-tile.md)): iOS
+  freezes the tile at Add-to-Home-Screen and auto-darkens it, so the Laser plate
+  becomes an invisible mark and only already-dark artwork survives. **Do not add
+  a second link, a `media` query, or a JS matcher** — all three have shipped
+  here and all three shipped the invisible mark. Pinned by
   `tests/e2e/shell.spec.ts`.
 - Share artwork is a separate script: `npm run generate:social` writes
   `public/brand/og-tile.png` (square, the `og:image`) and
@@ -67,9 +71,9 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 - The `any` matrix ships transparent and the maskable/apple-touch/favicon set
   ships opaque — `tests/unit/icon-alpha.test.ts` enforces it (guardrail §6 /
   INV-09), so a regeneration that flattens the wrong set fails the gate rather
-  than shipping. The same test pins the two apple-touch tiles as inverse
-  colorways: a "dark" tile that merely darkened the light one would put Void
-  ink on a near-Void plate, which is the bug the dark tile exists to fix.
+  than shipping. The same test pins the home-screen tile as the **inverse of the
+  house colorway**, not a darkened copy of it: a tile that merely darkened the
+  light one would put Void ink on a near-Void plate, which is the bug itself.
 
 ## Playwright
 
