@@ -135,17 +135,22 @@ const APPLE_DARK = "dark";
 // into its own background. Shipping the inverse artwork (Laser glyph on a Void
 // plate) is the only way the dark tile can carry a legible mark.
 //
-// WHAT IS AND IS NOT VERIFIED (guardrail §3 / docs/runbooks/ios-verification.md).
-// Verified here: the PNG is generated, opaque, and linked — the tag is in the
-// SSR'd head, asserted by tests/e2e/shell.spec.ts. NOT verified, and not
-// verifiable in this repo: whether iOS Safari honours `media` on
-// `rel="apple-touch-icon"` when it captures the tile. Apple has never
-// documented that it does; the Developer Forums threads asking (761615, 787919,
-// 801448, read 2026-08-11) have no answer either way. So the link pair is built
-// to answer both ways at once — complementary queries for a media-aware reader,
-// light declared last for a media-blind one — rather than betting on either;
-// see the note on `metadata.icons` in layout.tsx, which is where that lives and
-// where it is easy to get half right. Only a physical iPhone can close it.
+// HOW THE TWO ARE SELECTED — measured on device 2026-08-12, and the answer is
+// not the one this comment used to hedge across. iOS reads
+// `<link rel="apple-touch-icon">` out of the head at "Add to Home Screen",
+// does NOT evaluate `media` on icons, applies Apple's "last one wins", and then
+// FREEZES the tile it captured. (Whether it ALSO consults the manifest is NOT
+// established — see the runbook; an earlier draft of this comment said "never
+// the manifest", which the photographs do not support.) So the selection
+// happens in the head, at capture time, and nothing declarative can change it
+// afterwards: `src/components/pwa/AppleTouchIcon.tsx` keeps the matched link
+// last, and layout.tsx's static pair is the no-JS floor with the DARK tile last.
+// The full result table is in docs/runbooks/ios-verification.md.
+//
+// This generator's only job is that the two files exist, are opaque, and are
+// genuine inverses — tests/unit/icon-alpha.test.ts pins all three. Do not
+// re-derive either from BASE (Codex review, #108): they are pinned to fixed
+// scheme names so a BASE flip cannot install them backwards.
 
 // Glyph fractions. 0.74 is the artwork's own composition (see the geometry
 // check above); 0.58 pads the maskable tiles clear of the safe-zone circle.
@@ -157,6 +162,11 @@ const FRAC_MASKABLE = 0.58;
 // asserted by tests/unit/icon-alpha.test.ts (which requires ≥13). Sizes are
 // FROZEN — the manifest's `any` entries must stay a subset (asserted below).
 export const ANY_SIZES = [48, 72, 96, 128, 144, 152, 167, 180, 192, 256, 384, 512, 1024];
+
+// The self-inverting scalable icon's frozen filename. Named once, read by BOTH
+// the writer in main() and assertScalableEntries, so the manifest and the file
+// on disk cannot drift apart the way a restated literal would let them.
+export const SCALABLE_ICON = "app-icon.svg";
 
 // iOS splash device classes (portrait, width × height in px). Each pairs with a
 // media-qualified <link rel="apple-touch-startup-image"> in src/app/layout.tsx
@@ -245,6 +255,65 @@ function glyphOnlySVG(fill, frac, size = CANVAS) {
   );
 }
 
+/**
+ * The SELF-INVERTING app icon — one file that carries both appearances.
+ *
+ * Light: Laser plate, Void mark. Dark: the exact inverse, which is Apple's own
+ * dark-icon shape (a dark ground, the mark carrying the colour the light ground
+ * used). A raster tile cannot do this — it is one set of pixels — which is why
+ * the PNG pair needs two files and a choice made at capture. An SVG can, because
+ * the swap is a CSS rule the renderer re-evaluates.
+ *
+ * WHY IT EXISTS. Safari 26 added SVG support for icons "everyplace there are
+ * icons in the interface", explicitly including the icon that "represents the
+ * website on the user's Home Screen or in their Dock", and the WebKit notes say
+ * manifest-declared icons are used. So this is the one declarative channel on
+ * which the inversion can happen WITHOUT a re-install — the thing the PNG pair
+ * structurally cannot deliver.
+ *
+ * The swap is written twice on purpose:
+ *   • `@media (prefers-color-scheme: dark)` — the appearance signal.
+ *   • `color-scheme: light dark` on the root, so a renderer that honours the
+ *     property (rather than the media query) still resolves a scheme at all
+ *     instead of falling back to light unconditionally.
+ *
+ * NOT declared as `apple-touch-icon`. That rel has been PNG-only for its whole
+ * life and Safari 26's SVG support is documented for the `icon`/manifest side,
+ * not for it — pointing an `apple-touch-icon` at an SVG an older iOS cannot
+ * decode makes it fall back to a blurry screenshot of the page, which is far
+ * worse than a tile that does not invert. The PNG pair stays the apple-touch
+ * path; this is additive.
+ */
+function selfInvertingSVG(frac, size = CANVAS) {
+  const light = appearance("light");
+  const dark = appearance("dark");
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" ` +
+    `viewBox="0 0 ${size} ${size}">` +
+    `<style>` +
+    `:root{color-scheme:light dark}` +
+    `.plate{fill:${light.plate}}` +
+    `.glyph{fill:${light.glyph}}` +
+    `@media (prefers-color-scheme:dark){` +
+    `.plate{fill:${dark.plate}}` +
+    `.glyph{fill:${dark.glyph}}` +
+    `}` +
+    `</style>` +
+    `<rect class="plate" width="${size}" height="${size}"/>` +
+    glyphGroupClassed(size, size, frac, "glyph", 0.0156) +
+    `</svg>`
+  );
+}
+
+/** As glyphGroup, but the mark carries a CSS class instead of a literal fill. */
+function glyphGroupClassed(canvasW, canvasH, frac, className, lift) {
+  const { tx, ty, scale } = placeGlyph(canvasW, canvasH, frac, lift);
+  return (
+    `<g transform="translate(${tx.toFixed(2)},${ty.toFixed(2)}) scale(${scale.toFixed(5)})">` +
+    `<path class="${className}" d="${GLYPH_D}" fill-rule="evenodd"/></g>`
+  );
+}
+
 /** Portrait splash: full-bleed plate with the glyph centred at `frac` width. */
 function splashSVG({ plate, glyph }, width, height, frac) {
   return (
@@ -329,8 +398,22 @@ async function readManifestIcons() {
   const manifest = JSON.parse(await fs.readFile(MANIFEST, "utf8"));
   const any = [];
   const maskable = [];
+  const scalable = [];
   for (const icon of manifest.icons ?? []) {
-    if (!icon.src || !/\.png$/i.test(icon.src)) continue;
+    if (!icon.src) continue;
+    // SVG entries carry no pixel size, so they cannot go through the size-based
+    // matrix check below — they get their own guard (assertScalableEntries).
+    // Collected rather than skipped: an unvalidated manifest entry is exactly
+    // the silent 404 the `any` guard was written for (Codex review, PR #105),
+    // and leaving `continue` here would have reopened it for the SVG.
+    if (/\.svg$/i.test(icon.src)) {
+      scalable.push({
+        src: icon.src,
+        file: path.join(repoRoot, "public", icon.src.replace(/^\//, "")),
+      });
+      continue;
+    }
+    if (!/\.png$/i.test(icon.src)) continue;
     const px = Math.max(
       ...(String(icon.sizes || "").match(/(\d+)x\1/g) ?? ["512x512"]).map((s) =>
         parseInt(s, 10),
@@ -345,7 +428,36 @@ async function readManifestIcons() {
       px,
     });
   }
-  return { any, maskable };
+  return { any, maskable, scalable };
+}
+
+/**
+ * Assert every SVG manifest entry names the scalable icon this generator
+ * actually writes.
+ *
+ * Same failure this file's `any` guard exists for, in the one shape that guard
+ * cannot see: it keys on pixel size, and an SVG has none, so before this the
+ * manifest could name `/icons/anything.svg` and nothing would notice. The
+ * generator would write `app-icon.svg` as always and the manifest would point at
+ * a file that does not exist — a silent 404 in the install prompt, which for the
+ * SCALABLE entry is worse than for a raster one, because it is declared first
+ * and is the entry a modern consumer reaches for before any PNG.
+ */
+export function assertScalableEntries(entries, iconsDir) {
+  const expected = path.join(iconsDir, SCALABLE_ICON);
+  const problems = entries
+    .filter(({ file }) => file !== expected)
+    .map(
+      ({ src }) =>
+        `  ${src} — the scalable icon is generated at a frozen path; expected ` +
+        `/icons/${SCALABLE_ICON}. Rename it back, or teach this script the new name.`,
+    );
+  if (problems.length) {
+    throw new Error(
+      `manifest.webmanifest declares SVG icons this generator does not ` +
+        `produce:\n${problems.join("\n")}`,
+    );
+  }
 }
 
 /**
@@ -401,11 +513,18 @@ async function main() {
     [ICONS_DIR, SPLASH_DIR].map((dir) => fs.mkdir(dir, { recursive: true })),
   );
 
-  const { any: manifestAny, maskable: manifestMaskable } = await readManifestIcons();
+  const {
+    any: manifestAny,
+    maskable: manifestMaskable,
+    scalable: manifestScalable,
+  } = await readManifestIcons();
 
-  // Every `any` entry must name a file this script actually writes — size AND
-  // path. Fail loudly here rather than shipping a 404 in the install prompt.
+  // Every declared entry must name a file this script actually writes. Fail
+  // loudly here rather than shipping a 404 in the install prompt — by size AND
+  // path for the raster matrix, by path for the scalable icon (which has no
+  // size to key on, and so needs its own guard).
   assertAnyEntriesMatchMatrix(manifestAny, ANY_SIZES, ICONS_DIR);
+  assertScalableEntries(manifestScalable, ICONS_DIR);
 
   // 1. Transparent `any` matrix: the glyph alone in Laser, no plate. Laser (not
   //    Void ink) because there is no plate behind it here — this is the same
@@ -465,21 +584,32 @@ async function main() {
     path.join(repoRoot, "public", "favicon.ico"),
   );
 
-  // 5. The scalable favicon, linked first by layout.tsx so modern browsers
-  //    prefer it over the raster pair. It is the generated flat plate, NOT a
-  //    copy of a public/brand file — the composed brand SVGs carry the baked
-  //    squircle + gloss this pipeline forbids, and a favicon must be the same
-  //    full-bleed square as its raster siblings.
+  // 5. The scalable icon — ONE self-inverting SVG serving the tab, the manifest
+  //    and, on Safari 26, the Home Screen. It is generated flat, NOT a copy of a
+  //    public/brand file: the composed brand SVGs carry the baked squircle +
+  //    gloss this pipeline forbids, and this must be the same full-bleed square
+  //    as its raster siblings.
   //
-  //    It does NOT invert with the OS scheme. An opaque plate is legible on any
-  //    tab background, so there is no legibility case to answer, and the tab
-  //    mark staying one constant thing is worth more than matching the chrome.
-  //    (This is the tile the owner asked for by name: Void on Laser.) The
-  //    home-screen tile is the one surface where the dark appearance is forced
-  //    on us, and it is handled in step 3.
-  console.log("Rendering scalable favicon...");
-  await fs.writeFile(path.join(ICONS_DIR, "favicon.svg"), `${baseSvg}\n`);
-  logWrite(path.join(ICONS_DIR, "favicon.svg"));
+  //    IT NOW INVERTS, and that reverses a standing decision worth stating.
+  //    The old rule was that the scalable icon stays one constant thing (Void on
+  //    Laser) because an opaque plate is legible on any tab background — true,
+  //    but it was answering a legibility question when the live one is identity:
+  //    Safari 26 uses this same icon to represent the site on the Home Screen,
+  //    so it is the only declarative surface on which the app icon can follow
+  //    the appearance WITHOUT a re-install. The raster pair in step 3 cannot —
+  //    a PNG is one set of pixels, chosen once at capture. Inverting costs
+  //    nothing on the tab (both colorways are legible on any chrome) and is the
+  //    whole point on the Home Screen, so the two uses no longer conflict.
+  //
+  //    `favicon.svg` was this file's old name and is gone rather than left
+  //    behind: nothing referenced it once layout.tsx moved, and the repo does
+  //    not ship assets nothing requests.
+  console.log("Rendering the self-inverting scalable icon...");
+  await fs.writeFile(
+    path.join(ICONS_DIR, SCALABLE_ICON),
+    `${selfInvertingSVG(FRAC_STANDARD)}\n`,
+  );
+  logWrite(path.join(ICONS_DIR, SCALABLE_ICON));
 
   // 6. iOS splash screens. Dark appearance (Void plate + Laser glyph) so the
   //    launch image matches the manifest's background_color #0F1012 — a Laser

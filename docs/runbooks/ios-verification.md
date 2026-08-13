@@ -27,6 +27,7 @@ Taken in an iPhone 14 Pro device context, on a confirmed secure context
 | `:active` on touch                                                               | applies regardless of any document touch listener; `touchscreen.tap()` cannot hold a press | widely reported to require a document touch listener, all reporting 2011–2015                                   | unresolvable here; the app was changed so nothing depends on it                                                                                    |
 | `-webkit-backdrop-filter` — the PROPERTY                                         | supported (Chromium: **not** supported)                                                    | supported                                                                                                       | keep both prefixed and unprefixed declarations                                                                                                     |
 | `backdrop-filter` — actually PAINTING (2026-08-11)                               | **never renders.** Plain, masked, or on a promoted `::before`; `filter: blur` works on the same page, so it is the compositor, not the syntax | renders                                                                                                         | the whole `.glass` family's blur is asserted here only by computed style, never by pixels; any decision that depends on the blur being VISIBLE — or on how it composites with something else — has to be measured in Chromium and then confirmed on a device |
+| `prefers-color-scheme` INSIDE an SVG pulled in via `<img>` (2026-08-12) | **not applied** — paints the light colorway under both schemes | unknown for the surface that matters — rasterizing a LINKED icon is the browser's own path, not an `<img>` in a document | `/icons/app-icon.svg` self-inverts, so the e2e assertion is Chromium-scoped; the apple-touch PNG pair is the fallback wherever the swap is not honoured |
 | `inert`, `content-visibility`, `contain-intrinsic-size`, `color-mix`, `text-box` | all supported                                                                              | —                                                                                                               | safe to rely on                                                                                                                                    |
 
 ## The rule
@@ -95,42 +96,91 @@ Browsers are not installed in every container. `tests/e2e/global-setup.ts`
 fails with the install command if one is missing; do not delete a project to
 make that go away.
 
+## Settled on device — the Home Screen tile (2026-08-12)
+
+This was the longest-standing open question here, and it is now **closed by
+measurement**: the owner photographed two installs of the app side by side, in
+both appearances, on an iOS 26 device. Recorded here because the answer is the
+opposite of what this runbook previously told the next reader to assume.
+
+| Question                                                     | Answer                                                                                                                              |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Does iOS read `<link rel="apple-touch-icon">` for the tile?  | **Yes, definitely.** One install carried the light colorway (Void ink on a Laser plate), and that artwork exists nowhere but `apple-touch-icon.png` — the manifest's `any` entries were transparent Laser glyphs. |
+| Does iOS ALSO use the manifest `icons`, and at what precedence? | **Not established — do not read a "no" here.** The other install showed a Laser mark on black, which is `apple-touch-icon-dark.png` and the manifest's transparent glyph composited on black *rendered identically*. The photographs cannot separate them. An earlier revision of this row asserted "No, the manifest never reaches this surface"; that was an inference dressed as a measurement, and it was made against a build whose manifest contained no SVG at all. |
+| Does iOS evaluate `media` on `apple-touch-icon`?             | **No.** `media` selects `apple-touch-startup-image` (which is why the splash links resolve per device) but not icons. Apple's "last one wins" is what applies. |
+| Does iOS re-resolve the tile when the appearance changes?    | **No.** It resolves ONCE, at capture, and freezes. Re-adding to the Home Screen is the only refresh.                                  |
+| What does iOS do with a single tile under dark appearance?   | **Auto-darkens it.** On the light tile (Void ink on a Laser plate) that pulls the plate to near-black and leaves the mark an invisible emboss. |
+
+The consequence: the complementary-query pair shipped in #108 could never have
+worked. Its dark half was unreachable, and because the LIGHT tile was declared
+last, "last one wins" resolved to the one artwork that iOS then destroys. That
+is exactly the failure the owner reported.
+
+**What ships now**, three routes layered so the worst case is legible, the
+middle case is matched at install, and the best case follows the appearance
+live:
+
+1. **`/icons/app-icon.svg` — one file, both colorways. UNVERIFIED ON iOS.**
+   A full-bleed square whose plate and mark swap behind
+   `@media (prefers-color-scheme: dark)`: Laser plate with the Void mark in
+   light, the exact inverse in dark. It is the only route that *could* invert
+   without a re-install, because the swap is a CSS rule the renderer
+   re-evaluates rather than a fixed set of pixels. Linked as `rel="icon"` and
+   declared first in the manifest, on the strength of Safari 26 adding SVG
+   support for icons "everyplace there are icons in the interface" and stating
+   that for web apps "this same icon represents the website on the user's Home
+   Screen or in their Dock".
+   **What is proven is the artwork, not the selection.** The Chromium render
+   test (`tests/e2e/shell.spec.ts`) shows the file inverts; nothing here shows
+   that iOS ever *picks* it for the Home Screen. Row 2 of the table above is
+   explicit that manifest precedence on iOS is unestablished, so treat this as a
+   well-founded bet with a cheap device check, never as a delivered capability.
+   Do not write "the icon inverts live on iOS" anywhere until the check below
+   passes.
+   **Not** declared as `apple-touch-icon`, which is the one channel iOS is known
+   to consume: that rel has been PNG-only for its whole life, and pointing it at
+   an SVG an older iOS cannot decode makes the tile fall back to a blurry
+   screenshot of the page. Moving it there would trade a bet that degrades
+   gracefully for one that degrades badly.
+2. `src/components/pwa/AppleTouchIcon.tsx` keeps a single `apple-touch-icon`
+   link last in the head with its href matched to the live
+   `prefers-color-scheme`. Because iOS reads the head at capture, an install
+   made in light mode captures the Laser plate and one made in dark mode
+   captures the inverse. This is the only technique developers report working
+   (Apple Developer Forums 761615); threads 787919 and 801448 ask for a
+   declarative equivalent and remain unanswered.
+3. The static pair in `metadata.icons` is the pre-hydration / no-JS floor, with
+   the **DARK tile declared last** so "last one wins" lands on the colorway
+   that survives every appearance (auto-darkening is a no-op on dark artwork).
+   The queries stay complementary so a UA that _does_ honour `media` still
+   resolves correctly.
+
+**The open question is now narrow, and it is route 1 only:** whether iOS Safari
+applies `prefers-color-scheme` when it rasterizes a LINKED SVG icon. WebKitGTK
+does not apply it to an SVG pulled in through `<img>` (measured, table above) —
+but that is a different code path, and WebKitGTK is not iOS. If iOS honours it,
+the icon inverts live and routes 2–3 never come up. If it does not, iOS falls
+through to the apple-touch PNG, which route 2 matches at install; the residual
+is then that an install captured in light mode and later viewed in dark
+appearance shows iOS's auto-darkened Laser plate, and re-adding is the only
+refresh. Apple's dark-icon model (transparent background + foreground, system
+supplies the #313131→#141414 gradient) reaches native apps via Icon Composer
+and has no web-clip equivalent.
+
+A device pass settles it in one step: install from a build carrying
+`app-icon.svg`, then toggle Settings → Display & Brightness between Light and
+Dark **without re-adding**. If the tile flips, route 1 is live.
+
+**Do not reach for `BASE` in `scripts/generate-icons.mjs` for any of this.** An
+earlier revision of this runbook said to flip it to `"dark"`, and that was wrong:
+`BASE` governs the scheme-agnostic favicons and maskable tiles, and flipping it
+would put the LIGHT colorway in the file named `-dark` (Codex review, #108). The
+two tiles are pinned to fixed scheme names — the lever is the head, not the
+generator.
+
 ## What still needs a real device
 
 The open questions. The first is no longer depended on; the rest are:
-
-- whether iOS honours `media="(prefers-color-scheme: dark)"` on
-  `<link rel="apple-touch-icon">` when it captures the Home Screen tile.
-  Apple has never documented it either way, and the Developer Forums threads
-  asking (761615, 787919, 801448 — read 2026-08-11) are unanswered. Searching
-  is worse than useless here: results confidently assert both answers.
-  `apple-touch-icon-dark.png` and its link ship anyway, because the arrangement
-  is built to answer both ways at once: the two queries are COMPLEMENTARY, so a
-  media-aware iOS has exactly one eligible link per scheme, and the LIGHT tile
-  is declared LAST, so a media-blind iOS — which ignores the queries and sees
-  two equal candidates — lands exactly where it does today (see the
-  `metadata.icons` block in `src/app/layout.tsx`). Getting only the second half
-  right is not enough, and the first cut of this got it wrong: with the light
-  link left unconditional it also matched in dark mode, and a media-aware
-  last-wins reader would have gone on choosing light forever. What a device
-  settles is whether the dark appearance actually picks the inverse artwork up.
-  If it does not, the fallback is a product decision, not a bug fix: either
-  accept iOS's auto-darkened tile, or — knowing at that point that `media` is
-  being ignored — collapse the `apple` array in `src/app/layout.tsx` to a single
-  unconditional link at `/icons/apple-touch-icon-dark.png`, so the one tile iOS
-  installs is Laser-on-Void and legible under every appearance, at the cost of
-  the Laser plate in light mode. (`apple-touch-icon.png` is then unreferenced;
-  drop it from the generator in the same change.)
-  **Do not reach for `BASE` in `scripts/generate-icons.mjs` for this.** An
-  earlier revision of this runbook said to flip it to `"dark"`, and that was
-  wrong: `BASE` governs the scheme-agnostic favicons and maskable tiles, and
-  while the dark tile was generated as its inverse, flipping it would have put
-  the LIGHT colorway in the file named `-dark` and installed both appearances
-  backwards (Codex review, #108). The two tiles are pinned to fixed scheme names
-  now, so `BASE` no longer reaches them — the lever is the head, not the
-  generator.
-  **Do not** write "iOS supports/ignores this" into the tree from a search
-  result.
 
 - whether iOS still ignores `:active` for touch without a document touch
   listener (and whether the documented workaround still causes controls to

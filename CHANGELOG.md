@@ -6,6 +6,76 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed — the Home Screen tile picks the appearance it is actually installed into
+
+The iOS app icon shipped the wrong artwork and there was no way for it to ship
+the right one, because three assumptions this repo had been hedging across
+turned out to be false. An owner pass on an iOS 26 device — two installs
+photographed side by side in both appearances — settled all three:
+
+- **iOS reads `<link rel="apple-touch-icon">` from the document head at "Add to
+  Home Screen".** One install carried the light colorway, which exists in no
+  other asset, so that channel is definitely consumed. Whether iOS _also_
+  consults the manifest, and at what precedence, is **not** established — the
+  other install renders identically whether it came from the dark tile or from
+  a transparent manifest glyph composited on black.
+- **iOS does not evaluate `media` on `apple-touch-icon`.** It works on
+  `apple-touch-startup-image` — which is why the splash links resolve per
+  device — but for icons Apple's documented "last one wins" is what applies.
+- **iOS resolves the tile once, at capture, and freezes it.** No declarative
+  arrangement can re-resolve it when the appearance later changes.
+
+Together those made the complementary-query pair from #108 dead on arrival: its
+dark half was unreachable, and because the LIGHT tile was declared last,
+"last one wins" resolved to the one artwork iOS then destroys — it auto-darkens
+a captured tile under dark appearance, which on Void ink over a Laser plate
+pulls the plate to near-black and leaves the mark an invisible emboss.
+
+**The icon now carries both appearances in one file.** `/icons/app-icon.svg` is
+a full-bleed square whose plate and mark swap behind
+`@media (prefers-color-scheme: dark)` — Laser plate with the Void mark in light,
+the exact inverse in dark. That is the only route that *could* invert without a
+re-install, because the swap is a CSS rule the renderer re-evaluates rather than
+a fixed set of pixels, and Safari 26's new SVG icon support is what brings it
+within reach of the Home Screen ("for web apps, this same icon represents the
+website on the user's Home Screen or in their Dock"). It is linked as
+`rel="icon"` and declared first in the manifest. The e2e test samples painted
+pixels in both schemes rather than trusting the markup — so **the artwork is
+proven and the selection is not**: nothing here shows iOS picks this file for
+the Home Screen, and manifest precedence on iOS is explicitly unestablished
+above. Treat it as a bet with a graceful downside, resolved by a device check.
+It is deliberately **not** an `apple-touch-icon`: that rel has been PNG-only for
+its whole life, and pointing it at an SVG an older iOS cannot decode makes the
+tile fall back to a blurry screenshot of the page. This also retires the
+separate `favicon.svg`, whose "does not invert" rule was answering a legibility
+question when the live one was identity — both colorways are legible on any tab
+chrome, so the two uses stopped conflicting.
+
+Underneath it, two more layers, so the worst case is legible and the best case is matched.
+`AppleTouchIcon` keeps a single `apple-touch-icon` link **last in the head with
+its href matched to the live `prefers-color-scheme`**, so an install made in
+light mode captures the Laser plate and one made in dark mode captures the
+inverse — the mechanism iOS actually reads, and the only one developers report
+working (Apple Developer Forums 761615; 787919 and 801448 ask for a declarative
+equivalent and are still unanswered). The static pair stays as the pre-hydration
+and no-JS floor, with the **dark tile declared last**, so a capture that never
+sees JS lands on the colorway that survives every appearance instead of the one
+that cannot.
+
+One question stays open, and it is now narrow: whether iOS Safari applies
+`prefers-color-scheme` when it rasterizes a linked SVG icon. WebKitGTK does not
+apply it to an SVG pulled in through `<img>` (measured, and now a row in the
+divergence table) — but that is a different code path, and WebKitGTK is not iOS.
+If iOS honours it the icon inverts live; if not, it falls through to the
+apple-touch PNG that the matched link picks at install, and the residual is that
+a tile captured in light mode and later viewed in dark appearance shows iOS's
+auto-darkened Laser plate until it is re-added. Apple's dark-icon model —
+transparent background plus foreground, system supplies the #313131→#141414
+gradient — reaches native apps through Icon Composer and has no web-clip
+equivalent. The measured result table replaces the old "needs a real device"
+entry in [the iOS runbook](./docs/runbooks/ios-verification.md), which also
+carries the one-step device check that settles the remaining question.
+
 ### The dial says it is a slider, and only the area under it goes soft
 
 A second owner pass on the dials kept the mechanism and rejected two things

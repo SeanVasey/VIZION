@@ -3465,6 +3465,70 @@ test:e2e` hard-fails in global-setup until
   help" is a claim about a branch table; I wrote it without drawing the
   table, and the one branch I skipped was the one the feature exists for.
 
+  **Amendment 2 (2026-08-12) — the device answered, and the hedge had
+  picked the losing branch.** Two installs photographed side by side in
+  both appearances settled it: iOS reads `apple-touch-icon` from the head,
+  does NOT evaluate `media` on icons, applies
+  "last one wins", and freezes the tile at capture. So the whole pair
+  resolved to its LAST entry — the light tile — which iOS then
+  auto-darkened into the invisible mark the original bug was about. The
+  hedge was not neutral. **A branch table whose branches are all guesses
+  still has to name which branch is the DEFAULT, and rank the branches by
+  what they cost when wrong.** Both arrangements were "safe" under the
+  strategies I enumerated; what I never asked was which single artwork
+  survives being chosen by the wrong strategy. Only one does — the dark
+  tile, because auto-darkening is a no-op on artwork already dark — and it
+  was the one I put first, where last-wins could never reach it. The
+  ordering is now flipped and the runbook carries a measured result table
+  instead of an open question.
+
+  Second lesson, about how the answer arrived: **the owner's screenshot
+  was the experiment I had been calling impossible.** Two installs in two
+  appearances is a complete 2×2, and it was available for the asking at
+  any point in the four commits this question stayed open. When a runbook
+  entry says "needs a real device", that is a request to make, not a
+  permanent state — and the person who can run it is usually the one
+  filing the bug. Ask for the capture before shipping the hedge.
+
+  Third: **when the user says a platform can do something and you have
+  concluded it cannot, re-read the platform's own spec before answering
+  again.** I argued from behaviour I had inferred from the symptom and
+  told the owner their design was unachievable. Apple's dark-icon model
+  (transparent background + foreground, system supplies the gradient) says
+  plainly that the inversion they described is the expected shape; the
+  real constraint was narrower than my claim — it is the web-clip
+  DELIVERY that has no variant channel, not the design that is wrong. The
+  narrow true statement and the broad false one lead to different work:
+  the broad one ends the conversation, the narrow one finds the head as
+  the lever and ships the matched link.
+
+  **Amendment 3 (same day, Codex review on #111) — the over-claim was
+  mine, and retracting it in four files left it standing in the two that
+  get read first.** "iOS never uses the manifest" went into this file, the
+  runbook, the generator header, `layout.tsx` and the changelog as a
+  MEASURED fact. It was an inference: the photographs prove
+  `apple-touch-icon` is read (one install carried the light colorway,
+  which exists in no other asset), but the second install renders
+  identically whether it came from the dark tile or a transparent manifest
+  glyph composited on black — and the observation was taken against a
+  build whose manifest held no SVG at all. Two lessons, and the second is
+  the one that cost a review round:
+
+  1. **"Measured" is a claim about the experiment, not about how sure you
+     feel.** Before writing it, ask what OTHER state would have produced
+     the same photograph. Here a second candidate rendered pixel-identical
+     and I never enumerated it. This is the third wrong iOS claim to reach
+     the tree, which is why `docs/runbooks/ios-verification.md` exists.
+  2. **A retraction has the same blast radius as the claim — grep for it.**
+     I corrected the runbook, the generator, `layout.tsx` and the
+     changelog, then stopped, because those were the files I had been
+     editing. The claim also sat in THIS file and in `README.md` — the two
+     an agent is told to read before starting — so the corrected tree
+     still fed the error to the next reader first. When a claim is
+     retracted, `grep -r` its distinctive phrasing and fix every hit in
+     the same commit; the files you did not touch on the way in are
+     exactly the ones that will outlive the correction.
+
 - **`align-items: center` centres a line box, and a line box is not a
   word.** The header mark hung visibly low beside the wordmark although
   flex had "centred" it: a line box's centre sits at
