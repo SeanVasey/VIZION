@@ -6,6 +6,40 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The dial ramp goes monochrome, and Ultra floods it
+
+The hold-slider track's silver → laser → violet ramp read as "a really ugly
+gradient" on device (owner pass, 2026-08-15, with an iOS reference recording
+of the shape wanted instead). Both dials now run a quiet monochrome ramp below
+the top tier — a silver progression that brightens with depth, no laser
+anywhere in the track — and when the thumb reaches an ultra stop the violet
+**washes over the entire fill**: it enters at the thumb end and floods
+leftward over 1.2s, settling solid, exactly the reference recording's wash.
+The flood is tone-gated (Extra High and Max both flood; Quality on the budget
+dial), while the arrival burst and the cost caption stay peak-only, so the top
+stop keeps its fanfare. The starfield now drifts OVER the flooded fill, the
+`laser` tone id is renamed `steel` (it no longer carries the token it was
+named for), and the chip ink below ultra collapses to silver — the tier is
+carried by the word and the meter glyph
+([ADR-0014, Amendment 3](./docs/decisions/0014-dials.md)). Both stand-downs
+settle the flood instantly: at the ultra stops the fill simply is violet.
+
+### The dial halo feathers instead of plateauing
+
+The hold-slider's focus halo held full strength to 84% of its ellipse and fell
+off only over the last 16% — a shape Amendment 1b measured into place for
+maximum obscuring, and one the owner read on device as "a weird grey bubble
+that seems to extrude around the popup focused slider". A plateau's end is an
+edge wherever it sits. Both layers now draw the same eased feather instead:
+the blur's mask holds a solid core to 45% then steps down through four alphas
+to a transparent edge, and the dim carries the identical profile in its paint
+— so the dim-only stand-down rungs (reduced effects, streaming backdrops,
+engines without `backdrop-filter`) lose the bubble edge too. The halo's box,
+its chrome-bar clamp, and the dim's seam-covering spread are untouched
+([ADR-0014, Amendment 2](./docs/decisions/0014-dials.md)). A `ui-contracts`
+test pins the feather's shape — monotonic decay, solid core ≤ 50%, transparent
+edge — so a future retune cannot silently reintroduce the plateau.
+
 ### The inversion bet is settled — one Home Screen tile, pinned dark
 
 A second device pass closed the last open question, negatively: **iOS does not

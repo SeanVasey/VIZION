@@ -385,35 +385,52 @@
     display: none;
   }
 
-  /* Arriving at the ladder's TOP stop is an event, not just a wider bar: a
-     violet surge sweeps back across the fill (the reference recording's
-     nebula migration). Mounted only at the peak detent, so it costs nothing
-     at any other value. */
-  .hold-slider-surge {
+  /* The ultra flood (the reference recording's wash, and the owner's ask,
+     2026-08-15: "once it reaches the purples, the purple takes over the
+     entire gradient and washes over it"). Mounted while the CURRENT detent's
+     tone is ultra — both ultra stops, not only the peak — so it costs
+     nothing below that tier.
+
+     Mechanics: the gradient image is 3× the element (background-size 300%),
+     transparent through its left 40% and solid ultra through its right
+     third. Animating background-position 0 → 100% slides the solid third
+     into view, so the violet enters at the ELEMENT'S RIGHT — the thumb end —
+     and floods leftward, its leading edge kept soft by the 40→66% fade zone.
+     The settled frame shows only the solid third, at ANY element width,
+     which is what lets the fill's own width transition stretch this span
+     mid-flood without ever exposing a seam. Same compositor-driven
+     background-position mechanism as the starfield; the ultra-ink-hi tail
+     leaves a faint hot edge at the thumb, the recording's glow. Both
+     stand-downs settle it instantly — at the ultra stops the fill simply IS
+     violet. */
+  .hold-slider-wash {
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      color-mix(in srgb, var(--ultra-ink) 55%, transparent) 45%,
-      color-mix(in srgb, var(--ultra-ink) 85%, transparent) 100%
+      transparent 40%,
+      color-mix(in srgb, var(--ultra-ink) 60%, transparent) 55%,
+      var(--ultra-ink) 66.67%,
+      var(--ultra-ink) 88%,
+      var(--ultra-ink-hi) 100%
     );
-    background-size: 220% 100%;
-    background-position: 100% 0;
-    animation: hold-slider-surge 1.6s ease-out forwards;
+    background-size: 300% 100%;
+    background-position: 0 0;
+    animation: hold-slider-wash 1.2s ease-in-out forwards;
   }
-  @keyframes hold-slider-surge {
+  @keyframes hold-slider-wash {
     to {
-      background-position: 0 0;
+      background-position: 100% 0;
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .hold-slider-surge {
+    .hold-slider-wash {
       animation: none;
-      background-position: 0 0;
+      background-position: 100% 0;
     }
   }
-  [data-reduced-effects] .hold-slider-surge {
+  [data-reduced-effects] .hold-slider-wash {
     animation: none;
-    background-position: 0 0;
+    background-position: 100% 0;
   }
 
   /* The arrival burst — a dotted ring blooming off the thumb at the top stop.
@@ -735,27 +752,36 @@
        Paired prefixes for the same reason backdrop-filter and
        background-clip: text carry them.
 
-       THE PLATEAU IS THE LEVER, not the blur radius — measured, and it is the
-       opposite of the obvious guess. Eight parameterizations were rendered and
-       scored (see HALO_X_PX's note for the metric). Going from blur(38px) at a
-       82% plateau to blur(54px) at 78% made every band MORE legible, not less:
-       the coach line went 0.06 -> 0.16, the first prompt line 0.04 -> 0.14.
-       Chromium appears to trade filter quality for area as the element and the
-       radius grow, so past a point a bigger blur on a bigger box buys a coarser
-       result. Widening the fully-opaque core does what raising the radius was
-       supposed to. If this ever needs to obscure more, move THIS number and the
-       dim's matching stop first, and re-measure rather than reaching for the
-       radius. */
+       FEATHERED, superseding the 84% plateau (owner direction, 2026-08-15:
+       the plateau's edge read as a hard grey bubble extruding around the
+       capsule; the treatment should "feather into" the page instead). The
+       amendment-1b measurement round optimized these stops for maximum
+       obscuring — the plateau IS the lever for that, and that method note
+       still holds: if obscuring ever outranks softness again, widen the
+       solid core and re-measure with the high-pass metric rather than
+       reaching for the blur radius. Today the ranking is reversed by
+       direction, and the profile below is an eased falloff: solid to 45%,
+       then alpha stepping down on an ease-out so no single stop reads as
+       an edge. The dim's gradient is this same falloff drawn in paint —
+       edit the two stop lists together or the halo grows a seam. */
     -webkit-mask-image: radial-gradient(
       ellipse closest-side,
       #000 0%,
-      #000 84%,
+      #000 45%,
+      rgba(0, 0, 0, 0.86) 58%,
+      rgba(0, 0, 0, 0.62) 70%,
+      rgba(0, 0, 0, 0.36) 81%,
+      rgba(0, 0, 0, 0.14) 91%,
       transparent 100%
     );
     mask-image: radial-gradient(
       ellipse closest-side,
       #000 0%,
-      #000 84%,
+      #000 45%,
+      rgba(0, 0, 0, 0.86) 58%,
+      rgba(0, 0, 0, 0.62) 70%,
+      rgba(0, 0, 0, 0.36) 81%,
+      rgba(0, 0, 0, 0.14) 91%,
       transparent 100%
     );
   }
@@ -779,18 +805,24 @@
      The four --dial-* properties come from HoldSlider (viewport pixels); the
      fallbacks keep this rule legible, and renderable, on its own.
 
-     The mid stop tracks the blur's mask plateau above — they are one falloff
-     drawn twice, and if they drift the dim's edge and the blur's edge stop
-     landing together. Strength was raised with the rest of the halo on the
-     owner's second pass: a wash this dense edge to edge is the rejected
-     behaviour, but under the popup it is the thing that makes text stop
-     reading rather than merely go soft. */
+     These stops and the blur's mask are ONE falloff drawn twice — same
+     feathered profile, same knee — and if they drift the dim's edge and the
+     blur's edge stop landing together. The old shape held near-full strength
+     to 84% and dropped over the last 16%, which is where the "grey bubble"
+     the owner rejected came from (2026-08-15): a plateau's end is an edge
+     wherever it sits. The feather trades some mid-band obscuring (measured
+     and accepted — see the mask's note) for an ellipse with no findable
+     boundary, and it is also what the dim-only stand-down rungs ship, so
+     the softness survives every engine that drops the mask or the filter. */
   .hold-slider-scrim {
     background-image: radial-gradient(
       var(--dial-rx, 260px) var(--dial-ry, 300px) at var(--dial-cx, 50%)
         var(--dial-cy, 50%),
-      color-mix(in srgb, var(--void) 60%, transparent) 0%,
-      color-mix(in srgb, var(--void) 52%, transparent) 84%,
+      color-mix(in srgb, var(--void) 58%, transparent) 0%,
+      color-mix(in srgb, var(--void) 52%, transparent) 45%,
+      color-mix(in srgb, var(--void) 38%, transparent) 62%,
+      color-mix(in srgb, var(--void) 22%, transparent) 78%,
+      color-mix(in srgb, var(--void) 9%, transparent) 90%,
       transparent 100%
     );
     animation: hold-slider-scrim-in var(--motion-quick) ease-out;
@@ -858,7 +890,11 @@
      every frame for the life of every gesture; and sheet EXIT
      may overlap a new press by at most its 180ms self-terminating fade —
      pausing that would freeze a vanishing surface mid-fade for the whole
-     gesture, a worse artifact than 180ms of re-filtering. */
+     gesture, a worse artifact than 180ms of re-filtering. The ultra
+     wash (`.hold-slider-wash`, 2026-08-15) is exempt for the starfield's
+     own reason: it is capsule-INTERNAL — the thing the gesture exists to
+     show — and it lives above the halo, not beneath it, so it never
+     invalidates the filtered backdrop. */
 
   /* Ambient scrim — a FILL, deliberately NOT a member of the glass family.
      Secondary copy that sits directly on the ambient background, with no glass

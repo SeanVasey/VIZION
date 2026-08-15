@@ -61,6 +61,9 @@ describe("reduced-effects gate covers every ambient layer", () => {
     // toggle an answer.
     ".hold-slider-glass",
     ".hold-hint-pulse::after",
+    // The ultra flood (2026-08-15): under the toggle it settles instantly —
+    // at the ultra stops the fill simply IS violet, no sweep.
+    ".hold-slider-wash",
   ])("%s is gated", (selector) => {
     expect(
       GATED_SELECTORS.some((s) => s.endsWith(` ${selector}`)),

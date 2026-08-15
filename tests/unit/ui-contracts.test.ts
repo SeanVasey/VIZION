@@ -100,6 +100,84 @@ describe("UI contracts", () => {
     });
   });
 
+  describe("the halo feathers, never plateaus", () => {
+    /**
+     * The 84% plateau that amendment 1b tuned for maximum obscuring read as a
+     * hard grey bubble extruding around the capsule (owner direction,
+     * 2026-08-15), and the halo now FEATHERS: a solid core no wider than half
+     * the ellipse, then a monotonic multi-stop decay to transparent at the
+     * edge. This pins the SHAPE, not the numbers — a retune can move stops,
+     * but a plateau past 50% or a cliff at the edge is the rejected look
+     * coming back. Applies to both layers: the blur's mask and the dim are
+     * one falloff drawn twice, and the dim is also what every stand-down
+     * rung ships, so it must carry the feather on its own.
+     */
+    type Stop = { alpha: number; at: number };
+
+    function alphaStops(gradient: string): Stop[] {
+      const out: Stop[] = [];
+      const re =
+        /(#000|transparent|rgba\(0,\s*0,\s*0,\s*([\d.]+)\)|color-mix\(in srgb,\s*var\(--void\)\s+([\d.]+)%,\s*transparent\))\s+([\d.]+)%/g;
+      for (const m of gradient.matchAll(re)) {
+        const alpha =
+          m[1] === "#000"
+            ? 1
+            : m[1] === "transparent"
+              ? 0
+              : m[2] !== undefined
+                ? Number(m[2])
+                : Number(m[3]!) / 100;
+        out.push({ alpha, at: Number(m[4]!) });
+      }
+      return out;
+    }
+
+    function expectFeathered(stops: Stop[], label: string): void {
+      expect(stops.length, `${label}: too few stops to feather`).toBeGreaterThanOrEqual(6);
+      const last = stops[stops.length - 1]!;
+      expect(last.alpha, `${label}: must end transparent`).toBe(0);
+      expect(last.at, `${label}: the fade must reach the edge`).toBe(100);
+      for (let i = 1; i < stops.length; i++) {
+        expect(
+          stops[i]!.at,
+          `${label}: stop positions must increase`,
+        ).toBeGreaterThan(stops[i - 1]!.at);
+        expect(
+          stops[i]!.alpha,
+          `${label}: alpha must decay monotonically`,
+        ).toBeLessThanOrEqual(stops[i - 1]!.alpha);
+      }
+      const peak = stops[0]!.alpha;
+      const coreEnd = stops.filter((s) => s.alpha === peak).pop()!;
+      expect(
+        coreEnd.at,
+        `${label}: a solid core past half the ellipse is a plateau again`,
+      ).toBeLessThanOrEqual(50);
+      const decay = stops.filter((s) => s.alpha < peak && s.alpha > 0);
+      expect(
+        decay.length,
+        `${label}: needs a gradual decay, not a cliff`,
+      ).toBeGreaterThanOrEqual(4);
+    }
+
+    it("feathers the blur's mask, identically in both prefixes", () => {
+      const decls = block(/^\.hold-slider-blur$/);
+      const masks = [...decls.matchAll(/mask-image:\s*radial-gradient\(([\s\S]*?)\);/g)].map(
+        (m) => m[1]!,
+      );
+      expect(masks, "expected the prefixed + unprefixed mask pair").toHaveLength(2);
+      expect(masks[0], "the -webkit- and standard masks must not drift").toBe(masks[1]);
+      expectFeathered(alphaStops(masks[0]!), ".hold-slider-blur mask");
+    });
+
+    it("feathers the dim with the same profile", () => {
+      const decls = block(/^\.hold-slider-scrim$/);
+      const gradient = decls.match(/background-image:\s*radial-gradient\(([\s\S]*?)\);/);
+      expect(gradient, "no radial-gradient on .hold-slider-scrim").not.toBeNull();
+      expectFeathered(alphaStops(gradient![1]!), ".hold-slider-scrim");
+    });
+  });
+
   describe("long lists stop scaling with content", () => {
     it("defines .scroll-row with content-visibility and a remembered size", () => {
       const decls = block(/^\.scroll-row$/);

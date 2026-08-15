@@ -416,6 +416,82 @@ The peak caption gained a chip too. As bare text it was legible only because
 the old backdrop flattened everything behind it; over a local halo it landed
 directly on the coach line under the rail and the two sentences interleaved.
 
+## Amendment 2 — the halo feathers (supersedes Amendment 1's plateau)
+
+Date: 2026-08-15
+
+_"the weird grey bubble that seems to extrude around the popup focused slider
+… can't it be a more clean glass blur or refocus that's softer on edges so it
+feathers into edges of where it extends cleanly?"_
+
+Amendment 1's measurement round tuned both halo layers for maximum obscuring,
+and the plateau it landed on — full strength to 84% of the ellipse, all of the
+falloff in the last 16% — is what the owner is describing: a plateau's end is
+an edge wherever it sits, and on a screenshot the treatment reads as a hard
+grey oval stamped over the sheet rather than a region going soft.
+
+The profile is now an eased feather, in both layers: the blur's mask holds a
+solid core to 45% and steps down through four intermediate alphas to
+transparent at the edge; the dim draws the same falloff in its paint. This
+knowingly supersedes the high-pass obscuring scores — the mid-band obscures
+less than the measured optimum, by direction. What survives of Amendment 1
+unchanged: the box geometry and its chrome-bar clamp, the dim-carries-the-
+shield split, the `DIM_SPREAD_X` seam cover for mask-dropping engines, and
+the method note — the plateau IS the lever for obscuring, so if obscuring
+ever outranks softness again, widen the core and re-measure rather than
+touching the radius. A `ui-contracts` test now pins the feather's shape
+(monotonic decay, solid core ≤ 50%, transparent edge) so a retune cannot
+silently reintroduce the plateau.
+
+The stand-down rungs inherit the fix for free: the dim's own gradient carries
+the feather, so the dim-only rungs (reduced effects, `dynamicBackdrop`, an
+engine with no `backdrop-filter`) lose their bubble edge too.
+
+## Amendment 3 — the ramp goes quiet, and ultra floods it (supersedes parts of §4)
+
+Date: 2026-08-15 (same owner pass as Amendment 2)
+
+_"The silver to laser to purple creates a really ugly gradient … change it so
+that it's … silver to dark grey instead of the yellow laser and then once it
+reaches the purples, the purple takes over the entire gradient and washes over
+it like the purple washes over the blue in the video."_
+
+Two supersessions of §4, one rename, and one boundary statement.
+
+**The ramp is monochrome below ultra.** The `laser` stop is gone from the
+track: the sub-ultra range is now a silver progression — 16%, 34%, 58% mixes
+for faint/silver/steel — that brightens with depth, and only the ultra tier
+earns colour. §4's construction survives untouched (ramp built FROM the
+detents, revealed by the fill, TONE_HOLD guarding the seams); only the palette
+changed. The reference recording never had a three-hue track either — its fill
+is one muted family until the top tier takes over, which is exactly the shape
+the owner is pointing at. The tone id `laser` is renamed **`steel`**: a tone
+named for a token it no longer carries is the chevron-over-no-dropdown lie in
+vocabulary form, and the id is render-only (never persisted, never on the
+wire), so the rename costs one compiler pass. With laser out of the track,
+the chip ink map collapses to one ink below ultra — the tier is carried by
+the label's word and the meter glyph, which is what they were already for.
+
+**The surge is generalized into the wash, and it is TONE-gated, not
+peak-gated.** §4's peak surge swept a translucent violet over the top stop
+only. The wash mounts while the current detent's tone is ultra — Extra High
+AND Max on the thinking ladder, Quality on the budget dial — sweeps in from
+the thumb end (background-position over a 300% gradient, the starfield's own
+mechanism), and settles as a SOLID ultra fill: the purple takes the whole
+gradient over, per the reference recording. It renders UNDER the starfield —
+the old surge sat above, which a solid flood would have turned into an
+eraser. It is deliberately un-keyed so stepping xhigh↔max does not replay the
+settled flood; leaving the tier unmounts it and re-entering replays it, which
+is the arrival event. The burst and the cost caption remain PEAK-only — the
+second ultra stop floods without fanfare, so the top stop still reads as the
+top stop.
+
+**Boundary:** everything else in §4 and both earlier amendments stands — the
+ramp construction, the starfield and its pause-list exemption, the shimmer's
+contrast rule (`--ultra-ink`/`--ultra-ink-hi` are untouched and the wash is
+text-free decoration), and every stand-down (the wash settles instantly under
+both knobs: at the ultra stops the fill simply IS violet).
+
 ## Alternatives considered
 
 - **Keep the sheet, drop only the chevron.** Cheapest, and it was offered.

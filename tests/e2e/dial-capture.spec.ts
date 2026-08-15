@@ -21,10 +21,11 @@ import { signIn } from "./support/auth";
  *
  * The frames, in order: the rail at rest (dial + how-to line, no chevron) ·
  * the capsule latched mid-ladder · the top stop's burst · the top stop
- * settled after the surge · a live drag (pill concealed, focus pair up) ·
- * the model sheet with its tuning dial · that dial latched · that dial at
- * its own top stop. Both themes, because the peak caption's shimmer is a
- * contrast decision that differs per theme (see globals.css).
+ * settled after the ultra wash has flooded the fill · a live drag (pill
+ * concealed, focus pair up) · the model sheet with its tuning dial · that
+ * dial latched · that dial at its own top stop. Both themes, because the
+ * peak caption's shimmer is a contrast decision that differs per theme (see
+ * globals.css).
  */
 const OUT = process.env.DIAL_SHOT_DIR ?? "/tmp/dial-shots";
 
@@ -83,11 +84,12 @@ test.describe("dial capture", () => {
       await page.waitForTimeout(260);
       await shot("02-latched-mid");
 
-      // 3. The top stop: surge + burst + cost caption.
+      // 3. The top stop: wash + burst + cost caption. The settled frame
+      // waits out the 1.2s flood (globals.css `.hold-slider-wash`).
       await page.keyboard.press("End");
       await page.waitForTimeout(180);
       await shot("03-peak-burst");
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(1300);
       await shot("04-peak-settled");
       await page.keyboard.press("Escape");
 
@@ -111,8 +113,9 @@ test.describe("dial capture", () => {
       await page.locator("[data-hold-slider-overlay]").waitFor();
       await page.waitForTimeout(260);
       await shot("07-sheet-latched");
+      // Settled past the 1.2s wash, like frame 04 — Quality is an ultra stop.
       await page.keyboard.press("End");
-      await page.waitForTimeout(220);
+      await page.waitForTimeout(1300);
       await shot("08-sheet-peak");
 
       await context.close();
