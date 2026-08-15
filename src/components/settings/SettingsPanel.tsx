@@ -170,7 +170,14 @@ export function SettingsPanel({
   );
   function changeDefaultModel(model: TargetModelId | null) {
     const prev = defaultModel;
+    // Snapshot the LIVE store values, not this control's state: `targetModel`
+    // is Auto's device-local fallback and can differ from the stored default
+    // mid-session (a composer pick moves it without touching Settings). A
+    // rollback that reached for `prev` instead would clobber that pick — and
+    // one that skipped `targetModel` when the account was cleared would leave
+    // the rejected model behind as Auto's fallback (Codex review, PR #113).
     const prevAuto = useUIStore.getState().autoTarget;
+    const prevTarget = useUIStore.getState().targetModel;
     setDefaultModel(model);
     if (model === null) {
       setAutoTarget(true);
@@ -187,7 +194,7 @@ export function SettingsPanel({
         // while the account still holds a concrete default.
         setDefaultModel(prev);
         setAutoTarget(prevAuto);
-        if (prev !== null) setTargetModel(prev);
+        setTargetModel(prevTarget);
       },
     );
   }

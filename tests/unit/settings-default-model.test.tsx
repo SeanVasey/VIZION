@@ -111,6 +111,29 @@ describe("Settings default model", () => {
     expect(checked[0]!.textContent).toContain("Auto");
   });
 
+  it("restores the previous fallback after a failed pick from a cleared account", async () => {
+    // Codex review, PR #113: with the account cleared (Auto on, targetModel
+    // riding as the device's own fallback), a failed concrete pick must put
+    // the OLD fallback back — not leave the rejected model behind, where
+    // turning Auto off later would select a model that was never saved.
+    profileActions.updateProfileAction.mockResolvedValueOnce({
+      ok: false,
+      error: "nope",
+    } as never);
+    useUIStore.setState({ targetModel: "kimi_k3", autoTarget: true });
+    renderPanel({ ...PROFILE, default_model: null });
+    fireEvent.click(trigger());
+    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.5/i }));
+    // Optimistic apply moves both knobs…
+    expect(useUIStore.getState().targetModel).toBe("grok_4_5");
+    expect(useUIStore.getState().autoTarget).toBe(false);
+    // …and the failure restores BOTH: Auto back on, fallback back to the
+    // device's own pick.
+    await vi.waitFor(() => expect(useUIStore.getState().autoTarget).toBe(true));
+    expect(useUIStore.getState().targetModel).toBe("kimi_k3");
+    expect(trigger().textContent).toContain("Auto");
+  });
+
   it("rolls back every knob a failed clear touched", async () => {
     profileActions.updateProfileAction.mockResolvedValueOnce({
       ok: false,
