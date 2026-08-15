@@ -18,7 +18,8 @@ export interface ActionResult {
 type ProfilePatch = {
   full_name?: string | null;
   display_name?: string | null;
-  default_model?: Database["public"]["Enums"]["model_target"];
+  /** `null` clears the stored default — the account then starts on Auto. */
+  default_model?: Database["public"]["Enums"]["model_target"] | null;
   theme?: Database["public"]["Enums"]["theme"];
   avatar_url?: string | null;
 };

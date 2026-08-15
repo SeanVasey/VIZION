@@ -399,7 +399,7 @@ export type Database = {
           auth_method: Database["public"]["Enums"]["auth_method"] | null;
           avatar_url: string | null;
           created_at: string;
-          default_model: Database["public"]["Enums"]["model_target"];
+          default_model: Database["public"]["Enums"]["model_target"] | null;
           display_name: string | null;
           email: string | null;
           full_name: string | null;
@@ -412,7 +412,7 @@ export type Database = {
           auth_method?: Database["public"]["Enums"]["auth_method"] | null;
           avatar_url?: string | null;
           created_at?: string;
-          default_model?: Database["public"]["Enums"]["model_target"];
+          default_model?: Database["public"]["Enums"]["model_target"] | null;
           display_name?: string | null;
           email?: string | null;
           full_name?: string | null;
@@ -425,7 +425,7 @@ export type Database = {
           auth_method?: Database["public"]["Enums"]["auth_method"] | null;
           avatar_url?: string | null;
           created_at?: string;
-          default_model?: Database["public"]["Enums"]["model_target"];
+          default_model?: Database["public"]["Enums"]["model_target"] | null;
           display_name?: string | null;
           email?: string | null;
           full_name?: string | null;

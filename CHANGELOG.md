@@ -6,6 +6,27 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The default model is clearable — and cleared means Auto
+
+Settings' Default model picker now offers the Auto row as its CLEAR: choosing
+it writes `null` to `profiles.default_model` (the column dropped `NOT NULL`
+and its default — migration `20260815113000`), meaning "no stored default →
+start on Auto". Previously there was no way back: once a model was picked it
+populated every load, and Auto wasn't in the Settings list because a
+non-nullable enum gave it nowhere to be stored — the enum itself still never
+grows an `'auto'` label; absence is the representation
+([ADR-0016](./docs/decisions/0016-clearable-default-model.md)). The Settings
+choice is now authoritative for what a load opens on: a stored default
+populates with Auto off, a cleared one opens on Auto (the device's last pick
+survives as Auto's fallback), and new accounts start cleared — on Auto — out
+of the box. The Settings row is worded for its own meaning ("No default —
+each session starts on Auto") and carries no routing dial: the budget is a
+per-run knob, not an account default.
+
+**Deploy note:** apply the migration before or after the deploy freely — it
+only removes a constraint — but regenerate `database.types.ts` only from a
+project that has it applied.
+
 ### The dial ramp goes monochrome, and Ultra floods it
 
 The hold-slider track's silver → laser → violet ramp read as "a really ugly

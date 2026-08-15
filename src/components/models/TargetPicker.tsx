@@ -90,6 +90,7 @@ function TargetPickerImpl({
   disabled,
   auto,
   onAutoChange,
+  autoDescription,
   autoPreference,
   onAutoPreferenceChange,
   streaming,
@@ -101,12 +102,21 @@ function TargetPickerImpl({
   triggerClassName?: string;
   disabled?: boolean;
   /**
-   * Auto routing. Pass BOTH to offer it — omitting them hides the row
-   * entirely, which is how Settings keeps `profiles.default_model` a real
-   * enum id. "auto" is never a value of `value`; it sits beside it.
+   * The Auto row. Pass BOTH to offer it — omitting them hides the row
+   * entirely, for any caller that wants neither meaning. It carries two
+   * meanings by caller: in the composer it is per-run ROUTING; in Settings
+   * (since `profiles.default_model` went nullable, 2026-08-15) it is the
+   * CLEAR — "no stored default, start on Auto", written as null. "auto" is
+   * never a value of `value` either way; it sits beside it.
    */
   auto?: boolean;
   onAutoChange?: (next: boolean) => void;
+  /**
+   * The Auto row's description line. Defaults to the composer's routing copy;
+   * Settings passes its own, because there the row means "no stored default"
+   * rather than "route each run". Prop-driven so the picker stays store-free.
+   */
+  autoDescription?: string;
   /**
    * Auto's routing preference (quality / balanced / budget). Pass both to
    * offer the segments under the Auto row — same wiring contract as the Auto
@@ -179,6 +189,7 @@ function TargetPickerImpl({
         title={label}
         value={value}
         auto={offersAuto ? (auto ?? false) : undefined}
+        autoDescription={autoDescription}
         onPickAuto={
           onAutoChange &&
           (() => {
@@ -219,6 +230,7 @@ function TargetPickerSheet({
   onPick,
   auto,
   onPickAuto,
+  autoDescription,
   autoPreference,
   onPickPreference,
   streaming,
@@ -230,6 +242,7 @@ function TargetPickerSheet({
   onPick: (next: TargetModelId) => void;
   auto?: boolean;
   onPickAuto?: () => void;
+  autoDescription?: string;
   autoPreference?: AutoPreference;
   onPickPreference?: (next: AutoPreference) => void;
   streaming?: boolean;
@@ -292,7 +305,8 @@ function TargetPickerSheet({
                 <span className="grow">
                   Auto
                   <span className="block text-xs text-silver">
-                    Picks a model to suit the mode, length, and attachments
+                    {autoDescription ??
+                      "Picks a model to suit the mode, length, and attachments"}
                   </span>
                 </span>
                 {auto && <CheckGlyph />}

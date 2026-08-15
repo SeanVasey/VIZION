@@ -10,6 +10,16 @@ import type { Theme, TargetModelId } from "@/lib/constants";
  * store once per app load, so a fresh device reflects their account. Rendered by
  * the authenticated layout, which mounts once — subsequent in-app navigations
  * don't re-run it, so live local toggles aren't clobbered.
+ *
+ * The Settings choice is AUTHORITATIVE for what a load starts on (owner
+ * decision, 2026-08-15): a stored default model populates with Auto off; a
+ * cleared default (`null`) starts the load on Auto. Both branches deliberately
+ * override the device's persisted `autoTarget` — that is what makes the
+ * setting mean "what the app opens on" rather than "a fallback the device may
+ * ignore". Mid-session the composer's own toggles still rule; this runs once.
+ * Under `null` the persisted `targetModel` is left alone: it is Auto's
+ * fallback id, and turning Auto off mid-session must return the user to their
+ * own last pick (the store's contract), not to anything stored here.
  */
 export function ProfileHydrator({
   theme,
@@ -17,7 +27,8 @@ export function ProfileHydrator({
   userId,
 }: {
   theme: Theme;
-  defaultModel: TargetModelId;
+  /** `null` = no stored default — the load starts on Auto. */
+  defaultModel: TargetModelId | null;
   userId: string;
 }) {
   const hydrated = useRef(false);
@@ -35,8 +46,10 @@ export function ProfileHydrator({
     const accountChanged = previous !== null && previous !== userId;
     useUIStore.setState({
       theme,
-      targetModel: defaultModel,
       userId,
+      ...(defaultModel === null
+        ? { autoTarget: true }
+        : { targetModel: defaultModel, autoTarget: false }),
       ...(accountChanged ? { editorDraft: "" } : {}),
     });
     // The last enhancement result rides the same shared-device rule as the

@@ -19,6 +19,9 @@ import { TARGET_ROUTING, blendedPrice, type SpeedClass } from "@/lib/providers/m
  * so a literal "auto" could never be written to any of them. The route
  * resolves it to a real id before anything else looks at the target, and the
  * resolved id is what's stored and what `resolvedTarget` reports back.
+ * (`profiles.default_model` went NULLABLE in 2026-08 — null there means "no
+ * stored default, start on Auto". Absence is the representation; the enum
+ * still never grows an 'auto' label.)
  *
  * The policy, in reading order:
  *

@@ -61,9 +61,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider>
+      {/* A missing profile row hydrates as null — "no stored default", i.e.
+          Auto — the same reading a freshly-created account gets. */}
       <ProfileHydrator
         theme={profile?.theme ?? "system"}
-        defaultModel={profile?.default_model ?? "opus_5"}
+        defaultModel={profile?.default_model ?? null}
         userId={user.id}
       />
       <OutboxFlusher userId={user.id} />

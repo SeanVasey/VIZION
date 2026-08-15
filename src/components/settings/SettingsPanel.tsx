@@ -80,6 +80,7 @@ export function SettingsPanel({
 }) {
   const router = useRouter();
   const setTargetModel = useUIStore((s) => s.setTargetModel);
+  const setAutoTarget = useUIStore((s) => s.setAutoTarget);
   const reducedEffects = useUIStore((s) => s.reducedEffects);
   const setReducedEffects = useUIStore((s) => s.setReducedEffects);
   const { status, write } = useSettingWrite();
@@ -159,19 +160,34 @@ export function SettingsPanel({
   }
 
   // --- Defaults (control-commit with rollback) ---
-  const [defaultModel, setDefaultModel] = useState<TargetModelId>(
-    profile.default_model as TargetModelId,
+  // `null` = no stored default — the account starts on Auto (the picker's
+  // Auto row is this control's CLEAR). The live store is written through on
+  // both paths so the composer reflects the choice immediately, mirroring
+  // what ProfileHydrator will do on the next load: concrete → that model,
+  // Auto off; cleared → Auto on, last pick kept as Auto's fallback.
+  const [defaultModel, setDefaultModel] = useState<TargetModelId | null>(
+    profile.default_model,
   );
-  function changeDefaultModel(model: TargetModelId) {
+  function changeDefaultModel(model: TargetModelId | null) {
     const prev = defaultModel;
+    const prevAuto = useUIStore.getState().autoTarget;
     setDefaultModel(model);
-    setTargetModel(model);
+    if (model === null) {
+      setAutoTarget(true);
+    } else {
+      setTargetModel(model);
+      setAutoTarget(false);
+    }
     write(
       "default_model",
       () => updateProfileAction({ default_model: model }),
       () => {
+        // Roll back every knob the optimistic write touched — including the
+        // Auto toggle, or a failed clear would leave the composer on Auto
+        // while the account still holds a concrete default.
         setDefaultModel(prev);
-        setTargetModel(prev);
+        setAutoTarget(prevAuto);
+        if (prev !== null) setTargetModel(prev);
       },
     );
   }
@@ -366,11 +382,24 @@ export function SettingsPanel({
       <SettingsSection title="Defaults">
         <Field label="Default model">
           {/* Same grouped sheet as the composer's target rail — one picker, so
-              the two surfaces can't drift in ordering or grouping. */}
+              the two surfaces can't drift in ordering or grouping. The Auto
+              pair is wired WITHOUT the preference pair, so the sheet offers
+              the Auto row (this control's clear — default_model becomes null)
+              and no tuning dial: the routing budget is a per-run knob, not an
+              account default. `value` needs a concrete id for the sheet's
+              roving fallback; under Auto no row renders checked and the
+              trigger reads "Auto", so the fallback never shows. */}
           <TargetPicker
             label="Default model"
-            value={defaultModel}
+            value={defaultModel ?? "opus_5"}
             onChange={changeDefaultModel}
+            auto={defaultModel === null}
+            onAutoChange={(on) => {
+              // The off-case is onPick's job: choosing a model IS clearing
+              // Auto, and it arrives through onChange with the id.
+              if (on) changeDefaultModel(null);
+            }}
+            autoDescription="No default — each session starts on Auto"
             triggerClassName="glass font-body flex min-h-[44px] w-full items-center gap-2 rounded-xl px-3 text-sm text-text hover-hair transition-colors"
           />
         </Field>
