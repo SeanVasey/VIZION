@@ -40,16 +40,22 @@ import { useHoldDrag, type HoldActive } from "@/components/ui/use-hold-drag";
 export interface Detent {
   id: string;
   label: string;
-  tone: "faint" | "silver" | "laser" | "ultra";
+  tone: "faint" | "silver" | "steel" | "ultra";
 }
 
-/** The fill ramp's color per tone. Laser and ultra are the accent tokens
- *  themselves — this is a TEXT-FREE fill, the one place tokens.css permits
- *  raw --laser (the chip above carries the readout in text-safe ink). */
+/** The fill ramp's color per tone. The sub-ultra range is a MONOCHROME silver
+ *  progression (owner direction, 2026-08-15: the old silver→laser→ultra ramp
+ *  "creates a really ugly gradient" — the track now stays quiet until the
+ *  ultra tier, which is the only stop that earns colour). The three mixes
+ *  must stay monotonic — faint < silver < steel — so the fill still reads as
+ *  intensity rising; the exact percentages are a capture-tuned taste pass
+ *  (dial-capture.spec.ts). Ultra is the token itself: at the ultra stops the
+ *  wash floods the fill solid, and the ramp's own tail is what shows during
+ *  the flood's first frames. */
 const TONE_COLOR: Record<Detent["tone"], string> = {
-  faint: "color-mix(in srgb, var(--silver) 22%, transparent)",
-  silver: "color-mix(in srgb, var(--silver) 55%, transparent)",
-  laser: "var(--laser)",
+  faint: "color-mix(in srgb, var(--silver) 16%, transparent)",
+  silver: "color-mix(in srgb, var(--silver) 34%, transparent)",
+  steel: "color-mix(in srgb, var(--silver) 58%, transparent)",
   ultra: "var(--ultra-ink)",
 };
 
@@ -81,12 +87,12 @@ const TONE_HOLD = 0.55;
  *
  * Each tone then HOLDS for TONE_HOLD of the gap before blending into the
  * next, which is not a stylistic flourish — it is what keeps the ramp out of
- * sRGB's mud. Laser and ultra sit almost opposite each other on the wheel, so
- * a straight sRGB line between them runs through a pale cream (measured, both
- * engines: the top of the ladder washed out exactly where it should have been
- * most intense). Holding each tone and compressing the blend into the back of
- * the gap keeps every detent sitting in its OWN pure color — which is the
- * colour-coding's whole job — and narrows the wash to a seam.
+ * sRGB's mud. The hazard it was built against was the laser→ultra seam (near
+ * wheel-opposites, whose straight sRGB line ran through a pale cream —
+ * measured, both engines); the 2026-08-15 monochrome ramp removed laser, but
+ * the hold survives it: the silver→ultra seam still crosses a desaturated
+ * band, and holding each tone keeps every detent sitting in its OWN color —
+ * which is the colour-coding's whole job — with the blend narrowed to a seam.
  *
  * Interpolating in a perceptual space was the obvious alternative and is
  * rejected on portability: `in oklch` does give the reference recording's
@@ -117,12 +123,15 @@ function rampGradient(
   return `linear-gradient(90deg, ${stops.join(", ")})`;
 }
 
-/** Live-label ink per tone. Laser is NEVER text (1.09:1 on light) — the
- *  text-safe `--accent-ink` carries that tier; ultra-ink is AA everywhere. */
+/** Live-label ink per tone. One ink below ultra, deliberately: the sub-ultra
+ *  fill is a monochrome silver ramp, so the tier is carried by the label's
+ *  WORD (and the meter glyph), and only ultra earns colour — ultra-ink is AA
+ *  everywhere. The map keeps its four-key shape because it is the tone
+ *  vocabulary's seam, not because the values differ today. */
 const LABEL_CLASS: Record<Detent["tone"], string> = {
   faint: "text-silver",
   silver: "text-silver",
-  laser: "text-accent",
+  steel: "text-silver",
   ultra: "text-ultra",
 };
 
@@ -409,8 +418,14 @@ const BAR_MAX_PX = 20;
  *  - X is deliberately larger than the viewport, which looks wasteful and is
  *    not. The capsule clamps right-of-centre on a phone (x=245 of 393), so an
  *    ellipse sized to the capsule falls off soonest on the LEFT and left the
- *    left column of the prompt readable. X is set so the mask's PLATEAU still
- *    spans the full width from that off-centre origin.
+ *    left column of the prompt readable. X was sized so the mask's then-84%
+ *    plateau spanned the full width from that off-centre origin; the 2026-08-15
+ *    feather pulls the solid core in to 45% (see .hold-slider-blur), so the far
+ *    left column now sits in the falloff rather than at full treatment. That is
+ *    the feather's intent — softness over maximum obscuring — accepted with the
+ *    owner's direction; X stays at the measured value so the falloff still
+ *    reaches the edge, and widening it again is the knob if capture shows the
+ *    left column reading too clearly.
  */
 const HALO_X_PX = 220;
 const HALO_Y_PX = 196;
@@ -473,7 +488,7 @@ const COMPACT_HALO_SCALE = 0.5;
  * halo, which is that argument actually implemented.
  *
  * X is deliberately NOT clamped. It is already wider than the viewport by
- * design — the plateau has to span the full width from an off-centre capsule
+ * design — the falloff has to reach the far edge from an off-centre capsule
  * — and the ellipse's horizontal reach cannot make the treatment less local,
  * because there is no chrome on the left or right to overrun.
  */
@@ -489,10 +504,11 @@ const HALO_CHROME_GAP_PX = 8;
  * It does NOT apply vertically, and that asymmetry is the same one the halo's
  * own clamp has: there is chrome above and below and none to the sides. A
  * spread applied to Y put the dim ~35px past the blur's clamped edge and
- * therefore into the bottom nav, still around half strength there because the
- * fade only starts at 84% — so the blur was localized and the treatment as a
- * whole was not (Codex review, PR #110). Vertically the dim now ends exactly
- * where the blur's box does, which is what makes the clamp mean something.
+ * therefore into the bottom nav at meaningful strength (under the old profile
+ * the fade only started at 84%; even feathered, the outer band is not nothing)
+ * — so the blur was localized and the treatment as a whole was not (Codex
+ * review, PR #110). Vertically the dim now ends exactly where the blur's box
+ * does, which is what makes the clamp mean something.
  */
 const DIM_SPREAD_X = 1.16;
 
@@ -842,6 +858,24 @@ function HoldSliderOverlay({
                 backgroundImage: rampGradient(detents, centers, rampWidth),
               }}
             />
+            {/* The ultra flood (the reference recording's wash): while the
+                CURRENT detent is an ultra stop — both of them, not just the
+                peak — violet sweeps in from the thumb end and settles as a
+                solid fill over the grey ramp. UNDER the starfield, so the
+                specks keep drifting over the flooded fill; the old surge sat
+                above them and a solid wash there would have erased the
+                texture. No React key, deliberately: stepping xhigh↔max keeps
+                this node, so the settled `forwards` animation does not replay
+                — the fill merely widens and the stretched final frame is
+                solid at any width. Leaving the ultra tier unmounts it (the
+                grey ramp returns); re-entering replays the flood, which is
+                the arrival event. */}
+            {tone === "ultra" && (
+              <span
+                data-hold-slider-wash=""
+                className="hold-slider-wash absolute inset-0 block"
+              />
+            )}
             {/* The starfield — drifting specks inside the fill only, which is
                 where the reference control puts them. Pure CSS radial
                 gradients on a repeating tile: no image, no canvas, nothing
@@ -851,14 +885,6 @@ function HoldSliderOverlay({
               data-hold-slider-stars=""
               className="hold-slider-stars absolute inset-0 block"
             />
-            {/* Top stop only: the violet surge sweeps the fill, so arriving at
-                Max is an EVENT and not merely a wider bar. */}
-            {peak && (
-              <span
-                data-hold-slider-surge=""
-                className="hold-slider-surge absolute inset-0 block"
-              />
-            )}
           </div>
           {centers.map((x, i) => {
             const reached =

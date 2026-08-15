@@ -141,10 +141,32 @@ describe("TargetPicker — Auto routing", () => {
   }
 
   it("is not offered unless the caller wires it", () => {
-    // Settings must not show it: profiles.default_model is a model_target
-    // enum column, and "auto" has nowhere to be stored.
+    // The row carries a meaning only its caller can supply — per-run routing
+    // in the composer, clear-the-default in Settings (nullable since
+    // 2026-08-15) — so a caller that wires neither pair gets no row at all
+    // rather than a control that would do nothing.
     open();
     expect(screen.queryByRole("radio", { name: /^auto/i })).toBeNull();
+  });
+
+  it("lets a caller reword the Auto row for its own meaning", () => {
+    // Settings' clear-the-default row must not promise per-run routing: the
+    // description is prop-driven (picker stays store-free), defaulting to the
+    // composer's routing copy.
+    render(
+      <TargetPicker
+        label="Default model"
+        value="sonnet_5"
+        onChange={vi.fn()}
+        auto={false}
+        onAutoChange={vi.fn()}
+        autoDescription="No default — each session starts on Auto"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /default model/i }));
+    const row = screen.getByRole("radio", { name: /^auto/i });
+    expect(row.textContent).toContain("No default — each session starts on Auto");
+    expect(row.textContent).not.toContain("Picks a model to suit");
   });
 
   it("offers Auto above the developer groups", () => {

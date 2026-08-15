@@ -255,15 +255,16 @@ describe("thinking rail behaviour", () => {
     // opening the capsule — the ultra tier in ultra ink…
     expect(screen.getByText("Max").className).toContain("text-ultra");
 
-    // …the middle of the ladder in the text-safe accent (never raw laser —
-    // laser-as-text is 1.09:1 on light, guardrail §6)…
+    // …while the middle of the ladder stays in the monochrome silver: the
+    // sub-ultra ramp is one family (2026-08-15), so the tier is carried by
+    // the WORD and the meter's filled bars, and only ultra earns colour…
     useUIStore.setState({ thinkingLevels: { opus_5: "high" } });
     rerender(
       <ToastProvider>
         <EnhanceComposer />
       </ToastProvider>,
     );
-    expect(screen.getByText("High").className).toContain("text-accent");
+    expect(screen.getByText("High").className).toContain("text-silver");
 
     // …and Auto keeps the neutral full meter in Silver, the original mark.
     useUIStore.setState({ thinkingLevels: {} });
@@ -454,7 +455,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientX: DOWN_X + 3 * DETENT_SPACING_PX,
       clientY: 400,
     });
-    expect(fill().getAttribute("data-tone")).toBe("laser"); // high
+    expect(fill().getAttribute("data-tone")).toBe("steel"); // high
     fireEvent.pointerMove(trigger, {
       pointerId: 1,
       clientX: DOWN_X + 5 * DETENT_SPACING_PX,
@@ -593,7 +594,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "medium" });
   });
 
-  it("marks the top stop as an event — burst, surge and its cost caption", () => {
+  it("marks the ultra tier with the wash, and the top stop with its fanfare", () => {
     renderComposer();
     fireEvent.pointerDown(thinkingTrigger(), {
       pointerId: 1,
@@ -604,15 +605,26 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     act(() => {
       vi.advanceTimersByTime(HOLD_MS);
     });
-    // Below the top: no burst, no surge, no caption — they would be noise on
-    // a stop that costs nothing out of the ordinary.
+    // Below the ultra tier: no wash, no burst, no caption — the grey ramp
+    // is the whole story on a stop that costs nothing out of the ordinary.
     fireEvent.pointerMove(thinkingTrigger(), {
       pointerId: 1,
       clientX: DOWN_X + 3 * DETENT_SPACING_PX,
       clientY: 400,
     });
     expect(overlay()!.querySelector("[data-hold-slider-burst]")).toBeNull();
-    expect(overlay()!.querySelector("[data-hold-slider-surge]")).toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-wash]")).toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
+
+    // Extra High — the FIRST ultra stop — floods, without the peak's fanfare
+    // ("once it reaches the purples, the purple takes over" — 2026-08-15).
+    fireEvent.pointerMove(thinkingTrigger(), {
+      pointerId: 1,
+      clientX: DOWN_X + 4 * DETENT_SPACING_PX,
+      clientY: 400,
+    });
+    expect(overlay()!.querySelector("[data-hold-slider-wash]")).not.toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-burst]")).toBeNull();
     expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
 
     fireEvent.pointerMove(thinkingTrigger(), {
@@ -621,7 +633,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientY: 400,
     });
     expect(overlay()!.querySelector("[data-hold-slider-burst]")).not.toBeNull();
-    expect(overlay()!.querySelector("[data-hold-slider-surge]")).not.toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-wash]")).not.toBeNull();
     // The caption states the COST, which is the one thing "Max" does not.
     expect(overlay()!.querySelector("[data-hold-slider-caption]")!.textContent).toMatch(
       /highest cost/i,

@@ -3875,3 +3875,58 @@ test:e2e` hard-fails in global-setup until
   against the old detent centers, so recomputing geometry without re-deriving it
   teleported the value under the hand, which is the exact failure that offset
   exists to prevent, arriving through the fix for a different one.
+
+## 2026-08-15 — quiet ramp · ultra wash · feathered halo · clearable default
+
+- **A measured optimum can be superseded by direction — record the
+  supersession or an audit will "fix" it back.** The halo's 84% plateau was
+  the OUTPUT of amendment 1b's high-pass measurement round, tuned for maximum
+  obscuring; the owner read its edge as "a weird grey bubble". The feather
+  knowingly regresses the obscuring scores. Writing that trade into the ADR
+  (and keeping the method note for whoever retunes) is what stops the next
+  measurement pass from restoring the plateau as a "regression fix" — the
+  same reversal-chain rule the Reset button's changelog already carries.
+- **Pin a gradient's SHAPE, not its numbers.** The anti-plateau contract
+  (monotonic alpha decay, solid core ≤ 50%, transparent edge, both mask
+  prefixes byte-equal) leaves every stop retunable while making the rejected
+  look unexpressible. And prove the guard fails: replaying the parser against
+  the OLD stops (rejected: "too few stops") is what separates a regression
+  test from one that merely passes today.
+- **`background-size: 300%` + position sweep = a flood whose settled frame is
+  solid at ANY element width.** The wash span stretches with the fill
+  (`inset-0`) while its width transitions; because the settled
+  background-position shows only the gradient's solid third, the stretch can
+  never expose a seam — which is what made the un-keyed node safe. Two
+  z-order/lifecycle rules found by reading, not rendering: the wash must sit
+  UNDER the starfield (the surge's old slot was above — a solid flood there
+  erases the texture), and it must NOT key on dragIndex or stepping xhigh↔max
+  replays the settled `forwards` animation.
+- **A tone id is part of the prose contract.** `laser` naming a grey fill
+  would have been the chevron-over-no-dropdown lie in vocabulary form; the
+  rename cost one typecheck pass precisely because tone ids never persist and
+  never cross the wire. Check that BEFORE renaming — the same rename on a
+  persisted id is a store migration (ui-store lesson, 2026-07).
+- **"None" for a shared enum column is nullability, never a new label.**
+  `model_target` is shared with two ledger columns where a literal 'auto'
+  would lie about what ran, and check-model-enum exists to catch exactly that
+  addition. Dropping NOT NULL (+ the column default, for new accounts) gives
+  "no default" a representation with zero enum surgery and no deploy-order
+  hazard — the constraint-removal shape is safe on both sides of the deploy,
+  the opposite of the RENAME VALUE lesson.
+- **An optimistic write must roll back every knob it touched.** The clear
+  path writes three (`defaultModel`, `autoTarget`, and conditionally
+  `targetModel`); a rollback restoring only the first leaves the composer on
+  Auto while the account still holds a concrete default — the exact
+  misalignment the feature exists to remove. Capture prior state for ALL of
+  them before applying.
+- **Overriding persisted device state can be the FEATURE — say so where the
+  state is declared.** ProfileHydrator now forces `autoTarget` both ways on
+  load (owner: Settings is authoritative for what the app opens on). Written
+  only in the hydrator, that reads as a hydration bug against the store's
+  "device-local" comment — so the store comment now carries the load-time
+  exception too. When two files share a contract, the exception goes in both.
+- **A background e2e run's build snapshot frees the tree for the NEXT part's
+  edits — after `next-server` is up.** The webServer chain builds first, so
+  source edits during the build corrupt the run, and edits after the server
+  is listening touch only the next build. Polling for the server process is
+  the cheap gate that let parts B and C proceed under A's and B's suites.

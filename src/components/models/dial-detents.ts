@@ -18,32 +18,34 @@ import {
  */
 
 /** Hold-slider tone per thinking level — keyed to the level's IDENTITY, never
- *  its ladder position (the DepthGlyph rule), so "high" wears the same laser
- *  on Grok's 3-step ladder as on Fable's 5-step one. The ramp mirrors the
- *  meter glyph's vocabulary: muted silver below the accent, laser through the
- *  middle, the ultra violet for the two tiers above High. */
+ *  its ladder position (the DepthGlyph rule), so "high" wears the same steel
+ *  on Grok's 3-step ladder as on Fable's 5-step one. The ladder is a
+ *  monochrome silver progression that brightens with depth — faint, silver,
+ *  steel — and only the two tiers above High earn colour, the ultra violet
+ *  the wash then floods (owner direction, 2026-08-15: no laser in the
+ *  track). */
 export const LEVEL_TONE: Record<ThinkingLevel, Detent["tone"]> = {
   minimal: "silver",
   low: "silver",
-  medium: "laser",
-  high: "laser",
+  medium: "steel",
+  high: "steel",
   xhigh: "ultra",
   max: "ultra",
 };
 
 /**
- * A tone as TRIGGER INK. Not the same map as the overlay's fill ramp, and
- * deliberately so: `laser` is a fill-only token (laser-as-text is 1.09:1 on
- * light — guardrail §6), so the accent tier reads through the text-safe
- * --accent-ink here while the capsule's fill uses raw --laser. `faint` and
- * `silver` share the muted role: at rest the difference between "no level
- * set" and "a low one" is carried by the label's WORD and the meter glyph's
- * filled bars, not by two shades of grey a user would have to compare.
+ * A tone as TRIGGER INK. One ink below ultra: the sub-ultra ramp is a
+ * monochrome silver progression (2026-08-15), so at rest the tier is carried
+ * by the label's WORD and the meter glyph's filled bars, not by shades of
+ * grey a user would have to compare — and only the ultra tier earns colour,
+ * in the text-safe ultra ink (AA in both themes). Kept as a full tone map,
+ * not a boolean, because it is the tone vocabulary's seam: a tone that ever
+ * earns its own ink again changes one line here and nothing else.
  */
 export const TONE_INK_CLASS: Record<Detent["tone"], string> = {
   faint: "text-silver",
   silver: "text-silver",
-  laser: "text-accent",
+  steel: "text-silver",
   ultra: "text-ultra",
 };
 
@@ -70,7 +72,7 @@ export function buildThinkingDetents(ladder: readonly ThinkingLevel[]): Detent[]
 export const BUDGET_DETENTS: Detent[] = [...AUTO_PREFERENCES].reverse().map((p) => ({
   id: p,
   label: AUTO_PREFERENCE_LABEL[p],
-  tone: p === "budget" ? "silver" : p === "balanced" ? "laser" : "ultra",
+  tone: p === "budget" ? "silver" : p === "balanced" ? "steel" : "ultra",
 }));
 
 /**

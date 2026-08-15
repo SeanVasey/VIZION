@@ -37,8 +37,8 @@ import {
 const DETENTS: readonly Detent[] = [
   { id: "auto", label: "Auto", tone: "faint" },
   { id: "low", label: "Low", tone: "silver" },
-  { id: "medium", label: "Medium", tone: "laser" },
-  { id: "high", label: "High", tone: "laser" },
+  { id: "medium", label: "Medium", tone: "steel" },
+  { id: "high", label: "High", tone: "steel" },
   { id: "xhigh", label: "Extra High", tone: "ultra" },
   { id: "max", label: "Max", tone: "ultra" },
 ];
@@ -643,9 +643,12 @@ describe("tap vs hold", () => {
     moveTo(DOWN_X + 2 * DETENT_SPACING_PX);
     expect(thumb().style.left).toBe(dots()[2]!.style.left);
     // The core takes the tone's own ramp color, so it and the fill can never
-    // disagree about what the level is (ADR-0014: one TONE_COLOR map).
-    expect(core().dataset.tone).toBe("laser");
-    expect(core().style.backgroundColor).toContain("--laser");
+    // disagree about what the level is (ADR-0014: one TONE_COLOR map). The
+    // sub-ultra ramp is monochrome (2026-08-15), so steel is a silver mix —
+    // and never the retired laser.
+    expect(core().dataset.tone).toBe("steel");
+    expect(core().style.backgroundColor).toContain("--silver");
+    expect(core().style.backgroundColor).not.toContain("--laser");
     moveTo(DOWN_X + 4 * DETENT_SPACING_PX);
     expect(core().dataset.tone).toBe("ultra");
     expect(core().style.backgroundColor).toContain("--ultra-ink");
@@ -1373,19 +1376,54 @@ describe("the latched phase (latchOnTap)", () => {
     tapOpen();
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(overlay()!.querySelector("[data-hold-slider-burst]")).toBeNull();
-    expect(overlay()!.querySelector("[data-hold-slider-surge]")).toBeNull();
     expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
     fireEvent.keyDown(window, { key: "End" });
     expect(overlay()!.querySelector("[data-hold-slider-burst]")).not.toBeNull();
-    expect(overlay()!.querySelector("[data-hold-slider-surge]")).not.toBeNull();
     expect(overlay()!.querySelector("[data-hold-slider-caption]")!.textContent).toBe(
       "Costs the most",
     );
-    // Leaving the top takes all three with it — none of them is a state the
-    // capsule can get stuck in.
+    // Leaving the top takes both with it — neither is a state the capsule
+    // can get stuck in.
     fireEvent.keyDown(window, { key: "ArrowLeft" });
     expect(overlay()!.querySelector("[data-hold-slider-burst]")).toBeNull();
     expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
+  });
+
+  it("floods the fill at EVERY ultra stop, without replaying between them", () => {
+    // The wash is tone-gated, not peak-gated ("once it reaches the purples,
+    // the purple takes over the entire gradient" — owner, 2026-08-15): both
+    // ultra stops flood; the burst and caption above stay peak-only, so the
+    // second ultra stop is a wash without the arrival fanfare.
+    render(<Host latchOnTap peakCaption="Costs the most" />);
+    tapOpen();
+    const wash = () =>
+      overlay()!.querySelector<HTMLElement>("[data-hold-slider-wash]");
+    // Steel (index 3): quiet ramp, no wash.
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(wash()).toBeNull();
+    // Extra High (first ultra stop): the flood, but not the peak's fanfare.
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    const atXhigh = wash();
+    expect(atXhigh).not.toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-burst]")).toBeNull();
+    expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
+    // Max: the SAME node — stepping within the ultra tier must not replay
+    // the settled `forwards` flood (the span is deliberately un-keyed).
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(wash()).toBe(atXhigh);
+    // The wash lives UNDER the starfield: the specks keep drifting over the
+    // flooded fill, so the wash must paint before the stars in DOM order.
+    const fill = overlay()!.querySelector<HTMLElement>("[data-tone]")!;
+    const children = [...fill.children];
+    expect(
+      children.indexOf(atXhigh!),
+    ).toBeLessThan(children.indexOf(fill.querySelector("[data-hold-slider-stars]")!));
+    // Dropping below the tier unmounts it — the grey ramp returns.
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(wash()).toBeNull();
   });
 
   it("lays the ramp across the TRACK, pinned to the detents' own tones", () => {
@@ -1413,8 +1451,11 @@ describe("the latched phase (latchOnTap)", () => {
     for (let i = 0; i < DETENTS.length - 1; i++) {
       expect(positions[i * 2 + 1]!).toBeLessThan(positions[i * 2 + 2]!);
     }
-    expect(image.indexOf("--silver")).toBeLessThan(image.indexOf("--laser"));
-    expect(image.indexOf("--laser")).toBeLessThan(image.indexOf("--ultra-ink"));
+    // Monochrome below ultra (2026-08-15): silver-family mixes up the ladder,
+    // the ultra violet at the top, and the retired laser nowhere at all.
+    expect(image.indexOf("--silver")).toBeGreaterThanOrEqual(0);
+    expect(image.indexOf("--silver")).toBeLessThan(image.indexOf("--ultra-ink"));
+    expect(image).not.toContain("--laser");
     // Sized to the track, not to the fill it is seen through.
     const trackWidth = Number(String(overlay()!.style.width).replace("px", ""));
     const rampWidth = Number(String(ramp.style.width).replace("px", ""));
@@ -2116,14 +2157,14 @@ describe("the resting mini-track", () => {
     // and the track it opens can never disagree about a level's colour.
     expect(parts().fill.style.backgroundColor).toContain("--ultra-ink");
 
-    rerender(<HoldSliderHint value={2} max={5} tone="laser" />);
+    rerender(<HoldSliderHint value={2} max={5} tone="steel" />);
     const mid = Number.parseFloat(parts().thumb.style.left);
     expect(mid).toBeGreaterThan(bottom);
     expect(mid).toBeLessThan(top);
   });
 
   it("keeps the thumb taller than its rail — a slider, not a switch", () => {
-    render(<HoldSliderHint value={2} max={5} tone="laser" />);
+    render(<HoldSliderHint value={2} max={5} tone="steel" />);
     const { fill, thumb } = parts();
     expect(Number.parseFloat(thumb.style.height)).toBeGreaterThan(
       Number.parseFloat(fill.style.height),
@@ -2151,7 +2192,7 @@ describe("the resting mini-track", () => {
   });
 
   it("stays decoration — the pill's label and role are the readout", () => {
-    render(<HoldSliderHint value={3} max={5} tone="laser" />);
+    render(<HoldSliderHint value={3} max={5} tone="steel" />);
     expect(parts().root.getAttribute("aria-hidden")).toBe("true");
     expect(parts().root.textContent).toBe("");
   });

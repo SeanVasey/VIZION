@@ -102,7 +102,11 @@ interface UIState {
   reducedEffects: boolean;
   /** Let the server pick the model per run. `targetModel` stays whatever the
    *  user last chose and rides along as the fallback — turning Auto off must
-   *  return them to their own pick, not to a default. */
+   *  return them to their own pick, not to a default. Once per LOAD,
+   *  ProfileHydrator overrides this from the account's stored default: a
+   *  concrete `profiles.default_model` starts the load with Auto off, a
+   *  cleared one (null) starts it on Auto (owner decision, 2026-08-15 —
+   *  Settings is authoritative for what the app opens on). */
   autoTarget: boolean;
   /** How Auto weighs strength against price (quality / balanced / budget).
    *  Device-local like reducedEffects — a tuning knob, not identity — and
