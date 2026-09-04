@@ -3961,7 +3961,8 @@ test:e2e` hard-fails in global-setup until
 - **A manifest is fetched with credentials OMITTED by spec.** Even same-origin,
   even with cookies set, unless the link carries
   `crossorigin="use-credentials"`. Vercel's preview protection is a cookie, so
-  every preview served the page and 401'd the manifest, and iOS installed
+  every preview served the page and redirected the manifest fetch to Vercel's
+  SSO page (a 302, measured on the PR's preview), and iOS installed
   without a name, icons or display mode from it. Next's `metadata.manifest`
   cannot express the attribute — hand-write the link, drop the metadata key
   (first link wins, a second is dead), and pin it in e2e. Corollary for the

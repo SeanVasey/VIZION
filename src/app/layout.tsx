@@ -203,8 +203,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `crossorigin="use-credentials"` — cookies stay home even for a
             same-origin URL. Vercel's Deployment Protection on preview builds
             is a cookie (`_vercel_jwt`), so on every preview the browser could
-            read the page and NOT the manifest: the fetch came back a 401 SSO
-            page, the manifest was silently discarded, and everything it
+            read the page and NOT the manifest: the fetch was 302-redirected to
+            Vercel's SSO page (measured on this branch's preview, 2026-09-04),
+            the manifest was silently discarded, and everything it
             declares — the app's NAME for the Home Screen, its icons, standalone
             display — fell back to whatever the install flow uses without one.
             That is the shape of "Add to Home Screen shows the page's title

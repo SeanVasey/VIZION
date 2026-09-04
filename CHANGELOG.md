@@ -47,8 +47,8 @@ Per the Web App Manifest spec a manifest is fetched with credentials
 **omitted** unless the link says `crossorigin="use-credentials"` — cookies stay
 home even for a same-origin URL. Vercel's Deployment Protection on preview
 builds is a cookie, so on every preview the browser could read the page and not
-the manifest: the fetch came back a 401 SSO page, the manifest was silently
-discarded, and everything it declares — the app's **name** for the Home Screen
+the manifest: the fetch was redirected to Vercel's SSO page (a 302 with no manifest
+body — measured on this branch's preview), the manifest was silently discarded, and everything it declares — the app's **name** for the Home Screen
 sheet, its icons, `standalone` display — fell back to whatever the install
 flow uses without one. That is the shape of "Add to Home Screen shows the page
 title, route first, instead of VIZION". The link is now hand-written in the

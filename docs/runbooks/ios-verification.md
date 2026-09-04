@@ -116,7 +116,8 @@ opposite of what this runbook previously told the next reader to assume.
 that date the manifest link carried no `crossorigin="use-credentials"`, and a
 manifest is fetched with credentials omitted by spec — so on a preview
 deployment behind Vercel's cookie-based protection the page loaded and the
-manifest came back a 401 SSO page. Any observation made on a protected preview
+manifest fetch was redirected to Vercel's SSO page (a 302, measured on the #114
+preview on 2026-09-04). Any observation made on a protected preview
 before then about what iOS does WITH the manifest (row 2's precedence question
 included) was made against a device that had no manifest at all. Row 2 stays
 "not established"; re-measure it on a build that carries the credentialed link

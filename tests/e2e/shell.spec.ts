@@ -301,8 +301,9 @@ test.describe("VIZION shell + auth gate", () => {
     // The Web App Manifest spec fetches the manifest with credentials OMITTED
     // unless the link says `crossorigin="use-credentials"` — even same-origin
     // cookies stay home. Vercel's preview Deployment Protection is a cookie, so
-    // without the attribute every preview served the page and 401'd the
-    // manifest, and the install flow lost the app's NAME (the Home Screen sheet
+    // without the attribute every preview served the page and answered the
+    // manifest fetch with a 302 to Vercel's SSO page (measured 2026-09-04), so
+    // the install flow lost the app's NAME (the Home Screen sheet
     // fell back to the page title, route first), its icons and its display
     // mode. There must be exactly ONE manifest link (a browser reads only the
     // first), it must be the credentialed one, and it must be in the SSR head —

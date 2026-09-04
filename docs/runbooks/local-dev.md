@@ -64,8 +64,8 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 - The manifest link is hand-written in the root layout's `<head>` with
   `crossOrigin="use-credentials"`, not declared through `metadata.manifest`:
   a manifest is fetched with credentials omitted by spec, and Vercel's preview
-  protection is a cookie, so without the attribute a preview 401s its own
-  manifest and installs without a name. Keep it that way; the e2e head test
+  protection is a cookie, so without the attribute a preview redirects its own
+  manifest fetch to Vercel's SSO page and installs without a name. Keep it that way; the e2e head test
   pins exactly one credentialed link.
 - Share artwork is a separate script: `npm run generate:social` writes
   `public/brand/og-tile.png` (square, the `og:image`) and
