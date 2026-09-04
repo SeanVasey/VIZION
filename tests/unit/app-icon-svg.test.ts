@@ -5,7 +5,6 @@ import {
   OUTLINE_WIDTH,
   SCALABLE_ICON,
   outlinedColorway,
-  rgbDistance,
 } from "../../scripts/generate-icons.mjs";
 
 /**
@@ -18,11 +17,9 @@ import {
  * job was to keep the mark legible on whichever plate the appearance chose.
  * The outlined colorway (ADR-0017) makes the mark legible on either plate by
  * construction, so the swap is gone, and what is asserted here is the source
- * contract of the artwork that replaced it: a FLAT Laser plate (one colour a
- * background-separating dark-mode pass can find — ADR-0017 amendment 1), a
- * lime ramp on the mark that never comes near the plate's colour (so such a
- * pass cannot take the fill with the plate), the Void outline painted UNDER
- * the fill, and no appearance branch left to reintroduce the old fragility.
+ * contract of the artwork that replaced it: the Laser lighting ramp on the
+ * plate, the Laser ramp on the mark, the Void outline painted UNDER the fill,
+ * and no appearance branch left to reintroduce the old fragility.
  *
  * That the artwork actually PAINTS that way is a separate question a string
  * cannot answer, and it is answered by render in tests/e2e/shell.spec.ts ("the
@@ -58,48 +55,25 @@ function stops(id: string) {
   );
 }
 
-/** Relative luminance-ish (Rec. 709 weights on raw sRGB) — enough to order two lime stops. */
-function luma(hex: string) {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
-}
-
 /** Every painted <rect>/<path>, in document order, as its attribute string. */
 const painted = SVG.match(/<(?:rect|path)\b[^>]*>/g) ?? [];
 const paths = painted.filter((el) => el.startsWith("<path"));
 
 describe("app-icon.svg — the outlined tile, one colorway", () => {
-  it("paints a FLAT Laser plate — one colour, so a background pass can find it", () => {
+  it("paints the plate with the Laser lighting ramp, top-lit", () => {
+    expect(stops("plate")).toEqual([C.plateTop, C.plateBottom]);
     const rect = painted.find((el) => el.startsWith("<rect"));
     expect(rect, "a full-bleed plate rect").toBeDefined();
-    expect(rect).toContain(`fill="${C.plate}"`);
-    expect(C.plate, "the plate IS --laser").toBe(token("laser"));
+    expect(rect).toContain('fill="url(#plate)"');
     expect(rect).toContain('width="1024"');
     expect(rect).toContain('height="1024"');
-    expect(
-      SVG,
-      "a plate gradient is what stopped iOS separating the tile (ADR-0017 amendment 1)",
-    ).not.toContain('id="plate"');
   });
 
-  /**
-   * On a dark ground the FILL is the only thing left carrying the mark, and
-   * iOS's dark-mode pass replaces the background it detects by colour. So the
-   * fill must be a colour the plate is not — at every stop, by a margin a
-   * keyed pass with tolerance cannot close (a simulated pass at tolerance 70
-   * ate the lower half of a mark whose bottom stop sat 61 units away).
-   */
-  it("fills the mark with a lime ramp that stays well clear of the plate colour", () => {
+  it("fills the mark with its own ramp, resting on the token at the bottom", () => {
     expect(stops("mark")).toEqual([C.markTop, C.markBottom]);
-    for (const stop of stops("mark")) {
-      expect(
-        rgbDistance(stop, C.plate),
-        `${stop} is too close to the plate ${C.plate} to survive a keyed background pass`,
-      ).toBeGreaterThanOrEqual(80);
-      expect(luma(stop), `${stop} must be lighter than the plate`).toBeGreaterThan(
-        luma(C.plate),
-      );
-    }
+    expect(C.markBottom, "the mark's base IS --laser, not a tint of it").toBe(
+      token("laser"),
+    );
   });
 
   /**

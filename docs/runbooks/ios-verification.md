@@ -103,15 +103,14 @@ measurement**: the owner photographed two installs of the app side by side, in
 both appearances, on an iOS 26 device. Recorded here because the answer is the
 opposite of what this runbook previously told the next reader to assume.
 
-| Question                                                                                  | Answer                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Does iOS read `<link rel="apple-touch-icon">` for the tile?                               | **Yes, definitely.** One install carried the light colorway (Void ink on a Laser plate), and that artwork exists nowhere but `apple-touch-icon.png` — the manifest's `any` entries were transparent Laser glyphs.                                                                                                                                                                                                                                                                                                                     |
-| Does iOS ALSO use the manifest `icons`, and at what precedence?                           | **Not established — do not read a "no" here.** The other install showed a Laser mark on black, which is `apple-touch-icon-dark.png` and the manifest's transparent glyph composited on black _rendered identically_. The photographs cannot separate them. An earlier revision of this row asserted "No, the manifest never reaches this surface"; that was an inference dressed as a measurement, and it was made against a build whose manifest contained no SVG at all.                                                            |
-| Does iOS evaluate `media` on `apple-touch-icon`?                                          | **No.** `media` selects `apple-touch-startup-image` (which is why the splash links resolve per device) but not icons. Apple's "last one wins" is what applies.                                                                                                                                                                                                                                                                                                                                                                        |
-| Does iOS re-resolve the tile when the appearance changes?                                 | **No.** It resolves ONCE, at capture, and freezes. Re-adding to the Home Screen is the only refresh.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| What does iOS do with a single tile under dark appearance?                                | **Auto-darkens it.** On the light tile (Void ink on a Laser plate) that pulls the plate to near-black and leaves the mark an invisible emboss.                                                                                                                                                                                                                                                                                                                                                                                        |
-| What does iOS 26 do, in dark appearance, with an outlined tile whose plate is a GRADIENT? | **Nothing — measured 2026-09-04 (owner screenshot).** The installed tile came back within ~5% of the authored pixels: plate `#C7F53C` / `#BCE92E` / `#AADB18` against `#CEFD40` → `#B3E422`, outline `#030700`, label "VIZION". Consistent with IconServices failing to separate a gradient background and falling back to at most a slight dim. The earlier FLAT tile (row 5) WAS separated — its plate went dark and its black mark was kept. So a flat plate is what gets swapped, and the mark must be a colour the plate is not. |
-| Does iOS select the `rel="icon"` / manifest SVG for the tile?                             | **No — measured 2026-08-13.** The one-step check below was run: install from a build carrying `app-icon.svg`, then toggle the system appearance without re-adding. The tile did not flip; a light-mode install still degraded to the emboss. Row 2's "not established" still stands for _precedence_ — what is now established is that the SVG is not what gets captured.                                                                                                                                                             |
+| Question                                                        | Answer                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Does iOS read `<link rel="apple-touch-icon">` for the tile?     | **Yes, definitely.** One install carried the light colorway (Void ink on a Laser plate), and that artwork exists nowhere but `apple-touch-icon.png` — the manifest's `any` entries were transparent Laser glyphs.                                                                                                                                                                                                                                                          |
+| Does iOS ALSO use the manifest `icons`, and at what precedence? | **Not established — do not read a "no" here.** The other install showed a Laser mark on black, which is `apple-touch-icon-dark.png` and the manifest's transparent glyph composited on black _rendered identically_. The photographs cannot separate them. An earlier revision of this row asserted "No, the manifest never reaches this surface"; that was an inference dressed as a measurement, and it was made against a build whose manifest contained no SVG at all. |
+| Does iOS evaluate `media` on `apple-touch-icon`?                | **No.** `media` selects `apple-touch-startup-image` (which is why the splash links resolve per device) but not icons. Apple's "last one wins" is what applies.                                                                                                                                                                                                                                                                                                             |
+| Does iOS re-resolve the tile when the appearance changes?       | **No.** It resolves ONCE, at capture, and freezes. Re-adding to the Home Screen is the only refresh.                                                                                                                                                                                                                                                                                                                                                                       |
+| What does iOS do with a single tile under dark appearance?      | **Auto-darkens it.** On the light tile (Void ink on a Laser plate) that pulls the plate to near-black and leaves the mark an invisible emboss.                                                                                                                                                                                                                                                                                                                             |
+| Does iOS select the `rel="icon"` / manifest SVG for the tile?   | **No — measured 2026-08-13.** The one-step check below was run: install from a build carrying `app-icon.svg`, then toggle the system appearance without re-adding. The tile did not flip; a light-mode install still degraded to the emboss. Row 2's "not established" still stands for _precedence_ — what is now established is that the SVG is not what gets captured.                                                                                                  |
 
 **Caveat on every manifest-dependent row above (recorded 2026-09-04).** Until
 that date the manifest link carried no `crossorigin="use-credentials"`, and a
@@ -138,33 +137,29 @@ half of it stands). What changed is the artwork behind the link
 ([ADR-0017](../decisions/0017-outlined-home-screen-icon.md)):
 
 - `metadata.icons.apple` is **one unconditional link** at
-  `/icons/apple-touch-icon.png` — a FLAT Laser plate under the mark FILLED in a
-  lighter lime ramp and STROKED in Void (ADR-0017 amendment 1). No `media`: iOS does
+  `/icons/apple-touch-icon.png` — a Laser plate under the mark FILLED in Laser
+  and STROKED in Void, a slight top-lit gradient on both. No `media`: iOS does
   not evaluate it on icons, so a query would imply a selection that never
   happens. With one link, "last one wins" is a tautology and there is no order
   left to get wrong.
 - The tile no longer has to be dark to survive. The dark tile was legible under
   every treatment because darkening dark artwork is a no-op — and it cost the
-  brand green the Home Screen. The outlined mark carries its own contrast, and
-  the plate is now FLAT so iOS's dark-mode pass can find it and swap it
-  (ADR-0017 amendment 1): on the Laser plate the Void outline reads; on the
-  swapped dark plate the pale lime fill reads — it is kept ≥ 80 RGB units from
-  the plate so a colour-keyed pass cannot take it too.
+  brand green the Home Screen. The outlined mark carries its own contrast: on
+  the Laser plate the Void outline reads; on a plate iOS has darkened or
+  replaced, the Laser fill reads.
 - `/icons/app-icon.svg` is the same outlined tile as vector, in ONE colorway.
   Its light/dark swap and its "default to the dark branch" rule are gone —
   both existed to keep the mark legible on whichever plate the appearance
   chose, and the outline makes the plate irrelevant to legibility.
 
-**MEASURED (2026-09-04) — the first outlined tile, whose plate was a
-gradient:** left alone in dark appearance (the row above). **OPEN — needs a
-device:** the FLAT-plated tile that replaced it. Expected in dark appearance:
-the plate swapped for the system's dark gradient with a pale lime mark kept on
-it (or a Laser mark, if iOS tints the foreground with the old background
-colour); in light appearance, the tile as authored. The one-step check: delete
-and re-add from a build carrying the flat `apple-touch-icon.png`, toggle the
-system appearance, photograph both. Existing installs keep whatever tile they
-captured; delete-and-re-add is the only refresh. Record the result in the
-table above, not in a code comment.
+**OPEN — needs a device (2026-09-04):** how iOS 26's darkening treats the
+outlined artwork. Two outcomes are designed for and neither is measured: a
+uniform dim (the outline stays far darker than the dimmed green; simulated here
+at 0.35× in sharp, clearly legible) and a plate replacement (the Laser fill
+carries the mark on the dark plate). The one-step check: install from a build
+carrying `apple-touch-icon.png`, toggle the system appearance, photograph both.
+Existing installs keep the dark tile they captured; delete-and-re-add is the
+only refresh. Record the result in the table above, not in a code comment.
 
 **Superseded, and recorded because each one shipped the bug** — three
 arrangements preceded this, all trying to make the tile follow the appearance:
