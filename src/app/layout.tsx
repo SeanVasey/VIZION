@@ -102,9 +102,9 @@ export const metadata: Metadata = {
    * never reached the Home Screen. The outlined tile — Laser plate, the mark
    * filled in Laser and stroked in Void, a slight lighting gradient on both —
    * does not depend on its plate for contrast: the outline carries the mark on
-   * the green plate, the fill carries it on a darkened one. How iOS 26's
-   * darkening actually treats this artwork is for a device pass to record in
-   * the runbook; nothing here assumes the answer.
+   * the green plate, the fill carries it on a darkened one. Measured on device
+   * (2026-09-04, runbook): in dark appearance iOS swaps the plate for a dark
+   * gradient and keeps the outlined mark pixel for pixel.
    *
    * The scalable icon stays FIRST among `rel="icon"` so a modern browser
    * prefers it over the rasters. It is the same outlined tile as vector, in

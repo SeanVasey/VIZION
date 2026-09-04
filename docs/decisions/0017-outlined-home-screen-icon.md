@@ -1,7 +1,7 @@
 # 17. The installed icon is outlined, so no treatment of its plate can hide it
 
 Date: 2026-09-04
-Status: accepted (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands)
+Status: accepted, confirmed on device 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change)
 
 ## Context
 
@@ -97,3 +97,32 @@ plate — intended, and visible.
 **If the device pass disagrees** — if iOS 26 does something to the plate that
 defeats both carriers — the answer is still not a second link, a `media` query
 or a matcher. Those are settled. It would be a different drawing.
+
+## Amendment 1 (2026-09-04) — measured on device, and a change withdrawn
+
+**Measured.** The owner installed this tile and photographed it in both
+appearances. Light: as authored (plate sampled `#C4F53C` top → `#A8DA16`
+bottom, the mark's fill `#CAF840`, its outline `#010701`). Dark: iOS
+_separated_ the tile — the plate replaced by a dark gradient derived from the
+plate's own colour (`#182110` top → `#070B0E` bottom), the mark kept pixel for
+pixel, fill `#CAF742` and outline `#020902`. That is this ADR's requirement met
+exactly: on the green plate the outline carries the mark; on the dark one the
+fill does.
+
+**Mechanism, for the record.** iOS 18 and later build a dark icon for an app
+that ships none by separating the image into a background and a foreground,
+replacing the background with a dark gradient and keeping the foreground
+(IconServices; Gui Rambo's analysis as reported by 9to5Mac, 2024-07-15). The
+flat Void-on-Laser tile of ADR-0015's era was separated the same way and lost
+only because the foreground it kept was black. "Auto-darkening" was the wrong
+word for it throughout.
+
+**A change withdrawn.** An earlier screenshot of the same install, taken in
+dark appearance shortly after adding, showed the plate still green — the dark
+variant had not yet been produced (iOS generates it after the fact; the exact
+trigger is not established). That screenshot was read as "iOS does not
+separate a gradient plate", and #116 flattened the plate and paled the fill to
+make separation more likely. The later screenshot shows the original artwork
+separated perfectly, so #116 is reverted and the artwork of this ADR stands as
+written. The lesson is in `tasks/lessons.md`: one screenshot of a freshly added
+web clip is not a measurement of its dark variant.

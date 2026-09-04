@@ -6,6 +6,19 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The outlined tile is confirmed on device, and #116 is reverted
+
+Owner screenshots of the installed tile, both appearances: light as authored;
+dark with the plate swapped for a dark gradient derived from the plate's
+colour and the outlined mark kept pixel for pixel — the requirement met
+exactly. An earlier dark-appearance screenshot of the same install had shown
+the plate still green, because iOS produces a web clip's dark variant after the
+fact; #116 read that as "iOS does not separate a gradient plate", flattened the
+plate and paled the fill, and is reverted here in full. The artwork, tests and
+docs of the outlined tile stand as #114 shipped them; the measurement is
+recorded in [ADR-0017, Amendment 1](./docs/decisions/0017-outlined-home-screen-icon.md)
+and the iOS runbook.
+
 ### The installed icon is outlined — the brand green comes back to the Home Screen
 
 Every surface a launcher installs — the Add-to-Home-Screen tile, the maskable

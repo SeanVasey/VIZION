@@ -142,9 +142,10 @@ when iOS crushed the plate toward the ink, and the dark tile that replaced it
 ([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)) survived every
 treatment only by keeping the brand green off the Home Screen. The outlined mark
 carries its own contrast instead: on the Laser plate the Void outline reads; on
-a plate an OS has darkened or replaced, the Laser fill reads. How iOS 26 treats
-this artwork on a device is not yet measured — see the runbook — and the design
-is built so that the answer cannot hide the mark either way.
+a plate an OS has darkened or replaced, the Laser fill reads. Measured on
+device (2026-09-04): in dark appearance iOS swaps the plate for a dark gradient
+and keeps the outlined mark pixel for pixel; in light it shows the tile as
+authored. The runbook carries the samples.
 
 The **arrangement** ADR-0015 settled is unchanged: `metadata.icons.apple` holds
 one unconditional link, at `/icons/apple-touch-icon.png`. **Do not add a second

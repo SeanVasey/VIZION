@@ -104,13 +104,13 @@ both appearances, on an iOS 26 device. Recorded here because the answer is the
 opposite of what this runbook previously told the next reader to assume.
 
 | Question                                                        | Answer                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Does iOS read `<link rel="apple-touch-icon">` for the tile?     | **Yes, definitely.** One install carried the light colorway (Void ink on a Laser plate), and that artwork exists nowhere but `apple-touch-icon.png` — the manifest's `any` entries were transparent Laser glyphs.                                                                                                                                                                                                                                                          |
 | Does iOS ALSO use the manifest `icons`, and at what precedence? | **Not established — do not read a "no" here.** The other install showed a Laser mark on black, which is `apple-touch-icon-dark.png` and the manifest's transparent glyph composited on black _rendered identically_. The photographs cannot separate them. An earlier revision of this row asserted "No, the manifest never reaches this surface"; that was an inference dressed as a measurement, and it was made against a build whose manifest contained no SVG at all. |
 | Does iOS evaluate `media` on `apple-touch-icon`?                | **No.** `media` selects `apple-touch-startup-image` (which is why the splash links resolve per device) but not icons. Apple's "last one wins" is what applies.                                                                                                                                                                                                                                                                                                             |
 | Does iOS re-resolve the tile when the appearance changes?       | **No.** It resolves ONCE, at capture, and freezes. Re-adding to the Home Screen is the only refresh.                                                                                                                                                                                                                                                                                                                                                                       |
 | What does iOS do with a single tile under dark appearance?      | **Auto-darkens it.** On the light tile (Void ink on a Laser plate) that pulls the plate to near-black and leaves the mark an invisible emboss.                                                                                                                                                                                                                                                                                                                             |
-| Does iOS select the `rel="icon"` / manifest SVG for the tile?   | **No — measured 2026-08-13.** The one-step check below was run: install from a build carrying `app-icon.svg`, then toggle the system appearance without re-adding. The tile did not flip; a light-mode install still degraded to the emboss. Row 2's "not established" still stands for _precedence_ — what is now established is that the SVG is not what gets captured.                                                                                                  |
+| \1                                                              | What does iOS 26 do with the outlined tile (Laser plate, outlined mark) in dark appearance?                                                                                                                                                                                                                                                                                                                                                                                | **Separates it — measured 2026-09-04 (owner screenshots).** The plate is replaced by a dark gradient derived from the plate's colour (`#182110` → `#070B0E`); the mark is kept pixel for pixel, fill and outline. The first dark-appearance screenshot after adding still showed the green plate — the variant is produced after the fact, so a photo taken right after adding is provisional. |
 
 **Caveat on every manifest-dependent row above (recorded 2026-09-04).** Until
 that date the manifest link carried no `crossorigin="use-credentials"`, and a
@@ -152,14 +152,18 @@ half of it stands). What changed is the artwork behind the link
   both existed to keep the mark legible on whichever plate the appearance
   chose, and the outline makes the plate irrelevant to legibility.
 
-**OPEN — needs a device (2026-09-04):** how iOS 26's darkening treats the
-outlined artwork. Two outcomes are designed for and neither is measured: a
-uniform dim (the outline stays far darker than the dimmed green; simulated here
-at 0.35× in sharp, clearly legible) and a plate replacement (the Laser fill
-carries the mark on the dark plate). The one-step check: install from a build
-carrying `apple-touch-icon.png`, toggle the system appearance, photograph both.
-Existing installs keep the dark tile they captured; delete-and-re-add is the
-only refresh. Record the result in the table above, not in a code comment.
+**MEASURED 2026-09-04 — the outlined tile, both appearances (owner
+screenshots).** Light: as authored. Dark: iOS separated the tile — the plate
+replaced by a dark gradient derived from the plate's colour (`#182110` →
+`#070B0E`), the mark kept pixel for pixel (fill `#CAF742`, outline `#020902`).
+An earlier dark-appearance screenshot of the same install showed the plate
+still green: the dark variant is produced after the fact, not at capture, and
+the exact trigger (time, a Home Screen re-render, the icon-style setting) is
+not established — so a dark-appearance photo taken right after adding is not
+yet a measurement. #116 read that first photo as "not separated", flattened
+the plate and paled the fill, and was reverted once the second photo arrived.
+The artwork of ADR-0017 stands. Existing installs keep the tile they captured;
+delete-and-re-add is the only refresh.
 
 **Superseded, and recorded because each one shipped the bug** — three
 arrangements preceded this, all trying to make the tile follow the appearance:

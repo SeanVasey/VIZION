@@ -3968,3 +3968,22 @@ test:e2e` hard-fails in global-setup until
   (first link wins, a second is dead), and pin it in e2e. Corollary for the
   runbook: any manifest-dependent observation made on a preview before this
   fix was made without a manifest.
+
+## One screenshot of a fresh web clip is not a measurement (2026-09)
+
+- **iOS produces a web clip's dark variant after the fact.** A
+  dark-appearance photo taken right after "Add to Home Screen" showed the
+  outlined tile's plate still green; a later photo of the same install showed
+  the plate swapped for a dark gradient and the mark kept pixel for pixel. The
+  first photo was read as "not separated" and a redesign shipped (#116: flat
+  plate, pale fill) before the second arrived. Reverted. Before redesigning
+  against a device observation, get the SAME install photographed twice,
+  minutes apart — and treat the first photo of a fresh install as provisional.
+- **Sampling the screenshot still paid off, twice.** The pixel samples proved
+  the first photo showed no treatment at all, and proved the second photo
+  showed the #114 tile (gradient plate, Laser-ramp fill) rather than #116's —
+  which is how the wrong redesign was caught within the hour.
+- **Name the mechanism correctly.** iOS separates an icon into background and
+  foreground and swaps the background; it does not dim the whole tile.
+  ADR-0015's "auto-darkening" was the wrong word, and it steered two rounds of
+  design. The docs now say "separates".

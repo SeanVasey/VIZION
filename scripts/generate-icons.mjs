@@ -47,10 +47,11 @@
 // What is measured about iOS (docs/runbooks/ios-verification.md) still stands
 // and still shapes the head: it reads `apple-touch-icon` once, ignores `media`
 // on icons, freezes the capture, and auto-darkens it under dark appearance. So
-// there is still exactly ONE apple link and no query. What is NOT measured is
-// how iOS 26's darkening treats THIS artwork — the design covers both outcomes
-// by construction, and the device pass that confirms it is recorded in the
-// runbook when it happens, not assumed here.
+// there is still exactly ONE apple link and no query. Measured on device
+// (2026-09-04, runbook): in dark appearance iOS SEPARATES the tile — the plate
+// swapped for a dark gradient, the outlined mark kept pixel for pixel — which
+// is exactly the outcome this artwork was drawn for. It does not dim the tile;
+// "auto-darkening" was the wrong word, and the variant appears after the fact.
 //
 // RULES (never work around)
 // -------------------------
