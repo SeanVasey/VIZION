@@ -123,8 +123,8 @@ change a derivative.
 
 The colorways are:
 
-- **Outlined** (Laser plate · Laser-filled mark · Void outline · a slight top-lit
-  gradient on both) — **everything a launcher installs**: the Add-to-Home-Screen
+- **Outlined** (flat Laser plate · Laser-filled mark with a slight top-lit ramp ·
+  Void outline) — **everything a launcher installs**: the Add-to-Home-Screen
   tile (`apple-touch-icon.png`), the maskable tiles, the transparent `any`
   matrix (the outlined mark alone, no plate) and the scalable `app-icon.svg`.
 - **Light** (Laser plate + Void ink, flat) — the house colorway for the raster
@@ -156,8 +156,8 @@ Screen route (#111). Every one bet that iOS would re-resolve or select
 something; it does not.
 
 `/icons/app-icon.svg` is the outlined tile as vector in **both** appearances:
-the plate follows `prefers-color-scheme` (the Laser ramp in light, Void in
-dark) while the mark stays the outlined mark, so the stroke carries it on green
+the plate follows `prefers-color-scheme` (flat Laser in light, Void in dark)
+while the mark stays the outlined mark, so the stroke carries it on green
 and the fill on dark. It is the manifest's first icon, and Safari 26 uses
 manifest icons — SVG included — for the Home Screen, which makes it the
 declarative route to a dark plate; the PNG tile is the fallback

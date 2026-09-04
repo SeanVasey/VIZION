@@ -137,8 +137,10 @@ half of it stands). What changed is the artwork behind the link
 ([ADR-0017](../decisions/0017-outlined-home-screen-icon.md)):
 
 - `metadata.icons.apple` is **one unconditional link** at
-  `/icons/apple-touch-icon.png` — a Laser plate under the mark FILLED in Laser
-  and STROKED in Void, a slight top-lit gradient on both. No `media`: iOS does
+  `/icons/apple-touch-icon.png` — a FLAT Laser plate under the mark FILLED in
+  Laser (a slight top-lit ramp) and STROKED in Void (ADR-0017 amendment 3: the
+  flat plate is the one iOS swaps cleanly for its neutral dark plate). No
+  `media`: iOS does
   not evaluate it on icons, so a query would imply a selection that never
   happens. With one link, "last one wins" is a tautology and there is no order
   left to get wrong.
@@ -148,8 +150,8 @@ half of it stands). What changed is the artwork behind the link
   the Laser plate the Void outline reads; on a plate iOS has darkened or
   replaced, the Laser fill reads.
 - `/icons/app-icon.svg` is the outlined tile as vector in BOTH appearances
-  (ADR-0017 amendment 2): the plate follows `prefers-color-scheme` — the Laser
-  ramp in light, Void in dark — and the mark is the outlined mark in both.
+  (ADR-0017 amendment 2): the plate follows `prefers-color-scheme` — flat
+  Laser in light, Void in dark — and the mark is the outlined mark in both.
   Default LIGHT: a media-blind renderer captures the green tile, which iOS's
   dark pass separates; a captured dark tile would stay dark in light. It is the
   manifest's first icon, and Safari 26 uses manifest icons, SVG included, for
