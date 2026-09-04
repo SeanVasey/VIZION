@@ -97,14 +97,18 @@ export const metadata: Metadata = {
    * invisible mark. Do not reintroduce any of them.
    *
    * What changed is the ARTWORK, not the arrangement (ADR-0017). The tile was
-   * pinned to the dark colorway (ADR-0015) because it was the only FLAT
-   * colorway that survived auto-darkening, at the cost that the brand green
-   * never reached the Home Screen. The outlined tile — Laser plate, the mark
-   * filled in Laser and stroked in Void, a slight lighting gradient on both —
-   * does not depend on its plate for contrast: the outline carries the mark on
-   * the green plate, the fill carries it on a darkened one. How iOS 26's
-   * darkening actually treats this artwork is for a device pass to record in
-   * the runbook; nothing here assumes the answer.
+   * pinned to the dark colorway (ADR-0015) because it was the only flat
+   * colorway that survived iOS's dark-appearance pass, at the cost that the
+   * brand green never reached the Home Screen. That pass does not darken a
+   * web clip; it SEPARATES it — background swapped for the system's dark
+   * gradient, foreground kept — and it fires only on a flat background
+   * (measured twice, 2026-08-12 and 2026-09-04; see the runbook). So the
+   * outlined tile is a FLAT Laser plate under a mark filled in a lighter lime
+   * and stroked in Void (ADR-0017 amendment 1): on the plate the outline
+   * carries the mark, on the swapped dark plate the fill does — and the fill
+   * is kept well clear of the plate's colour so the swap cannot take it too.
+   * The flat tile's own device pass is the runbook's open item; nothing here
+   * assumes its answer.
    *
    * The scalable icon stays FIRST among `rel="icon"` so a modern browser
    * prefers it over the rasters. It is the same outlined tile as vector, in

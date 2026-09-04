@@ -123,8 +123,8 @@ change a derivative.
 
 The colorways are:
 
-- **Outlined** (Laser plate · Laser-filled mark · Void outline · a slight top-lit
-  gradient on both) — **everything a launcher installs**: the Add-to-Home-Screen
+- **Outlined** (flat Laser plate · mark filled in a lighter lime ramp · Void
+  outline) — **everything a launcher installs**: the Add-to-Home-Screen
   tile (`apple-touch-icon.png`), the maskable tiles, the transparent `any`
   matrix (the outlined mark alone, no plate) and the scalable `app-icon.svg`.
 - **Light** (Laser plate + Void ink, flat) — the house colorway for the raster
@@ -142,9 +142,12 @@ when iOS crushed the plate toward the ink, and the dark tile that replaced it
 ([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)) survived every
 treatment only by keeping the brand green off the Home Screen. The outlined mark
 carries its own contrast instead: on the Laser plate the Void outline reads; on
-a plate an OS has darkened or replaced, the Laser fill reads. How iOS 26 treats
-this artwork on a device is not yet measured — see the runbook — and the design
-is built so that the answer cannot hide the mark either way.
+a plate iOS has swapped for its dark gradient, the pale lime fill reads. The
+plate is _flat_ on purpose: iOS builds a dark icon for an app that ships none
+by separating background from foreground and swapping the background, and a
+gradient plate defeats that separation (measured 2026-09-04 — the tile was
+left green). The fill stays well clear of the plate's colour so the swap cannot
+take it too. The flat tile's own device pass is still open — see the runbook.
 
 The **arrangement** ADR-0015 settled is unchanged: `metadata.icons.apple` holds
 one unconditional link, at `/icons/apple-touch-icon.png`. **Do not add a second
