@@ -49,7 +49,8 @@ export const metadata: Metadata = {
     template: "%s · VIZION",
   },
   description: DESCRIPTION,
-  manifest: "/manifest.webmanifest",
+  // NO `manifest` key: the link is hand-written in <head> below, because it
+  // needs a `crossorigin` attribute the Metadata API cannot express.
   openGraph: {
     type: "website",
     siteName: "VIZION",
@@ -81,44 +82,37 @@ export const metadata: Metadata = {
    * `src/app/icon0.svg`, `icon1.png` and `apple-icon.png` were therefore
    * deleted rather than left to be built, served and referenced by nothing —
    * scripts/generate-icons.mjs writes the equivalents under `public/icons/` and
-   * this block points at them. (This used to cite the convention's inability to
-   * express `media` as the first reason. No link here carries `media` any more;
-   * the all-or-nothing merge is the reason that survives.)
+   * this block points at them.
    *
-   * ONE apple-touch-icon, UNCONDITIONAL, and it is the DARK tile.
+   * ONE apple-touch-icon, UNCONDITIONAL — and it is the OUTLINED tile.
    *
-   * Everything about how iOS picks this is now measured, across two device
-   * passes (2026-08-12 and -13; result table in the iOS runbook). iOS reads
-   * `apple-touch-icon` from the head at "Add to Home Screen", does NOT evaluate
-   * `media` on icons (it does on `apple-touch-startup-image` — which is why the
-   * splash links below resolve per device), applies Apple's "last one wins",
-   * FREEZES what it captured, and auto-darkens that frozen tile under dark
-   * appearance. Nothing re-resolves it afterwards.
+   * What iOS does with this link is measured (docs/runbooks/ios-verification.md,
+   * two device passes, 2026-08-12 and -13): it reads `apple-touch-icon` from the
+   * head at "Add to Home Screen", does NOT evaluate `media` on icons (it does
+   * on `apple-touch-startup-image` — which is why the splash links below
+   * resolve per device), applies Apple's "last one wins", FREEZES what it
+   * captured, and auto-darkens that frozen tile under dark appearance. Nothing
+   * re-resolves it afterwards. So there is one link and no query, and no JS
+   * matcher: each of those has shipped here (#108, #111) and each shipped an
+   * invisible mark. Do not reintroduce any of them.
    *
-   * So there is one link and no query. A `media` attribute here would be
-   * decoration implying a selection that never happens, and with a single link
-   * "last one wins" is a tautology — there is no order left to get wrong. The
-   * tile is the DARK colorway because auto-darkening artwork that is already
-   * dark is a no-op, while auto-darkening the Laser plate crushes it toward the
-   * Void mark and leaves an invisible emboss. That is the whole decision
-   * (ADR-0015); the accepted cost is that the Laser plate never reaches the
-   * Home Screen.
-   *
-   * Three arrangements have shipped here and all three shipped that invisible
-   * mark: a complementary `media` pair, the same pair reordered, and a JS
-   * matcher that rewrote the href per appearance. Do not reintroduce any of
-   * them. What is left is deliberately the least clever thing that works.
+   * What changed is the ARTWORK, not the arrangement (ADR-0017). The tile was
+   * pinned to the dark colorway (ADR-0015) because it was the only FLAT
+   * colorway that survived auto-darkening, at the cost that the brand green
+   * never reached the Home Screen. The outlined tile — Laser plate, the mark
+   * filled in Laser and stroked in Void, a slight lighting gradient on both —
+   * does not depend on its plate for contrast: the outline carries the mark on
+   * the green plate, the fill carries it on a darkened one. How iOS 26's
+   * darkening actually treats this artwork is for a device pass to record in
+   * the runbook; nothing here assumes the answer.
    *
    * The scalable icon stays FIRST among `rel="icon"` so a modern browser
-   * prefers it over the rasters. `/icons/app-icon.svg` still carries both
-   * colorways behind `prefers-color-scheme`, and still inverts wherever that is
-   * honoured — the browser tab, and non-iOS installs. It is NOT a Home Screen
-   * route: the device check ran and iOS did not select it. Its default rules
-   * are the dark colorway, so a renderer that ignores the query also lands on
-   * the colorway that cannot degrade.
-   *
-   * The raster favicons do NOT invert — a PNG cannot — and stay the house
-   * colorway, which is legible on any tab background.
+   * prefers it over the rasters. It is the same outlined tile as vector, in
+   * ONE colorway: the `prefers-color-scheme` swap it used to carry existed to
+   * keep the mark legible on whichever plate the appearance chose, and the
+   * outline makes that moot. The raster favicons keep the flat house colorway
+   * (Void ink on a Laser plate) — at 16–32 px a 4 px outline is sub-pixel, and
+   * the flat mark is the crisper rendition of the same identity there.
    */
   icons: {
     icon: [
@@ -126,7 +120,7 @@ export const metadata: Metadata = {
       { url: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
       { url: "/icons/favicon-16.png", type: "image/png", sizes: "16x16" },
     ],
-    apple: [{ url: "/icons/apple-touch-icon-dark.png", sizes: "180x180" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
   // NO appleWebApp block: the two static apple metas are hand-written in the
   // <head> below. metadata.appleWebApp — even without statusBarStyle — makes
@@ -204,6 +198,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             tag (see the metadata comment above — audit VAR-02). */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="VIZION" />
+        {/* The manifest link, WITH credentials. Per the Web App Manifest spec a
+            manifest is fetched with credentials OMITTED unless the link says
+            `crossorigin="use-credentials"` — cookies stay home even for a
+            same-origin URL. Vercel's Deployment Protection on preview builds
+            is a cookie (`_vercel_jwt`), so on every preview the browser could
+            read the page and NOT the manifest: the fetch came back a 401 SSO
+            page, the manifest was silently discarded, and everything it
+            declares — the app's NAME for the Home Screen, its icons, standalone
+            display — fell back to whatever the install flow uses without one.
+            That is the shape of "Add to Home Screen shows the page's title
+            (route first) instead of VIZION". Production carries no such cookie
+            and is unaffected either way; `use-credentials` on a same-origin
+            link costs nothing there. Hand-written rather than `metadata.manifest`
+            because the Metadata API renders the link without attributes, and a
+            second manifest link would only ever be ignored (first one wins). */}
+        <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
         {/* iOS Home-Screen launch images — one per device class (PRI-007). */}
         {SPLASH_SCREENS.map((s) => (

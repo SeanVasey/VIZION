@@ -18,17 +18,17 @@ capability there does not mean iOS lacks it.
 Taken in an iPhone 14 Pro device context, on a confirmed secure context
 (`isSecureContext === true`), against the app's own `/sign-in`.
 
-| Capability                                                                       | Playwright WebKit                                                                                                                             | Real iOS Safari                                                                                                 | Consequence                                                                                                                                                                                                                                                  |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `navigator.storage`                                                              | **absent** (`'storage' in navigator === false`)                                                                                               | present since iOS 17 — WebKit grants `persist()` on heuristics that include _"opened as a Home Screen Web App"_ | A test asserting "WebKit has no Storage API" would encode a WebKitGTK fact as an iOS one, and would be exactly backwards about our primary surface                                                                                                           |
-| `-webkit-touch-callout`                                                          | **unsupported**                                                                                                                               | supported (this is why the `@supports` hack works as an iOS filter)                                             | The `@supports` gate in `globals.css` can only ever be verified in the negative here                                                                                                                                                                         |
-| `navigator.vibrate`                                                              | absent                                                                                                                                        | absent (MDN BCD: `safari`/`safari_ios` false)                                                                   | consistent — `lib/haptics.ts`'s HONEST SCOPE note stands                                                                                                                                                                                                     |
-| Background Sync                                                                  | absent                                                                                                                                        | absent                                                                                                          | consistent — `OutboxFlusher`'s premise stands                                                                                                                                                                                                                |
-| `:active` on touch                                                               | applies regardless of any document touch listener; `touchscreen.tap()` cannot hold a press                                                    | widely reported to require a document touch listener, all reporting 2011–2015                                   | unresolvable here; the app was changed so nothing depends on it                                                                                                                                                                                              |
-| `-webkit-backdrop-filter` — the PROPERTY                                         | supported (Chromium: **not** supported)                                                                                                       | supported                                                                                                       | keep both prefixed and unprefixed declarations                                                                                                                                                                                                               |
-| `backdrop-filter` — actually PAINTING (2026-08-11)                               | **never renders.** Plain, masked, or on a promoted `::before`; `filter: blur` works on the same page, so it is the compositor, not the syntax | renders                                                                                                         | the whole `.glass` family's blur is asserted here only by computed style, never by pixels; any decision that depends on the blur being VISIBLE — or on how it composites with something else — has to be measured in Chromium and then confirmed on a device |
-| `prefers-color-scheme` INSIDE an SVG pulled in via `<img>` (2026-08-12)          | **not applied** — paints whatever the file's DEFAULT rules declare, under both schemes                                                        | n/a for the Home Screen: iOS does not select the linked SVG for the tile at all (settled 2026-08-13, below)     | This is why `app-icon.svg` now DEFAULTS to the dark colorway and carries light as the override — the branch a media-blind renderer paints has to be the one that cannot degrade. The e2e inversion assertion is Chromium-scoped.                             |
-| `inert`, `content-visibility`, `contain-intrinsic-size`, `color-mix`, `text-box` | all supported                                                                                                                                 | —                                                                                                               | safe to rely on                                                                                                                                                                                                                                              |
+| Capability                                                                       | Playwright WebKit                                                                                                                             | Real iOS Safari                                                                                                 | Consequence                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `navigator.storage`                                                              | **absent** (`'storage' in navigator === false`)                                                                                               | present since iOS 17 — WebKit grants `persist()` on heuristics that include _"opened as a Home Screen Web App"_ | A test asserting "WebKit has no Storage API" would encode a WebKitGTK fact as an iOS one, and would be exactly backwards about our primary surface                                                                                                                                                                                                          |
+| `-webkit-touch-callout`                                                          | **unsupported**                                                                                                                               | supported (this is why the `@supports` hack works as an iOS filter)                                             | The `@supports` gate in `globals.css` can only ever be verified in the negative here                                                                                                                                                                                                                                                                        |
+| `navigator.vibrate`                                                              | absent                                                                                                                                        | absent (MDN BCD: `safari`/`safari_ios` false)                                                                   | consistent — `lib/haptics.ts`'s HONEST SCOPE note stands                                                                                                                                                                                                                                                                                                    |
+| Background Sync                                                                  | absent                                                                                                                                        | absent                                                                                                          | consistent — `OutboxFlusher`'s premise stands                                                                                                                                                                                                                                                                                                               |
+| `:active` on touch                                                               | applies regardless of any document touch listener; `touchscreen.tap()` cannot hold a press                                                    | widely reported to require a document touch listener, all reporting 2011–2015                                   | unresolvable here; the app was changed so nothing depends on it                                                                                                                                                                                                                                                                                             |
+| `-webkit-backdrop-filter` — the PROPERTY                                         | supported (Chromium: **not** supported)                                                                                                       | supported                                                                                                       | keep both prefixed and unprefixed declarations                                                                                                                                                                                                                                                                                                              |
+| `backdrop-filter` — actually PAINTING (2026-08-11)                               | **never renders.** Plain, masked, or on a promoted `::before`; `filter: blur` works on the same page, so it is the compositor, not the syntax | renders                                                                                                         | the whole `.glass` family's blur is asserted here only by computed style, never by pixels; any decision that depends on the blur being VISIBLE — or on how it composites with something else — has to be measured in Chromium and then confirmed on a device                                                                                                |
+| `prefers-color-scheme` INSIDE an SVG pulled in via `<img>` (2026-08-12)          | **not applied** — paints whatever the file's DEFAULT rules declare, under both schemes                                                        | n/a for the Home Screen: iOS does not select the linked SVG for the tile at all (settled 2026-08-13, below)     | Recorded as the measured divergence; nothing depends on it any more. `app-icon.svg` carried a light/dark swap with the dark colorway as the default (the branch a media-blind renderer paints had to be the one that could not degrade); since ADR-0017 it is one outlined colorway with no media query, and its e2e render assertion runs on both engines. |
+| `inert`, `content-visibility`, `contain-intrinsic-size`, `color-mix`, `text-box` | all supported                                                                                                                                 | —                                                                                                               | safe to rely on                                                                                                                                                                                                                                                                                                                                             |
 
 ## The rule
 
@@ -112,27 +112,53 @@ opposite of what this runbook previously told the next reader to assume.
 | What does iOS do with a single tile under dark appearance?      | **Auto-darkens it.** On the light tile (Void ink on a Laser plate) that pulls the plate to near-black and leaves the mark an invisible emboss.                                                                                                                                                                                                                                                                                                                             |
 | Does iOS select the `rel="icon"` / manifest SVG for the tile?   | **No — measured 2026-08-13.** The one-step check below was run: install from a build carrying `app-icon.svg`, then toggle the system appearance without re-adding. The tile did not flip; a light-mode install still degraded to the emboss. Row 2's "not established" still stands for _precedence_ — what is now established is that the SVG is not what gets captured.                                                                                                  |
 
+**Caveat on every manifest-dependent row above (recorded 2026-09-04).** Until
+that date the manifest link carried no `crossorigin="use-credentials"`, and a
+manifest is fetched with credentials omitted by spec — so on a preview
+deployment behind Vercel's cookie-based protection the page loaded and the
+manifest came back a 401 SSO page. Any observation made on a protected preview
+before then about what iOS does WITH the manifest (row 2's precedence question
+included) was made against a device that had no manifest at all. Row 2 stays
+"not established"; re-measure it on a build that carries the credentialed link
+before reading anything into it. Rows about `apple-touch-icon` and `media` are
+unaffected — those links are read from the head, which the device did have.
+
 The consequence: the complementary-query pair shipped in #108 could never have
 worked. Its dark half was unreachable, and because the LIGHT tile was declared
 last, "last one wins" resolved to the one artwork that iOS then destroys. That
 is exactly the failure the owner reported.
 
-**What ships now — ONE tile, pinned dark.** iOS keeps exactly one image and
-freezes it at capture, so the only arrangement legible under every appearance is
-a single dark tile ([ADR-0015](../decisions/0015-pinned-home-screen-tile.md)):
+**What ships now — ONE tile, the OUTLINED colorway (ADR-0017, 2026-09-04).**
+iOS keeps exactly one image and freezes it at capture, so there is still one
+link and no query
+([ADR-0015](../decisions/0015-pinned-home-screen-tile.md) — the arrangement
+half of it stands). What changed is the artwork behind the link
+([ADR-0017](../decisions/0017-outlined-home-screen-icon.md)):
 
 - `metadata.icons.apple` is **one unconditional link** at
-  `/icons/apple-touch-icon-dark.png` — Void plate, Laser mark. No `media`: iOS
-  does not evaluate it on icons, so a query would imply a selection that never
+  `/icons/apple-touch-icon.png` — a Laser plate under the mark FILLED in Laser
+  and STROKED in Void, a slight top-lit gradient on both. No `media`: iOS does
+  not evaluate it on icons, so a query would imply a selection that never
   happens. With one link, "last one wins" is a tautology and there is no order
   left to get wrong.
-- `/icons/app-icon.svg` keeps both colorways behind `prefers-color-scheme` and
-  still inverts **for the browser tab and non-iOS installs**. It is NOT a Home
-  Screen route (row 6). Its DEFAULT rules are now the dark colorway, so a
-  renderer that ignores the query also lands on the colorway that cannot
-  degrade.
-- The accepted cost: the Laser plate never reaches the Home Screen. It stays on
-  the favicons, the maskable/Android tiles and `og:image`.
+- The tile no longer has to be dark to survive. The dark tile was legible under
+  every treatment because darkening dark artwork is a no-op — and it cost the
+  brand green the Home Screen. The outlined mark carries its own contrast: on
+  the Laser plate the Void outline reads; on a plate iOS has darkened or
+  replaced, the Laser fill reads.
+- `/icons/app-icon.svg` is the same outlined tile as vector, in ONE colorway.
+  Its light/dark swap and its "default to the dark branch" rule are gone —
+  both existed to keep the mark legible on whichever plate the appearance
+  chose, and the outline makes the plate irrelevant to legibility.
+
+**OPEN — needs a device (2026-09-04):** how iOS 26's darkening treats the
+outlined artwork. Two outcomes are designed for and neither is measured: a
+uniform dim (the outline stays far darker than the dimmed green; simulated here
+at 0.35× in sharp, clearly legible) and a plate replacement (the Laser fill
+carries the mark on the dark plate). The one-step check: install from a build
+carrying `apple-touch-icon.png`, toggle the system appearance, photograph both.
+Existing installs keep the dark tile they captured; delete-and-re-add is the
+only refresh. Record the result in the table above, not in a code comment.
 
 **Superseded, and recorded because each one shipped the bug** — three
 arrangements preceded this, all trying to make the tile follow the appearance:
@@ -155,9 +181,10 @@ something. It never does. **Do not add a second `apple-touch-icon` link, a
 was settled by the device pass described in row 6: it does not select the file at
 all, so the question of how it would render it never arises. The residual that
 motivated the matcher — "an install captured in light mode and later viewed in
-dark shows iOS's auto-darkened Laser plate" — is now structurally unreachable,
-because no install can capture the Laser plate. That is the whole return on the
-change. Apple's dark-icon model (transparent background + foreground, system
+dark shows iOS's auto-darkened Laser plate" — was closed by pinning the tile
+dark, so that no install could capture the Laser plate. (Since 2026-09-04 an
+install captures the Laser plate again, deliberately: the outlined mark on it
+does not depend on the plate for contrast — ADR-0017, and the OPEN item above.) Apple's dark-icon model (transparent background + foreground, system
 supplies the #313131→#141414 gradient) reaches native apps via Icon Composer and
 has no web-clip equivalent; a PWA declares a single image where a native target
 declares layers.

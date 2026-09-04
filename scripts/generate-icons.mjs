@@ -1,8 +1,8 @@
 // VIZION PWA icon + splash generator.
 //
-// Renders the full brand asset matrix (the transparent `any` icons, maskable
-// tiles, the pinned dark apple-touch tile, the scalable + raster favicons and
-// favicon.ico, and the iOS splash screens) from ONE master SVG using sharp.
+// Renders the full brand asset matrix (the transparent `any` icons, the
+// maskable tiles, the apple-touch tile, the scalable icon, the raster favicons
+// and favicon.ico, and the iOS splash screens) from ONE master SVG using sharp.
 // Run with: node scripts/generate-icons.mjs
 //
 // SOURCE OF TRUTH — public/brand/vizion-glyph.svg
@@ -14,7 +14,7 @@
 //
 //   • vizion-glyph.svg — the mark alone, flat, tight viewBox (1024 × 892.8),
 //     a single evenodd <path>. This is the geometry every derivative is
-//     composed from, painted here with the Light/Dark/mono colorways.
+//     composed from, painted here with the colorways below.
 //
 // The composed previews (vizion-icon-{light,dark,clear,tinted}.svg) and the
 // background layers (vizion-icon-bg-{light,dark}.svg) are ON-SCREEN APPEARANCE
@@ -25,23 +25,50 @@
 // rounded corners and gloss that iOS 26/27 applies at runtime — double-masking
 // the corners and clipping the art. They are visual reference only.
 //
-// Geometry check: this script's plateSVG() at frac 0.74 computes
+// Geometry check: this script's placeGlyph() at frac 0.74 computes
 // `translate(133.12, 165.69) scale(0.74)`, which reproduces the committed
 // Icon Composer foreground layer (vizion-icon-foreground-lime.svg:
 // `translate(133.12, 165.66) scale(0.74)`) to 0.03 px at 1024² — i.e. the
-// generated plates are the shipped artwork, not an approximation.
+// generated tiles are the shipped artwork, not an approximation.
+//
+// THE INSTALLED ICON — one colorway, legible on either ground (ADR-0017)
+// -----------------------------------------------------------------------
+// Everything a launcher installs — the apple-touch tile, the maskable tiles,
+// the transparent `any` matrix and the scalable app-icon.svg — now carries the
+// OUTLINED colorway: a Laser plate, the mark FILLED in Laser and STROKED in
+// Void, both with a slight top-lit gradient. The point is that the mark no
+// longer depends on its ground for contrast. If an OS keeps the Laser plate,
+// the Void outline carries the mark; if it replaces or crushes the plate
+// toward dark, the Laser fill carries it. Two previous designs each bet on ONE
+// ground (Void ink on Laser — iOS darkened the plate into the ink; Laser on
+// Void — legible everywhere, but the brand green never reached the Home
+// Screen). This one is built so that no treatment of the plate can hide it.
+//
+// What is measured about iOS (docs/runbooks/ios-verification.md) still stands
+// and still shapes the head: it reads `apple-touch-icon` once, ignores `media`
+// on icons, freezes the capture, and auto-darkens it under dark appearance. So
+// there is still exactly ONE apple link and no query. What is NOT measured is
+// how iOS 26's darkening treats THIS artwork — the design covers both outcomes
+// by construction, and the device pass that confirms it is recorded in the
+// runbook when it happens, not assumed here.
 //
 // RULES (never work around)
 // -------------------------
-//   • Full-bleed square. NO pre-rounded corners, NO gloss, NO drop shadow —
-//     the OS rounds and glassifies at runtime.
+//   • Full-bleed square. NO pre-rounded corners, NO specular gloss, NO drop
+//     shadow — the OS rounds and glassifies at runtime. The one lighting cue
+//     is the slight LINEAR gradient of the outlined colorway (owner brief,
+//     2026-09); it is a tint ramp, not a highlight, and it stays subtle.
 //   • Maskable is the only padded exception: 0.58 glyph fraction so the art
 //     clears Android's 80% safe-zone circle. Everything else uses 0.74.
 //   • Alpha contract (guardrail §6 / INV-09, enforced by
 //     tests/unit/icon-alpha.test.ts): the `any` matrix ships TRANSPARENT — the
-//     glyph alone, no plate. maskable, both apple-touch appearances and the
+//     outlined mark alone, no plate. maskable, the apple-touch tile and the
 //     favicons ship OPAQUE, because iOS renders a transparent tile on black and
 //     Android's mask has nothing to fill.
+//   • The favicons and favicon.ico keep the FLAT house colorway (Void ink on a
+//     Laser plate). At 16–48 px a 4 px outline is sub-pixel, and the flat mark
+//     is the crisper small-size rendition of the same identity. They are the
+//     browser tab, not an install surface.
 //   • public/brand/ is never written to. This script only reads from it.
 //
 // EVERY OUTPUT LANDS UNDER public/. There are no `src/app/` convention icons
@@ -97,53 +124,83 @@ function token(name) {
   return m[1].toUpperCase();
 }
 
-// LASER is the glyph accent, VOID the dark plate (and the manifest's
-// theme_color/background_color), INK the glyph on a light plate.
+// LASER is the brand green — the plate and the mark's fill; VOID the dark plate
+// of the splash screens (and the manifest's theme_color/background_color); INK
+// the dark ink on a Laser plate — the favicons' mark and the outlined mark's
+// stroke.
 const LASER = token("laser");
 const VOID = token("void");
 const INK = VOID;
 
-// Base appearance for the SCHEME-AGNOSTIC derivatives only — the favicons and
-// the maskable tiles, surfaces that have no notion of an OS appearance and just
-// need one house colorway. 'light' = Laser plate + Void ink, per the source
-// spec. Flip to 'dark' if the dark mark should ever become the house default.
-//
-// It deliberately does NOT reach the two home-screen tiles below. Those are
-// SCHEME-MAPPED, and a scheme-mapped file cannot follow a configurable default
-// without eventually contradicting the query it is linked behind.
+// Appearance for the FLAT derivatives that keep it — the favicons. 'light' =
+// Laser plate + Void ink, the house colorway.
 const BASE = "light";
 
-// The home-screen tile's appearance, pinned to a fixed scheme name.
-//
-// WHY PINNED, not `BASE === "light" ? "dark" : "light"` (which is what this was,
-// until review caught it on #108). The tile's ARTWORK has to be dark — full
-// stop, independent of any default. Derived from BASE, flipping BASE to "dark"
-// would have rendered the LIGHT colorway into the file named `-dark`, which is
-// the one outcome this whole saga exists to prevent.
-const APPLE_TILE = "dark";
+// ---------------------------------------------------------------------------
+// The OUTLINED colorway — what gets installed
+// ---------------------------------------------------------------------------
 
-// `apple-touch-icon-dark.png` — THE home-screen tile. There is only one.
-//
-// WHAT iOS DOES, measured on device across two passes (2026-08-12 and -13):
-// it reads `<link rel="apple-touch-icon">` out of the head at "Add to Home
-// Screen", does NOT evaluate `media` on icons, applies Apple's "last one wins",
-// FREEZES the tile it captured, and auto-darkens that frozen tile whenever the
-// system is in dark appearance. Nothing re-resolves it afterwards — delete and
-// re-add is the only refresh. The full result table is in
-// docs/runbooks/ios-verification.md.
-//
-// WHY THE TILE IS PINNED DARK. Auto-darkening the LIGHT colorway (Void ink on a
-// Laser plate) pulls the plate down toward the ink and leaves the mark an
-// invisible emboss — the reported bug, twice. Auto-darkening artwork that is
-// ALREADY dark is a no-op. Since iOS keeps exactly one image and the user cannot
-// be relied on to have installed it in any particular appearance, the only
-// arrangement that is legible under EVERY appearance is a single dark tile. The
-// accepted cost is that the Laser plate never reaches the Home Screen; it stays
-// on the favicons, the maskable tiles and og:image (ADR-0015).
-//
-// The light 180px tile and the JS matcher that chose between them are gone. Do
-// not reintroduce either, nor a `media` query on this link: all three have
-// shipped here, and all three shipped the invisible mark.
+/** `#RRGGBB` → [r, g, b]. */
+function hexToRgb(hex) {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? [...h].map((c) => c + c).join("") : h.slice(0, 6);
+  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+}
+
+/** [r, g, b] → `#RRGGBB`, clamped and rounded. */
+function rgbToHex(rgb) {
+  return (
+    "#" +
+    rgb
+      .map((v) =>
+        Math.round(Math.min(255, Math.max(0, v)))
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("")
+      .toUpperCase()
+  );
+}
+
+/** Linear sRGB mix of `a` toward `b` by `t` (0 = a, 1 = b). */
+function mix(a, b, t) {
+  const ra = hexToRgb(a);
+  const rb = hexToRgb(b);
+  return rgbToHex(ra.map((v, i) => v + (rb[i] - v) * t));
+}
+
+/**
+ * The lighting ramp, as fractions toward white (top) and black (bottom).
+ * "Slight" is the brief: the plate moves a tenth either way, the mark's top
+ * catches a little more light than the plate's so the fill reads as a raised
+ * shape sitting IN the light rather than a cut-out of the plate, and the mark's
+ * bottom rests exactly on the token.
+ */
+const LIGHTING = { plateTop: 0.12, plateBottom: 0.1, markTop: 0.3 };
+
+/**
+ * The outline's stroke width in GLYPH units. The stroke is painted UNDER the
+ * fill, so only its outer half is visible: 60 units → a 30-unit outline, which
+ * at the 0.74 tile fraction is 22 px on the 1024 canvas and ~4 px on the 180 px
+ * apple-touch tile. Every interior gap in the mark (bar ↔ ring ≈ 20 units,
+ * chevron ↔ ring ≈ 25) is narrower than twice this, so the gaps fill solid and
+ * the shapes stay separated by a line rather than a sliver of plate.
+ */
+export const OUTLINE_WIDTH = 60;
+
+/**
+ * The outlined colorway's five colours, every one derived from the tokens so
+ * the tests can import them instead of restating a hex.
+ */
+export function outlinedColorway() {
+  return {
+    plateTop: mix(LASER, "#FFFFFF", LIGHTING.plateTop),
+    plateBottom: mix(LASER, "#000000", LIGHTING.plateBottom),
+    markTop: mix(LASER, "#FFFFFF", LIGHTING.markTop),
+    markBottom: LASER,
+    outline: INK,
+  };
+}
 
 // Glyph fractions. 0.74 is the artwork's own composition (see the geometry
 // check above); 0.58 pads the maskable tiles clear of the safe-zone circle.
@@ -156,10 +213,18 @@ const FRAC_MASKABLE = 0.58;
 // FROZEN — the manifest's `any` entries must stay a subset (asserted below).
 export const ANY_SIZES = [48, 72, 96, 128, 144, 152, 167, 180, 192, 256, 384, 512, 1024];
 
-// The self-inverting scalable icon's frozen filename. Named once, read by BOTH
-// the writer in main() and assertScalableEntries, so the manifest and the file
-// on disk cannot drift apart the way a restated literal would let them.
+// The scalable icon's frozen filename. Named once, read by BOTH the writer in
+// main() and assertScalableEntries, so the manifest and the file on disk cannot
+// drift apart the way a restated literal would let them.
 export const SCALABLE_ICON = "app-icon.svg";
+
+// THE home-screen tile's frozen filename — one file, no appearance suffix. It
+// used to be `apple-touch-icon-dark.png`, named for the Void colorway it
+// carried; the outlined colorway is neither light nor dark, and a file named
+// for a colorway it no longer carries is the exact confusion the earlier
+// naming saga existed to prevent. Read by main() and by src/app/layout.tsx's
+// `metadata.icons.apple` (a literal there, pinned by the e2e head test).
+export const APPLE_TOUCH_ICON = "apple-touch-icon.png";
 
 // iOS splash device classes (portrait, width × height in px). Each pairs with a
 // media-qualified <link rel="apple-touch-startup-image"> in src/app/layout.tsx
@@ -178,14 +243,14 @@ const SPLASH_SIZES = [
   [2048, 2732], // iPad Pro 12.9
 ];
 
-// Canvas the vector plates are authored at before sharp resamples to the target
+// Canvas the vector tiles are authored at before sharp resamples to the target
 // size. 1024 is the artwork's own canvas, so frac 0.74 lands on the committed
 // Icon Composer transform exactly.
 const CANVAS = 1024;
 
 const written = [];
 
-/** Void plate + Laser glyph, or Laser plate + Void ink. */
+/** Void plate + Laser glyph, or Laser plate + Void ink — the flat colorways. */
 function appearance(name) {
   return name === "dark" ? { plate: VOID, glyph: LASER } : { plate: LASER, glyph: INK };
 }
@@ -221,97 +286,92 @@ function placeGlyph(canvasW, canvasH, frac, lift) {
   };
 }
 
-function glyphGroup(canvasW, canvasH, frac, fill, lift) {
+function transformFor(canvasW, canvasH, frac, lift) {
   const { tx, ty, scale } = placeGlyph(canvasW, canvasH, frac, lift);
+  return `translate(${tx.toFixed(2)},${ty.toFixed(2)}) scale(${scale.toFixed(5)})`;
+}
+
+/** The flat mark: one path, one fill. */
+function glyphGroup(canvasW, canvasH, frac, fill, lift) {
   return (
-    `<g transform="translate(${tx.toFixed(2)},${ty.toFixed(2)}) scale(${scale.toFixed(5)})">` +
+    `<g transform="${transformFor(canvasW, canvasH, frac, lift)}">` +
     `<path d="${GLYPH_D}" fill="${fill}" fill-rule="evenodd"/></g>`
   );
 }
 
-/** Full-bleed opaque square: plate + glyph. No clip, no gloss, no shadow. */
+/**
+ * The OUTLINED mark: the same path twice, stroke first, fill on top.
+ *
+ * Two paths rather than `paint-order="stroke"` on one, deliberately. sharp's
+ * librsvg renders the two identically (measured, byte-for-byte), and so does
+ * every browser that will ever paint app-icon.svg — but a stroke painted under
+ * a fill is SVG 1.1 and needs no renderer to know a property. A renderer that
+ * dropped `paint-order` would centre the stroke on the edge instead and eat
+ * half the outline out of the fill's thinnest features (the ring is ~65 glyph
+ * units where the stroke is 60). Two paths cannot degrade that way.
+ *
+ * Round joins: the chevron's tips are acute, and a mitred outline would spike
+ * well past them.
+ */
+function outlinedMark(canvasW, canvasH, frac, lift) {
+  const { outline } = outlinedColorway();
+  return (
+    `<g transform="${transformFor(canvasW, canvasH, frac, lift)}">` +
+    `<path d="${GLYPH_D}" fill="none" stroke="${outline}" stroke-width="${OUTLINE_WIDTH}" ` +
+    `stroke-linejoin="round" stroke-linecap="round"/>` +
+    `<path d="${GLYPH_D}" fill="url(#mark)" fill-rule="evenodd"/></g>`
+  );
+}
+
+/**
+ * The lighting ramps. Both are top-to-bottom in the painted element's own
+ * bounding box (the default `objectBoundingBox` units): the plate's over the
+ * whole canvas, the mark's over the mark alone, so the mark's top is its
+ * lightest point wherever it sits on the canvas.
+ */
+function outlinedDefs() {
+  const c = outlinedColorway();
+  return (
+    `<defs>` +
+    `<linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${c.plateTop}"/>` +
+    `<stop offset="1" stop-color="${c.plateBottom}"/></linearGradient>` +
+    `<linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${c.markTop}"/>` +
+    `<stop offset="1" stop-color="${c.markBottom}"/></linearGradient>` +
+    `</defs>`
+  );
+}
+
+/** Full-bleed opaque square in the outlined colorway: plate + outlined mark. */
+function outlinedTileSVG(frac, size = CANVAS) {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
+    outlinedDefs() +
+    `<rect width="${size}" height="${size}" fill="url(#plate)"/>` +
+    outlinedMark(size, size, frac, 0.0156) +
+    `</svg>`
+  );
+}
+
+/** Transparent square: the outlined mark alone, no plate (the `any` matrix). */
+function outlinedGlyphSVG(frac, size = CANVAS) {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
+    outlinedDefs() +
+    outlinedMark(size, size, frac, 0.0156) +
+    `</svg>`
+  );
+}
+
+/** Full-bleed opaque square in a FLAT colorway: plate + glyph. No clip, no
+ *  gloss, no shadow. The favicons. */
 function plateSVG({ plate, glyph }, frac, size = CANVAS) {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     `<rect width="${size}" height="${size}" fill="${plate}"/>` +
     glyphGroup(size, size, frac, glyph, 0.0156) +
     `</svg>`
-  );
-}
-
-/** Transparent square: the glyph alone, no plate (the `any` matrix). */
-function glyphOnlySVG(fill, frac, size = CANVAS) {
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
-    glyphGroup(size, size, frac, fill, 0.0156) +
-    `</svg>`
-  );
-}
-
-/**
- * The SELF-INVERTING app icon — one file that carries both appearances.
- *
- * Light: Laser plate, Void mark. Dark: the exact inverse, which is Apple's own
- * dark-icon shape (a dark ground, the mark carrying the colour the light ground
- * used). A raster tile cannot do this — it is one set of pixels — which is why
- * the PNG pair needs two files and a choice made at capture. An SVG can, because
- * the swap is a CSS rule the renderer re-evaluates.
- *
- * WHY IT EXISTS. Safari 26 added SVG support for icons "everyplace there are
- * icons in the interface", explicitly including the icon that "represents the
- * website on the user's Home Screen or in their Dock", and the WebKit notes say
- * manifest-declared icons are used. So this is the one declarative channel on
- * which the inversion can happen WITHOUT a re-install — the thing the PNG pair
- * structurally cannot deliver.
- *
- * The swap is written twice on purpose:
- *   • `@media (prefers-color-scheme: light)` — the appearance signal.
- *   • `color-scheme: light dark` on the root, so a renderer that honours the
- *     property (rather than the media query) still resolves a scheme at all.
- *
- * THE DEFAULT RULES ARE THE DARK COLORWAY, deliberately, and the LIGHT one is
- * the override. Plenty of renderers ignore `prefers-color-scheme` inside an SVG
- * — WebKitGTK does, through `<img>` (measured; see the runbook's divergence
- * table) — and whatever they ignore, they paint the default. So the default has
- * to be the colorway that survives being chosen by a renderer that understood
- * nothing. The light colorway in that slot is what put an invisible emboss on
- * the home-screen tile; this is the same "make the fallback branch the safe
- * one" rule that pins the apple-touch tile dark, applied to the file itself.
- *
- * NOT declared as `apple-touch-icon`. That rel has been PNG-only for its whole
- * life and Safari 26's SVG support is documented for the `icon`/manifest side,
- * not for it — pointing an `apple-touch-icon` at an SVG an older iOS cannot
- * decode makes it fall back to a blurry screenshot of the page, which is far
- * worse than a tile that does not invert. The PNG pair stays the apple-touch
- * path; this is additive.
- */
-function selfInvertingSVG(frac, size = CANVAS) {
-  const light = appearance("light");
-  const dark = appearance("dark");
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" ` +
-    `viewBox="0 0 ${size} ${size}">` +
-    `<style>` +
-    `:root{color-scheme:light dark}` +
-    `.plate{fill:${dark.plate}}` +
-    `.glyph{fill:${dark.glyph}}` +
-    `@media (prefers-color-scheme:light){` +
-    `.plate{fill:${light.plate}}` +
-    `.glyph{fill:${light.glyph}}` +
-    `}` +
-    `</style>` +
-    `<rect class="plate" width="${size}" height="${size}"/>` +
-    glyphGroupClassed(size, size, frac, "glyph", 0.0156) +
-    `</svg>`
-  );
-}
-
-/** As glyphGroup, but the mark carries a CSS class instead of a literal fill. */
-function glyphGroupClassed(canvasW, canvasH, frac, className, lift) {
-  const { tx, ty, scale } = placeGlyph(canvasW, canvasH, frac, lift);
-  return (
-    `<g transform="translate(${tx.toFixed(2)},${ty.toFixed(2)}) scale(${scale.toFixed(5)})">` +
-    `<path class="${className}" d="${GLYPH_D}" fill-rule="evenodd"/></g>`
   );
 }
 
@@ -339,7 +399,9 @@ function logWrite(outPath) {
  * Rasterize an SVG string to PNG.
  *   • flatten: composite onto `background` so the result is provably opaque —
  *     a full-bleed <rect> alone can still leave sub-255 alpha on the outermost
- *     antialiased row, which tests/unit/icon-alpha.test.ts would fail.
+ *     antialiased row, which tests/unit/icon-alpha.test.ts would fail. For a
+ *     gradient plate the colour only ever reaches that one row, so the base
+ *     token is the right backing.
  */
 async function renderPng(svg, width, height, outPath, { flatten = null } = {}) {
   let pipe = sharp(Buffer.from(svg)).resize(width, height, { fit: "fill" });
@@ -527,44 +589,43 @@ async function main() {
   assertAnyEntriesMatchMatrix(manifestAny, ANY_SIZES, ICONS_DIR);
   assertScalableEntries(manifestScalable, ICONS_DIR);
 
-  // 1. Transparent `any` matrix: the glyph alone in Laser, no plate. Laser (not
-  //    Void ink) because there is no plate behind it here — this is the same
-  //    colorway as the committed vizion-icon-foreground-lime.svg layer, and it
-  //    stays legible on whatever ground the consumer paints.
+  // 1. Transparent `any` matrix: the outlined mark alone, no plate. A consumer
+  //    paints its own ground behind an `any` icon, and the outline is what
+  //    makes the mark legible on whichever ground that turns out to be — the
+  //    bare Laser glyph this used to be was a 1.3:1 smear on a light launcher.
   console.log("Rendering transparent 'any' icons...");
   for (const size of ANY_SIZES) {
-    const svg = glyphOnlySVG(LASER, FRAC_STANDARD);
+    const svg = outlinedGlyphSVG(FRAC_STANDARD);
     await renderPng(svg, size, size, path.join(ICONS_DIR, `icon-${size}.png`));
   }
 
-  // 2. Maskable set: opaque full-bleed plate, glyph padded to 0.58 so nothing
-  //    crosses Android's 80% safe-zone circle. Sizes come from the manifest.
+  // 2. Maskable set: opaque full-bleed outlined tile, mark padded to 0.58 so
+  //    nothing (outline included) crosses Android's 80% safe-zone circle. Sizes
+  //    come from the manifest.
   console.log("Rendering maskable icons...");
-  const maskableSvg = plateSVG(appearance(BASE), FRAC_MASKABLE);
-  const maskablePlate = appearance(BASE).plate;
+  const maskableSvg = outlinedTileSVG(FRAC_MASKABLE);
   for (const { file, px } of manifestMaskable) {
-    await renderPng(maskableSvg, px, px, file, { flatten: maskablePlate });
+    await renderPng(maskableSvg, px, px, file, { flatten: LASER });
   }
 
-  // 3. THE apple-touch-icon — one tile, pinned to the dark appearance (see
-  //    APPLE_TILE above for why, and why it does not follow BASE). Opaque:
-  //    iOS composites a transparent tile onto black.
-  console.log("Rendering the apple-touch-icon (dark, pinned)...");
-  const appleTile = appearance(APPLE_TILE);
+  // 3. THE apple-touch-icon — one tile, the outlined colorway. Opaque: iOS
+  //    composites a transparent tile onto black. See the header for why there
+  //    is one, why it carries no appearance suffix, and what is and is not
+  //    known about how iOS will treat it.
+  console.log("Rendering the apple-touch-icon...");
   await renderPng(
-    plateSVG(appleTile, FRAC_STANDARD),
+    outlinedTileSVG(FRAC_STANDARD),
     180,
     180,
-    path.join(ICONS_DIR, "apple-touch-icon-dark.png"),
-    { flatten: appleTile.plate },
+    path.join(ICONS_DIR, APPLE_TOUCH_ICON),
+    { flatten: LASER },
   );
 
-  // The house colorway, for the scheme-agnostic favicons below.
+  // 4. Favicon PNGs — the FLAT house colorway (a plated flat tile reads better
+  //    than an outlined one at 16px; see the rules above).
+  console.log("Rendering favicons...");
   const baseSvg = plateSVG(appearance(BASE), FRAC_STANDARD);
   const basePlate = appearance(BASE).plate;
-
-  // 4. Favicon PNGs (a plated tile reads better than a bare mark at 16px).
-  console.log("Rendering favicons...");
   for (const size of [16, 32, 48]) {
     await renderPng(baseSvg, size, size, path.join(ICONS_DIR, `favicon-${size}.png`), {
       flatten: basePlate,
@@ -578,37 +639,29 @@ async function main() {
     path.join(repoRoot, "public", "favicon.ico"),
   );
 
-  // 5. The scalable icon — ONE self-inverting SVG serving the tab, the manifest
-  //    and, on Safari 26, the Home Screen. It is generated flat, NOT a copy of a
-  //    public/brand file: the composed brand SVGs carry the baked squircle +
-  //    gloss this pipeline forbids, and this must be the same full-bleed square
-  //    as its raster siblings.
-  //
-  //    IT NOW INVERTS, and that reverses a standing decision worth stating.
-  //    The old rule was that the scalable icon stays one constant thing (Void on
-  //    Laser) because an opaque plate is legible on any tab background — true,
-  //    but it was answering a legibility question when the live one is identity:
-  //    Safari 26 uses this same icon to represent the site on the Home Screen,
-  //    so it is the only declarative surface on which the app icon can follow
-  //    the appearance WITHOUT a re-install. The raster pair in step 3 cannot —
-  //    a PNG is one set of pixels, chosen once at capture. Inverting costs
-  //    nothing on the tab (both colorways are legible on any chrome) and is the
-  //    whole point on the Home Screen, so the two uses no longer conflict.
-  //
-  //    `favicon.svg` was this file's old name and is gone rather than left
-  //    behind: nothing referenced it once layout.tsx moved, and the repo does
-  //    not ship assets nothing requests.
-  console.log("Rendering the self-inverting scalable icon...");
+  // 5. The scalable icon — the same outlined tile as vector, serving the
+  //    manifest's first `any` entry and the modern browser tab. ONE colorway:
+  //    it used to carry both appearances behind `prefers-color-scheme` so it
+  //    could follow the OS where a PNG cannot, and that whole mechanism existed
+  //    to keep the mark legible on whichever plate the appearance chose. The
+  //    outlined mark is legible on either plate by construction, so the swap —
+  //    and the media-blind-renderer fallback rule that came with it — has
+  //    nothing left to do. It is generated flat, NOT a copy of a public/brand
+  //    file: the composed brand SVGs carry the baked squircle + gloss this
+  //    pipeline forbids, and this must be the same full-bleed square as its
+  //    raster siblings.
+  console.log("Rendering the scalable icon...");
   await fs.writeFile(
     path.join(ICONS_DIR, SCALABLE_ICON),
-    `${selfInvertingSVG(FRAC_STANDARD)}\n`,
+    `${outlinedTileSVG(FRAC_STANDARD)}\n`,
   );
   logWrite(path.join(ICONS_DIR, SCALABLE_ICON));
 
   // 6. iOS splash screens. Dark appearance (Void plate + Laser glyph) so the
   //    launch image matches the manifest's background_color #0F1012 — a Laser
   //    plate here would flash full-bleed lime before the app paints. Glyph at
-  //    30% of the device width, optically centred.
+  //    30% of the device width, optically centred. Flat, not outlined: this is
+  //    a launch screen on a known ground, not an icon on an unknown one.
   console.log("Rendering iOS splash screens...");
   const splashApp = appearance("dark");
   for (const [width, height] of SPLASH_SIZES) {
@@ -629,9 +682,10 @@ async function main() {
 
 // Generate only when invoked directly — `node scripts/generate-icons.mjs`, and
 // so `npm run generate:icons` and the CI step that calls it. The module is also
-// IMPORTED, by tests/unit/generate-icons-guard.test.ts, to reach the validators
-// above; without this check that import would rewrite 31 files as a side effect
-// of running the test suite.
+// IMPORTED, by tests/unit/generate-icons-guard.test.ts and
+// tests/unit/app-icon-svg.test.ts, to reach the validators and the colorway
+// above; without this check that import would rewrite 31 files as a side
+// effect of running the test suite.
 //
 // If this guard ever evaluates false under the CLI, generation silently stops
 // while every unit test stays green. What catches that is CI's "the generated

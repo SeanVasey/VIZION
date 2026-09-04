@@ -107,9 +107,9 @@ describe("assertAnyEntriesMatchMatrix", () => {
  * The SAME guard, for the shape the one above structurally cannot see.
  *
  * `assertAnyEntriesMatchMatrix` keys on pixel size, and an SVG has none — so
- * when the self-inverting scalable icon was added to the manifest it went
- * through `readManifestIcons()` unvalidated, and the manifest could have named
- * any path at all while the generator wrote `app-icon.svg` as always. That is
+ * when the scalable icon was added to the manifest it went through
+ * `readManifestIcons()` unvalidated, and the manifest could have named any
+ * path at all while the generator wrote `app-icon.svg` as always. That is
  * the #105 failure reopened in a new shape, and it is worse here than for a
  * raster entry: the scalable icon is declared FIRST, so it is what a modern
  * consumer reaches for before any PNG, and a 404 there is the whole icon.
@@ -129,7 +129,7 @@ describe("assertScalableEntries", () => {
 
     expect(
       scalable.length,
-      "the manifest should declare the self-inverting scalable icon",
+      "the manifest should declare the scalable icon",
     ).toBeGreaterThan(0);
     expect(() => assertScalableEntries(scalable, ICONS_DIR)).not.toThrow();
   });
