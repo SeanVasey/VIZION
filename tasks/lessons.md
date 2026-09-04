@@ -3969,23 +3969,21 @@ test:e2e` hard-fails in global-setup until
   runbook: any manifest-dependent observation made on a preview before this
   fix was made without a manifest.
 
-## Dark-mode icons on iOS — the plate must be findable, the fill must not be the plate (2026-09)
+## One screenshot of a fresh web clip is not a measurement (2026-09)
 
-- **iOS does not darken a web clip; it SEPARATES it.** IconServices (iOS 18+)
-  splits an icon into background and foreground, swaps the background for the
-  system dark gradient, and keeps the foreground (as-is, or tinted with the
-  old background colour); when separation fails it only dims slightly. Two
-  passes here fit exactly: a flat Void-on-Laser tile was separated and its
-  kept black mark vanished on the dark ground; a gradient-plated tile was
-  left untouched. "Auto-darkening" was the wrong word for the first — the
-  plate was replaced, not dimmed.
-- **Consequences for the artwork:** (1) the plate must be one flat colour or
-  the separation never fires; (2) the fill must be a colour the plate is not,
-  by a margin, or a colour-keyed swap takes it too — the unit tests hold every
-  ramp stop ≥ 80 RGB units from the plate after a simulated keyed pass at
-  tolerance 70 ate a fill that sat 61 away; (3) a black outline is useless on
-  the dark ground, so the FILL is the dark-mode carrier and the outline is
-  the light-mode one.
-- **Sample the owner's screenshot before theorising.** Reading the plate
-  pixels off the screenshot (~5% from authored) is what separated "iOS dimmed
-  it" from "iOS did nothing", and pointed at the gradient as the trigger.
+- **iOS produces a web clip's dark variant after the fact.** A
+  dark-appearance photo taken right after "Add to Home Screen" showed the
+  outlined tile's plate still green; a later photo of the same install showed
+  the plate swapped for a dark gradient and the mark kept pixel for pixel. The
+  first photo was read as "not separated" and a redesign shipped (#116: flat
+  plate, pale fill) before the second arrived. Reverted. Before redesigning
+  against a device observation, get the SAME install photographed twice,
+  minutes apart — and treat the first photo of a fresh install as provisional.
+- **Sampling the screenshot still paid off, twice.** The pixel samples proved
+  the first photo showed no treatment at all, and proved the second photo
+  showed the #114 tile (gradient plate, Laser-ramp fill) rather than #116's —
+  which is how the wrong redesign was caught within the hour.
+- **Name the mechanism correctly.** iOS separates an icon into background and
+  foreground and swaps the background; it does not dim the whole tile.
+  ADR-0015's "auto-darkening" was the wrong word, and it steered two rounds of
+  design. The docs now say "separates".

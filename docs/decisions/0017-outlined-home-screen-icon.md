@@ -1,7 +1,7 @@
 # 17. The installed icon is outlined, so no treatment of its plate can hide it
 
 Date: 2026-09-04
-Status: accepted, amended 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 below flattens the plate and lightens the fill)
+Status: accepted, confirmed on device 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change)
 
 ## Context
 
@@ -24,10 +24,6 @@ it: make the mark carry its own contrast, so that the plate can be the brand
 green **and** whatever an OS does to that plate cannot take the mark with it.
 
 ## Decision
-
-> **Amended 2026-09-04 — see Amendment 1.** The plate is now flat (no ramp) and
-> the fill is a lighter lime ramp rather than Laser; the outline and the
-> arrangement are as written here.
 
 Every installed surface — the apple-touch tile, the maskable tiles, the
 transparent `any` matrix and the scalable `app-icon.svg` — carries one
@@ -102,44 +98,31 @@ plate — intended, and visible.
 defeats both carriers — the answer is still not a second link, a `media` query
 or a matcher. Those are settled. It would be a different drawing.
 
-## Amendment 1 (2026-09-04) — the plate goes flat, the fill goes light
+## Amendment 1 (2026-09-04) — measured on device, and a change withdrawn
 
-**Measured.** The owner installed the tile above and switched the phone to
-dark appearance (screenshot, 2026-09-04). iOS left it alone: the plate sampled
-`#C7F53C` / `#BCE92E` / `#AADB18` against an authored `#CEFD40` → `#B3E422`
-(within ~5%), the outline `#030700`, the label "VIZION". Legible — and not what
-the owner asked for, which is the dark tile iOS had produced from the earlier
-_flat_ artwork: the plate swapped for the system's dark gradient, the mark
-kept. That tile failed only because the mark it kept was black.
+**Measured.** The owner installed this tile and photographed it in both
+appearances. Light: as authored (plate sampled `#C4F53C` top → `#A8DA16`
+bottom, the mark's fill `#CAF840`, its outline `#010701`). Dark: iOS
+_separated_ the tile — the plate replaced by a dark gradient derived from the
+plate's own colour (`#182110` top → `#070B0E` bottom), the mark kept pixel for
+pixel, fill `#CAF742` and outline `#020902`. That is this ADR's requirement met
+exactly: on the green plate the outline carries the mark; on the dark one the
+fill does.
 
-**Mechanism.** iOS 18 and later generate a dark icon for any app that does not
-ship one, web clips included, by _separating_ the icon into a background and a
-foreground: the background is replaced with the system's dark gradient; the
-foreground is either tinted with the old background colour or left as-is; and
-when separation fails its thresholds the icon is merely dimmed a little
-(IconServices — Gui Rambo's analysis, as reported by 9to5Mac, 2024-07-15). Both
-device passes fit: the flat Void-on-Laser tile was separated (plate → dark,
-black mark left as-is → the emboss), and the gradient-plated outlined tile was
-not (left within ~5% of authored).
+**Mechanism, for the record.** iOS 18 and later build a dark icon for an app
+that ships none by separating the image into a background and a foreground,
+replacing the background with a dark gradient and keeping the foreground
+(IconServices; Gui Rambo's analysis as reported by 9to5Mac, 2024-07-15). The
+flat Void-on-Laser tile of ADR-0015's era was separated the same way and lost
+only because the foreground it kept was black. "Auto-darkening" was the wrong
+word for it throughout.
 
-**Change.** The plate is **flat Laser** — one colour, corner to corner, the
-shape the separation step recognises. The mark's fill is a lime ramp, 0.55 →
-0.40 of the way from Laser to white, which stays at least 80 RGB units from the
-plate at every stop, so a background pass that keys on colour cannot take the
-fill along with the plate. What survives on the dark ground is the fill, so
-the fill must not be the plate's colour. The Void outline is unchanged. In a
-simulated keyed replacement at tolerance 70 the whole mark survived; a fill
-whose bottom stop sat 61 units from the plate lost its lower half.
-
-What each treatment now yields:
-
-| iOS's treatment of the tile                             | What carries the mark                      |
-| ------------------------------------------------------- | ------------------------------------------ |
-| left alone                                              | the Void outline, and the fill's lightness |
-| separated, foreground left as-is                        | a pale lime mark on the dark gradient      |
-| separated, foreground tinted with the background colour | a Laser mark on the dark gradient          |
-| dimmed                                                  | the outline on dark olive                  |
-
-**Not yet measured:** this tile on a device. The check is the same one-step
-re-add, and the expected dark-appearance result is a pale lime mark on the
-system's dark gradient.
+**A change withdrawn.** An earlier screenshot of the same install, taken in
+dark appearance shortly after adding, showed the plate still green — the dark
+variant had not yet been produced (iOS generates it after the fact; the exact
+trigger is not established). That screenshot was read as "iOS does not
+separate a gradient plate", and #116 flattened the plate and paled the fill to
+make separation more likely. The later screenshot shows the original artwork
+separated perfectly, so #116 is reverted and the artwork of this ADR stands as
+written. The lesson is in `tasks/lessons.md`: one screenshot of a freshly added
+web clip is not a measurement of its dark variant.

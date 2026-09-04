@@ -2,7 +2,6 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { outlinedColorway, rgbDistance } from "../../scripts/generate-icons.mjs";
 
 /**
  * Icon alpha contract (guardrail §6 / INV-09, audit INV-009): the `any`
@@ -92,18 +91,14 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
 /**
  * The OUTLINED colorway (ADR-0017) — what every installed surface carries.
  *
- * The contract, in pixels: a FLAT Laser plate; the mark FILLED in a lighter
- * lime that stays well clear of the plate's colour; the mark STROKED in Void.
- * The point of the design is that the mark's legibility does not depend on its
- * plate — the Void outline carries it on the green plate, the light fill
- * carries it on a plate iOS has swapped for its dark gradient — and that the
- * plate is something iOS's dark-mode pass can FIND (one colour, corner to
- * corner) and cannot take the fill along with (ADR-0017 amendment 1). Stated
- * as relationships and channel orders, never as hexes: the hexes live in
- * tokens.css, the generator derives the ramp from them, and this file must not
- * hold a second opinion about the brand green (the failure tasks/lessons.md
- * records). The one hex read here is imported from the generator for the same
- * reason.
+ * The contract, in pixels: a Laser plate; the mark FILLED in Laser; the mark
+ * STROKED in Void. The point of the design is that the mark's legibility does
+ * not depend on its plate — the Void outline carries it on the green plate, the
+ * Laser fill carries it on a plate an OS has darkened — so what is pinned here
+ * is exactly that both carriers are present. Stated as relationships and
+ * channel orders, never as hexes: the hexes live in tokens.css, the generator
+ * derives the ramp from them, and this file must not hold a second opinion
+ * about the brand green (the failure tasks/lessons.md records).
  *
  * These replace the two colorway tests that stood here under ADR-0015, which
  * pinned the tile to the DARK colorway (plate darker than mark; the exact
@@ -115,33 +110,21 @@ describe("the outlined colorway — both carriers present on every installed til
 
   for (const file of tiles) {
     describe(file, () => {
-      it("has a FLAT Laser plate — bright, green-led, one colour corner to corner", async () => {
-        const { plate, plateFoot } = await sampleTile(join(ICONS, file));
+      it("has a Laser plate — bright and green-led, not a dark one", async () => {
+        const { plate } = await sampleTile(join(ICONS, file));
         expect(
           plate.luma,
           "the plate is the brand green, which is light",
         ).toBeGreaterThan(160);
         expectGreenLed(plate, "plate");
-        // Top-left and bottom-left corners must agree: a gradient plate is
-        // what stopped iOS separating the tile into background and mark.
-        expect(
-          rgbDistance(plate.hex, plateFoot.hex),
-          "the plate must be flat",
-        ).toBeLessThan(4);
       });
 
-      it("fills the mark in a lighter lime, well clear of the plate colour", async () => {
-        const { mark, plate } = await sampleTile(join(ICONS, file));
-        expectGreenLed(mark, "mark fill");
-        expect(mark.luma, "the fill is lighter than the plate").toBeGreaterThan(
-          plate.luma + 8,
+      it("fills the mark in the plate's green, so a darkened plate cannot swallow it", async () => {
+        const { mark } = await sampleTile(join(ICONS, file));
+        expect(mark.luma, "the fill is the brand green, which is light").toBeGreaterThan(
+          160,
         );
-        // iOS's dark-mode pass replaces the background it detects by colour;
-        // a fill within its tolerance of the plate would go dark with it.
-        expect(
-          rgbDistance(mark.hex, plate.hex),
-          "the fill must not be a colour a keyed background pass could mistake for the plate",
-        ).toBeGreaterThanOrEqual(60);
+        expectGreenLed(mark, "mark fill");
       });
 
       it("outlines the mark in Void, so the green plate cannot swallow it either", async () => {
@@ -169,10 +152,6 @@ describe("the outlined colorway — both carriers present on every installed til
     const { mark, outline } = await sampleTile(join(ICONS, "icon-512.png"));
     expect(mark.luma).toBeGreaterThan(160);
     expectGreenLed(mark, "mark fill");
-    expect(
-      rgbDistance(mark.hex, outlinedColorway().plate),
-      "the any icon's fill is the same light lime as the tiles' — not the plate colour",
-    ).toBeGreaterThanOrEqual(60);
     expect(outline.luma).toBeLessThan(48);
     expect(outline.alpha, "the stroke is opaque, not a soft shadow").toBe(255);
   });
@@ -180,7 +159,6 @@ describe("the outlined colorway — both carriers present on every installed til
 
 type Sample = {
   rgb: string;
-  hex: string;
   luma: number;
   alpha: number;
   r: number;
@@ -197,13 +175,13 @@ function expectGreenLed({ r, g, b }: Sample, what: string) {
 }
 
 /**
- * Four samples of any tile: the plate at (2, 2) and again at the bottom-left
- * corner (flatness), the mark's fill at the centre, and the darkest pixel on
- * the row through the centre — which on the outlined artwork is the stroke,
- * and on flat artwork would be the mark.
+ * Three samples of any tile: the plate at (2, 2), the mark's fill at the
+ * centre, and the darkest pixel on the row through the centre — which on the
+ * outlined artwork is the stroke, and on flat artwork would be the mark.
  *
  * (2, 2) is plate on any full-bleed tile — these are flattened, so every pixel
- * outside the mark is the plate. The CENTRE is
+ * outside the mark is the plate (a gradient, so its exact value varies by row;
+ * the assertions above read its channel order, not its value). The CENTRE is
  * inside the mark's vertical bar at both glyph fractions this pipeline renders:
  * frac 0.74 puts the bar at 45.8–54.2 % of the width, frac 0.58 at 46.7–53.3 %,
  * and the bar spans the vertical centre in both.
@@ -215,7 +193,6 @@ async function sampleTile(file: string) {
     const [r, g, b, alpha] = [data[i]!, data[i + 1]!, data[i + 2]!, data[i + 3]!];
     return {
       rgb: `${r},${g},${b}`,
-      hex: `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`,
       luma: 0.2126 * r + 0.7152 * g + 0.0722 * b,
       alpha,
       r,
@@ -232,10 +209,5 @@ async function sampleTile(file: string) {
     if (s.alpha === 255 && (outline === null || s.luma < outline.luma)) outline = s;
   }
   if (!outline) throw new Error(`${file}: no opaque pixel on the centre row`);
-  return {
-    plate: at(2, 2),
-    plateFoot: at(2, info.height - 3),
-    mark: at(info.width >> 1, cy),
-    outline,
-  };
+  return { plate: at(2, 2), mark: at(info.width >> 1, cy), outline };
 }

@@ -34,45 +34,31 @@
 // THE INSTALLED ICON — one colorway, legible on either ground (ADR-0017)
 // -----------------------------------------------------------------------
 // Everything a launcher installs — the apple-touch tile, the maskable tiles,
-// the transparent `any` matrix and the scalable app-icon.svg — carries the
-// OUTLINED colorway: a FLAT Laser plate, the mark FILLED in a lighter lime
-// ramp and STROKED in Void. The mark never depends on its plate for contrast,
-// and — since ADR-0017 amendment 1 — the plate is something iOS can find and
-// swap.
+// the transparent `any` matrix and the scalable app-icon.svg — now carries the
+// OUTLINED colorway: a Laser plate, the mark FILLED in Laser and STROKED in
+// Void, both with a slight top-lit gradient. The point is that the mark no
+// longer depends on its ground for contrast. If an OS keeps the Laser plate,
+// the Void outline carries the mark; if it replaces or crushes the plate
+// toward dark, the Laser fill carries it. Two previous designs each bet on ONE
+// ground (Void ink on Laser — iOS darkened the plate into the ink; Laser on
+// Void — legible everywhere, but the brand green never reached the Home
+// Screen). This one is built so that no treatment of the plate can hide it.
 //
-// WHAT iOS DOES TO A FLAT ICON IN DARK APPEARANCE (iOS 18+, IconServices; Gui
-// Rambo's analysis as reported by 9to5Mac, 2024-07-15, and consistent with
-// every device pass recorded in docs/runbooks/ios-verification.md): it tries
-// to SEPARATE the icon into a background and a foreground, replaces the
-// background with the system's dark gradient, and either tints the foreground
-// with the old background colour or leaves it as-is; when separation fails its
-// thresholds it falls back to a slight dimming of the whole icon. Measured
-// here, twice:
-//   • Void ink on a flat Laser plate (2026-08-12): separated — the plate went
-//     dark, the black mark was left as-is, black on near-black: the "emboss".
-//   • The first outlined tile, whose plate was a GRADIENT (2026-09-04, owner
-//     screenshot): NOT separated — the tile came back within ~5% of the
-//     authored pixels, plate still Laser. Legible, but not the dark tile the
-//     owner asked for.
-// So the plate is FLAT — one colour, corner to corner, the shape the
-// separation step recognises — and the fill is a lime ramp kept ~90 RGB units
-// away from the plate colour, so a background pass that keys on colour cannot
-// take the fill with the plate. What survives on the dark ground is the fill,
-// so the fill must not be the plate's colour. On the Laser plate the Void
-// outline and the fill's lightness carry the mark; on a swapped or dimmed
-// plate the fill carries it.
-//
-// What is NOT measured yet is THIS tile on a device: whether IconServices
-// separates it and keeps the fill. The head's arrangement is unchanged either
-// way — one link, no query, no matcher.
+// What is measured about iOS (docs/runbooks/ios-verification.md) still stands
+// and still shapes the head: it reads `apple-touch-icon` once, ignores `media`
+// on icons, freezes the capture, and auto-darkens it under dark appearance. So
+// there is still exactly ONE apple link and no query. Measured on device
+// (2026-09-04, runbook): in dark appearance iOS SEPARATES the tile — the plate
+// swapped for a dark gradient, the outlined mark kept pixel for pixel — which
+// is exactly the outcome this artwork was drawn for. It does not dim the tile;
+// "auto-darkening" was the wrong word, and the variant appears after the fact.
 //
 // RULES (never work around)
 // -------------------------
 //   • Full-bleed square. NO pre-rounded corners, NO specular gloss, NO drop
 //     shadow — the OS rounds and glassifies at runtime. The one lighting cue
-//     is the slight LINEAR gradient on the MARK (owner brief, 2026-09); it is
-//     a tint ramp, not a highlight, and it stays subtle. The PLATE is flat: a
-//     gradient plate is what stopped iOS separating the tile (see above).
+//     is the slight LINEAR gradient of the outlined colorway (owner brief,
+//     2026-09); it is a tint ramp, not a highlight, and it stays subtle.
 //   • Maskable is the only padded exception: 0.58 glyph fraction so the art
 //     clears Android's 80% safe-zone circle. Everything else uses 0.74.
 //   • Alpha contract (guardrail §6 / INV-09, enforced by
@@ -185,16 +171,13 @@ function mix(a, b, t) {
 }
 
 /**
- * The MARK's lighting ramp, as fractions of the way from Laser toward white,
- * top and bottom. The plate carries no ramp: a gradient plate is what stopped
- * IconServices separating the tile (header), and the fill's whole job on a
- * dark ground is to be a colour the plate is not — at 0.40 the bottom of the
- * ramp sits ~90 RGB units from the plate (0.22 sat at 61, and a simulated
- * colour-keyed background pass at tolerance 70 ate the lower half of the
- * mark; the unit test holds every stop at ≥ 80). "Slight" is the brief: the
- * ramp is 0.15 wide, top-lit.
+ * The lighting ramp, as fractions toward white (top) and black (bottom).
+ * "Slight" is the brief: the plate moves a tenth either way, the mark's top
+ * catches a little more light than the plate's so the fill reads as a raised
+ * shape sitting IN the light rather than a cut-out of the plate, and the mark's
+ * bottom rests exactly on the token.
  */
-const LIGHTING = { markTop: 0.55, markBottom: 0.4 };
+const LIGHTING = { plateTop: 0.12, plateBottom: 0.1, markTop: 0.3 };
 
 /**
  * The outline's stroke width in GLYPH units. The stroke is painted UNDER the
@@ -206,23 +189,16 @@ const LIGHTING = { markTop: 0.55, markBottom: 0.4 };
  */
 export const OUTLINE_WIDTH = 60;
 
-/** Euclidean distance between two `#RRGGBB` colours in sRGB — the unit the
- *  fill-vs-plate separation above is stated in. Exported for the tests. */
-export function rgbDistance(a, b) {
-  const [ra, rb] = [hexToRgb(a), hexToRgb(b)];
-  return Math.hypot(ra[0] - rb[0], ra[1] - rb[1], ra[2] - rb[2]);
-}
-
 /**
- * The outlined colorway's four colours, every one derived from the tokens so
- * the tests can import them instead of restating a hex. `plate` IS the Laser
- * token — flat, no ramp.
+ * The outlined colorway's five colours, every one derived from the tokens so
+ * the tests can import them instead of restating a hex.
  */
 export function outlinedColorway() {
   return {
-    plate: LASER,
+    plateTop: mix(LASER, "#FFFFFF", LIGHTING.plateTop),
+    plateBottom: mix(LASER, "#000000", LIGHTING.plateBottom),
     markTop: mix(LASER, "#FFFFFF", LIGHTING.markTop),
-    markBottom: mix(LASER, "#FFFFFF", LIGHTING.markBottom),
+    markBottom: LASER,
     outline: INK,
   };
 }
@@ -349,15 +325,18 @@ function outlinedMark(canvasW, canvasH, frac, lift) {
 }
 
 /**
- * The mark's lighting ramp, top-to-bottom in the fill path's own bounding box
- * (the default `objectBoundingBox` units), so the mark's top is its lightest
- * point wherever it sits on the canvas. The plate has no gradient and needs no
- * def.
+ * The lighting ramps. Both are top-to-bottom in the painted element's own
+ * bounding box (the default `objectBoundingBox` units): the plate's over the
+ * whole canvas, the mark's over the mark alone, so the mark's top is its
+ * lightest point wherever it sits on the canvas.
  */
 function outlinedDefs() {
   const c = outlinedColorway();
   return (
     `<defs>` +
+    `<linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${c.plateTop}"/>` +
+    `<stop offset="1" stop-color="${c.plateBottom}"/></linearGradient>` +
     `<linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0" stop-color="${c.markTop}"/>` +
     `<stop offset="1" stop-color="${c.markBottom}"/></linearGradient>` +
@@ -365,13 +344,12 @@ function outlinedDefs() {
   );
 }
 
-/** Full-bleed opaque square in the outlined colorway: flat plate + outlined
- *  mark. */
+/** Full-bleed opaque square in the outlined colorway: plate + outlined mark. */
 function outlinedTileSVG(frac, size = CANVAS) {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     outlinedDefs() +
-    `<rect width="${size}" height="${size}" fill="${outlinedColorway().plate}"/>` +
+    `<rect width="${size}" height="${size}" fill="url(#plate)"/>` +
     outlinedMark(size, size, frac, 0.0156) +
     `</svg>`
   );

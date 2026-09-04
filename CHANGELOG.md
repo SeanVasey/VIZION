@@ -6,29 +6,18 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
-### The installed icon's plate goes flat and its fill goes light, so iOS can swap the plate and keep the mark
+### The outlined tile is confirmed on device, and #116 is reverted
 
-The owner installed the outlined tile and switched to dark appearance: iOS
-left it entirely alone (plate within ~5% of authored, outline intact), which is
-legible but not the dark tile that had appeared before. The mechanism, now
-recorded: iOS 18+ builds a dark icon for an app that ships none by _separating_
-the icon into background and foreground, swapping the background for its dark
-gradient, and keeping (or tinting) the foreground — falling back to a slight
-dim when separation fails. The earlier flat Void-on-Laser tile was separated
-and lost only because the kept mark was black; the outlined tile's _gradient_
-plate was not separated at all
-([ADR-0017, Amendment 1](./docs/decisions/0017-outlined-home-screen-icon.md)).
-
-So the plate is **flat Laser** again — one colour, corner to corner — and the
-mark's fill is a **lighter lime ramp** (0.55 → 0.40 toward white) held at least
-80 RGB units from the plate at every stop, so a colour-keyed background pass
-cannot take the fill with the plate. The Void outline is unchanged. Whatever
-iOS does now, something carries the mark: the outline on the Laser plate, the
-pale fill on a swapped dark plate, a Laser mark if the foreground is tinted,
-the outline on dark olive if the tile is only dimmed. The unit tests pin the
-plate's flatness, the fill's distance from the plate and its lightness; the e2e
-render pins the fill lighter than the plate on both engines. The flat tile's
-own device pass is the open item in the runbook.
+Owner screenshots of the installed tile, both appearances: light as authored;
+dark with the plate swapped for a dark gradient derived from the plate's
+colour and the outlined mark kept pixel for pixel — the requirement met
+exactly. An earlier dark-appearance screenshot of the same install had shown
+the plate still green, because iOS produces a web clip's dark variant after the
+fact; #116 read that as "iOS does not separate a gradient plate", flattened the
+plate and paled the fill, and is reverted here in full. The artwork, tests and
+docs of the outlined tile stand as #114 shipped them; the measurement is
+recorded in [ADR-0017, Amendment 1](./docs/decisions/0017-outlined-home-screen-icon.md)
+and the iOS runbook.
 
 ### The installed icon is outlined — the brand green comes back to the Home Screen
 
