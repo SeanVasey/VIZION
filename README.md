@@ -155,10 +155,13 @@ reordered plus a client-side matcher (#111), and a self-inverting SVG as a Home
 Screen route (#111). Every one bet that iOS would re-resolve or select
 something; it does not.
 
-`/icons/app-icon.svg` is the outlined tile as vector, in **one** colorway — the
-`prefers-color-scheme` swap it used to carry existed only to keep the mark
-legible on whichever plate the appearance chose, and the outline makes that
-moot.
+`/icons/app-icon.svg` is the outlined tile as vector in **both** appearances:
+the plate follows `prefers-color-scheme` (the Laser ramp in light, Void in
+dark) while the mark stays the outlined mark, so the stroke carries it on green
+and the fill on dark. It is the manifest's first icon, and Safari 26 uses
+manifest icons — SVG included — for the Home Screen, which makes it the
+declarative route to a dark plate; the PNG tile is the fallback
+([ADR-0017, Amendment 2](./docs/decisions/0017-outlined-home-screen-icon.md)).
 
 See [the iOS runbook](./docs/runbooks/ios-verification.md) for the measured
 result table and the superseded arrangements.

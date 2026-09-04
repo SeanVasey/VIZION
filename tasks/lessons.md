@@ -3987,3 +3987,22 @@ test:e2e` hard-fails in global-setup until
   foreground and swaps the background; it does not dim the whole tile.
   ADR-0015's "auto-darkening" was the wrong word, and it steered two rounds of
   design. The docs now say "separates".
+
+## The SVG's dark branch comes back (2026-09)
+
+- **A measurement made under invalid conditions is not a measurement.** The
+  runbook's "iOS does not select the manifest SVG" (2026-08-13) was taken on a
+  preview whose manifest could not be fetched, so the device had no manifest
+  icons to select from. Two decisions were built on it (pinning the tile dark,
+  then flattening the SVG to one colorway). When the owner says a mechanism
+  has worked, check the conditions of the contrary measurement before
+  arguing with the owner.
+- **Legibility and appearance are different requirements.** The outline made
+  the mark legible on any plate, which is why #114 dropped the SVG's swap —
+  but the owner's requirement was that the plate itself follow the appearance.
+  Solving the first does not discharge the second.
+- **Default to the branch that the OTHER mechanism can rescue.** With the
+  outlined mark, a media-blind capture of the green tile is separated by iOS's
+  dark pass; a media-blind capture of the dark tile is stuck dark in light.
+  So the SVG's default is light now, the reverse of ADR-0015's rule, for a
+  reason that changed with the artwork.

@@ -1,7 +1,7 @@
 # 17. The installed icon is outlined, so no treatment of its plate can hide it
 
 Date: 2026-09-04
-Status: accepted, confirmed on device 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change)
+Status: accepted, confirmed on device 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change; Amendment 2 restores the scalable icon's dark appearance)
 
 ## Context
 
@@ -126,3 +126,31 @@ make separation more likely. The later screenshot shows the original artwork
 separated perfectly, so #116 is reverted and the artwork of this ADR stands as
 written. The lesson is in `tasks/lessons.md`: one screenshot of a freshly added
 web clip is not a measurement of its dark variant.
+
+## Amendment 2 (2026-09-04) — the scalable icon carries both appearances again
+
+**Owner direction.** The dark plate must not depend on iOS producing a variant
+after the fact; the owner has seen the SVG route deliver it and asked for it
+back. #114 had flattened `app-icon.svg` to one colorway on the reasoning that
+the outline made the swap unnecessary — true for legibility, irrelevant to the
+plate's colour, which is what the owner wants to follow the appearance.
+
+**Change.** `app-icon.svg` — the manifest's first icon and the first
+`rel="icon"` — carries both appearances: the plate is a class whose fill swaps
+from the Laser ramp to a Void plate under `prefers-color-scheme: dark`, and the
+mark is the outlined mark in both, unchanged. The default rules are the LIGHT
+appearance, the reverse of ADR-0015's rule and for a reason that changed with
+the artwork: a media-blind renderer that captures the green tile hands iOS's
+own dark pass a plate it separates with the mark kept, while a captured dark
+tile would stay dark in light appearance. The PNG apple-touch tile is unchanged
+and stays linked as the fallback for anything that does not take the SVG.
+
+**Why this can work where ADR-0015 said it could not.** ADR-0015's "iOS does
+not select the manifest SVG" was measured on a preview whose manifest was
+unreadable — the credential-less fetch fixed in #114 — so the device never had
+a manifest to select from. Safari 26 documents SVG icons "everyplace there are
+icons", the Home Screen included, and that manifest icons are used. Whether
+iOS re-renders the SVG when the appearance changes, or captures it once per
+install, is the open device check in the runbook; either way the plate a
+light-appearance install captures is the green one, which iOS's dark pass
+handles.

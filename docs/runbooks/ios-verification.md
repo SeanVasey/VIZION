@@ -147,10 +147,23 @@ half of it stands). What changed is the artwork behind the link
   brand green the Home Screen. The outlined mark carries its own contrast: on
   the Laser plate the Void outline reads; on a plate iOS has darkened or
   replaced, the Laser fill reads.
-- `/icons/app-icon.svg` is the same outlined tile as vector, in ONE colorway.
-  Its light/dark swap and its "default to the dark branch" rule are gone —
-  both existed to keep the mark legible on whichever plate the appearance
-  chose, and the outline makes the plate irrelevant to legibility.
+- `/icons/app-icon.svg` is the outlined tile as vector in BOTH appearances
+  (ADR-0017 amendment 2): the plate follows `prefers-color-scheme` — the Laser
+  ramp in light, Void in dark — and the mark is the outlined mark in both.
+  Default LIGHT: a media-blind renderer captures the green tile, which iOS's
+  dark pass separates; a captured dark tile would stay dark in light. It is the
+  manifest's first icon, and Safari 26 uses manifest icons, SVG included, for
+  the Home Screen — the declarative route to a dark plate. The PNG tile stays
+  as the fallback.
+
+**OPEN — needs a device (2026-09-04, the SVG route).** Row 6's "iOS does not
+select the manifest SVG" was measured without a manifest (the caveat above);
+it needs re-measuring on production or a post-#114 preview. Two installs:
+(1) add in LIGHT appearance, toggle dark — a Void plate means the SVG's dark
+branch was honoured live; a green plate that later goes dark-gradient means
+the after-the-fact variant of a captured raster; (2) add in DARK appearance,
+toggle light — a green plate means live SVG; a dark plate means a captured
+render. Photograph all four states and record which surface iOS read.
 
 **MEASURED 2026-09-04 — the outlined tile, both appearances (owner
 screenshots).** Light: as authored. Dark: iOS separated the tile — the plate
