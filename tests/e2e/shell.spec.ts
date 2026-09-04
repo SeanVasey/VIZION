@@ -160,9 +160,11 @@ test.describe("VIZION shell + auth gate", () => {
   test("the app icon is one outlined colorway, and does not move with the appearance", async ({
     page,
   }) => {
-    // The requirement, stated as pixels (ADR-0017): a Laser plate, the mark
-    // FILLED in Laser and STROKED in Void — both carriers present, so the mark
-    // reads whether an OS keeps the plate or darkens it. And the SAME pixels
+    // The requirement, stated as pixels (ADR-0017): a flat Laser plate, the
+    // mark FILLED in a lighter lime and STROKED in Void — both carriers
+    // present, so the mark reads whether an OS keeps the plate or swaps it for
+    // its dark gradient (amendment 1: the fill must not be the plate's colour,
+    // or a keyed background pass takes it too). And the SAME pixels
     // under both schemes: the `prefers-color-scheme` swap this file used to
     // carry is gone, and a renderer's scheme must not change what it paints.
     //
@@ -225,6 +227,13 @@ test.describe("VIZION shell + auth gate", () => {
     };
     greenLed(light.plate, "plate");
     greenLed(light.mark, "mark fill");
+    // The fill is the carrier on a swapped (dark) plate, so it must be a
+    // colour the plate is not — lighter, by a margin (ADR-0017 amendment 1).
+    const luma = (p: { r: number; g: number; b: number }) =>
+      0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
+    expect(luma(light.mark), "the fill is lighter than the plate").toBeGreaterThan(
+      luma(light.plate) + 8,
+    );
     expect(
       light.darkest,
       "the Void outline is painted (luma of --void is ~16)",
