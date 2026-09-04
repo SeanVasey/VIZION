@@ -177,7 +177,7 @@ function mix(a, b, t) {
  * shape sitting IN the light rather than a cut-out of the plate, and the mark's
  * bottom rests exactly on the token.
  */
-const LIGHTING = { plateTop: 0.12, plateBottom: 0.1, markTop: 0.3 };
+const LIGHTING = { plateTop: 0.12, plateBottom: 0.1, markTop: 0.3, plateDarkTop: 0.05 };
 
 /**
  * The outline's stroke width in GLYPH units. The stroke is painted UNDER the
@@ -200,6 +200,11 @@ export function outlinedColorway() {
     markTop: mix(LASER, "#FFFFFF", LIGHTING.markTop),
     markBottom: LASER,
     outline: INK,
+    // The dark appearance's plate, for the scalable icon only (below): the Void
+    // token with a whisper of lift at the top, so it reads as a plate rather
+    // than a hole — the same shape the Icon Composer dark background takes.
+    plateDarkTop: mix(VOID, "#FFFFFF", LIGHTING.plateDarkTop),
+    plateDarkBottom: VOID,
   };
 }
 
@@ -360,6 +365,62 @@ function outlinedGlyphSVG(frac, size = CANVAS) {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     outlinedDefs() +
+    outlinedMark(size, size, frac, 0.0156) +
+    `</svg>`
+  );
+}
+/**
+ * The SCALABLE icon — the outlined tile as vector, carrying BOTH appearances.
+ *
+ * This is the manifest's first `any` entry and the first `rel="icon"`, and it
+ * is the one icon surface that can declare a dark appearance in a way a
+ * renderer can honour: the plate is a CSS class whose fill swaps under
+ * `@media (prefers-color-scheme: dark)` from the Laser ramp to a Void plate.
+ * The MARK does not swap — it is the outlined mark in both appearances, the
+ * fill's Laser ramp and the Void stroke — because on the Laser plate the
+ * stroke carries it and on the Void plate the fill does. That is the owner's
+ * brief (2026-09-04): the icon shape filled and stroked, the plate following
+ * the appearance.
+ *
+ * DEFAULT = LIGHT, deliberately (the reverse of the #112 rule, and for a
+ * reason that has since changed). A renderer that ignores the media query
+ * paints the default. Under #112 the dark colorway had to be the default
+ * because the light one, captured flat, was crushed into an emboss; the
+ * outlined mark cannot be, and a captured LIGHT tile is the one iOS's own
+ * dark-appearance pass separates into a dark plate with the mark kept
+ * (measured 2026-09-04, runbook). A captured DARK tile would stay dark in
+ * light appearance — the #112 outcome the owner rejected. So the branch a
+ * media-blind renderer lands on is the green one.
+ *
+ * The plate rect carries NO fill attribute: an attribute outranks the class
+ * rules and the swap would never apply. The mark's paths keep theirs — they
+ * do not swap.
+ *
+ * `color-scheme: light dark` on the root is declared as well, so a renderer
+ * that resolves a scheme from the property rather than the query still
+ * resolves one.
+ */
+function scalableIconSVG(frac, size = CANVAS) {
+  const c = outlinedColorway();
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
+    `<style>` +
+    `:root{color-scheme:light dark}` +
+    `.plate{fill:url(#plate)}` +
+    `@media (prefers-color-scheme:dark){.plate{fill:url(#plate-dark)}}` +
+    `</style>` +
+    `<defs>` +
+    `<linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${c.plateTop}"/>` +
+    `<stop offset="1" stop-color="${c.plateBottom}"/></linearGradient>` +
+    `<linearGradient id="plate-dark" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${c.plateDarkTop}"/>` +
+    `<stop offset="1" stop-color="${c.plateDarkBottom}"/></linearGradient>` +
+    `<linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${c.markTop}"/>` +
+    `<stop offset="1" stop-color="${c.markBottom}"/></linearGradient>` +
+    `</defs>` +
+    `<rect class="plate" width="${size}" height="${size}"/>` +
     outlinedMark(size, size, frac, 0.0156) +
     `</svg>`
   );
@@ -640,21 +701,19 @@ async function main() {
     path.join(repoRoot, "public", "favicon.ico"),
   );
 
-  // 5. The scalable icon — the same outlined tile as vector, serving the
-  //    manifest's first `any` entry and the modern browser tab. ONE colorway:
-  //    it used to carry both appearances behind `prefers-color-scheme` so it
-  //    could follow the OS where a PNG cannot, and that whole mechanism existed
-  //    to keep the mark legible on whichever plate the appearance chose. The
-  //    outlined mark is legible on either plate by construction, so the swap —
-  //    and the media-blind-renderer fallback rule that came with it — has
-  //    nothing left to do. It is generated flat, NOT a copy of a public/brand
-  //    file: the composed brand SVGs carry the baked squircle + gloss this
-  //    pipeline forbids, and this must be the same full-bleed square as its
-  //    raster siblings.
-  console.log("Rendering the scalable icon...");
+  // 5. The scalable icon — the outlined tile as vector, in BOTH appearances
+  //    (see scalableIconSVG). It serves the manifest's first `any` entry, the
+  //    first `rel="icon"`, and — on Safari 26, which uses manifest icons and
+  //    SVG "everyplace there are icons", the Home Screen included — the one
+  //    declarative route to a dark plate in dark appearance that does not wait
+  //    on iOS's after-the-fact variant. The PNG apple-touch tile stays as the
+  //    fallback for everything that does not take the SVG. Generated flat, NOT
+  //    a copy of a public/brand file: the composed brand SVGs carry the baked
+  //    squircle + gloss this pipeline forbids.
+  console.log("Rendering the scalable icon (both appearances)...");
   await fs.writeFile(
     path.join(ICONS_DIR, SCALABLE_ICON),
-    `${outlinedTileSVG(FRAC_STANDARD)}\n`,
+    `${scalableIconSVG(FRAC_STANDARD)}\n`,
   );
   logWrite(path.join(ICONS_DIR, SCALABLE_ICON));
 

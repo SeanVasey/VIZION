@@ -8,30 +8,31 @@ import {
 } from "../../scripts/generate-icons.mjs";
 
 /**
- * The scalable app icon — the outlined tile as vector, ONE colorway.
+ * The scalable app icon — the outlined tile as vector, carrying BOTH
+ * appearances (ADR-0017 amendment 2).
  *
- * This file is the manifest's first `any` entry and the modern browser tab's
- * icon. Under ADR-0015 it carried both appearances behind `prefers-color-
- * scheme`, with the dark colorway as the default so a media-blind renderer
- * landed on the branch that could not degrade — a whole mechanism whose only
- * job was to keep the mark legible on whichever plate the appearance chose.
- * The outlined colorway (ADR-0017) makes the mark legible on either plate by
- * construction, so the swap is gone, and what is asserted here is the source
- * contract of the artwork that replaced it: the Laser lighting ramp on the
- * plate, the Laser ramp on the mark, the Void outline painted UNDER the fill,
- * and no appearance branch left to reintroduce the old fragility.
+ * This file is the manifest's first `any` entry and the first `rel="icon"`;
+ * Safari 26 uses manifest icons, SVG included, for the Home Screen. It is the
+ * one icon surface that can DECLARE a dark appearance: the plate is a CSS
+ * class whose fill swaps under `prefers-color-scheme: dark` from the Laser
+ * ramp to a Void plate, while the MARK stays the outlined mark in both — the
+ * stroke carries it on green, the fill on dark.
  *
- * That the artwork actually PAINTS that way is a separate question a string
- * cannot answer, and it is answered by render in tests/e2e/shell.spec.ts ("the
- * app icon is one outlined colorway, and does not move with the appearance").
- * Both halves are needed.
+ * What is asserted here is the source contract: the default rules are the
+ * LIGHT appearance (a media-blind renderer paints the default, and a captured
+ * green tile is the one iOS's own dark pass separates, mark kept; a captured
+ * dark tile would stay dark in light appearance — the ADR-0015 outcome the
+ * owner rejected); the dark override swaps ONLY the plate; the rect carries
+ * no `fill` attribute that would outrank the class; the mark's paths are the
+ * stroke-under-fill pair and do not swap. That the swap actually PAINTS is a
+ * separate question a string cannot answer, and it is answered by render in
+ * tests/e2e/shell.spec.ts ("the app icon's plate follows the appearance; the
+ * outlined mark does not").
  *
  * The colours come from the generator, which derives them from tokens.css —
- * not restated here, for the reason generate-icons.mjs gives: icon art
- * authored beside the token file instead of from it has already drifted a full
- * hue band once (tasks/lessons.md). The two checks that read tokens.css
- * directly are there to keep the generator honest about that derivation, not
- * to hold a second opinion about the brand green.
+ * not restated here (tasks/lessons.md: icon art authored beside the token file
+ * has already drifted a full hue band once). The two token reads below keep
+ * the generator honest about that derivation.
  */
 const ROOT = join(__dirname, "..", "..");
 const SVG = readFileSync(join(ROOT, "public", "icons", SCALABLE_ICON), "utf8");
@@ -55,34 +56,56 @@ function stops(id: string) {
   );
 }
 
+const style = SVG.match(/<style>(.*?)<\/style>/s)?.[1] ?? "";
+const defaultRules = style.slice(0, style.indexOf("@media"));
+const darkRules =
+  style.match(/@media\s*\(prefers-color-scheme:\s*dark\)\s*\{(.+)\}\s*$/s)?.[1] ?? "";
+
 /** Every painted <rect>/<path>, in document order, as its attribute string. */
 const painted = SVG.match(/<(?:rect|path)\b[^>]*>/g) ?? [];
 const paths = painted.filter((el) => el.startsWith("<path"));
+const rect = painted.find((el) => el.startsWith("<rect"));
 
-describe("app-icon.svg — the outlined tile, one colorway", () => {
-  it("paints the plate with the Laser lighting ramp, top-lit", () => {
+describe("app-icon.svg — the outlined tile, both appearances", () => {
+  it("defaults to the LIGHT appearance: the Laser plate", () => {
+    expect(style, "there is a stylesheet carrying the swap").not.toBe("");
+    expect(defaultRules).toContain(".plate{fill:url(#plate)}");
     expect(stops("plate")).toEqual([C.plateTop, C.plateBottom]);
-    const rect = painted.find((el) => el.startsWith("<rect"));
     expect(rect, "a full-bleed plate rect").toBeDefined();
-    expect(rect).toContain('fill="url(#plate)"');
+    expect(rect).toContain('class="plate"');
     expect(rect).toContain('width="1024"');
     expect(rect).toContain('height="1024"');
   });
 
-  it("fills the mark with its own ramp, resting on the token at the bottom", () => {
-    expect(stops("mark")).toEqual([C.markTop, C.markBottom]);
-    expect(C.markBottom, "the mark's base IS --laser, not a tint of it").toBe(
-      token("laser"),
+  it("swaps the plate to Void in dark — and only the plate", () => {
+    expect(darkRules, "one dark override block").not.toBe("");
+    expect(darkRules).toContain(".plate{fill:url(#plate-dark)}");
+    expect(stops("plate-dark")).toEqual([C.plateDarkTop, C.plateDarkBottom]);
+    expect(C.plateDarkBottom, "the dark plate rests on --void").toBe(token("void"));
+    expect(darkRules, "the mark must not swap").not.toMatch(/mark|glyph|stroke/);
+    expect(
+      SVG,
+      "the only appearance branch is the dark OVERRIDE; a light branch means the default flipped",
+    ).not.toContain("prefers-color-scheme:light");
+  });
+
+  /**
+   * A `fill` ATTRIBUTE on the rect would outrank the class rules in the
+   * cascade and the swap would never apply — the icon would parse, carry a
+   * correct-looking media query, and stay green in dark.
+   */
+  it("carries no fill attribute on the plate that would shadow the swap", () => {
+    expect(rect, `${rect} pins a fill, which outranks the class rules`).not.toMatch(
+      /\sfill="/,
     );
   });
 
   /**
    * The stroke is a second copy of the path painted FIRST, so only its outer
-   * half shows and the fill keeps its full geometry. Painting it after the fill
-   * (or as a centred stroke on the fill path) would eat half the outline out
-   * of the ring, which is barely wider than the stroke.
+   * half shows and the fill keeps its full geometry. Neither path swaps: the
+   * mark is the same outlined mark on both plates.
    */
-  it("strokes the mark in Void, under the fill", () => {
+  it("keeps the outlined mark in both appearances — stroke under fill, no swap", () => {
     expect(paths, "exactly two paths: the stroke, then the fill").toHaveLength(2);
     const [stroke, fill] = paths as [string, string];
     expect(stroke).toContain('fill="none"');
@@ -92,24 +115,16 @@ describe("app-icon.svg — the outlined tile, one colorway", () => {
     expect(fill).toContain('fill="url(#mark)"');
     expect(fill).toContain('fill-rule="evenodd"');
     expect(fill, "the fill path carries no stroke of its own").not.toContain("stroke=");
+    expect(stops("mark")).toEqual([C.markTop, C.markBottom]);
+    expect(C.markBottom, "the mark's base IS --laser").toBe(token("laser"));
     expect(C.outline, "the outline IS --void").toBe(token("void"));
-  });
-
-  it("carries the same geometry on both copies", () => {
     const d = (el: string) => el.match(/\sd="([^"]+)"/)?.[1];
-    expect(d(paths[0]!)).toBeDefined();
-    expect(d(paths[0]!)).toBe(d(paths[1]!));
+    expect(d(stroke)).toBeDefined();
+    expect(d(stroke)).toBe(d(fill));
   });
 
-  /**
-   * ONE colorway. An appearance branch here would be the ADR-0015 machinery
-   * creeping back — and with it the question of which branch a media-blind
-   * renderer paints, which the outlined artwork exists to make irrelevant.
-   */
-  it("has no appearance swap left — no media query, no stylesheet", () => {
-    expect(SVG).not.toContain("prefers-color-scheme");
-    expect(SVG).not.toContain("<style");
-    expect(SVG).not.toContain("color-scheme");
+  it("declares color-scheme so a renderer resolves a scheme at all", () => {
+    expect(SVG).toContain("color-scheme:light dark");
   });
 
   it("is a plain full-bleed square — no clip, no filter, no baked corners", () => {

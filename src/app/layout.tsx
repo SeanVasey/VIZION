@@ -107,10 +107,14 @@ export const metadata: Metadata = {
    * gradient and keeps the outlined mark pixel for pixel.
    *
    * The scalable icon stays FIRST among `rel="icon"` so a modern browser
-   * prefers it over the rasters. It is the same outlined tile as vector, in
-   * ONE colorway: the `prefers-color-scheme` swap it used to carry existed to
-   * keep the mark legible on whichever plate the appearance chose, and the
-   * outline makes that moot. The raster favicons keep the flat house colorway
+   * prefers it over the rasters. It is the outlined tile as vector in BOTH
+   * appearances: the plate follows `prefers-color-scheme` (Laser ramp in
+   * light, Void in dark) while the mark stays the outlined mark, so the stroke
+   * carries it on green and the fill on dark. It is also the manifest's first
+   * icon, and Safari 26 uses manifest icons — SVG included — for the Home
+   * Screen, which makes it the declarative route to a dark plate in dark
+   * appearance; the PNG tile above is the fallback for everything else
+   * (ADR-0017 amendment 2). The raster favicons keep the flat house colorway
    * (Void ink on a Laser plate) — at 16–32 px a 4 px outline is sub-pixel, and
    * the flat mark is the crisper rendition of the same identity there.
    */

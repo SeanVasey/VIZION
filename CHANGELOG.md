@@ -6,6 +6,24 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The scalable icon carries both appearances again
+
+`app-icon.svg` — the manifest's first icon and the first `rel="icon"` — gets
+its dark appearance back: the plate follows `prefers-color-scheme` (the Laser
+ramp in light, a Void plate in dark) while the mark stays the outlined mark in
+both, so the stroke carries it on green and the fill on dark. #114 had
+flattened the SVG to one colorway because the outline made the swap
+unnecessary for legibility; the owner's direction is that the _plate_ must
+follow the appearance without waiting for iOS's after-the-fact variant, and the
+SVG is the one icon surface that can declare that. Default LIGHT, the reverse
+of ADR-0015's rule: a media-blind renderer captures the green tile, which
+iOS's dark pass separates with the mark kept; a captured dark tile would stay
+dark in light. The PNG apple-touch tile is unchanged and stays as the fallback.
+ADR-0015's "iOS does not select the manifest SVG" was measured on a preview
+with no readable manifest, so the runbook now carries the re-measurement as
+the open device check
+([ADR-0017, Amendment 2](./docs/decisions/0017-outlined-home-screen-icon.md)).
+
 ### The outlined tile is confirmed on device, and #116 is reverted
 
 Owner screenshots of the installed tile, both appearances: light as authored;

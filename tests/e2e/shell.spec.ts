@@ -157,26 +157,32 @@ test.describe("VIZION shell + auth gate", () => {
     }
   });
 
-  test("the app icon is one outlined colorway, and does not move with the appearance", async ({
+  test("the app icon's plate follows the appearance; the outlined mark does not", async ({
     page,
+    browserName,
   }) => {
-    // The requirement, stated as pixels (ADR-0017): a Laser plate, the mark
-    // FILLED in Laser and STROKED in Void — both carriers present, so the mark
-    // reads whether an OS keeps the plate or darkens it. And the SAME pixels
-    // under both schemes: the `prefers-color-scheme` swap this file used to
-    // carry is gone, and a renderer's scheme must not change what it paints.
+    // MEASURED ENGINE DIVERGENCE (2026-08-12, docs/runbooks/ios-verification.md):
+    // WebKit does not apply `prefers-color-scheme` to an SVG pulled in through
+    // <img> — it paints the file's DEFAULT rules under both schemes. Chromium
+    // follows the embedding document. Scoped to Chromium on purpose: pinning
+    // "WebKit cannot do this" is the exact mistake the runbook exists to
+    // prevent, and it would fail as a bug report the day WebKitGTK adds it.
+    test.skip(
+      browserName !== "chromium",
+      "WebKit does not apply prefers-color-scheme to <img>-embedded SVG; see ios-verification.md",
+    );
+
+    // The requirement, stated as pixels (ADR-0017 amendment 2): the PLATE
+    // follows the appearance — the Laser ramp in light, Void in dark — while
+    // the MARK is the same outlined mark in both, so the stroke carries it on
+    // green and the fill carries it on dark. This file is the manifest's first
+    // icon, and Safari 26 uses manifest icons for the Home Screen, so it is the
+    // declarative route to a dark plate in dark appearance.
     //
-    // Runs on BOTH engines. The inversion test that stood here was scoped to
-    // Chromium because WebKit does not apply `prefers-color-scheme` inside an
-    // <img>-embedded SVG (measured — docs/runbooks/ios-verification.md); with
-    // no media query left in the file there is nothing for the engines to
-    // disagree about, and a WebKit render is worth having for the same reason
-    // it was worth scoping out before: it is the engine the tile is for.
-    //
-    // RENDERED, not read: asserting the gradient and stroke are in the markup
-    // would pass on an SVG whose paint never applies (a broken url(#ref), a
-    // renderer that drops the stroke). These are the painted pixels, sampled
-    // through an <img> because that is how an icon consumer embeds it.
+    // RENDERED, not read: asserting the media query is in the markup would pass
+    // on an SVG whose rule never applies (a fill attribute shadowing the class,
+    // a broken url(#ref)). These are the painted pixels, sampled through an
+    // <img> because that is how an icon consumer embeds it.
     const sample = async (scheme: "light" | "dark") => {
       await page.emulateMedia({ colorScheme: scheme });
       const svg = await (await page.request.get("/icons/app-icon.svg")).text();
@@ -184,11 +190,9 @@ test.describe("VIZION shell + auth gate", () => {
       await page.setContent(
         `<body style="margin:0"><img id="i" src="${uri}" width="400" height="400"></body>`,
       );
-      // Decoded in-page rather than with an image library: the e2e project has
-      // no raster dependency, and a canvas read-back is the same pixels.
       // (8,8) is plate; (200,151) sits inside the mark's vertical bar at this
-      // 400px render; and the row y=151 from the left edge to the bar crosses
-      // the bar's outline, so the darkest pixel on it is the stroke.
+      // 400px render; the row y=151 from the left edge to the bar crosses the
+      // bar's outline, so the darkest pixel on it is the stroke (in light).
       return page.evaluate(async (dataUri: string) => {
         const img = new Image();
         img.src = dataUri;
@@ -213,22 +217,27 @@ test.describe("VIZION shell + auth gate", () => {
     const light = await sample("light");
     const dark = await sample("dark");
 
-    // One colorway: the scheme changes nothing.
-    expect(dark, "the icon must not move with the appearance").toEqual(light);
-
-    // Both carriers, in channel order rather than hexes (tokens.css owns the
-    // hexes; the generator derives the ramp from them).
+    const luma = (p: { r: number; g: number; b: number }) =>
+      0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
     const greenLed = (p: { r: number; g: number; b: number }, what: string) => {
       expect(p.g, `${what}: green leads`).toBeGreaterThan(p.r);
       expect(p.r, `${what}: red leads blue — a lime, not a teal`).toBeGreaterThan(p.b);
       expect(p.g, `${what}: strong green`).toBeGreaterThan(200);
     };
-    greenLed(light.plate, "plate");
-    greenLed(light.mark, "mark fill");
-    expect(
-      light.darkest,
-      "the Void outline is painted (luma of --void is ~16)",
-    ).toBeLessThan(48);
+
+    // Light: the Laser plate, the outlined mark, the Void stroke painted.
+    greenLed(light.plate, "light plate");
+    greenLed(light.mark, "light mark fill");
+    expect(light.darkest, "the Void outline is painted in light").toBeLessThan(48);
+
+    // Dark: the plate is Void (the swap applied), the mark is the SAME fill.
+    expect(luma(dark.plate), "the dark plate must be dark").toBeLessThan(40);
+    expect(dark.mark, "the mark's fill must not move with the appearance").toEqual(
+      light.mark,
+    );
+    expect(dark.plate, "the plate must move with the appearance").not.toEqual(
+      light.plate,
+    );
   });
 
   test("the home-screen tile does NOT move with the appearance", async ({ page }) => {
