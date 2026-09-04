@@ -133,15 +133,16 @@ describe("UI contracts", () => {
     }
 
     function expectFeathered(stops: Stop[], label: string): void {
-      expect(stops.length, `${label}: too few stops to feather`).toBeGreaterThanOrEqual(6);
+      expect(stops.length, `${label}: too few stops to feather`).toBeGreaterThanOrEqual(
+        6,
+      );
       const last = stops[stops.length - 1]!;
       expect(last.alpha, `${label}: must end transparent`).toBe(0);
       expect(last.at, `${label}: the fade must reach the edge`).toBe(100);
       for (let i = 1; i < stops.length; i++) {
-        expect(
-          stops[i]!.at,
-          `${label}: stop positions must increase`,
-        ).toBeGreaterThan(stops[i - 1]!.at);
+        expect(stops[i]!.at, `${label}: stop positions must increase`).toBeGreaterThan(
+          stops[i - 1]!.at,
+        );
         expect(
           stops[i]!.alpha,
           `${label}: alpha must decay monotonically`,
@@ -162,9 +163,9 @@ describe("UI contracts", () => {
 
     it("feathers the blur's mask, identically in both prefixes", () => {
       const decls = block(/^\.hold-slider-blur$/);
-      const masks = [...decls.matchAll(/mask-image:\s*radial-gradient\(([\s\S]*?)\);/g)].map(
-        (m) => m[1]!,
-      );
+      const masks = [
+        ...decls.matchAll(/mask-image:\s*radial-gradient\(([\s\S]*?)\);/g),
+      ].map((m) => m[1]!);
       expect(masks, "expected the prefixed + unprefixed mask pair").toHaveLength(2);
       expect(masks[0], "the -webkit- and standard masks must not drift").toBe(masks[1]);
       expectFeathered(alphaStops(masks[0]!), ".hold-slider-blur mask");

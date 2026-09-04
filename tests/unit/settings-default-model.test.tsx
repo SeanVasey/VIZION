@@ -95,9 +95,7 @@ describe("Settings default model", () => {
     fireEvent.click(trigger());
     const row = screen.getByRole("radio", { name: /^auto/i });
     expect(row.textContent).toContain("No default — each session starts on Auto");
-    expect(
-      screen.queryByRole("slider", { name: /auto routing preference/i }),
-    ).toBeNull();
+    expect(screen.queryByRole("slider", { name: /auto routing preference/i })).toBeNull();
   });
 
   it("renders a cleared account as Auto from the first paint", () => {
