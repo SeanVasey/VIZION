@@ -35,8 +35,8 @@
 // -----------------------------------------------------------------------
 // Everything a launcher installs — the apple-touch tile, the maskable tiles,
 // the transparent `any` matrix and the scalable app-icon.svg — now carries the
-// OUTLINED colorway: a Laser plate, the mark FILLED in Laser and STROKED in
-// Void, both with a slight top-lit gradient. The point is that the mark no
+// OUTLINED colorway: a FLAT Laser plate, the mark FILLED in Laser (with a
+// slight top-lit ramp) and STROKED in Void. The point is that the mark no
 // longer depends on its ground for contrast. If an OS keeps the Laser plate,
 // the Void outline carries the mark; if it replaces or crushes the plate
 // toward dark, the Laser fill carries it. Two previous designs each bet on ONE
@@ -57,8 +57,10 @@
 // -------------------------
 //   • Full-bleed square. NO pre-rounded corners, NO specular gloss, NO drop
 //     shadow — the OS rounds and glassifies at runtime. The one lighting cue
-//     is the slight LINEAR gradient of the outlined colorway (owner brief,
-//     2026-09); it is a tint ramp, not a highlight, and it stays subtle.
+//     is the slight LINEAR ramp on the MARK (owner brief, 2026-09); it is a
+//     tint ramp, not a highlight, and it stays subtle. The PLATE is flat: the
+//     #105-era flat tile is the one iOS swapped cleanly for its neutral dark
+//     plate, and the owner's reference for dark appearance (2026-09-04).
 //   • Maskable is the only padded exception: 0.58 glyph fraction so the art
 //     clears Android's 80% safe-zone circle. Everything else uses 0.74.
 //   • Alpha contract (guardrail §6 / INV-09, enforced by
@@ -171,13 +173,13 @@ function mix(a, b, t) {
 }
 
 /**
- * The lighting ramp, as fractions toward white (top) and black (bottom).
- * "Slight" is the brief: the plate moves a tenth either way, the mark's top
- * catches a little more light than the plate's so the fill reads as a raised
- * shape sitting IN the light rather than a cut-out of the plate, and the mark's
- * bottom rests exactly on the token.
+ * The MARK's lighting ramp (fraction toward white at the top; the bottom rests
+ * on the token) and the dark plate's lift. The PLATE carries no ramp: it is
+ * flat Laser, the shape of the #105-era tile iOS swapped cleanly for its own
+ * neutral dark plate (owner screenshots, 2026-09-04: light `#BEF51E`, dark
+ * `#101113`). "Slight" is the brief, and the ramp lives on the mark.
  */
-const LIGHTING = { plateTop: 0.12, plateBottom: 0.1, markTop: 0.3, plateDarkTop: 0.05 };
+const LIGHTING = { markTop: 0.3, plateDarkTop: 0.05 };
 
 /**
  * The outline's stroke width in GLYPH units. The stroke is painted UNDER the
@@ -190,13 +192,12 @@ const LIGHTING = { plateTop: 0.12, plateBottom: 0.1, markTop: 0.3, plateDarkTop:
 export const OUTLINE_WIDTH = 60;
 
 /**
- * The outlined colorway's five colours, every one derived from the tokens so
- * the tests can import them instead of restating a hex.
+ * The outlined colorway's colours, every one derived from the tokens so the
+ * tests can import them instead of restating a hex. `plate` IS the Laser token.
  */
 export function outlinedColorway() {
   return {
-    plateTop: mix(LASER, "#FFFFFF", LIGHTING.plateTop),
-    plateBottom: mix(LASER, "#000000", LIGHTING.plateBottom),
+    plate: LASER,
     markTop: mix(LASER, "#FFFFFF", LIGHTING.markTop),
     markBottom: LASER,
     outline: INK,
@@ -330,18 +331,14 @@ function outlinedMark(canvasW, canvasH, frac, lift) {
 }
 
 /**
- * The lighting ramps. Both are top-to-bottom in the painted element's own
- * bounding box (the default `objectBoundingBox` units): the plate's over the
- * whole canvas, the mark's over the mark alone, so the mark's top is its
- * lightest point wherever it sits on the canvas.
+ * The mark's lighting ramp, top-to-bottom in the fill path's own bounding box
+ * (the default `objectBoundingBox` units), so the mark's top is its lightest
+ * point wherever it sits on the canvas. The plate is flat and needs no def.
  */
 function outlinedDefs() {
   const c = outlinedColorway();
   return (
     `<defs>` +
-    `<linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="${c.plateTop}"/>` +
-    `<stop offset="1" stop-color="${c.plateBottom}"/></linearGradient>` +
     `<linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0" stop-color="${c.markTop}"/>` +
     `<stop offset="1" stop-color="${c.markBottom}"/></linearGradient>` +
@@ -354,7 +351,7 @@ function outlinedTileSVG(frac, size = CANVAS) {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     outlinedDefs() +
-    `<rect width="${size}" height="${size}" fill="url(#plate)"/>` +
+    `<rect width="${size}" height="${size}" fill="${outlinedColorway().plate}"/>` +
     outlinedMark(size, size, frac, 0.0156) +
     `</svg>`
   );
@@ -375,7 +372,7 @@ function outlinedGlyphSVG(frac, size = CANVAS) {
  * This is the manifest's first `any` entry and the first `rel="icon"`, and it
  * is the one icon surface that can declare a dark appearance in a way a
  * renderer can honour: the plate is a CSS class whose fill swaps under
- * `@media (prefers-color-scheme: dark)` from the Laser ramp to a Void plate.
+ * `@media (prefers-color-scheme: dark)` from flat Laser to a Void plate.
  * The MARK does not swap — it is the outlined mark in both appearances, the
  * fill's Laser ramp and the Void stroke — because on the Laser plate the
  * stroke carries it and on the Void plate the fill does. That is the owner's
@@ -406,13 +403,10 @@ function scalableIconSVG(frac, size = CANVAS) {
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     `<style>` +
     `:root{color-scheme:light dark}` +
-    `.plate{fill:url(#plate)}` +
+    `.plate{fill:${c.plate}}` +
     `@media (prefers-color-scheme:dark){.plate{fill:url(#plate-dark)}}` +
     `</style>` +
     `<defs>` +
-    `<linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="${c.plateTop}"/>` +
-    `<stop offset="1" stop-color="${c.plateBottom}"/></linearGradient>` +
     `<linearGradient id="plate-dark" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0" stop-color="${c.plateDarkTop}"/>` +
     `<stop offset="1" stop-color="${c.plateDarkBottom}"/></linearGradient>` +

@@ -1,7 +1,7 @@
 # 17. The installed icon is outlined, so no treatment of its plate can hide it
 
 Date: 2026-09-04
-Status: accepted, confirmed on device 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change; Amendment 2 restores the scalable icon's dark appearance)
+Status: accepted, confirmed on device 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change; Amendment 2 restores the scalable icon's dark appearance; Amendment 3 flattens the plate)
 
 ## Context
 
@@ -154,3 +154,29 @@ iOS re-renders the SVG when the appearance changes, or captures it once per
 install, is the open device check in the runbook; either way the plate a
 light-appearance install captures is the green one, which iOS's dark pass
 handles.
+
+## Amendment 3 (2026-09-04) — the plate goes flat; the mark keeps its fill
+
+**Owner reference.** Two more screenshots of the #105-era tile — flat Laser
+plate, flat black mark: light `#BEF51E`, and in dark appearance the plate
+swapped for iOS's own neutral dark plate, `#101113`, with the black mark kept
+(and invisible). That swap is the target treatment; only the mark needed to
+survive it, which the outlined mark does.
+
+**Measured, from the #114 dark screenshot.** iOS kept the mark's fill all the
+way down the ramp to the tip, where the fill equals the plate colour
+(`#C4FB26` kept on a plate replaced beside it) — the foreground is kept as a
+region, not keyed out by colour. The enclosed plate areas inside the ring were
+dimmed to dark olive (`#414D25`) rather than replaced, and the outer plate,
+being a gradient, was darkened with a green tint (`#182110` → `#070B0E`) rather
+than swapped for the neutral dark. The flat #105 plate got the clean swap.
+
+**Change.** The plate is **flat Laser** on every installed surface — the PNG
+tiles and the SVG's light branch — and the mark is unchanged: the Laser ramp
+fill (0.30 toward white at the top, the token at the bottom) and the Void
+stroke. No pale fill this time: the measurement above shows the fill survives
+with its base on the token. The SVG's dark branch stays a Void plate.
+
+**Verify on device.** Delete and re-add in light appearance, switch to dark:
+the expected result is the neutral dark plate with the green mark on it,
+whether iOS reads the SVG's dark branch or swaps the flat PNG plate itself.

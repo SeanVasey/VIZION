@@ -52,7 +52,7 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 - Adding or renaming an icon means editing the `metadata.icons` block too —
   nothing auto-wires it now. The `apple` array holds **exactly one** link, with
   **no `media` query**, pointing at `apple-touch-icon.png` — the **outlined**
-  tile (Laser plate, Laser-filled mark, Void outline). One link is a decision,
+  tile (flat Laser plate, Laser-filled mark, Void outline). One link is a decision,
   not an oversight ([ADR-0015](../decisions/0015-pinned-home-screen-tile.md)):
   iOS freezes the tile at Add-to-Home-Screen and auto-darkens it. The tile used
   to be pinned to the dark colorway because only already-dark _flat_ artwork

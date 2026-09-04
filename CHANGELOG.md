@@ -6,12 +6,23 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
-### The scalable icon carries both appearances again
+### The scalable icon carries both appearances again, and the plate goes flat
+
+The installed icon's plate is **flat Laser** on every surface — the PNG tiles
+and the SVG's light branch — with the mark unchanged: the Laser ramp fill and
+the Void stroke. The owner's reference for dark appearance is the #105-era
+flat tile, which iOS swapped cleanly for its neutral dark plate (`#101113`);
+the #114 gradient plate was instead darkened with a green tint, later. The
+#114 dark screenshot also shows the mark's fill kept all the way to where it
+equals the plate colour, so the fill stays on the token — no pale fill
+([ADR-0017, Amendment 3](./docs/decisions/0017-outlined-home-screen-icon.md)).
+The alpha contract test now pins the plate flat: the tile's top-left and
+bottom-left corners must agree.
 
 `app-icon.svg` — the manifest's first icon and the first `rel="icon"` — gets
-its dark appearance back: the plate follows `prefers-color-scheme` (the Laser
-ramp in light, a Void plate in dark) while the mark stays the outlined mark in
-both, so the stroke carries it on green and the fill on dark. #114 had
+its dark appearance back: the plate follows `prefers-color-scheme` (flat Laser
+in light, a Void plate in dark) while the mark stays the outlined mark in both,
+so the stroke carries it on green and the fill on dark. #114 had
 flattened the SVG to one colorway because the outline made the swap
 unnecessary for legibility; the owner's direction is that the _plate_ must
 follow the appearance without waiting for iOS's after-the-fact variant, and the

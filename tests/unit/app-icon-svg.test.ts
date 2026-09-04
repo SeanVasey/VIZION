@@ -14,8 +14,8 @@ import {
  * This file is the manifest's first `any` entry and the first `rel="icon"`;
  * Safari 26 uses manifest icons, SVG included, for the Home Screen. It is the
  * one icon surface that can DECLARE a dark appearance: the plate is a CSS
- * class whose fill swaps under `prefers-color-scheme: dark` from the Laser
- * ramp to a Void plate, while the MARK stays the outlined mark in both — the
+ * class whose fill swaps under `prefers-color-scheme: dark` from flat Laser
+ * to a Void plate, while the MARK stays the outlined mark in both — the
  * stroke carries it on green, the fill on dark.
  *
  * What is asserted here is the source contract: the default rules are the
@@ -67,10 +67,11 @@ const paths = painted.filter((el) => el.startsWith("<path"));
 const rect = painted.find((el) => el.startsWith("<rect"));
 
 describe("app-icon.svg — the outlined tile, both appearances", () => {
-  it("defaults to the LIGHT appearance: the Laser plate", () => {
+  it("defaults to the LIGHT appearance: a flat Laser plate", () => {
     expect(style, "there is a stylesheet carrying the swap").not.toBe("");
-    expect(defaultRules).toContain(".plate{fill:url(#plate)}");
-    expect(stops("plate")).toEqual([C.plateTop, C.plateBottom]);
+    expect(defaultRules).toContain(`.plate{fill:${C.plate}}`);
+    expect(C.plate, "the plate IS --laser").toBe(token("laser"));
+    expect(SVG, "the plate is flat — no plate gradient").not.toContain('id="plate"');
     expect(rect, "a full-bleed plate rect").toBeDefined();
     expect(rect).toContain('class="plate"');
     expect(rect).toContain('width="1024"');

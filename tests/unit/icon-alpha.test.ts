@@ -110,13 +110,22 @@ describe("the outlined colorway — both carriers present on every installed til
 
   for (const file of tiles) {
     describe(file, () => {
-      it("has a Laser plate — bright and green-led, not a dark one", async () => {
-        const { plate } = await sampleTile(join(ICONS, file));
+      it("has a Laser plate — bright, green-led, and flat from corner to corner", async () => {
+        const { plate, plateFoot } = await sampleTile(join(ICONS, file));
         expect(
           plate.luma,
           "the plate is the brand green, which is light",
         ).toBeGreaterThan(160);
         expectGreenLed(plate, "plate");
+        // Flat, not a ramp. iOS separates a web clip into plate and mark and
+        // swaps the plate for its own dark one; a gradient plate came back
+        // tinted, the flat one comes back neutral (ADR-0017, Amendment 3).
+        for (const ch of ["r", "g", "b"] as const) {
+          expect(
+            Math.abs(plate[ch] - plateFoot[ch]),
+            `plate ${ch}: the top-left and bottom-left corners must agree`,
+          ).toBeLessThanOrEqual(2);
+        }
       });
 
       it("fills the mark in the plate's green, so a darkened plate cannot swallow it", async () => {
@@ -175,16 +184,18 @@ function expectGreenLed({ r, g, b }: Sample, what: string) {
 }
 
 /**
- * Three samples of any tile: the plate at (2, 2), the mark's fill at the
- * centre, and the darkest pixel on the row through the centre — which on the
- * outlined artwork is the stroke, and on flat artwork would be the mark.
+ * Four samples of any tile: the plate at (2, 2) and again at (2, h - 3), the
+ * mark's fill at the centre, and the darkest pixel on the row through the
+ * centre — which on the outlined artwork is the stroke, and on flat artwork
+ * would be the mark.
  *
- * (2, 2) is plate on any full-bleed tile — these are flattened, so every pixel
- * outside the mark is the plate (a gradient, so its exact value varies by row;
- * the assertions above read its channel order, not its value). The CENTRE is
- * inside the mark's vertical bar at both glyph fractions this pipeline renders:
- * frac 0.74 puts the bar at 45.8–54.2 % of the width, frac 0.58 at 46.7–53.3 %,
- * and the bar spans the vertical centre in both.
+ * Both corners are plate on any full-bleed tile — these are flattened, so
+ * every pixel outside the mark is the plate. The plate is FLAT (ADR-0017,
+ * Amendment 3), so the two corners must agree; the assertions above read the
+ * plate's channel order and its flatness, never a hex. The CENTRE is inside
+ * the mark's vertical bar at both glyph fractions this pipeline renders: frac
+ * 0.74 puts the bar at 45.8–54.2 % of the width, frac 0.58 at 46.7–53.3 %, and
+ * the bar spans the vertical centre in both.
  */
 async function sampleTile(file: string) {
   const { data, info } = await raw(file);
@@ -209,5 +220,10 @@ async function sampleTile(file: string) {
     if (s.alpha === 255 && (outline === null || s.luma < outline.luma)) outline = s;
   }
   if (!outline) throw new Error(`${file}: no opaque pixel on the centre row`);
-  return { plate: at(2, 2), mark: at(info.width >> 1, cy), outline };
+  return {
+    plate: at(2, 2),
+    plateFoot: at(2, info.height - 3),
+    mark: at(info.width >> 1, cy),
+    outline,
+  };
 }

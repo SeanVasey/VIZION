@@ -4006,3 +4006,9 @@ test:e2e` hard-fails in global-setup until
   dark pass; a media-blind capture of the dark tile is stuck dark in light.
   So the SVG's default is light now, the reverse of ADR-0015's rule, for a
   reason that changed with the artwork.
+- **Read the owner's reference literally.** The #105-era pair (flat plate →
+  iOS's neutral dark plate) was the reference for "how it should change";
+  the gradient plate got a tinted darkening instead, and later. Flat plate,
+  mark unchanged. The #114 dark screenshot had already shown that iOS keeps
+  the fill as a region — even where its colour equals the plate — so the
+  pale-fill insurance of #116 was never needed.
