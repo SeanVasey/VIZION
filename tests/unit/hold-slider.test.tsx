@@ -1396,8 +1396,7 @@ describe("the latched phase (latchOnTap)", () => {
     // second ultra stop is a wash without the arrival fanfare.
     render(<Host latchOnTap peakCaption="Costs the most" />);
     tapOpen();
-    const wash = () =>
-      overlay()!.querySelector<HTMLElement>("[data-hold-slider-wash]");
+    const wash = () => overlay()!.querySelector<HTMLElement>("[data-hold-slider-wash]");
     // Steel (index 3): quiet ramp, no wash.
     fireEvent.keyDown(window, { key: "ArrowRight" });
     fireEvent.keyDown(window, { key: "ArrowRight" });
@@ -1417,9 +1416,9 @@ describe("the latched phase (latchOnTap)", () => {
     // flooded fill, so the wash must paint before the stars in DOM order.
     const fill = overlay()!.querySelector<HTMLElement>("[data-tone]")!;
     const children = [...fill.children];
-    expect(
-      children.indexOf(atXhigh!),
-    ).toBeLessThan(children.indexOf(fill.querySelector("[data-hold-slider-stars]")!));
+    expect(children.indexOf(atXhigh!)).toBeLessThan(
+      children.indexOf(fill.querySelector("[data-hold-slider-stars]")!),
+    );
     // Dropping below the tier unmounts it — the grey ramp returns.
     fireEvent.keyDown(window, { key: "ArrowLeft" });
     fireEvent.keyDown(window, { key: "ArrowLeft" });

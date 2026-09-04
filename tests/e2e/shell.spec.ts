@@ -69,7 +69,7 @@ test.describe("VIZION shell + auth gate", () => {
     }
   });
 
-  test("the icon head pins ONE home-screen tile, unconditionally, and it is the dark one", async ({
+  test("the icon head pins ONE home-screen tile, unconditionally — the outlined one", async ({
     page,
     request,
   }) => {
@@ -79,11 +79,13 @@ test.describe("VIZION shell + auth gate", () => {
     // actually SERIALISES:
     //
     //   1. EXACTLY ONE apple link. iOS resolves this at "Add to Home Screen",
-    //      freezes it, and auto-darkens the frozen tile under dark appearance —
-    //      which on the Laser plate leaves an invisible emboss. One dark tile is
-    //      the only arrangement legible under every appearance (ADR-0015). Three
-    //      arrangements preceded it — a complementary `media` pair, that pair
-    //      reordered, and a JS matcher — and all three shipped the emboss.
+    //      freezes it, and auto-darkens the frozen tile under dark appearance
+    //      (measured — docs/runbooks/ios-verification.md). Three arrangements
+    //      that tried to make the tile FOLLOW the appearance — a complementary
+    //      `media` pair, that pair reordered, and a JS matcher — all shipped an
+    //      invisible mark, and one link is what stays (ADR-0015). What ADR-0017
+    //      changed is the ARTWORK behind the link: the outlined tile is legible
+    //      on either ground, so it no longer has to be the dark colorway.
     //   2. NO `media` on it. iOS does not evaluate `media` on icons (it does on
     //      apple-touch-startup-image, which is why the splash links resolve per
     //      device). A query here would imply a selection that never happens.
@@ -95,7 +97,7 @@ test.describe("VIZION shell + auth gate", () => {
       (m) => m[0],
     );
     expect(staticApple).toHaveLength(1);
-    expect(staticApple[0]).toContain("/icons/apple-touch-icon-dark.png");
+    expect(staticApple[0]).toContain("/icons/apple-touch-icon.png");
     expect(staticApple[0]).toContain('sizes="180x180"');
     expect(
       staticApple[0],
@@ -128,7 +130,7 @@ test.describe("VIZION shell + auth gate", () => {
     const links = await readLinks();
     const apple = links.filter((l) => l.rel === "apple-touch-icon");
     expect(apple).toHaveLength(1);
-    expect(apple[0]!.href).toBe("/icons/apple-touch-icon-dark.png");
+    expect(apple[0]!.href).toBe("/icons/apple-touch-icon.png");
     expect(
       links.some((l) => l.ours),
       "nothing appends an appearance-matched tile any more",
@@ -139,8 +141,14 @@ test.describe("VIZION shell + auth gate", () => {
     expect(icons[0]!.href).toBe("/icons/app-icon.svg");
     expect(icons.map((i) => i.href)).toContain("/icons/favicon-32.png");
 
-    // The deleted convention files must not be referenced by anything.
-    for (const dead of ["/icon0.svg", "/icon1.png", "/apple-icon.png"]) {
+    // The deleted convention files — and the retired dark tile — must not be
+    // referenced by anything.
+    for (const dead of [
+      "/icon0.svg",
+      "/icon1.png",
+      "/apple-icon.png",
+      "/icons/apple-touch-icon-dark.png",
+    ]) {
       expect(links.some((l) => l.href?.startsWith(dead))).toBe(false);
     }
 
@@ -149,40 +157,26 @@ test.describe("VIZION shell + auth gate", () => {
     }
   });
 
-  test("the app icon inverts with the appearance, in one file", async ({
+  test("the app icon is one outlined colorway, and does not move with the appearance", async ({
     page,
-    browserName,
   }) => {
-    // MEASURED ENGINE DIVERGENCE (2026-08-12, and see the iOS runbook): WebKit
-    // does not apply `prefers-color-scheme` to an SVG pulled in through <img>.
-    // It paints whatever the file's DEFAULT rules declare, under both schemes —
-    // which since the default flipped is the dark colorway, deliberately: that
-    // is the branch a renderer reaches when it understands nothing, so it has to
-    // be the one that cannot degrade. Chromium follows the embedding document.
+    // The requirement, stated as pixels (ADR-0017): a Laser plate, the mark
+    // FILLED in Laser and STROKED in Void — both carriers present, so the mark
+    // reads whether an OS keeps the plate or darkens it. And the SAME pixels
+    // under both schemes: the `prefers-color-scheme` swap this file used to
+    // carry is gone, and a renderer's scheme must not change what it paints.
     //
-    // The assertion is scoped to Chromium on purpose: pinning "WebKit cannot do
-    // this" is the exact mistake docs/runbooks/ios-verification.md exists to
-    // prevent, and it would fail as a bug report the day WebKitGTK adds it.
+    // Runs on BOTH engines. The inversion test that stood here was scoped to
+    // Chromium because WebKit does not apply `prefers-color-scheme` inside an
+    // <img>-embedded SVG (measured — docs/runbooks/ios-verification.md); with
+    // no media query left in the file there is nothing for the engines to
+    // disagree about, and a WebKit render is worth having for the same reason
+    // it was worth scoping out before: it is the engine the tile is for.
     //
-    // This file is no longer an iOS Home Screen route — the device check ran and
-    // iOS did not select it (runbook, 2026-08-13). It inverts for the browser tab
-    // and non-iOS installs; the Home Screen tile is the pinned dark PNG.
-    test.skip(
-      browserName !== "chromium",
-      "WebKit does not apply prefers-color-scheme to <img>-embedded SVG; see ios-verification.md",
-    );
-
-    // The requirement, stated as pixels: light = Laser plate with the Void mark,
-    // dark = the exact inverse. A PNG cannot do this — it is one set of pixels,
-    // chosen once — which is why the apple-touch pair needs two files and a
-    // capture-time choice. `/icons/app-icon.svg` carries both colorways behind a
-    // `prefers-color-scheme` rule, so it follows the appearance live.
-    //
-    // RENDERED, not read: asserting the media query is in the markup would pass
-    // on an SVG whose rule never actually applies (wrong selector, a fill
-    // attribute shadowing the class, a renderer that ignores <style>). These are
-    // the painted pixels, sampled through an <img> because that is how an icon
-    // consumer embeds it.
+    // RENDERED, not read: asserting the gradient and stroke are in the markup
+    // would pass on an SVG whose paint never applies (a broken url(#ref), a
+    // renderer that drops the stroke). These are the painted pixels, sampled
+    // through an <img> because that is how an icon consumer embeds it.
     const sample = async (scheme: "light" | "dark") => {
       await page.emulateMedia({ colorScheme: scheme });
       const svg = await (await page.request.get("/icons/app-icon.svg")).text();
@@ -191,58 +185,60 @@ test.describe("VIZION shell + auth gate", () => {
         `<body style="margin:0"><img id="i" src="${uri}" width="400" height="400"></body>`,
       );
       // Decoded in-page rather than with an image library: the e2e project has
-      // no raster dependency, and a canvas read-back is the same pixels. The
-      // canvas inherits the emulated scheme, so the SVG's media query resolves
-      // against it exactly as it would when the browser paints the icon.
-      // (8,8) is plate in both colorways; (200,151) sits inside the mark's
-      // vertical bar at this 400px render.
-      const px = await page.evaluate(
-        async (args: { dataUri: string; points: number[][] }) => {
-          const img = new Image();
-          img.src = args.dataUri;
-          await img.decode();
-          const c = document.createElement("canvas");
-          c.width = 400;
-          c.height = 400;
-          const ctx = c.getContext("2d")!;
-          ctx.drawImage(img, 0, 0, 400, 400);
-          return args.points.map(([x, y]) => {
-            const d = ctx.getImageData(x!, y!, 1, 1).data;
-            return `#${[d[0], d[1], d[2]].map((v) => v!.toString(16).padStart(2, "0")).join("")}`;
-          });
-        },
-        {
-          dataUri: uri,
-          points: [
-            [8, 8],
-            [200, 151],
-          ],
-        },
-      );
-      return { plate: px[0], mark: px[1] };
+      // no raster dependency, and a canvas read-back is the same pixels.
+      // (8,8) is plate; (200,151) sits inside the mark's vertical bar at this
+      // 400px render; and the row y=151 from the left edge to the bar crosses
+      // the bar's outline, so the darkest pixel on it is the stroke.
+      return page.evaluate(async (dataUri: string) => {
+        const img = new Image();
+        img.src = dataUri;
+        await img.decode();
+        const c = document.createElement("canvas");
+        c.width = 400;
+        c.height = 400;
+        const ctx = c.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, 400, 400);
+        const px = (x: number, y: number) => {
+          const d = ctx.getImageData(x, y, 1, 1).data;
+          return { r: d[0]!, g: d[1]!, b: d[2]! };
+        };
+        const luma = (p: { r: number; g: number; b: number }) =>
+          0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
+        let darkest = 255;
+        for (let x = 0; x <= 200; x++) darkest = Math.min(darkest, luma(px(x, 151)));
+        return { plate: px(8, 8), mark: px(200, 151), darkest };
+      }, uri);
     };
 
     const light = await sample("light");
     const dark = await sample("dark");
 
-    expect(light.plate, "a plate equal to its mark shows nothing").not.toBe(light.mark);
-    expect(dark.plate).not.toBe(dark.mark);
-    expect(dark.plate, "the dark plate must be the light mark — a true inverse").toBe(
-      light.mark,
-    );
-    expect(dark.mark, "the dark mark must be the light plate").toBe(light.plate);
+    // One colorway: the scheme changes nothing.
+    expect(dark, "the icon must not move with the appearance").toEqual(light);
+
+    // Both carriers, in channel order rather than hexes (tokens.css owns the
+    // hexes; the generator derives the ramp from them).
+    const greenLed = (p: { r: number; g: number; b: number }, what: string) => {
+      expect(p.g, `${what}: green leads`).toBeGreaterThan(p.r);
+      expect(p.r, `${what}: red leads blue — a lime, not a teal`).toBeGreaterThan(p.b);
+      expect(p.g, `${what}: strong green`).toBeGreaterThan(200);
+    };
+    greenLed(light.plate, "plate");
+    greenLed(light.mark, "mark fill");
+    expect(
+      light.darkest,
+      "the Void outline is painted (luma of --void is ~16)",
+    ).toBeLessThan(48);
   });
 
   test("the home-screen tile does NOT move with the appearance", async ({ page }) => {
-    // The inverse of the test that stood here, and the inversion is the point.
-    //
     // This used to assert that the tile TRACKED `prefers-color-scheme`, so an
     // install made in light mode captured the Laser plate. A device pass killed
     // that: iOS freezes the tile at "Add to Home Screen" and auto-darkens the
-    // frozen copy under dark appearance, so a light-mode capture becomes an
-    // invisible emboss the moment the phone switches. Matching could only ever
-    // choose WHICH failure a user got, never avoid one. Invariance is the fix —
-    // one dark tile, legible under every appearance (ADR-0015).
+    // frozen copy under dark appearance, so matching could only ever choose
+    // WHICH capture a user got, never avoid the darkening. Invariance is the
+    // fix — one tile (ADR-0015), now the outlined one that is legible under
+    // either treatment (ADR-0017).
     //
     // Checked WITHOUT a reload: an appearance change while the page is open must
     // not move the tile, because whatever is in the head is what the next capture
@@ -265,7 +261,7 @@ test.describe("VIZION shell + auth gate", () => {
     for (const scheme of ["light", "dark", "light"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
       expect(await tiles(), `the tile moved under ${scheme}`).toEqual([
-        "/icons/apple-touch-icon-dark.png",
+        "/icons/apple-touch-icon.png",
       ]);
     }
   });
@@ -296,6 +292,59 @@ test.describe("VIZION shell + auth gate", () => {
     for (const src of ["/brand/og-tile.png", "/brand/social-card.png"]) {
       expect((await request.get(src)).status(), `${src} is a 404`).toBe(200);
     }
+  });
+
+  test("the manifest link carries credentials, so a protected preview can read it", async ({
+    page,
+    request,
+  }) => {
+    // The Web App Manifest spec fetches the manifest with credentials OMITTED
+    // unless the link says `crossorigin="use-credentials"` — even same-origin
+    // cookies stay home. Vercel's preview Deployment Protection is a cookie, so
+    // without the attribute every preview served the page and 401'd the
+    // manifest, and the install flow lost the app's NAME (the Home Screen sheet
+    // fell back to the page title, route first), its icons and its display
+    // mode. There must be exactly ONE manifest link (a browser reads only the
+    // first), it must be the credentialed one, and it must be in the SSR head —
+    // Safari reads it at "Add to Home Screen" from the document as served.
+    const html = await (await request.get("/sign-in")).text();
+    const head = html.slice(0, html.indexOf("</head>"));
+    const links = [...head.matchAll(/<link[^>]*rel="manifest"[^>]*>/g)].map((m) => m[0]);
+    expect(links, "exactly one manifest link, in <head>").toHaveLength(1);
+    expect(links[0]).toContain('href="/manifest.webmanifest"');
+    expect(links[0]).toContain('crossorigin="use-credentials"');
+
+    // ...and React must not add a second, attribute-less one on hydration
+    // (which `metadata.manifest` would).
+    await page.goto("/sign-in");
+    await page.waitForFunction(
+      () =>
+        !!document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'),
+    );
+    const live = await page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]')).map(
+        (l) => ({ href: l.getAttribute("href"), crossOrigin: l.crossOrigin }),
+      ),
+    );
+    expect(live).toEqual([
+      { href: "/manifest.webmanifest", crossOrigin: "use-credentials" },
+    ]);
+
+    // The Home Screen name sources all agree — the manifest is what a modern
+    // install reads, the meta is the legacy channel, and the tab title is the
+    // last fallback; none of them may say anything but the app's name first
+    // except the tab, whose template is page-first by design.
+    const name = await page.evaluate(() => ({
+      meta: document.querySelector<HTMLMetaElement>(
+        'meta[name="apple-mobile-web-app-title"]',
+      )?.content,
+      appName: document.querySelector<HTMLMetaElement>('meta[name="application-name"]')
+        ?.content,
+    }));
+    expect(name).toEqual({ meta: "VIZION", appName: "VIZION" });
+    const manifest = await (await request.get("/manifest.webmanifest")).json();
+    expect(manifest.name).toBe("VIZION");
+    expect(manifest.short_name).toBe("VIZION");
   });
 
   test("manifest is reachable and declares any + maskable icons", async ({ request }) => {

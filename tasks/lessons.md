@@ -3930,3 +3930,40 @@ test:e2e` hard-fails in global-setup until
   source edits during the build corrupt the run, and edits after the server
   is listening touch only the next build. Polling for the server process is
   the cheap gate that let parts B and C proceed under A's and B's suites.
+
+## Outlined Home Screen icon + a credentialed manifest (2026-09)
+
+- **Two carriers beat one bet.** Both flat colorways relied on the plate for
+  contrast, so each was legible on exactly one ground, and every arrangement
+  that followed (pairs, matchers, pinning dark) was choosing which ground to
+  lose. Give the mark its own contrast — Laser fill AND Void outline — and the
+  plate can be the brand green while whatever an OS does to it stops mattering.
+  When two designs fail in opposite directions, the fix is usually a third
+  design, not a smarter switch between the two.
+- **Stroke UNDER fill, as two paths.** A centred stroke eats half its width out
+  of the fill, and the ring is barely wider than the stroke; `paint-order`
+  fixes that but is a property a renderer can drop. Painting the stroke path
+  first and the fill path over it is SVG 1.1 and cannot degrade — librsvg
+  rendered all three approaches byte-identically, so the boring one costs
+  nothing.
+- **A file named for a colorway must not outlive the colorway.** The tile was
+  `apple-touch-icon-dark.png`; the outlined tile is neither light nor dark, so
+  it is `apple-touch-icon.png` — the same rule that stopped `BASE` from putting
+  the light artwork in the `-dark` file. Rename, `git rm` the old one (CI's
+  drift check catches modified and new outputs, not orphans), and grep for the
+  old name across tests, comments, README and runbooks.
+- **Measure the served HTML before theorizing about titles.** The report was
+  "the page filename shows instead of the page title" at Add to Home Screen.
+  Driving the real sign-in flow on both engines showed `<title>`, the
+  `apple-mobile-web-app-title` meta and the manifest `name` all correct at
+  every step — so the defect had to be in what the install flow could READ,
+  not in what the page declared. It was: the manifest.
+- **A manifest is fetched with credentials OMITTED by spec.** Even same-origin,
+  even with cookies set, unless the link carries
+  `crossorigin="use-credentials"`. Vercel's preview protection is a cookie, so
+  every preview served the page and 401'd the manifest, and iOS installed
+  without a name, icons or display mode from it. Next's `metadata.manifest`
+  cannot express the attribute — hand-write the link, drop the metadata key
+  (first link wins, a second is dead), and pin it in e2e. Corollary for the
+  runbook: any manifest-dependent observation made on a preview before this
+  fix was made without a manifest.

@@ -121,38 +121,43 @@ it with the locked colorways it reads from `tokens.css` — `Laser #C7FD26`,
 `Void #0F1012`. Don't hand-edit the PNGs, and don't edit `public/brand/` to
 change a derivative.
 
-The appearances are:
+The colorways are:
 
-- **Light** (Laser plate + Void ink) — the house colorway. Drives the scalable
-  and raster favicons plus `favicon.ico`, the maskable tiles, and the square
-  `og:image` share tile.
-- **Laser glyph on transparent** — the `any` PWA icon matrix, which ships
-  transparent per guardrail §6.
-- **Dark** (Void plate + Laser glyph) — the iOS splash screens (matching the
-  manifest's `background_color`), the Add-to-Home-Screen tile
-  (`apple-touch-icon-dark.png`), and `app-icon.svg`'s default rules.
+- **Outlined** (Laser plate · Laser-filled mark · Void outline · a slight top-lit
+  gradient on both) — **everything a launcher installs**: the Add-to-Home-Screen
+  tile (`apple-touch-icon.png`), the maskable tiles, the transparent `any`
+  matrix (the outlined mark alone, no plate) and the scalable `app-icon.svg`.
+- **Light** (Laser plate + Void ink, flat) — the house colorway for the raster
+  favicons plus `favicon.ico`, and the square `og:image` share tile.
+- **Dark** (Void plate + Laser glyph, flat) — the iOS splash screens (matching
+  the manifest's `background_color`).
 
-**The home-screen tile — ONE tile, pinned dark.** Left alone, iOS builds a
-dark-appearance tile by darkening whatever it captured, which on Void ink over a
-Laser plate darkens the plate toward the ink until the mark disappears. Device
+**The installed icon is outlined so that no treatment of its plate can hide
+it** ([ADR-0017](./docs/decisions/0017-outlined-home-screen-icon.md)). Device
 passes (2026-08-12 and -13) established that iOS reads `apple-touch-icon` from
-the head, does **not** evaluate `media` on icons, **freezes** the tile at capture,
-and does not select the linked SVG for it. Since iOS keeps exactly one image and
-never re-resolves it, the only arrangement legible under every appearance is a
-single dark tile — so `metadata.icons.apple` holds one unconditional link at
-`/icons/apple-touch-icon-dark.png`, and the accepted cost is that the Laser plate
-never reaches the Home Screen ([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)).
+the head, does **not** evaluate `media` on icons, **freezes** the tile at
+capture, and auto-darkens the frozen tile under dark appearance. Each flat
+colorway is legible on exactly one ground — Void ink on a Laser plate vanished
+when iOS crushed the plate toward the ink, and the dark tile that replaced it
+([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)) survived every
+treatment only by keeping the brand green off the Home Screen. The outlined mark
+carries its own contrast instead: on the Laser plate the Void outline reads; on
+a plate an OS has darkened or replaced, the Laser fill reads. How iOS 26 treats
+this artwork on a device is not yet measured — see the runbook — and the design
+is built so that the answer cannot hide the mark either way.
 
-**Do not add a second `apple-touch-icon` link, a `media` query, or a JS
-matcher.** Each has shipped here, and each shipped the invisible mark: a `media`
-pair (#108), that pair reordered plus a client-side matcher (#111), and the
-self-inverting SVG as a Home Screen route (#111). Every one bet that iOS would
-re-resolve or select something; it does not.
+The **arrangement** ADR-0015 settled is unchanged: `metadata.icons.apple` holds
+one unconditional link, at `/icons/apple-touch-icon.png`. **Do not add a second
+`apple-touch-icon` link, a `media` query, or a JS matcher.** Each has shipped
+here, and each shipped the invisible mark: a `media` pair (#108), that pair
+reordered plus a client-side matcher (#111), and a self-inverting SVG as a Home
+Screen route (#111). Every one bet that iOS would re-resolve or select
+something; it does not.
 
-`/icons/app-icon.svg` still carries both colorways behind `prefers-color-scheme`
-and still inverts — for the browser tab and non-iOS installs, not the Home
-Screen. Its **default** rules are the dark colorway so that a renderer ignoring
-the query also lands on the colorway that cannot degrade.
+`/icons/app-icon.svg` is the outlined tile as vector, in **one** colorway — the
+`prefers-color-scheme` swap it used to carry existed only to keep the mark
+legible on whichever plate the appearance chose, and the outline makes that
+moot.
 
 See [the iOS runbook](./docs/runbooks/ios-verification.md) for the measured
 result table and the superseded arrangements.

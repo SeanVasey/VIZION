@@ -65,11 +65,11 @@ async function main() {
     // owner-approved): nothing that runs offline requests one — iOS reads it
     // once, at Add-to-Home-Screen time, over the network. It stays off now that
     // the layout links it directly at /icons/, for the same reason: the tile is
-    // captured at install, never on a cold offline launch. (There is one tile
-    // now, `icons/apple-touch-icon-dark.png`; the light twin this comment used
-    // to name was deleted with the media pair — ADR-0015.) PERF-005's
-    // disposition listed it as offline-needed; that clause was a mistaken
-    // carry-over.
+    // captured at install, never on a cold offline launch. (There is one tile,
+    // `icons/apple-touch-icon.png` — the outlined colorway, ADR-0017; the
+    // light/dark pair this comment used to name was deleted with the media
+    // pair, ADR-0015.) PERF-005's disposition listed it as offline-needed; that
+    // clause was a mistaken carry-over.
     const { count, size, warnings } = await injectManifest({
       swSrc: bundled,
       swDest: SW_DEST,

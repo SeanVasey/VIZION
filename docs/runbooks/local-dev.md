@@ -43,22 +43,30 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 - Regenerate with `npm run generate:icons` (uses `sharp`). Every output lands
   under `public/icons/` and `public/splash/` — there are no `src/app/`
   convention icons any more, because `src/app/layout.tsx` declares
-  `metadata.icons` itself (the convention cannot carry the `media` attribute
-  the dark home-screen tile needs, and declaring the key suppresses the
-  convention links wholesale). ONE master drives generation:
+  `metadata.icons` itself (declaring the key suppresses the convention links
+  wholesale — Next's all-or-nothing merge). ONE master drives generation:
   `public/brand/vizion-glyph.svg` — the flat mark on a tight viewBox — painted
-  with the locked Laser/Void colorways. Drop new artwork into that file and
-  re-run, without touching the manifest references (DOC-010: no longer
-  placeholders).
+  with colorways derived from the `tokens.css` Laser/Void tokens. Drop new
+  artwork into that file and re-run, without touching the manifest references
+  (DOC-010: no longer placeholders).
 - Adding or renaming an icon means editing the `metadata.icons` block too —
   nothing auto-wires it now. The `apple` array holds **exactly one** link, with
-  **no `media` query**, pointing at the dark tile. That is a decision, not an
-  oversight ([ADR-0015](../decisions/0015-pinned-home-screen-tile.md)): iOS
-  freezes the tile at Add-to-Home-Screen and auto-darkens it, so the Laser plate
-  becomes an invisible mark and only already-dark artwork survives. **Do not add
-  a second link, a `media` query, or a JS matcher** — all three have shipped
-  here and all three shipped the invisible mark. Pinned by
-  `tests/e2e/shell.spec.ts`.
+  **no `media` query**, pointing at `apple-touch-icon.png` — the **outlined**
+  tile (Laser plate, Laser-filled mark, Void outline). One link is a decision,
+  not an oversight ([ADR-0015](../decisions/0015-pinned-home-screen-tile.md)):
+  iOS freezes the tile at Add-to-Home-Screen and auto-darkens it. The tile used
+  to be pinned to the dark colorway because only already-dark _flat_ artwork
+  survived that; the outlined colorway
+  ([ADR-0017](../decisions/0017-outlined-home-screen-icon.md)) carries its own
+  contrast instead, so the brand green is back on the tile. **Do not add a
+  second link, a `media` query, or a JS matcher** — all three have shipped here
+  and all three shipped the invisible mark. Pinned by `tests/e2e/shell.spec.ts`.
+- The manifest link is hand-written in the root layout's `<head>` with
+  `crossOrigin="use-credentials"`, not declared through `metadata.manifest`:
+  a manifest is fetched with credentials omitted by spec, and Vercel's preview
+  protection is a cookie, so without the attribute a preview 401s its own
+  manifest and installs without a name. Keep it that way; the e2e head test
+  pins exactly one credentialed link.
 - Share artwork is a separate script: `npm run generate:social` writes
   `public/brand/og-tile.png` (square, the `og:image`) and
   `public/brand/social-card.png` (landscape, `twitter:image` + the GitHub social
@@ -71,9 +79,10 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 - The `any` matrix ships transparent and the maskable/apple-touch/favicon set
   ships opaque — `tests/unit/icon-alpha.test.ts` enforces it (guardrail §6 /
   INV-09), so a regeneration that flattens the wrong set fails the gate rather
-  than shipping. The same test pins the home-screen tile as the **inverse of the
-  house colorway**, not a darkened copy of it: a tile that merely darkened the
-  light one would put Void ink on a near-Void plate, which is the bug itself.
+  than shipping. The same test pins the outlined colorway on every installed
+  tile — a green-led plate, a green-led fill at the mark's centre, and a Void
+  stroke on the row through it — so a regeneration that drops either carrier
+  fails the gate.
 
 ## Playwright
 

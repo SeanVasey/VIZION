@@ -6,6 +6,62 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### The installed icon is outlined — the brand green comes back to the Home Screen
+
+Every surface a launcher installs — the Add-to-Home-Screen tile, the maskable
+tiles, the transparent `any` matrix and the scalable `app-icon.svg` — now
+carries one **outlined** colorway: a Laser plate under the mark **filled in
+Laser and stroked in Void**, with a slight top-lit gradient on both (owner
+brief, 2026-09-04). The point is that the mark carries its own contrast, so no
+treatment of its plate can hide it: on the Laser plate the Void outline reads;
+on a plate an OS has darkened or replaced, the Laser fill reads. The two flat
+colorways before it each bet on one ground — Void ink on Laser vanished when
+iOS crushed the plate toward the ink, and the dark tile that replaced it
+([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)) survived every
+treatment only by keeping the brand green off the Home Screen
+([ADR-0017](./docs/decisions/0017-outlined-home-screen-icon.md)).
+
+What ADR-0015 measured about the _arrangement_ is unchanged and still shapes
+the head: one `apple-touch-icon`, unconditional, no `media`, no matcher. What
+changed is the artwork behind the link, so the file is now
+`apple-touch-icon.png` — no appearance suffix, because the outlined colorway is
+neither light nor dark and a `-dark` file carrying a Laser plate is the exact
+confusion the earlier naming saga existed to prevent. `app-icon.svg` drops its
+`prefers-color-scheme` swap: it existed to keep the mark legible on whichever
+plate the appearance chose, and the outline makes the plate irrelevant to
+legibility, so the scalable icon is one colorway and its e2e render assertion
+now runs on both engines. The stroke is painted _under_ the fill (a second copy
+of the path, SVG 1.1, no `paint-order` needed) so the fill keeps its full
+geometry and only the outer half of the stroke shows. The favicons and
+`favicon.ico` keep the flat house colorway — at 16–48 px a 4 px outline is
+sub-pixel — and the splash screens and `og:image` are untouched.
+
+**Not yet measured:** how iOS 26's darkening treats this artwork on a device.
+The design covers both outcomes by construction, and the runbook carries the
+one-step check; existing installs keep the dark tile they captured until they
+are deleted and re-added.
+
+### The manifest is fetched with credentials, so a protected preview installs by name
+
+Per the Web App Manifest spec a manifest is fetched with credentials
+**omitted** unless the link says `crossorigin="use-credentials"` — cookies stay
+home even for a same-origin URL. Vercel's Deployment Protection on preview
+builds is a cookie, so on every preview the browser could read the page and not
+the manifest: the fetch came back a 401 SSO page, the manifest was silently
+discarded, and everything it declares — the app's **name** for the Home Screen
+sheet, its icons, `standalone` display — fell back to whatever the install
+flow uses without one. That is the shape of "Add to Home Screen shows the page
+title, route first, instead of VIZION". The link is now hand-written in the
+head with `crossOrigin="use-credentials"` (the Metadata API cannot express the
+attribute, and a second link would only ever be ignored), and an e2e test pins
+that exactly one credentialed manifest link is served. Production carries no
+such cookie and is unaffected either way.
+
+What was verified while chasing this: the served `<title>`, the
+`apple-mobile-web-app-title` meta and the manifest `name` all say the right
+thing at every step of the real sign-in flow, on both engines — the page titles
+themselves were never wrong.
+
 ### The default model is clearable — and cleared means Auto
 
 Settings' Default model picker now offers the Auto row as its CLEAR: choosing
