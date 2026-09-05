@@ -40,7 +40,15 @@ test("installation inputs remain singular, authentic and revalidating", async ({
   const apple = initial.filter((link) => link.rel === "apple-touch-icon");
   const manifests = initial.filter((link) => link.rel === "manifest");
   expect(apple).toHaveLength(1);
-  expect(apple[0]?.href).toBe("/icons/apple-touch-icon.png");
+  // Frozen file + the build-time content version (a cache-bust, not a
+  // selection). The version must be the md5 prefix of the bytes on disk, so a
+  // regenerated tile always changes the URL the sheet fetches.
+  const appleHref = apple[0]?.href ?? "";
+  const appleVersion = createHash("md5")
+    .update(readFileSync(resolve("public/icons/apple-touch-icon.png")))
+    .digest("hex")
+    .slice(0, 8);
+  expect(appleHref).toBe(`/icons/apple-touch-icon.png?v=${appleVersion}`);
   expect(apple[0]?.media).toBeNull();
   expect(manifests).toHaveLength(1);
   expect(manifests[0]?.href).toBe("/manifest.webmanifest");
@@ -70,20 +78,22 @@ test("installation inputs remain singular, authentic and revalidating", async ({
   ]);
   for (const href of candidates) {
     // Refuse external or traversal paths before mapping them to local files.
-    expect(href).toMatch(/^\/icons\/[a-z0-9-]+\.(png|svg)$/);
+    // Only the Apple tile carries a version query; strip it for the disk read.
+    expect(href).toMatch(/^\/icons\/[a-z0-9-]+\.(png|svg)(\?v=[0-9a-f]{8})?$/);
+    const pathname = href.split("?")[0] as string;
     const response = await request.get(href, { maxRedirects: 0 });
     expect(response.status(), href).toBe(200);
     expect(response.headers()["content-type"], href).toMatch(
       href.endsWith(".svg") ? /^image\/svg\+xml/ : /^image\/png/,
     );
     const bytes = await response.body();
-    const expectedBytes = readFileSync(resolve(`public${href}`));
+    const expectedBytes = readFileSync(resolve(`public${pathname}`));
     const hash = (buffer: Buffer) => createHash("sha256").update(buffer).digest("hex");
     expect(hash(bytes), href).toBe(hash(expectedBytes));
     const metadata = await sharp(bytes).metadata();
     expect(metadata.width, href).toBe(metadata.height);
     expect(metadata.width, href).toBeGreaterThan(0);
-    if (["/icons/app-icon.svg", "/icons/apple-touch-icon.png"].includes(href)) {
+    if (["/icons/app-icon.svg", "/icons/apple-touch-icon.png"].includes(pathname)) {
       expect(response.headers()["cache-control"], href).toBe(
         "public, max-age=0, must-revalidate",
       );

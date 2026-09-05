@@ -40,6 +40,14 @@ const DESCRIPTION =
 //                the GitHub → Settings → Social preview upload.
 const OG_TILE = "/brand/og-tile.png";
 const SOCIAL_CARD = "/brand/social-card.png";
+// THE home-screen tile, with the content version next.config.ts computed from
+// its bytes at build. Same frozen file; the query is a cache-bust only, so a
+// regenerated tile reaches the Add-to-Home-Screen sheet on the first fetch
+// instead of after Safari's and the service worker's caches expire. It is not
+// a `media` query and selects nothing (see the metadata comment below).
+const APPLE_TOUCH_ICON = process.env.APPLE_TOUCH_ICON_VERSION
+  ? `/icons/apple-touch-icon.png?v=${process.env.APPLE_TOUCH_ICON_VERSION}`
+  : "/icons/apple-touch-icon.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -98,7 +106,7 @@ export const metadata: Metadata = {
       { url: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
       { url: "/icons/favicon-16.png", type: "image/png", sizes: "16x16" },
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: APPLE_TOUCH_ICON, sizes: "180x180" }],
   },
   // NO appleWebApp block: the two static apple metas are hand-written in the
   // <head> below. metadata.appleWebApp — even without statusBarStyle — makes

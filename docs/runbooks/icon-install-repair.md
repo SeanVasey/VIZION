@@ -30,6 +30,16 @@ continues to supply the dark background. Never replace this with an inline
 style. A stylesheet-stripped fixture proves fallback rendering only; it does
 not claim that iOS strips this stylesheet.
 
+The Apple link carries a content version: `next.config.ts` hashes the PNG at
+build and `layout.tsx` renders `/icons/apple-touch-icon.png?v=<md5 prefix>`.
+The file, its name, the manifest and the header rules are unchanged; the
+query exists because a phone that fetched the tile under the earlier
+day-fresh policy kept serving it to the Add-to-Home-Screen sheet after the
+origin had moved on (measured 2026-09-05), and `must-revalidate` cannot evict
+a copy that is already cached. A regenerated tile is a new URL to Safari's
+HTTP cache and to the service worker's runtime image cache alike. It is not a
+`media` query and does not select a source.
+
 `next.config.ts` retains general asset caching but makes two exact, later
 exceptions: `/icons/app-icon.svg` and `/icons/apple-touch-icon.png` receive
 `public, max-age=0, must-revalidate`. Next's last matching header wins [7]. This
