@@ -31,36 +31,29 @@
 // `translate(133.12, 165.66) scale(0.74)`) to 0.03 px at 1024² — i.e. the
 // generated tiles are the shipped artwork, not an approximation.
 //
-// THE INSTALLED ICON — one colorway, legible on either ground (ADR-0017)
+// INSTALLED ARTWORK AND SOURCE SELECTION (ADR-0017, evidence correction)
 // -----------------------------------------------------------------------
-// Everything a launcher installs — the apple-touch tile, the maskable tiles,
-// the transparent `any` matrix and the scalable app-icon.svg — now carries the
-// OUTLINED colorway: a FLAT Laser plate, the mark FILLED in Laser (with a
-// slight top-lit ramp) and STROKED in Void. The point is that the mark no
-// longer depends on its ground for contrast. If an OS keeps the Laser plate,
-// the Void outline carries the mark; if it replaces or crushes the plate
-// toward dark, the Laser fill carries it. Two previous designs each bet on ONE
-// ground (Void ink on Laser — iOS darkened the plate into the ink; Laser on
-// Void — legible everywhere, but the brand green never reached the Home
-// Screen). This one is built so that no treatment of the plate can hide it.
+// The glyph keeps its Void outline; its fill is shaded darker than the plate
+// (see LIGHTING below). The Apple tile and
+// maskable exports use a flat Laser plate; the transparent `any` PNGs keep
+// their existing alpha contract. The adaptive SVG changes only its plate.
+// This supplies contrast on authored light and dark grounds, not a guarantee
+// about every undocumented system transformation.
 //
-// What is measured about iOS (docs/runbooks/ios-verification.md) still stands
-// and still shapes the head: it reads `apple-touch-icon` once, ignores `media`
-// on icons, freezes the capture, and auto-darkens it under dark appearance. So
-// there is still exactly ONE apple link and no query. Measured on device
-// (2026-09-04, runbook): in dark appearance iOS SEPARATES the tile — the plate
-// swapped for a dark gradient, the outlined mark kept pixel for pixel — which
-// is exactly the outcome this artwork was drawn for. It does not dim the tile;
-// "auto-darkening" was the wrong word, and the variant appears after the fact.
+// Production deliberately declares one unconditional apple-touch-icon PNG.
+// WebKit documents that this takes precedence over manifest icons on iOS.
+// The SVG remains useful to SVG-aware consumers; array order does not make
+// it the installed iPhone source. Safari 26's SVG icon support does not by
+// itself prove live re-evaluation after installation. Keep that question in
+// the isolated diagnostic, not in production source-selection experiments.
+// See docs/runbooks/icon-install-repair.md for sources and device acceptance.
 //
 // RULES (never work around)
 // -------------------------
 //   • Full-bleed square. NO pre-rounded corners, NO specular gloss, NO drop
 //     shadow — the OS rounds and glassifies at runtime. The one lighting cue
 //     is the slight LINEAR ramp on the MARK (owner brief, 2026-09); it is a
-//     tint ramp, not a highlight, and it stays subtle. The PLATE is flat: the
-//     #105-era flat tile is the one iOS swapped cleanly for its neutral dark
-//     plate, and the owner's reference for dark appearance (2026-09-04).
+//     tint ramp, not a highlight, and it stays subtle. The PLATE is flat.
 //   • Maskable is the only padded exception: 0.58 glyph fraction so the art
 //     clears Android's 80% safe-zone circle. Everything else uses 0.74.
 //   • Alpha contract (guardrail §6 / INV-09, enforced by
@@ -127,7 +120,8 @@ function token(name) {
   return m[1].toUpperCase();
 }
 
-// LASER is the brand green — the plate and the mark's fill; VOID the dark plate
+// LASER is the brand green — the plate, and the base the mark's fill is shaded
+// from; VOID the dark plate
 // of the splash screens (and the manifest's theme_color/background_color); INK
 // the dark ink on a Laser plate — the favicons' mark and the outlined mark's
 // stroke.
@@ -173,13 +167,15 @@ function mix(a, b, t) {
 }
 
 /**
- * The MARK's lighting ramp (fraction toward white at the top; the bottom rests
- * on the token) and the dark plate's lift. The PLATE carries no ramp: it is
- * flat Laser, the shape of the #105-era tile iOS swapped cleanly for its own
- * neutral dark plate (owner screenshots, 2026-09-04: light `#BEF51E`, dark
- * `#101113`). "Slight" is the brief, and the ramp lives on the mark.
+ * The MARK's shading ramp: fractions toward the Void token, top and bottom.
+ * The mark is deliberately DARKER than the plate. iOS derives the Dark Home
+ * Screen appearance by segmenting a foreground from the flat plate and
+ * keeping it; a fill that matches the plate is discarded with the plate
+ * (owner screenshots 2026-09-05: the Laser-filled mark stayed lime in Dark,
+ * no plate swap). The PLATE carries no ramp: it is flat Laser. `plateDarkTop`
+ * is the adaptive SVG's dark plate lift only.
  */
-const LIGHTING = { markTop: 0.3, plateDarkTop: 0.05 };
+const LIGHTING = { markTop: 0.25, markBottom: 0.35, plateDarkTop: 0.05 };
 
 /**
  * The outline's stroke width in GLYPH units. The stroke is painted UNDER the
@@ -198,8 +194,8 @@ export const OUTLINE_WIDTH = 60;
 export function outlinedColorway() {
   return {
     plate: LASER,
-    markTop: mix(LASER, "#FFFFFF", LIGHTING.markTop),
-    markBottom: LASER,
+    markTop: mix(LASER, VOID, LIGHTING.markTop),
+    markBottom: mix(LASER, VOID, LIGHTING.markBottom),
     outline: INK,
     // The dark appearance's plate, for the scalable icon only (below): the Void
     // token with a whisper of lift at the top, so it reads as a plate rather
@@ -367,35 +363,20 @@ function outlinedGlyphSVG(frac, size = CANVAS) {
   );
 }
 /**
- * The SCALABLE icon — the outlined tile as vector, carrying BOTH appearances.
+ * Adaptive SVG for consumers that select and render it. This is not proof
+ * that an installed iPhone icon is live SVG: the explicit Apple PNG wins
+ * under WebKit's documented manifest precedence.
  *
- * This is the manifest's first `any` entry and the first `rel="icon"`, and it
- * is the one icon surface that can declare a dark appearance in a way a
- * renderer can honour: the plate is a CSS class whose fill swaps under
- * `@media (prefers-color-scheme: dark)` from flat Laser to a Void plate.
- * The MARK does not swap — it is the outlined mark in both appearances, the
- * fill's Laser ramp and the Void stroke — because on the Laser plate the
- * stroke carries it and on the Void plate the fill does. That is the owner's
- * brief (2026-09-04): the icon shape filled and stroked, the plate following
- * the appearance.
+ * The light plate is both a presentation attribute and a stylesheet rule.
+ * SVG presentation attributes have specificity zero, so the .plate class
+ * overrides that fallback, including the dark media rule. Do not use an
+ * inline style here: that would interfere with the class-based override.
+ * With the stylesheet absent the plate is still Laser, not SVG's default
+ * black. A stripped-style fixture tests resilience, not an iOS algorithm.
  *
- * DEFAULT = LIGHT, deliberately (the reverse of the #112 rule, and for a
- * reason that has since changed). A renderer that ignores the media query
- * paints the default. Under #112 the dark colorway had to be the default
- * because the light one, captured flat, was crushed into an emboss; the
- * outlined mark cannot be, and a captured LIGHT tile is the one iOS's own
- * dark-appearance pass separates into a dark plate with the mark kept
- * (measured 2026-09-04, runbook). A captured DARK tile would stay dark in
- * light appearance — the #112 outcome the owner rejected. So the branch a
- * media-blind renderer lands on is the green one.
- *
- * The plate rect carries NO fill attribute: an attribute outranks the class
- * rules and the swap would never apply. The mark's paths keep theirs — they
- * do not swap.
- *
- * `color-scheme: light dark` on the root is declared as well, so a renderer
- * that resolves a scheme from the property rather than the query still
- * resolves one.
+ * The canonical mark, its ramp and its stroke are unchanged in both modes.
+ * color-scheme advertises supported schemes; prefers-color-scheme selects
+ * the override when the consuming renderer evaluates the query.
  */
 function scalableIconSVG(frac, size = CANVAS) {
   const c = outlinedColorway();
@@ -414,7 +395,7 @@ function scalableIconSVG(frac, size = CANVAS) {
     `<stop offset="0" stop-color="${c.markTop}"/>` +
     `<stop offset="1" stop-color="${c.markBottom}"/></linearGradient>` +
     `</defs>` +
-    `<rect class="plate" width="${size}" height="${size}"/>` +
+    `<rect class="plate" width="${size}" height="${size}" fill="${c.plate}"/>` +
     outlinedMark(size, size, frac, 0.0156) +
     `</svg>`
   );
@@ -695,15 +676,10 @@ async function main() {
     path.join(repoRoot, "public", "favicon.ico"),
   );
 
-  // 5. The scalable icon — the outlined tile as vector, in BOTH appearances
-  //    (see scalableIconSVG). It serves the manifest's first `any` entry, the
-  //    first `rel="icon"`, and — on Safari 26, which uses manifest icons and
-  //    SVG "everyplace there are icons", the Home Screen included — the one
-  //    declarative route to a dark plate in dark appearance that does not wait
-  //    on iOS's after-the-fact variant. The PNG apple-touch tile stays as the
-  //    fallback for everything that does not take the SVG. Generated flat, NOT
-  //    a copy of a public/brand file: the composed brand SVGs carry the baked
-  //    squircle + gloss this pipeline forbids.
+  // 5. Adaptive SVG for the manifest and rel="icon" consumers. The explicit
+  //    Apple touch PNG is the deliberate production iOS candidate, not a
+  //    fallback to this SVG. The isolated harness tests the alternative.
+  //    Generate from the master, not the composed, pre-rounded brand previews.
   console.log("Rendering the scalable icon (both appearances)...");
   await fs.writeFile(
     path.join(ICONS_DIR, SCALABLE_ICON),

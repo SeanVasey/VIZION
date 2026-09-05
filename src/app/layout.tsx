@@ -28,8 +28,8 @@ const DESCRIPTION =
 // green.
 //
 //   OG_TILE      1200×1200, Void mark on a Laser plate — the house colorway,
-//                as on the favicons and maskable tiles (the home-screen tile is
-//                pinned to its inverse). This is `og:image`, and it is SQUARE on
+//                as on the favicons. Installed tiles use the outlined mark.
+//                This is `og:image`, and it is SQUARE on
 //                purpose: every consumer of og:image except X crops toward a
 //                square. iOS Safari's Share Sheet takes the centre 640×640,
 //                which of the landscape card kept only the right arm of the
@@ -73,50 +73,24 @@ export const metadata: Metadata = {
     images: [SOCIAL_CARD],
   },
   /**
-   * The whole icon head, declared here rather than left to the App Router
-   * `icon*`/`apple-icon` file convention.
+   * All icon links are explicit. The generator writes to public/icons; no
+   * App Router convention icon files are used alongside this declaration.
    *
-   * WHY. Declaring `metadata.icons` is all-or-nothing: Next merges the
-   * convention files' links only `if (!resolvedMetadata.icons)`
-   * (resolve-metadata.js), so the moment this key exists those links vanish.
-   * `src/app/icon0.svg`, `icon1.png` and `apple-icon.png` were therefore
-   * deleted rather than left to be built, served and referenced by nothing —
-   * scripts/generate-icons.mjs writes the equivalents under `public/icons/` and
-   * this block points at them.
+   * Production keeps ONE unconditional outlined Apple touch PNG. WebKit
+   * documents that an explicit apple-touch-icon takes precedence over
+   * manifest icons on iOS. It is not a fallback to the SVG below. The flat
+   * Laser plate and the Void-outlined glyph, filled darker than the plate, are
+   * intended to retain contrast when iOS treats the installed background
+   * differently.
    *
-   * ONE apple-touch-icon, UNCONDITIONAL — and it is the OUTLINED tile.
+   * The adaptive SVG is offered to SVG-aware icon consumers. Its order here
+   * or in the manifest does not prove iPhone selection, and its CSS rendering
+   * does not establish live Home Screen updates. Source-selection variants
+   * remain in the isolated harness until physical-device acceptance.
    *
-   * What iOS does with this link is measured (docs/runbooks/ios-verification.md,
-   * two device passes, 2026-08-12 and -13): it reads `apple-touch-icon` from the
-   * head at "Add to Home Screen", does NOT evaluate `media` on icons (it does
-   * on `apple-touch-startup-image` — which is why the splash links below
-   * resolve per device), applies Apple's "last one wins", FREEZES what it
-   * captured, and auto-darkens that frozen tile under dark appearance. Nothing
-   * re-resolves it afterwards. So there is one link and no query, and no JS
-   * matcher: each of those has shipped here (#108, #111) and each shipped an
-   * invisible mark. Do not reintroduce any of them.
-   *
-   * What changed is the ARTWORK, not the arrangement (ADR-0017). The tile was
-   * pinned to the dark colorway (ADR-0015) because it was the only FLAT
-   * colorway that survived auto-darkening, at the cost that the brand green
-   * never reached the Home Screen. The outlined tile — Laser plate, the mark
-   * filled in Laser and stroked in Void, a slight lighting gradient on both —
-   * does not depend on its plate for contrast: the outline carries the mark on
-   * the green plate, the fill carries it on a darkened one. Measured on device
-   * (2026-09-04, runbook): in dark appearance iOS swaps the plate for a dark
-   * gradient and keeps the outlined mark pixel for pixel.
-   *
-   * The scalable icon stays FIRST among `rel="icon"` so a modern browser
-   * prefers it over the rasters. It is the outlined tile as vector in BOTH
-   * appearances: the plate follows `prefers-color-scheme` (Laser ramp in
-   * light, Void in dark) while the mark stays the outlined mark, so the stroke
-   * carries it on green and the fill on dark. It is also the manifest's first
-   * icon, and Safari 26 uses manifest icons — SVG included — for the Home
-   * Screen, which makes it the declarative route to a dark plate in dark
-   * appearance; the PNG tile above is the fallback for everything else
-   * (ADR-0017 amendment 2). The raster favicons keep the flat house colorway
-   * (Void ink on a Laser plate) — at 16–32 px a 4 px outline is sub-pixel, and
-   * the flat mark is the crisper rendition of the same identity there.
+   * See docs/runbooks/icon-install-repair.md for the current evidence contract.
+   * Do not pin the tile dark, add a theme-switching Apple-link component, or
+   * change app identity to refresh an installation. Favicons stay unchanged.
    */
   icons: {
     icon: [

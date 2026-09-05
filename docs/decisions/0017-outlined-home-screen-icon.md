@@ -3,6 +3,28 @@
 Date: 2026-09-04
 Status: accepted, confirmed on device 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change; Amendment 2 restores the scalable icon's dark appearance; Amendment 3 flattens the plate)
 
+## Current scope correction: September 4 repair
+
+The outlined artwork remains approved. The title's universal guarantee is not
+a device acceptance result for every OS treatment. Historical device reports
+below are retained as reports, not independently reproduced measurements.
+
+Amendment 2's PNG-as-fallback explanation is superseded: WebKit documents an
+explicit Apple touch icon taking precedence over manifest icons. An adaptive
+SVG on disk or first in an array does not prove that it was installed, or
+that iOS reevaluates its CSS. The presentation fill now supplies a deterministic
+lime fallback and remains overridable by the dark CSS class. The production
+Apple PNG and logo geometry are unchanged. The full application gate and
+physical-device acceptance remain separate requirements. The
+[current repair contract](../runbooks/icon-install-repair.md) governs new work;
+the isolated A/B/C diagnostic distinguishes the still-open mechanisms.
+
+Amendment 4 (2026-09-05): the claim that iOS kept the Laser-filled outlined
+mark in Dark was not a recorded device result and is false (owner
+screenshots: no plate swap, tile dimmed). The mark is now filled darker
+than the plate so iOS's automatic dark treatment can segment and keep it.
+Geometry, stroke and plate are unchanged.
+
 ## Context
 
 ADR-0015 settled how iOS handles a web clip's icon, by measurement: it reads

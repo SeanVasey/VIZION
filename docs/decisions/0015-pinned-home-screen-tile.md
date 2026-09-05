@@ -3,6 +3,17 @@
 Date: 2026-08-13
 Status: accepted (closes the arrangements shipped in #108 and #111)
 
+## Superseded icon conclusions: September 4 repair
+
+The permanently dark artwork decision below is superseded by ADR-0017.
+Its source-selection and lifetime conclusions describe historical tests, not
+all iOS builds. The current conservative production choice is one explicit
+outlined Apple PNG. Manifest SVG selection and live appearance changes need
+separate device evidence; a formerly unreadable manifest invalidated some
+negative tests. See the [current repair contract](../runbooks/icon-install-repair.md).
+No new physical-device result is claimed by this correction. Retain the
+following text as history, not as a rule to remove the lime light plate.
+
 ## Context
 
 The owner's requirement was a single icon that shows the **Laser plate with the

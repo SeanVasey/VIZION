@@ -92,6 +92,18 @@ procedure in `docs/runbooks/release.md`.
 - Source provider/dev logos from thesvg.org → optimize via Potrace/SVGO.
 - **Buttons = Void text on a Laser fill, never Laser text on light** (1.09:1 FAIL).
 
+## Icon work
+
+`docs/runbooks/icon-install-repair.md` is the only icon contract. The iPhone
+installs the explicit `apple-touch-icon` PNG; iOS derives the Dark rendition
+from that PNG itself and only keeps mark pixels whose colour is distinct from
+the plate. SVG, manifest order, `rel="icon"` order, and link `media` do not
+reach the Home Screen. Never: pin the tile dark, add a media/JS-switched
+Apple link, remove the Apple link, reorder icons as a fix, change manifest
+identity to refresh, edit the master glyph, add icon files outside
+`scripts/generate-icons.mjs`, or claim a device result without a recorded
+device pass.
+
 ## 7. Deploy
 
 Vercel (primary). Preview deploy per PR; production on `main`. The provider-proxy

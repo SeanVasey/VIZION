@@ -1,5 +1,22 @@
 # Runbook — what the `mobile-safari` e2e project can and cannot prove
 
+## Icon interpretation correction: September 4 repair
+
+For icon work, use the [current repair contract](./icon-install-repair.md).
+The icon sections and divergence table below retain conflicting historical
+conclusions, including statements later invalidated by manifest authentication.
+Treat their observations as build-specific reports, not universal platform laws.
+In particular, a dark plate does not identify the selected source, SVG support
+does not establish live Home Screen CSS, and array order does not override
+WebKit's documented explicit Apple-touch precedence. The production candidate
+remains the unchanged outlined Apple PNG; the SVG-only route is isolated.
+
+The distinction between Linux WebKit and iOS platform behavior still stands.
+No browser rendering, artificial image dimming, source comment or asset
+request alone proves an installed iPhone icon passed. No new device pass is
+claimed here. Preserve the observations below for comparison with recorded
+A/B/C diagnostic results, not as permission to ship a permanently dark tile.
+
 ## Why this exists
 
 VIZION is an iOS-first PWA, so a large number of decisions in this codebase
