@@ -123,8 +123,8 @@ change a derivative.
 
 The colorways are:
 
-- **Outlined** (flat Laser plate · Laser-filled mark with a slight top-lit ramp ·
-  Void outline) — **everything a launcher installs**: the Add-to-Home-Screen
+- **Outlined** (flat Laser plate · mark filled on a slight ramp shaded darker than
+  the plate, toward Void · Void outline) — **everything a launcher installs**: the Add-to-Home-Screen
   tile (`apple-touch-icon.png`), the maskable tiles, the transparent `any`
   matrix (the outlined mark alone, no plate) and the scalable `app-icon.svg`.
 - **Light** (Laser plate + Void ink, flat) — the house colorway for the raster
@@ -142,10 +142,14 @@ when iOS crushed the plate toward the ink, and the dark tile that replaced it
 ([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)) survived every
 treatment only by keeping the brand green off the Home Screen. The outlined mark
 carries its own contrast instead: on the Laser plate the Void outline reads; on
-a plate an OS has darkened or replaced, the Laser fill reads. Measured on
-device (2026-09-04): in dark appearance iOS swaps the plate for a dark gradient
-and keeps the outlined mark pixel for pixel; in light it shows the tile as
-authored. The runbook carries the samples.
+a plate an OS has darkened or replaced, the shaded fill reads. Owner screenshots
+(2026-08-11 and 2026-09-05) established that iOS derives the dark appearance
+from the `apple-touch-icon` PNG itself: it segments a foreground from the flat
+plate and keeps only pixels whose colour is distinct from the plate. A
+Laser-filled mark was discarded with the plate and the tile merely dimmed, so
+the fill is shaded darker than the plate; the physical-device pass on the
+shaded mark is pending. `docs/runbooks/icon-install-repair.md` is the icon
+contract.
 
 The **arrangement** ADR-0015 settled is unchanged: `metadata.icons.apple` holds
 one unconditional link, at `/icons/apple-touch-icon.png`. **Do not add a second
