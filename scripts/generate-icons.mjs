@@ -31,14 +31,19 @@
 // `translate(133.12, 165.66) scale(0.74)`) to 0.03 px at 1024² — i.e. the
 // generated tiles are the shipped artwork, not an approximation.
 //
-// INSTALLED ARTWORK AND SOURCE SELECTION (ADR-0017, evidence correction)
+// INSTALLED ARTWORK AND SOURCE SELECTION (ADR-0017, Amendment 5)
 // -----------------------------------------------------------------------
-// The glyph keeps its Void outline; its fill is shaded darker than the plate
-// (see LIGHTING below). The Apple tile and
-// maskable exports use a flat Laser plate; the transparent `any` PNGs keep
-// their existing alpha contract. The adaptive SVG changes only its plate.
-// This supplies contrast on authored light and dark grounds, not a guarantee
-// about every undocumented system transformation.
+// The installed tiles (the Apple tile, the maskable tiles, the adaptive SVG's
+// light branch) are INVERTED: a flat plate shaded toward Void and the flat
+// Laser mark on it, with NO outline. iOS derives the Dark Home Screen tile by
+// segmenting the foreground from the flat plate and keeping it (owner
+// screenshots 2026-08-11 and 2026-09-05), so what it keeps is the full-Laser
+// mark on its own near-black plate; in Light the Laser mark reads on the
+// deeper green plate at ~4:1 (see LIGHTING below). The transparent `any` PNGs
+// keep the OUTLINED mark — Laser fill, Void stroke — because a launcher paints
+// its own ground behind them and the outline is what carries a Laser mark on
+// a light one. This supplies contrast on authored light and dark grounds, not
+// a guarantee about every undocumented system transformation.
 //
 // Production deliberately declares one unconditional apple-touch-icon PNG.
 // WebKit documents that this takes precedence over manifest icons on iOS.
@@ -51,9 +56,9 @@
 // RULES (never work around)
 // -------------------------
 //   • Full-bleed square. NO pre-rounded corners, NO specular gloss, NO drop
-//     shadow — the OS rounds and glassifies at runtime. The one lighting cue
-//     is the slight LINEAR ramp on the MARK (owner brief, 2026-09); it is a
-//     tint ramp, not a highlight, and it stays subtle. The PLATE is flat.
+//     shadow — the OS rounds and glassifies at runtime. Both the PLATE and
+//     the MARK are flat: iOS segments the mark from the plate by colour, and
+//     a ramp on either side only blurs that edge (owner decision 2026-09-05).
 //   • Maskable is the only padded exception: 0.58 glyph fraction so the art
 //     clears Android's 80% safe-zone circle. Everything else uses 0.74.
 //   • Alpha contract (guardrail §6 / INV-09, enforced by
@@ -167,15 +172,19 @@ function mix(a, b, t) {
 }
 
 /**
- * The MARK's shading ramp: fractions toward the Void token, top and bottom.
- * The mark is deliberately DARKER than the plate. iOS derives the Dark Home
- * Screen appearance by segmenting a foreground from the flat plate and
- * keeping it; a fill that matches the plate is discarded with the plate
- * (owner screenshots 2026-09-05: the Laser-filled mark stayed lime in Dark,
- * no plate swap). The PLATE carries no ramp: it is flat Laser. `plateDarkTop`
- * is the adaptive SVG's dark plate lift only.
+ * The installed tile's shading. `plate` is the fraction from the Laser token
+ * toward the Void token for the PLATE; the MARK is the Laser token itself and
+ * carries no ramp. iOS derives the Dark Home Screen tile by segmenting the
+ * foreground from the flat plate and keeping it — a mark whose colour matches
+ * the plate is discarded with it (owner screenshots 2026-09-05: the
+ * Laser-filled outlined mark on a Laser plate was only dimmed; the shaded
+ * mark was kept). Inverting puts the FULL-Laser mark on iOS's near-black
+ * plate in Dark (≈16:1) and on the deeper green plate in Light (≈4:1 at
+ * 0.55; 0.35 fell to ≈2.2:1 and 0.70 turned the plate olive — the owner chose
+ * 0.55 from a side-by-side, 2026-09-05). `plateDarkTop` is the adaptive SVG's
+ * dark plate lift only.
  */
-const LIGHTING = { markTop: 0.25, markBottom: 0.35, plateDarkTop: 0.05 };
+const LIGHTING = { plate: 0.55, plateDarkTop: 0.05 };
 
 /**
  * The outline's stroke width in GLYPH units. The stroke is painted UNDER the
@@ -188,14 +197,15 @@ const LIGHTING = { markTop: 0.25, markBottom: 0.35, plateDarkTop: 0.05 };
 export const OUTLINE_WIDTH = 60;
 
 /**
- * The outlined colorway's colours, every one derived from the tokens so the
- * tests can import them instead of restating a hex. `plate` IS the Laser token.
+ * The installed colorway's colours, every one derived from the tokens so the
+ * tests can import them instead of restating a hex. `mark` IS the Laser token;
+ * `plate` is Laser shaded toward Void; `outline` is the Void stroke that only
+ * the transparent `any` matrix still carries.
  */
-export function outlinedColorway() {
+export function installedColorway() {
   return {
-    plate: LASER,
-    markTop: mix(LASER, VOID, LIGHTING.markTop),
-    markBottom: mix(LASER, VOID, LIGHTING.markBottom),
+    plate: mix(LASER, VOID, LIGHTING.plate),
+    mark: LASER,
     outline: INK,
     // The dark appearance's plate, for the scalable icon only (below): the Void
     // token with a whisper of lift at the top, so it reads as a plate rather
@@ -305,7 +315,8 @@ function glyphGroup(canvasW, canvasH, frac, fill, lift) {
 }
 
 /**
- * The OUTLINED mark: the same path twice, stroke first, fill on top.
+ * The OUTLINED mark (the transparent `any` matrix only): the same path twice,
+ * stroke first, fill on top.
  *
  * Two paths rather than `paint-order="stroke"` on one, deliberately. sharp's
  * librsvg renders the two identically (measured, byte-for-byte), and so does
@@ -319,38 +330,25 @@ function glyphGroup(canvasW, canvasH, frac, fill, lift) {
  * well past them.
  */
 function outlinedMark(canvasW, canvasH, frac, lift) {
-  const { outline } = outlinedColorway();
+  const { outline, mark } = installedColorway();
   return (
     `<g transform="${transformFor(canvasW, canvasH, frac, lift)}">` +
     `<path d="${GLYPH_D}" fill="none" stroke="${outline}" stroke-width="${OUTLINE_WIDTH}" ` +
     `stroke-linejoin="round" stroke-linecap="round"/>` +
-    `<path d="${GLYPH_D}" fill="url(#mark)" fill-rule="evenodd"/></g>`
+    `<path d="${GLYPH_D}" fill="${mark}" fill-rule="evenodd"/></g>`
   );
 }
 
 /**
- * The mark's lighting ramp, top-to-bottom in the fill path's own bounding box
- * (the default `objectBoundingBox` units), so the mark's top is its lightest
- * point wherever it sits on the canvas. The plate is flat and needs no def.
+ * Full-bleed opaque square in the INSTALLED colorway: the shaded plate and the
+ * flat Laser mark, no outline — the Apple tile and the maskable tiles.
  */
-function outlinedDefs() {
-  const c = outlinedColorway();
-  return (
-    `<defs>` +
-    `<linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="${c.markTop}"/>` +
-    `<stop offset="1" stop-color="${c.markBottom}"/></linearGradient>` +
-    `</defs>`
-  );
-}
-
-/** Full-bleed opaque square in the outlined colorway: plate + outlined mark. */
-function outlinedTileSVG(frac, size = CANVAS) {
+function installedTileSVG(frac, size = CANVAS) {
+  const c = installedColorway();
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
-    outlinedDefs() +
-    `<rect width="${size}" height="${size}" fill="${outlinedColorway().plate}"/>` +
-    outlinedMark(size, size, frac, 0.0156) +
+    `<rect width="${size}" height="${size}" fill="${c.plate}"/>` +
+    glyphGroup(size, size, frac, c.mark, 0.0156) +
     `</svg>`
   );
 }
@@ -359,7 +357,6 @@ function outlinedTileSVG(frac, size = CANVAS) {
 function outlinedGlyphSVG(frac, size = CANVAS) {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
-    outlinedDefs() +
     outlinedMark(size, size, frac, 0.0156) +
     `</svg>`
   );
@@ -373,15 +370,17 @@ function outlinedGlyphSVG(frac, size = CANVAS) {
  * SVG presentation attributes have specificity zero, so the .plate class
  * overrides that fallback, including the dark media rule. Do not use an
  * inline style here: that would interfere with the class-based override.
- * With the stylesheet absent the plate is still Laser, not SVG's default
- * black. A stripped-style fixture tests resilience, not an iOS algorithm.
+ * With the stylesheet absent the plate is still the shaded green, not SVG's
+ * default black. A stripped-style fixture tests resilience, not an iOS
+ * algorithm.
  *
- * The canonical mark, its ramp and its stroke are unchanged in both modes.
- * color-scheme advertises supported schemes; prefers-color-scheme selects
- * the override when the consuming renderer evaluates the query.
+ * The canonical mark — flat Laser, no outline — is unchanged in both modes;
+ * only the plate swaps. color-scheme advertises supported schemes;
+ * prefers-color-scheme selects the override when the consuming renderer
+ * evaluates the query.
  */
 function scalableIconSVG(frac, size = CANVAS) {
-  const c = outlinedColorway();
+  const c = installedColorway();
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     `<style>` +
@@ -393,12 +392,9 @@ function scalableIconSVG(frac, size = CANVAS) {
     `<linearGradient id="plate-dark" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0" stop-color="${c.plateDarkTop}"/>` +
     `<stop offset="1" stop-color="${c.plateDarkBottom}"/></linearGradient>` +
-    `<linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="${c.markTop}"/>` +
-    `<stop offset="1" stop-color="${c.markBottom}"/></linearGradient>` +
     `</defs>` +
     `<rect class="plate" width="${size}" height="${size}" fill="${c.plate}"/>` +
-    outlinedMark(size, size, frac, 0.0156) +
+    glyphGroup(size, size, frac, c.mark, 0.0156) +
     `</svg>`
   );
 }
@@ -638,26 +634,27 @@ async function main() {
     await renderPng(svg, size, size, path.join(ICONS_DIR, `icon-${size}.png`));
   }
 
-  // 2. Maskable set: opaque full-bleed outlined tile, mark padded to 0.58 so
-  //    nothing (outline included) crosses Android's 80% safe-zone circle. Sizes
-  //    come from the manifest.
+  // 2. Maskable set: opaque full-bleed installed tile, mark padded to 0.58 so
+  //    nothing crosses Android's 80% safe-zone circle. Sizes come from the
+  //    manifest.
   console.log("Rendering maskable icons...");
-  const maskableSvg = outlinedTileSVG(FRAC_MASKABLE);
+  const tilePlate = installedColorway().plate;
+  const maskableSvg = installedTileSVG(FRAC_MASKABLE);
   for (const { file, px } of manifestMaskable) {
-    await renderPng(maskableSvg, px, px, file, { flatten: LASER });
+    await renderPng(maskableSvg, px, px, file, { flatten: tilePlate });
   }
 
-  // 3. THE apple-touch-icon — one tile, the outlined colorway. Opaque: iOS
+  // 3. THE apple-touch-icon — one tile, the installed colorway. Opaque: iOS
   //    composites a transparent tile onto black. See the header for why there
   //    is one, why it carries no appearance suffix, and what is and is not
   //    known about how iOS will treat it.
   console.log("Rendering the apple-touch-icon...");
   await renderPng(
-    outlinedTileSVG(FRAC_STANDARD),
+    installedTileSVG(FRAC_STANDARD),
     180,
     180,
     path.join(ICONS_DIR, APPLE_TOUCH_ICON),
-    { flatten: LASER },
+    { flatten: tilePlate },
   );
 
   // 4. Favicon PNGs — the FLAT house colorway (a plated flat tile reads better

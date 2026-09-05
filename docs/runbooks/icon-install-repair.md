@@ -6,17 +6,22 @@ separately. No iPhone result is implied by this document.
 
 ## Current decision
 
-Keep exactly one explicit Apple touch PNG: flat Laser plate, the canonical
-symbol stroked in Void and filled DARKER than the plate (shaded toward the
-Void token in `outlinedColorway()`). iOS derives Dark appearance from this
-PNG by segmenting a foreground from the plate and keeping it. Owner
-screenshots 2026-08-11 (flat Void mark: plate swapped, mark kept) and
-2026-09-05 (Laser-filled outlined mark: no swap, tile only dimmed) establish
-that any mark pixel matching the plate colour is discarded with the plate.
-Do not replace the tile with a permanently dark one. Preserve the master
-path, transform, fill rule, stroke width, transparent foreground exports and
-Android maskable safe area. The adaptive SVG never reaches the iPhone Home
-Screen while the Apple link exists.
+Keep exactly one explicit Apple touch PNG: the INVERTED tile — a flat plate
+shaded from Laser toward Void (`installedColorway().plate`, 0.55 of the way)
+and the canonical symbol filled with the flat Laser token, with no outline.
+iOS derives Dark appearance from this PNG by segmenting a foreground from the
+plate and keeping it. Owner screenshots 2026-08-11 (flat Void mark: plate
+swapped, mark kept), 2026-09-05 morning (Laser-filled outlined mark on a
+Laser plate: no swap, tile only dimmed) and 2026-09-05 later (mark shaded
+darker than the plate: plate swapped, mark kept) establish that iOS keeps
+exactly the mark pixels whose colour is distinct from the plate. Inverting
+makes the kept mark the full Laser token on iOS's near-black plate (≈16:1)
+and reads at ≈4:1 on the shaded plate in Light; the outline that carried
+Light contrast on a Laser plate is no longer needed on installed tiles and
+stays only on the transparent `any` matrix. Do not replace the tile with a
+permanently dark one. Preserve the master path, transform, fill rule,
+transparent foreground exports and Android maskable safe area. The adaptive
+SVG never reaches the iPhone Home Screen while the Apple link exists.
 
 WebKit's documented explicit Apple-touch precedence is the conservative
 production contract [1, 2]. The PNG is not a fallback subordinate to the first
@@ -155,9 +160,9 @@ For each candidate, first install under Light and observe Light and Dark.
 Then make a separate dark-installed test instance and observe Dark and Light.
 Record immediate and later observations without inventing a required waiting
 interval. Include the SVG branch/source markers when present. The pass
-requires the same outlined geometry, a lime light plate, and on the observed
-dark plate a visibly kept shaded-lime mark with its Void outline — not a
-dimmed lime tile and not a frozen wrong background.
+requires the same geometry, the shaded green plate with a bright Laser mark
+in Light, and on the observed dark plate a visibly kept Laser mark — not a
+dimmed tile and not a frozen wrong background.
 Do not promise exact colors produced by the OS or behavior on untested builds.
 
 Keep production installed while testing. Before a production removal/re-add,

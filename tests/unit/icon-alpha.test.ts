@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { outlinedColorway } from "../../scripts/generate-icons.mjs";
+import { installedColorway } from "../../scripts/generate-icons.mjs";
 
 /**
  * Icon alpha contract (guardrail §6 / INV-09, audit INV-009): the `any`
@@ -90,38 +90,39 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
 });
 
 /**
- * The OUTLINED colorway (ADR-0017) — what every installed surface carries.
+ * The INSTALLED colorway (ADR-0017, Amendment 5) — what every installed tile
+ * carries: a flat plate shaded from Laser toward Void, and the flat Laser mark
+ * on it, with NO outline.
  *
- * The contract, in pixels: a Laser plate; the mark FILLED on a ramp shaded
- * DARKER than the plate (toward Void — `outlinedColorway()`); the mark STROKED
- * in Void. The point of the design is that the mark's legibility does not
- * depend on its plate — the Void outline carries it on the green plate, and the
- * fill is distinct from the plate so iOS's dark treatment, which segments a
- * foreground from the flat plate and keeps it, keeps the mark rather than
- * discarding plate-coloured pixels with the plate — so what is pinned here is
- * that both carriers are present and the fill sits on the derived ramp. Stated
- * as relationships, channel orders and the generator's own derived colours,
- * never as restated hexes: the hexes live in tokens.css, the generator derives
- * the ramp from them, and this file must not hold a second opinion about the
- * brand green (the failure tasks/lessons.md records).
+ * Why inverted: iOS derives the Dark Home Screen tile by segmenting the
+ * foreground from the flat plate and keeping it (owner screenshots 2026-08-11
+ * and 2026-09-05). A Laser mark is therefore what iOS keeps on its own
+ * near-black plate, and the plate only has to be far enough from Laser for
+ * the mark to read in Light. Stated as the generator's own derived colours
+ * (`installedColorway()`), channel orders and luma relationships, never as
+ * restated hexes: the hexes live in tokens.css and this file must not hold a
+ * second opinion about the brand green (the failure tasks/lessons.md records).
  *
- * These replace the two colorway tests that stood here under ADR-0015, which
- * pinned the tile to the DARK colorway (plate darker than mark; the exact
- * inverse of the house tile). Both would now fail by design: the plate is the
- * light one again, and it is meant to be.
+ * The transparent `any` matrix is the exception: it keeps the OUTLINED mark
+ * (Laser fill, Void stroke) because a launcher paints its own, unknown ground
+ * behind it and the outline is what carries a Laser mark on a light one.
  */
-describe("the outlined colorway — both carriers present on every installed tile", () => {
+describe("the installed colorway — shaded plate, flat Laser mark, no outline", () => {
   const tiles = ["apple-touch-icon.png", "maskable-192.png", "maskable-512.png"];
+  const C = installedColorway();
 
   for (const file of tiles) {
     describe(file, () => {
-      it("has a Laser plate — bright, green-led, and flat from corner to corner", async () => {
-        const { plate, plateFoot } = await sampleTile(join(ICONS, file));
-        expect(
-          plate.luma,
-          "the plate is the brand green, which is light",
-        ).toBeGreaterThan(160);
-        expectGreenLed(plate, "plate");
+      it("has the derived shaded plate — green-led, darker than the mark, flat", async () => {
+        const { plate, plateFoot, mark } = await sampleTile(join(ICONS, file));
+        expectNear(plate, C.plate, 3, "plate");
+        expect(plate.g, "plate: green leads").toBeGreaterThan(plate.r);
+        expect(plate.r, "plate: red leads blue (a green, not a teal)").toBeGreaterThan(
+          plate.b,
+        );
+        expect(plate.luma, "the plate is visibly darker than the mark").toBeLessThan(
+          mark.luma - 60,
+        );
         // Flat, not a ramp. iOS separates a web clip into plate and mark and
         // swaps the plate for its own dark one; a gradient plate came back
         // tinted, the flat one comes back neutral (ADR-0017, Amendment 3).
@@ -133,36 +134,29 @@ describe("the outlined colorway — both carriers present on every installed til
         }
       });
 
-      it("fills the mark darker than the plate, on the derived ramp, so iOS keeps it", async () => {
-        const { mark, plate } = await sampleTile(join(ICONS, file));
-        expectOnMarkRamp(mark, plate, "mark fill");
+      it("fills the mark with the Laser token — bright, green-led, flat", async () => {
+        const { mark } = await sampleTile(join(ICONS, file));
+        expectNear(mark, C.mark, 4, "mark fill");
+        expectGreenLed(mark, "mark fill");
       });
 
-      it("outlines the mark in Void, so the green plate cannot swallow it either", async () => {
+      it("carries no outline — nothing on the row through the mark is darker than the plate", async () => {
         const { outline, plate } = await sampleTile(join(ICONS, file));
-        // Void's luma is ~16; anything under 48 is unmistakably the stroke and
-        // not an antialiased edge of the green.
-        expect(
-          outline.luma,
-          "no pixel dark enough to be the stroke on the row through the mark",
-        ).toBeLessThan(48);
-        expect(
-          outline.luma,
-          "the outline must be far darker than the plate",
-        ).toBeLessThan(plate.luma / 3);
+        // `outline` is the darkest opaque pixel on the centre row. With no
+        // stroke, every pixel there is plate, mark, or a blend of the two, so
+        // none can be darker than the plate (a small allowance for resampling).
+        expect(outline.luma, "no stroke on the installed tile").toBeGreaterThanOrEqual(
+          plate.luma - 8,
+        );
       });
     });
   }
 
-  /**
-   * The transparent `any` matrix carries the SAME two carriers, minus the
-   * plate — a consumer paints its own ground behind an `any` icon, which is the
-   * one case where the ground is genuinely unknown.
-   */
-  it("icon-512.png (the any matrix) is the outlined mark alone", async () => {
+  it("icon-512.png (the any matrix) is the OUTLINED Laser mark alone", async () => {
     const { mark, outline } = await sampleTile(join(ICONS, "icon-512.png"));
-    expectOnMarkRamp(mark, null, "mark fill");
-    expect(outline.luma).toBeLessThan(48);
+    expectNear(mark, C.mark, 4, "any-matrix mark fill");
+    expectGreenLed(mark, "any-matrix mark fill");
+    expect(outline.luma, "the Void stroke is present").toBeLessThan(48);
     expect(outline.alpha, "the stroke is opaque, not a soft shadow").toBe(255);
   });
 });
@@ -176,49 +170,34 @@ type Sample = {
   b: number;
 };
 
-/** Green-led: G leads, R trails it, B is far behind — the shape of every stop
- *  on the Laser ramp, and of nothing on the Void one. */
+/** Green-led: G leads, R trails it, B is far behind — the shape of the Laser
+ *  token, and of nothing on the Void one. */
 function expectGreenLed({ r, g, b }: Sample, what: string) {
   expect(g, `${what}: green must lead`).toBeGreaterThan(r);
   expect(r, `${what}: red must lead blue (a lime, not a teal)`).toBeGreaterThan(b);
   expect(g, `${what}: green must be strong`).toBeGreaterThan(200);
 }
 
-/**
- * The mark's fill, read against the generator's OWN derived ramp rather than a
- * restated hex: still a lime (green-led), visibly darker than the plate when a
- * plate is present, and every channel inside the [markBottom, markTop] band the
- * generator computed from tokens.css (±4 for resampling). A fill that matched
- * the plate would be discarded with the plate by iOS's dark treatment.
- */
-function expectOnMarkRamp(mark: Sample, plate: Sample | null, what: string) {
-  const c = outlinedColorway();
-  const channels = (hex: string) =>
-    [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
-  const top = channels(c.markTop);
-  const bottom = channels(c.markBottom);
-  expect(mark.g, `${what}: green must lead`).toBeGreaterThan(mark.r);
-  expect(mark.r, `${what}: red must lead blue (a lime, not a teal)`).toBeGreaterThan(
-    mark.b,
-  );
+/** Every channel within `tol` of the generator's own derived colour. */
+function expectNear(sample: Sample, hex: string, tol: number, what: string) {
+  const want = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [
+    number,
+    number,
+    number,
+  ];
   (["r", "g", "b"] as const).forEach((ch, i) => {
-    const lo = Math.min(top[i]!, bottom[i]!) - 4;
-    const hi = Math.max(top[i]!, bottom[i]!) + 4;
-    expect(mark[ch], `${what} ${ch}: inside the derived ramp`).toBeGreaterThanOrEqual(lo);
-    expect(mark[ch], `${what} ${ch}: inside the derived ramp`).toBeLessThanOrEqual(hi);
+    expect(
+      Math.abs(sample[ch] - want[i]!),
+      `${what} ${ch}: within ${tol} of the derived ${hex}`,
+    ).toBeLessThanOrEqual(tol);
   });
-  if (plate) {
-    expect(mark.luma, `${what}: visibly darker than the plate`).toBeLessThan(
-      plate.luma - 20,
-    );
-  }
 }
 
 /**
  * Four samples of any tile: the plate at (2, 2) and again at (2, h - 3), the
- * mark's fill at the centre, and the darkest pixel on the row through the
- * centre — which on the outlined artwork is the stroke, and on flat artwork
- * would be the mark.
+ * mark's fill at the centre, and the darkest opaque pixel on the row through
+ * the centre — the stroke where there is one (the `any` matrix), otherwise the
+ * plate itself.
  *
  * Both corners are plate on any full-bleed tile — these are flattened, so
  * every pixel outside the mark is the plate. The plate is FLAT (ADR-0017,

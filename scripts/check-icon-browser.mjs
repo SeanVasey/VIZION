@@ -5,10 +5,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { outlinedColorway } from "./generate-icons.mjs";
+import { installedColorway } from "./generate-icons.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const C = outlinedColorway();
+const C = installedColorway();
 const rgb = (hex) =>
   hex
     .slice(1)
@@ -53,13 +53,24 @@ export async function verifyIconBrowser(page) {
     assert(darkCorner.every((v, i) => Math.abs(v - rgb(C.plateDarkTop)[i]) <= 2));
     assert.notDeepEqual(at(light, 1, 1), at(dark, 1, 1));
     const mask = await pixels(await renderIconInBrowser(page, foreground, size, "light"));
+    // Compare every mark pixel that is not an anti-aliased edge: opaque itself
+    // and with all eight neighbours opaque (a 1 px erosion — AA is 1 px wide).
+    // The threshold is a share of the mark's own opaque area, not a function of
+    // the canvas: with no outline the ring is ~3 px wide at 60 px, so a 2 px
+    // erosion left nothing to compare and a canvas-sized floor was unreachable.
+    let opaque = 0;
     let compared = 0;
-    for (let y = 2; y < size - 2; y++) {
-      for (let x = 2; x < size - 2; x++) {
+    for (let y = 1; y < size - 1; y++) {
+      for (let x = 1; x < size - 1; x++) {
+        if (at(mask, x, y)[3] !== 255) continue;
+        opaque++;
         let interior = true;
-        for (let dy = -2; dy <= 2; dy++) {
-          for (let dx = -2; dx <= 2; dx++) {
-            if (at(mask, x + dx, y + dy)[3] !== 255) interior = false;
+        for (let dy = -1; dy <= 1 && interior; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (at(mask, x + dx, y + dy)[3] !== 255) {
+              interior = false;
+              break;
+            }
           }
         }
         if (!interior) continue;
@@ -67,7 +78,10 @@ export async function verifyIconBrowser(page) {
         compared++;
       }
     }
-    assert(compared > size, `Too few interior foreground pixels at ${size}px`);
+    assert(
+      compared >= opaque * 0.15 && compared > 0,
+      `Too few interior foreground pixels at ${size}px (${compared} of ${opaque} opaque)`,
+    );
     checks.push({
       size,
       scheme: "light/dark",

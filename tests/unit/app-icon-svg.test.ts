@@ -1,32 +1,36 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  OUTLINE_WIDTH,
-  SCALABLE_ICON,
-  outlinedColorway,
-} from "../../scripts/generate-icons.mjs";
+import { SCALABLE_ICON, installedColorway } from "../../scripts/generate-icons.mjs";
 
 /**
- * Source contract for the adaptive SVG. These assertions do not establish
- * iPhone installation selection or live Home Screen appearance updates.
- * The Apple PNG is deliberately declared in the production head.
+ * Source contract for the adaptive SVG (ADR-0017, Amendment 5: the INVERTED
+ * installed tile — a plate shaded toward Void, the flat Laser mark, no
+ * outline). These assertions do not establish iPhone installation selection
+ * or live Home Screen appearance updates. The Apple PNG is deliberately
+ * declared in the production head.
  *
  * Presentation fill has zero specificity and is overridden by .plate. The
- * attribute supplies a deterministic lime background without stylesheet
- * processing. Real browser pixels, including the dark override, are checked
- * separately in icon-repair.spec.ts; stripped-style pixels are also covered
- * by the executable asset verifier. Neither is an iOS Home Screen test.
+ * attribute supplies a deterministic plate without stylesheet processing.
+ * Real browser pixels, including the dark override, are checked separately in
+ * icon-repair.spec.ts; stripped-style pixels are also covered by the
+ * executable asset verifier. Neither is an iOS Home Screen test.
  */
 const ROOT = join(__dirname, "..", "..");
 const SVG = readFileSync(join(ROOT, "public", "icons", SCALABLE_ICON), "utf8");
-const C = outlinedColorway();
+const C = installedColorway();
 
 function token(name: string) {
   const css = readFileSync(join(ROOT, "src", "styles", "tokens.css"), "utf8");
   const m = css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`));
   if (!m) throw new Error(`tokens.css: --${name} not found`);
   return m[1]!.toUpperCase();
+}
+
+/** Relative luminance of a #RRGGBB, for ordering assertions only. */
+function luma(hex: string) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
 }
 
 /** The two stops of a named linearGradient, in document order. */
@@ -50,11 +54,18 @@ const painted = SVG.match(/<(?:rect|path)\b[^>]*>/g) ?? [];
 const paths = painted.filter((el) => el.startsWith("<path"));
 const rect = painted.find((el) => el.startsWith("<rect"));
 
-describe("app-icon.svg — the outlined tile, both appearances", () => {
-  it("defaults to the LIGHT appearance: a flat Laser plate", () => {
+describe("app-icon.svg — the inverted installed tile, both appearances", () => {
+  it("defaults to the LIGHT appearance: a flat plate shaded toward Void", () => {
     expect(style, "there is a stylesheet carrying the swap").not.toBe("");
     expect(defaultRules).toContain(`.plate{fill:${C.plate}}`);
-    expect(C.plate, "the plate IS --laser").toBe(token("laser"));
+    expect(C.plate, "the plate is NOT the Laser token any more").not.toBe(token("laser"));
+    expect(luma(C.plate), "…but it is still darker than the mark").toBeLessThan(
+      luma(C.mark),
+    );
+    expect(
+      luma(C.plate),
+      "…and well clear of Void: a green plate, not a dark one",
+    ).toBeGreaterThan(luma(token("void")) + 40);
     expect(SVG, "the plate is flat — no plate gradient").not.toContain('id="plate"');
     expect(rect, "a full-bleed plate rect").toBeDefined();
     expect(rect).toContain('class="plate"');
@@ -67,7 +78,7 @@ describe("app-icon.svg — the outlined tile, both appearances", () => {
     expect(darkRules).toContain(".plate{fill:url(#plate-dark)}");
     expect(stops("plate-dark")).toEqual([C.plateDarkTop, C.plateDarkBottom]);
     expect(C.plateDarkBottom, "the dark plate rests on --void").toBe(token("void"));
-    expect(darkRules, "the mark must not swap").not.toMatch(/mark|glyph|stroke/);
+    expect(darkRules, "the mark must not swap").not.toMatch(/mark|glyph|stroke|path/);
     expect(
       SVG,
       "the only appearance branch is the dark OVERRIDE; a light branch means the default flipped",
@@ -82,32 +93,27 @@ describe("app-icon.svg — the outlined tile, both appearances", () => {
   });
 
   /**
-   * The stroke is a second copy of the path painted FIRST, so only its outer
-   * half shows and the fill keeps its full geometry. Neither path swaps: the
-   * mark is the same outlined mark on both plates.
+   * Amendment 5: the mark is ONE flat path — the Laser token, evenodd, no
+   * stroke, no gradient. iOS keeps it on either plate because its colour is
+   * distinct from both; the outline that used to be the second carrier is
+   * gone from every installed surface (the transparent `any` matrix keeps it).
    */
-  it("keeps the outlined mark in both appearances — stroke under fill, no swap", () => {
-    expect(paths, "exactly two paths: the stroke, then the fill").toHaveLength(2);
-    const [stroke, fill] = paths as [string, string];
-    expect(stroke).toContain('fill="none"');
-    expect(stroke).toContain(`stroke="${C.outline}"`);
-    expect(stroke).toContain(`stroke-width="${OUTLINE_WIDTH}"`);
-    expect(stroke).toContain('stroke-linejoin="round"');
-    expect(fill).toContain('fill="url(#mark)"');
-    expect(fill).toContain('fill-rule="evenodd"');
-    expect(fill, "the fill path carries no stroke of its own").not.toContain("stroke=");
-    expect(stops("mark")).toEqual([C.markTop, C.markBottom]);
-    expect(C.outline, "the outline IS --void").toBe(token("void"));
-    const d = (el: string) => el.match(/\sd="([^"]+)"/)?.[1];
-    expect(d(stroke)).toBeDefined();
-    expect(d(stroke)).toBe(d(fill));
+  it("paints the mark as the flat Laser token — one path, no outline, no ramp", () => {
+    expect(paths, "exactly one path: the mark").toHaveLength(1);
+    const [mark] = paths as [string];
+    expect(mark).toContain(`fill="${C.mark}"`);
+    expect(C.mark, "the mark IS --laser").toBe(token("laser"));
+    expect(mark).toContain('fill-rule="evenodd"');
+    expect(mark, "no stroke of any kind").not.toContain("stroke");
+    expect(SVG, "no mark gradient").not.toContain('id="mark"');
   });
 
   it("fills the mark with a colour distinct from the plate so iOS keeps it in Dark", () => {
-    expect(C.markTop).not.toBe(C.plate);
-    expect(C.markBottom).not.toBe(C.plate);
-    expect(C.markTop).not.toBe(C.outline);
-    expect(C.markBottom).not.toBe(C.outline);
+    expect(C.mark).not.toBe(C.plate);
+    expect(C.mark).not.toBe(C.plateDarkBottom);
+    expect(luma(C.mark) - luma(C.plate), "a visible step, not a tint").toBeGreaterThan(
+      60,
+    );
   });
 
   it("declares color-scheme so a renderer resolves a scheme at all", () => {

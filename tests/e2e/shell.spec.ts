@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { outlinedColorway } from "../../scripts/generate-icons.mjs";
+import { installedColorway } from "../../scripts/generate-icons.mjs";
 
 test.describe("VIZION shell + auth gate", () => {
   test("unauthenticated root redirects to the sign-in gate", async ({ page }) => {
@@ -175,12 +175,11 @@ test.describe("VIZION shell + auth gate", () => {
       "WebKit does not apply prefers-color-scheme to <img>-embedded SVG; see ios-verification.md",
     );
 
-    // The requirement, stated as pixels (ADR-0017 amendment 2): the PLATE
-    // follows the appearance — the Laser ramp in light, Void in dark — while
-    // the MARK is the same outlined mark in both, so the stroke carries it on
-    // green and the fill carries it on dark. This file is the manifest's first
-    // icon, and Safari 26 uses manifest icons for the Home Screen, so it is the
-    // declarative route to a dark plate in dark appearance.
+    // The requirement, stated as pixels (ADR-0017 Amendment 5): the PLATE
+    // follows the appearance — the shaded green in light, Void in dark — while
+    // the MARK is the same flat Laser mark in both, with no outline. This is
+    // the SVG-aware consumers' rendition of the installed tile; it does not
+    // reach the iPhone Home Screen while the Apple link exists (runbook).
     //
     // RENDERED, not read: asserting the media query is in the markup would pass
     // on an SVG whose rule never applies (a fill attribute shadowing the class,
@@ -194,8 +193,8 @@ test.describe("VIZION shell + auth gate", () => {
         `<body style="margin:0"><img id="i" src="${uri}" width="400" height="400"></body>`,
       );
       // (8,8) is plate; (200,151) sits inside the mark's vertical bar at this
-      // 400px render; the row y=151 from the left edge to the bar crosses the
-      // bar's outline, so the darkest pixel on it is the stroke (in light).
+      // 400px render; the darkest pixel on the row y=151 from the left edge to
+      // the bar is the plate itself now that there is no outline.
       return page.evaluate(async (dataUri: string) => {
         const img = new Image();
         img.src = dataUri;
@@ -228,31 +227,36 @@ test.describe("VIZION shell + auth gate", () => {
       expect(p.g, `${what}: strong green`).toBeGreaterThan(200);
     };
 
-    // Light: the Laser plate, the outlined mark, the Void stroke painted. The
-    // mark's fill is read against the generator's derived ramp, not a restated
-    // hex: a lime, visibly darker than the plate, inside [markBottom, markTop].
-    greenLed(light.plate, "light plate");
-    const ramp = outlinedColorway();
+    // Light: the shaded plate and the flat Laser mark, read against the
+    // generator's derived colours, not restated hexes.
+    const C = installedColorway();
     const channels = (hex: string) =>
       [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
-    const rampTop = channels(ramp.markTop);
-    const rampBottom = channels(ramp.markBottom);
-    expect(light.mark.g, "light mark fill: green leads").toBeGreaterThan(light.mark.r);
-    expect(light.mark.r, "light mark fill: red leads blue").toBeGreaterThan(light.mark.b);
-    (["r", "g", "b"] as const).forEach((ch, i) => {
-      expect(
-        light.mark[ch],
-        `light mark fill ${ch}: on the derived ramp`,
-      ).toBeGreaterThanOrEqual(Math.min(rampTop[i]!, rampBottom[i]!) - 4);
-      expect(
-        light.mark[ch],
-        `light mark fill ${ch}: on the derived ramp`,
-      ).toBeLessThanOrEqual(Math.max(rampTop[i]!, rampBottom[i]!) + 4);
-    });
-    expect(luma(light.mark), "the fill is visibly darker than the plate").toBeLessThan(
-      luma(light.plate) - 20,
-    );
-    expect(light.darkest, "the Void outline is painted in light").toBeLessThan(48);
+    const near = (
+      p: { r: number; g: number; b: number },
+      hex: string,
+      tol: number,
+      what: string,
+    ) => {
+      const want = channels(hex);
+      (["r", "g", "b"] as const).forEach((ch, i) => {
+        expect(
+          Math.abs(p[ch] - want[i]!),
+          `${what} ${ch}: within ${tol} of ${hex}`,
+        ).toBeLessThanOrEqual(tol);
+      });
+    };
+    near(light.plate, C.plate, 4, "light plate");
+    near(light.mark, C.mark, 4, "light mark");
+    greenLed(light.mark, "light mark");
+    expect(
+      luma(light.mark),
+      "the mark is visibly brighter than the plate",
+    ).toBeGreaterThan(luma(light.plate) + 60);
+    expect(
+      light.darkest,
+      "no outline: nothing on the row through the mark is darker than the plate",
+    ).toBeGreaterThanOrEqual(luma(light.plate) - 8);
 
     // Dark: the plate is Void (the swap applied), the mark is the SAME fill.
     expect(luma(dark.plate), "the dark plate must be dark").toBeLessThan(40);

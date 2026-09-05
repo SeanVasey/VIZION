@@ -84,12 +84,12 @@ export const metadata: Metadata = {
    * All icon links are explicit. The generator writes to public/icons; no
    * App Router convention icon files are used alongside this declaration.
    *
-   * Production keeps ONE unconditional outlined Apple touch PNG. WebKit
-   * documents that an explicit apple-touch-icon takes precedence over
-   * manifest icons on iOS. It is not a fallback to the SVG below. The flat
-   * Laser plate and the Void-outlined glyph, filled darker than the plate, are
-   * intended to retain contrast when iOS treats the installed background
-   * differently.
+   * Production keeps ONE unconditional Apple touch PNG. WebKit documents that
+   * an explicit apple-touch-icon takes precedence over manifest icons on iOS.
+   * It is not a fallback to the SVG below. The tile is inverted (ADR-0017,
+   * Amendment 5): a flat plate shaded toward Void and the flat Laser mark, no
+   * outline — iOS segments the mark from the plate and keeps it, so Dark shows
+   * the full-Laser mark on iOS's own near-black plate.
    *
    * The adaptive SVG is offered to SVG-aware icon consumers. Its order here
    * or in the manifest does not prove iPhone selection, and its CSS rendering
