@@ -51,7 +51,7 @@ export async function verifyIconRepair() {
     async () => {
       assert(d, "Master glyph path is missing");
       // Amendment 5: the installed tile is the flat Laser mark alone on the
-      // shaded plate — ONE path, no outline, no gradient.
+      // accent-ink plate — ONE path, no outline, no gradient.
       assert.equal(paths.length, 1);
       assert.equal(paths[0].match(/\sd="([^"]+)"/)?.[1], d);
       assert(paths[0].includes(`fill="${c.mark}"`));
@@ -66,7 +66,7 @@ export async function verifyIconRepair() {
   await check(
     "token-derived presentation fallback with an overridable CSS class",
     async () => {
-      // The MARK is the Laser token; the PLATE is Laser shaded toward Void and
+      // The MARK is the Laser token; the PLATE is the light theme's --accent-ink and
       // must differ from the mark (iOS keeps only mark pixels distinct from
       // the plate); the outline the `any` matrix keeps is the Void token.
       assert.equal(c.mark, tokens.match(/--laser:\s*(#[0-9a-f]+)/i)?.[1]?.toUpperCase());
@@ -85,7 +85,7 @@ export async function verifyIconRepair() {
     },
   );
   await check(
-    "stripped-style fallback paints the shaded plate at 60, 120 and 180 pixels",
+    "stripped-style fallback paints the accent-ink plate at 60, 120 and 180 pixels",
     async () => {
       for (const size of [60, 120, 180]) {
         const image = await raw(Buffer.from(stripped), size);

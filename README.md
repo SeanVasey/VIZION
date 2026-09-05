@@ -123,8 +123,8 @@ change a derivative.
 
 The colorways are:
 
-- **Installed** (flat plate shaded from Laser toward Void · flat Laser mark ·
-  no outline) — **every plated surface a launcher installs**: the
+- **Installed** (flat plate in the light theme's `--accent-ink`, the deep
+  green the header mark wears on light surfaces · flat Laser mark · no outline) — **every plated surface a launcher installs**: the
   Add-to-Home-Screen tile (`apple-touch-icon.png`), the maskable tiles and the
   scalable `app-icon.svg`'s light branch.
 - **Outlined** (Laser mark · Void outline · no plate) — the transparent `any`
@@ -144,8 +144,10 @@ foreground from the flat plate and keeps only the pixels whose colour is
 distinct from the plate, on its own near-black plate. A Laser mark on a Laser
 plate was discarded with the plate (tile merely dimmed); a mark shaded darker
 than the plate was kept (device pass 2026-09-05). So the tile is a flat plate
-shaded toward Void with the flat Laser mark on it: in Dark iOS keeps a
-full-Laser mark on near-black, in Light the mark reads on the deeper green.
+in the light theme's `--accent-ink` — the same deep green the in-app mark
+paints on light surfaces — with the flat Laser mark on it: in Dark iOS keeps a
+full-Laser mark on near-black, in Light the mark reads on the deep green at
+about 5:1, and the tile and the header mark are one token.
 The outline that once carried Light contrast on a Laser plate is gone from
 installed tiles and remains only on the transparent `any` matrix.
 `docs/runbooks/icon-install-repair.md` is the icon contract.
@@ -159,7 +161,7 @@ Screen route (#111). Every one bet that iOS would re-resolve or select
 something; it does not.
 
 `/icons/app-icon.svg` is the installed tile as vector in **both** appearances:
-the plate follows `prefers-color-scheme` (the shaded green in light, Void in
+the plate follows `prefers-color-scheme` (the light theme's accent ink in light, Void in
 dark) while the mark stays the flat Laser mark. It serves SVG-aware icon
 consumers; it does not reach the iPhone Home Screen while the explicit Apple
 link exists, and the PNG tile is not a fallback to it

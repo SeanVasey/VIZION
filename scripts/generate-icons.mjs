@@ -34,12 +34,14 @@
 // INSTALLED ARTWORK AND SOURCE SELECTION (ADR-0017, Amendment 5)
 // -----------------------------------------------------------------------
 // The installed tiles (the Apple tile, the maskable tiles, the adaptive SVG's
-// light branch) are INVERTED: a flat plate shaded toward Void and the flat
-// Laser mark on it, with NO outline. iOS derives the Dark Home Screen tile by
+// light branch) are INVERTED: a flat plate in the light theme's --accent-ink
+// (the deep green the in-app mark wears on light surfaces) and the flat Laser
+// mark on it, with NO outline. iOS derives the Dark Home Screen tile by
 // segmenting the foreground from the flat plate and keeping it (owner
 // screenshots 2026-08-11 and 2026-09-05), so what it keeps is the full-Laser
 // mark on its own near-black plate; in Light the Laser mark reads on the
-// deeper green plate at ~4:1 (see LIGHTING below). The transparent `any` PNGs
+// deep green plate at ~5:1, and the tile, the header mark and every other
+// light-surface use of the brand green are one token. The transparent `any` PNGs
 // keep the OUTLINED mark — Laser fill, Void stroke — because a launcher paints
 // its own ground behind them and the outline is what carries a Laser mark on
 // a light one. This supplies contrast on authored light and dark grounds, not
@@ -115,8 +117,14 @@ const TOKENS = path.join(repoRoot, "src", "styles", "tokens.css");
  * and every derivative follows by construction — the icons cannot disagree
  * with the design system about what the brand green is.
  *
- * Only the DARK-block values are read (the first match), which is the whole
+ * `token()` reads the DARK-block values (the first match), which is most of the
  * palette this pipeline needs: an app icon has no theme, it has an appearance.
+ * `lightToken()` reads the `:root[data-theme="light"]` block, for the one
+ * colour that IS theme-specific by construction: --accent-ink, the deep green
+ * the in-app mark wears on light surfaces (BrandMark paints `currentColor`
+ * from it). The installed tile's plate is that token, so the Home Screen tile
+ * and the header mark cannot disagree about what the brand green looks like
+ * on a light ground.
  */
 const tokensCss = await fs.readFile(TOKENS, "utf8");
 function token(name) {
@@ -124,15 +132,23 @@ function token(name) {
   if (!m) throw new Error(`tokens.css: --${name} not found (or is not a hex)`);
   return m[1].toUpperCase();
 }
+function lightToken(name) {
+  const block = tokensCss.match(/:root\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/);
+  if (!block) throw new Error('tokens.css: :root[data-theme="light"] block not found');
+  const m = block[1].match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`));
+  if (!m) throw new Error(`tokens.css: --${name} not found in the light theme block`);
+  return m[1].toUpperCase();
+}
 
-// LASER is the brand green — the plate, and the base the mark's fill is shaded
-// from; VOID the dark plate
-// of the splash screens (and the manifest's theme_color/background_color); INK
-// the dark ink on a Laser plate — the favicons' mark and the outlined mark's
-// stroke.
+// LASER is the brand green — the installed mark, and the favicons' plate; VOID
+// the dark plate of the splash screens (and the manifest's theme_color/
+// background_color); INK the dark ink on a Laser plate — the favicons' mark and
+// the `any` matrix's stroke; ACCENT_INK_LIGHT the deep green the brand wears on
+// light surfaces — the installed tile's plate.
 const LASER = token("laser");
 const VOID = token("void");
 const INK = VOID;
+const ACCENT_INK_LIGHT = lightToken("accent-ink");
 
 // Appearance for the FLAT derivatives that keep it — the favicons. 'light' =
 // Laser plate + Void ink, the house colorway.
@@ -172,19 +188,20 @@ function mix(a, b, t) {
 }
 
 /**
- * The installed tile's shading. `plate` is the fraction from the Laser token
- * toward the Void token for the PLATE; the MARK is the Laser token itself and
- * carries no ramp. iOS derives the Dark Home Screen tile by segmenting the
- * foreground from the flat plate and keeping it — a mark whose colour matches
- * the plate is discarded with it (owner screenshots 2026-09-05: the
- * Laser-filled outlined mark on a Laser plate was only dimmed; the shaded
- * mark was kept). Inverting puts the FULL-Laser mark on iOS's near-black
- * plate in Dark (≈16:1) and on the deeper green plate in Light (≈4:1 at
- * 0.55; 0.35 fell to ≈2.2:1 and 0.70 turned the plate olive — the owner chose
- * 0.55 from a side-by-side, 2026-09-05). `plateDarkTop` is the adaptive SVG's
- * dark plate lift only.
+ * The installed tile is INVERTED: the PLATE is the light theme's --accent-ink
+ * and the MARK is the Laser token, both flat. iOS derives the Dark Home
+ * Screen tile by segmenting the foreground from the flat plate and keeping
+ * it — a mark whose colour matches the plate is discarded with it (owner
+ * screenshots 2026-09-05: the Laser-filled outlined mark on a Laser plate was
+ * only dimmed; a mark shaded away from the plate was kept). Inverting puts the
+ * FULL-Laser mark on iOS's near-black plate in Dark (≈16:1) and on the deep
+ * green plate in Light (≈5:1). An ad-hoc 0.55 mix toward Void was the first
+ * cut (ADR-0017 Amendment 5); the owner replaced it with the token the header
+ * mark already wears on light surfaces, so the two are one colour by
+ * construction (Amendment 6). `plateDarkTop` is the adaptive SVG's dark plate
+ * lift only.
  */
-const LIGHTING = { plate: 0.55, plateDarkTop: 0.05 };
+const LIGHTING = { plateDarkTop: 0.05 };
 
 /**
  * The outline's stroke width in GLYPH units. The stroke is painted UNDER the
@@ -199,12 +216,12 @@ export const OUTLINE_WIDTH = 60;
 /**
  * The installed colorway's colours, every one derived from the tokens so the
  * tests can import them instead of restating a hex. `mark` IS the Laser token;
- * `plate` is Laser shaded toward Void; `outline` is the Void stroke that only
- * the transparent `any` matrix still carries.
+ * `plate` IS the light theme's --accent-ink; `outline` is the Void stroke that
+ * only the transparent `any` matrix still carries.
  */
 export function installedColorway() {
   return {
-    plate: mix(LASER, VOID, LIGHTING.plate),
+    plate: ACCENT_INK_LIGHT,
     mark: LASER,
     outline: INK,
     // The dark appearance's plate, for the scalable icon only (below): the Void
@@ -340,7 +357,7 @@ function outlinedMark(canvasW, canvasH, frac, lift) {
 }
 
 /**
- * Full-bleed opaque square in the INSTALLED colorway: the shaded plate and the
+ * Full-bleed opaque square in the INSTALLED colorway: the accent-ink plate and the
  * flat Laser mark, no outline — the Apple tile and the maskable tiles.
  */
 function installedTileSVG(frac, size = CANVAS) {
@@ -370,7 +387,7 @@ function outlinedGlyphSVG(frac, size = CANVAS) {
  * SVG presentation attributes have specificity zero, so the .plate class
  * overrides that fallback, including the dark media rule. Do not use an
  * inline style here: that would interfere with the class-based override.
- * With the stylesheet absent the plate is still the shaded green, not SVG's
+ * With the stylesheet absent the plate is still the deep green, not SVG's
  * default black. A stripped-style fixture tests resilience, not an iOS
  * algorithm.
  *
