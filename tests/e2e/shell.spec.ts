@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { outlinedColorway } from "../../scripts/generate-icons.mjs";
 
 test.describe("VIZION shell + auth gate", () => {
   test("unauthenticated root redirects to the sign-in gate", async ({ page }) => {
@@ -225,9 +226,30 @@ test.describe("VIZION shell + auth gate", () => {
       expect(p.g, `${what}: strong green`).toBeGreaterThan(200);
     };
 
-    // Light: the Laser plate, the outlined mark, the Void stroke painted.
+    // Light: the Laser plate, the outlined mark, the Void stroke painted. The
+    // mark's fill is read against the generator's derived ramp, not a restated
+    // hex: a lime, visibly darker than the plate, inside [markBottom, markTop].
     greenLed(light.plate, "light plate");
-    greenLed(light.mark, "light mark fill");
+    const ramp = outlinedColorway();
+    const channels = (hex: string) =>
+      [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+    const rampTop = channels(ramp.markTop);
+    const rampBottom = channels(ramp.markBottom);
+    expect(light.mark.g, "light mark fill: green leads").toBeGreaterThan(light.mark.r);
+    expect(light.mark.r, "light mark fill: red leads blue").toBeGreaterThan(light.mark.b);
+    (["r", "g", "b"] as const).forEach((ch, i) => {
+      expect(
+        light.mark[ch],
+        `light mark fill ${ch}: on the derived ramp`,
+      ).toBeGreaterThanOrEqual(Math.min(rampTop[i]!, rampBottom[i]!) - 4);
+      expect(
+        light.mark[ch],
+        `light mark fill ${ch}: on the derived ramp`,
+      ).toBeLessThanOrEqual(Math.max(rampTop[i]!, rampBottom[i]!) + 4);
+    });
+    expect(luma(light.mark), "the fill is visibly darker than the plate").toBeLessThan(
+      luma(light.plate) - 20,
+    );
     expect(light.darkest, "the Void outline is painted in light").toBeLessThan(48);
 
     // Dark: the plate is Void (the swap applied), the mark is the SAME fill.

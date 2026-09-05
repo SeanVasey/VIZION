@@ -101,19 +101,21 @@ export const HTTPS_ORIGIN = isHttpsOrigin();
 const securityHeaders = buildSecurityHeaders(HTTPS_ORIGIN);
 
 /**
- * Long-lived caching for the content-stable public asset trees — the icon
- * matrix, the iOS splash set, and the brand SVGs (PERF-008). Without this they
- * revalidate on every load (`max-age=0`). They are regenerated only by
- * `scripts/generate-icons.mjs`, and regeneration reuses the same filenames — so
- * `immutable` is the wrong tool (a re-brand would strand the old art behind a
- * year of forced staleness). `stale-while-revalidate` keeps the caching win — a
- * day fresh, then served stale for a week while it refreshes — and lets an
- * update propagate within a day. Fonts are already immutable (next/font emits
- * hashed `/_next/static` assets); the SW installs its own no-store policy.
+ * Keep the existing cache on general icon, splash and brand assets. The two
+ * mutable installation inputs get a narrower revalidation rule below. HTTP
+ * cache freshness is not the lifetime of an installed Home Screen capture.
  */
 const STATIC_ASSET_CACHE = {
   key: "Cache-Control",
   value: "public, max-age=86400, stale-while-revalidate=604800",
+};
+
+// Fixed filenames used at installation must not serve day-old fresh bytes or
+// week-old stale bytes on a new request. This does not evict responses already
+// cached under the old policy, or change an icon already captured by iOS.
+const INSTALL_ICON_CACHE = {
+  key: "Cache-Control",
+  value: "public, max-age=0, must-revalidate",
 };
 
 const nextConfig: NextConfig = {
@@ -177,6 +179,10 @@ const nextConfig: NextConfig = {
       { source: "/icons/:path*", headers: [STATIC_ASSET_CACHE] },
       { source: "/splash/:path*", headers: [STATIC_ASSET_CACHE] },
       { source: "/brand/:path*", headers: [STATIC_ASSET_CACHE] },
+      // Next applies the last matching value for a header. Keep these exact
+      // exceptions after the general /icons rule; security headers stay intact.
+      { source: "/icons/app-icon.svg", headers: [INSTALL_ICON_CACHE] },
+      { source: "/icons/apple-touch-icon.png", headers: [INSTALL_ICON_CACHE] },
     ];
   },
 };
