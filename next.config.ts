@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import pkg from "./package.json" with { type: "json" };
 import { cspDirectives, isHttpsOrigin } from "./src/lib/security/csp";
 
@@ -118,11 +121,30 @@ const INSTALL_ICON_CACHE = {
   value: "public, max-age=0, must-revalidate",
 };
 
+/**
+ * Content version of THE home-screen tile, computed at build from the bytes
+ * `scripts/generate-icons.mjs` wrote. `src/app/layout.tsx` appends it to the
+ * Apple link as `?v=…`, so every regeneration yields a new URL and neither
+ * Safari's HTTP cache nor the service worker's runtime image cache can hand
+ * the Add-to-Home-Screen sheet a stale tile (measured 2026-09-05: the origin
+ * served the new PNG while the sheet previewed the old one, because the prior
+ * day-fresh policy left a copy on the phone that `must-revalidate` cannot
+ * evict). The frozen filename, the manifest and the header rule above are
+ * untouched — `source` matching ignores the query. Read at build, never at
+ * runtime: `public/` is not part of the serverless bundle on Vercel.
+ */
+const APPLE_TOUCH_ICON_VERSION = createHash("md5")
+  .update(
+    readFileSync(path.join(process.cwd(), "public", "icons", "apple-touch-icon.png")),
+  )
+  .digest("hex")
+  .slice(0, 8);
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   // The brand/version pills read this at build (never hardcoded) — see R1.
-  env: { NEXT_PUBLIC_APP_VERSION: pkg.version },
+  env: { NEXT_PUBLIC_APP_VERSION: pkg.version, APPLE_TOUCH_ICON_VERSION },
   images: {
     // Avatars come from Supabase Storage (custom uploads) or, for OAuth accounts
     // that haven't uploaded one, the provider's CDN (Google / GitHub).

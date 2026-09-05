@@ -226,7 +226,9 @@ export const SCALABLE_ICON = "app-icon.svg";
 // carried; the outlined colorway is neither light nor dark, and a file named
 // for a colorway it no longer carries is the exact confusion the earlier
 // naming saga existed to prevent. Read by main() and by src/app/layout.tsx's
-// `metadata.icons.apple` (a literal there, pinned by the e2e head test).
+// `metadata.icons.apple` (a literal there, pinned by the e2e head test, plus a
+// `?v=` content version next.config.ts hashes from this file at build so a
+// regenerated tile is a new URL to every cache on the phone).
 export const APPLE_TOUCH_ICON = "apple-touch-icon.png";
 
 // iOS splash device classes (portrait, width × height in px). Each pairs with a

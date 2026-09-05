@@ -131,7 +131,9 @@ test.describe("VIZION shell + auth gate", () => {
     const links = await readLinks();
     const apple = links.filter((l) => l.rel === "apple-touch-icon");
     expect(apple).toHaveLength(1);
-    expect(apple[0]!.href).toBe("/icons/apple-touch-icon.png");
+    // The frozen file plus the content version next.config.ts computed at
+    // build — a cache-bust, never a selection (there is still no `media`).
+    expect(apple[0]!.href).toMatch(/^\/icons\/apple-touch-icon\.png\?v=[0-9a-f]{8}$/);
     expect(
       links.some((l) => l.ours),
       "nothing appends an appearance-matched tile any more",
@@ -289,11 +291,12 @@ test.describe("VIZION shell + auth gate", () => {
         !!document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'),
     );
 
+    const initial = await tiles();
+    expect(initial).toHaveLength(1);
+    expect(initial[0]).toMatch(/^\/icons\/apple-touch-icon\.png\?v=[0-9a-f]{8}$/);
     for (const scheme of ["light", "dark", "light"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
-      expect(await tiles(), `the tile moved under ${scheme}`).toEqual([
-        "/icons/apple-touch-icon.png",
-      ]);
+      expect(await tiles(), `the tile moved under ${scheme}`).toEqual(initial);
     }
   });
 
