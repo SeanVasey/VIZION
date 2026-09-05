@@ -227,3 +227,21 @@ title's "outlined" now describes the `any` matrix only.
 **Verify on device.** Delete and re-add in Light: the sheet preview shows a
 bright Laser mark on a deep green plate; switch to Dark: the same mark on
 iOS's near-black plate, with a clean edge.
+
+## Amendment 6 (2026-09-05) — the plate is the light theme's `--accent-ink`
+
+**Owner reference.** The Amendment-5 tile on device, side by side with the
+in-app header mark in the light theme: two deep greens that were close but not
+the same (`#627B1B`, an ad-hoc 0.55 mix toward Void, against `#526810`, the
+token the mark paints with `currentColor` on light surfaces).
+
+**Decision.** The plate IS the light theme's `--accent-ink`, read from the
+`:root[data-theme="light"]` block of `tokens.css` by `lightToken()` in the
+generator. Nothing about the tile is a free parameter any more: the mark is
+`--laser`, the plate is `--accent-ink` (light), the dark plate is `--void`.
+Retune any of them and the tile follows. Contrast in Light rises to ≈5.3:1;
+Dark is unchanged (the full-Laser mark on iOS's near-black plate). The
+Amendment-5 fraction is removed rather than kept as a fallback.
+
+**Verify on device.** Re-add: the sheet preview shows the Laser mark on the
+same green as the header mark in the light theme.

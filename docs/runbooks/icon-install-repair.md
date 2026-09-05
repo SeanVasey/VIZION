@@ -7,8 +7,9 @@ separately. No iPhone result is implied by this document.
 ## Current decision
 
 Keep exactly one explicit Apple touch PNG: the INVERTED tile — a flat plate
-shaded from Laser toward Void (`installedColorway().plate`, 0.55 of the way)
-and the canonical symbol filled with the flat Laser token, with no outline.
+in the light theme's `--accent-ink` (`installedColorway().plate`; the deep
+green the in-app mark wears on light surfaces) and the canonical symbol filled
+with the flat Laser token, with no outline.
 iOS derives Dark appearance from this PNG by segmenting a foreground from the
 plate and keeping it. Owner screenshots 2026-08-11 (flat Void mark: plate
 swapped, mark kept), 2026-09-05 morning (Laser-filled outlined mark on a
@@ -16,7 +17,7 @@ Laser plate: no swap, tile only dimmed) and 2026-09-05 later (mark shaded
 darker than the plate: plate swapped, mark kept) establish that iOS keeps
 exactly the mark pixels whose colour is distinct from the plate. Inverting
 makes the kept mark the full Laser token on iOS's near-black plate (≈16:1)
-and reads at ≈4:1 on the shaded plate in Light; the outline that carried
+and reads at ≈5:1 on the accent-ink plate in Light; the outline that carried
 Light contrast on a Laser plate is no longer needed on installed tiles and
 stays only on the transparent `any` matrix. Do not replace the tile with a
 permanently dark one. Preserve the master path, transform, fill rule,
@@ -160,8 +161,8 @@ For each candidate, first install under Light and observe Light and Dark.
 Then make a separate dark-installed test instance and observe Dark and Light.
 Record immediate and later observations without inventing a required waiting
 interval. Include the SVG branch/source markers when present. The pass
-requires the same geometry, the shaded green plate with a bright Laser mark
-in Light, and on the observed dark plate a visibly kept Laser mark — not a
+requires the same geometry, the deep green (accent-ink) plate with a bright
+Laser mark in Light, and on the observed dark plate a visibly kept Laser mark — not a
 dimmed tile and not a frozen wrong background.
 Do not promise exact colors produced by the OS or behavior on untested builds.
 

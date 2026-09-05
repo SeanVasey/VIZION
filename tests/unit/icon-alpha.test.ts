@@ -91,7 +91,7 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
 
 /**
  * The INSTALLED colorway (ADR-0017, Amendment 5) — what every installed tile
- * carries: a flat plate shaded from Laser toward Void, and the flat Laser mark
+ * carries: a flat plate in the light theme's --accent-ink, and the flat Laser mark
  * on it, with NO outline.
  *
  * Why inverted: iOS derives the Dark Home Screen tile by segmenting the
@@ -107,13 +107,13 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
  * (Laser fill, Void stroke) because a launcher paints its own, unknown ground
  * behind it and the outline is what carries a Laser mark on a light one.
  */
-describe("the installed colorway — shaded plate, flat Laser mark, no outline", () => {
+describe("the installed colorway — accent-ink plate, flat Laser mark, no outline", () => {
   const tiles = ["apple-touch-icon.png", "maskable-192.png", "maskable-512.png"];
   const C = installedColorway();
 
   for (const file of tiles) {
     describe(file, () => {
-      it("has the derived shaded plate — green-led, darker than the mark, flat", async () => {
+      it("has the derived accent-ink plate — green-led, darker than the mark, flat", async () => {
         const { plate, plateFoot, mark } = await sampleTile(join(ICONS, file));
         expectNear(plate, C.plate, 3, "plate");
         expect(plate.g, "plate: green leads").toBeGreaterThan(plate.r);

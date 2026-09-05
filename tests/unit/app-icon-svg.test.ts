@@ -5,7 +5,7 @@ import { SCALABLE_ICON, installedColorway } from "../../scripts/generate-icons.m
 
 /**
  * Source contract for the adaptive SVG (ADR-0017, Amendment 5: the INVERTED
- * installed tile — a plate shaded toward Void, the flat Laser mark, no
+ * installed tile — a plate in the light theme's --accent-ink, the flat Laser mark, no
  * outline). These assertions do not establish iPhone installation selection
  * or live Home Screen appearance updates. The Apple PNG is deliberately
  * declared in the production head.
@@ -24,6 +24,16 @@ function token(name: string) {
   const css = readFileSync(join(ROOT, "src", "styles", "tokens.css"), "utf8");
   const m = css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`));
   if (!m) throw new Error(`tokens.css: --${name} not found`);
+  return m[1]!.toUpperCase();
+}
+
+/** A token as the LIGHT theme block defines it — the colour of the in-app mark on light. */
+function lightToken(name: string) {
+  const css = readFileSync(join(ROOT, "src", "styles", "tokens.css"), "utf8");
+  const block = css.match(/:root\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/);
+  if (!block) throw new Error("tokens.css: light theme block not found");
+  const m = block[1]!.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`));
+  if (!m) throw new Error(`tokens.css: --${name} not found in the light block`);
   return m[1]!.toUpperCase();
 }
 
@@ -55,10 +65,14 @@ const paths = painted.filter((el) => el.startsWith("<path"));
 const rect = painted.find((el) => el.startsWith("<rect"));
 
 describe("app-icon.svg — the inverted installed tile, both appearances", () => {
-  it("defaults to the LIGHT appearance: a flat plate shaded toward Void", () => {
+  it("defaults to the LIGHT appearance: a flat plate in the light theme's accent ink", () => {
     expect(style, "there is a stylesheet carrying the swap").not.toBe("");
     expect(defaultRules).toContain(`.plate{fill:${C.plate}}`);
     expect(C.plate, "the plate is NOT the Laser token any more").not.toBe(token("laser"));
+    expect(
+      C.plate,
+      "the plate IS the light theme's --accent-ink — the header mark's colour on light",
+    ).toBe(lightToken("accent-ink"));
     expect(luma(C.plate), "…but it is still darker than the mark").toBeLessThan(
       luma(C.mark),
     );

@@ -176,7 +176,7 @@ test.describe("VIZION shell + auth gate", () => {
     );
 
     // The requirement, stated as pixels (ADR-0017 Amendment 5): the PLATE
-    // follows the appearance — the shaded green in light, Void in dark — while
+    // follows the appearance — the light theme's accent ink in light, Void in dark — while
     // the MARK is the same flat Laser mark in both, with no outline. This is
     // the SVG-aware consumers' rendition of the installed tile; it does not
     // reach the iPhone Home Screen while the Apple link exists (runbook).
@@ -227,7 +227,7 @@ test.describe("VIZION shell + auth gate", () => {
       expect(p.g, `${what}: strong green`).toBeGreaterThan(200);
     };
 
-    // Light: the shaded plate and the flat Laser mark, read against the
+    // Light: the accent-ink plate and the flat Laser mark, read against the
     // generator's derived colours, not restated hexes.
     const C = installedColorway();
     const channels = (hex: string) =>
