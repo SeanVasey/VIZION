@@ -202,3 +202,28 @@ with its base on the token. The SVG's dark branch stays a Void plate.
 **Verify on device.** Delete and re-add in light appearance, switch to dark:
 the expected result is the neutral dark plate with the green mark on it,
 whether iOS reads the SVG's dark branch or swaps the flat PNG plate itself.
+
+## Amendment 5 (2026-09-05) — inverted: shaded plate, flat Laser mark, no outline
+
+**Owner reference.** Two screenshots of the Amendment-4 tile (Laser plate,
+mark shaded toward Void, Void outline) installed via the versioned link: Light
+showed the tile as authored; Dark showed iOS's near-black plate with the
+shaded mark and its outline kept. The mechanism from Amendment 4 is confirmed:
+iOS keeps the mark pixels whose colour is distinct from the flat plate.
+
+**Decision.** With the mark kept by colour, the outline is no longer the
+carrier of Light contrast and reads as clutter in Dark, where it sits on a
+near-black plate. The installed tiles are therefore INVERTED: the plate is
+Laser shaded 0.55 toward Void (`#627B1B` from the current tokens) and the mark
+is the flat Laser token, with no stroke. iOS keeps the full-Laser mark on its
+own dark plate (≈16:1); in Light the Laser mark reads on the shaded green
+plate at ≈4:1. 0.35 was rejected (≈2.2:1 in Light, tone on tone at 60 px) and
+0.70 (≈6.6:1) because the plate turned olive; the owner chose 0.55 from a
+side-by-side render. The plate stays flat (Amendment 3). The transparent `any`
+matrix keeps the outlined mark, now Laser-filled, because a launcher paints
+its own ground behind it. Favicons and splash screens are unchanged. This
+title's "outlined" now describes the `any` matrix only.
+
+**Verify on device.** Delete and re-add in Light: the sheet preview shows a
+bright Laser mark on a deep green plate; switch to Dark: the same mark on
+iOS's near-black plate, with a clean edge.

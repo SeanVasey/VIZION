@@ -123,33 +123,32 @@ change a derivative.
 
 The colorways are:
 
-- **Outlined** (flat Laser plate · mark filled on a slight ramp shaded darker than
-  the plate, toward Void · Void outline) — **everything a launcher installs**: the Add-to-Home-Screen
-  tile (`apple-touch-icon.png`), the maskable tiles, the transparent `any`
-  matrix (the outlined mark alone, no plate) and the scalable `app-icon.svg`.
+- **Installed** (flat plate shaded from Laser toward Void · flat Laser mark ·
+  no outline) — **every plated surface a launcher installs**: the
+  Add-to-Home-Screen tile (`apple-touch-icon.png`), the maskable tiles and the
+  scalable `app-icon.svg`'s light branch.
+- **Outlined** (Laser mark · Void outline · no plate) — the transparent `any`
+  matrix only, because a launcher paints its own ground behind it.
 - **Light** (Laser plate + Void ink, flat) — the house colorway for the raster
   favicons plus `favicon.ico`, and the square `og:image` share tile.
 - **Dark** (Void plate + Laser glyph, flat) — the iOS splash screens (matching
   the manifest's `background_color`).
 
-**The installed icon is outlined so that no treatment of its plate can hide
-it** ([ADR-0017](./docs/decisions/0017-outlined-home-screen-icon.md)). Device
-passes (2026-08-12 and -13) established that iOS reads `apple-touch-icon` from
-the head, does **not** evaluate `media` on icons, **freezes** the tile at
-capture, and auto-darkens the frozen tile under dark appearance. Each flat
-colorway is legible on exactly one ground — Void ink on a Laser plate vanished
-when iOS crushed the plate toward the ink, and the dark tile that replaced it
-([ADR-0015](./docs/decisions/0015-pinned-home-screen-tile.md)) survived every
-treatment only by keeping the brand green off the Home Screen. The outlined mark
-carries its own contrast instead: on the Laser plate the Void outline reads; on
-a plate an OS has darkened or replaced, the shaded fill reads. Owner screenshots
-(2026-08-11 and 2026-09-05) established that iOS derives the dark appearance
-from the `apple-touch-icon` PNG itself: it segments a foreground from the flat
-plate and keeps only pixels whose colour is distinct from the plate. A
-Laser-filled mark was discarded with the plate and the tile merely dimmed, so
-the fill is shaded darker than the plate; the physical-device pass on the
-shaded mark is pending. `docs/runbooks/icon-install-repair.md` is the icon
-contract.
+**The installed tile is inverted so that what iOS keeps in Dark is the brand
+green itself** ([ADR-0017, Amendment 5](./docs/decisions/0017-outlined-home-screen-icon.md)).
+Device passes (2026-08-12 and -13) established that iOS reads
+`apple-touch-icon` from the head, does **not** evaluate `media` on icons and
+**freezes** the tile at capture. Owner screenshots (2026-08-11 and 2026-09-05)
+established how it derives the dark appearance from that PNG: it segments a
+foreground from the flat plate and keeps only the pixels whose colour is
+distinct from the plate, on its own near-black plate. A Laser mark on a Laser
+plate was discarded with the plate (tile merely dimmed); a mark shaded darker
+than the plate was kept (device pass 2026-09-05). So the tile is a flat plate
+shaded toward Void with the flat Laser mark on it: in Dark iOS keeps a
+full-Laser mark on near-black, in Light the mark reads on the deeper green.
+The outline that once carried Light contrast on a Laser plate is gone from
+installed tiles and remains only on the transparent `any` matrix.
+`docs/runbooks/icon-install-repair.md` is the icon contract.
 
 The **arrangement** ADR-0015 settled is unchanged: `metadata.icons.apple` holds
 one unconditional link, at `/icons/apple-touch-icon.png`. **Do not add a second
@@ -159,13 +158,12 @@ reordered plus a client-side matcher (#111), and a self-inverting SVG as a Home
 Screen route (#111). Every one bet that iOS would re-resolve or select
 something; it does not.
 
-`/icons/app-icon.svg` is the outlined tile as vector in **both** appearances:
-the plate follows `prefers-color-scheme` (flat Laser in light, Void in dark)
-while the mark stays the outlined mark, so the stroke carries it on green
-and the fill on dark. It is the manifest's first icon, and Safari 26 uses
-manifest icons — SVG included — for the Home Screen, which makes it the
-declarative route to a dark plate; the PNG tile is the fallback
-([ADR-0017, Amendment 2](./docs/decisions/0017-outlined-home-screen-icon.md)).
+`/icons/app-icon.svg` is the installed tile as vector in **both** appearances:
+the plate follows `prefers-color-scheme` (the shaded green in light, Void in
+dark) while the mark stays the flat Laser mark. It serves SVG-aware icon
+consumers; it does not reach the iPhone Home Screen while the explicit Apple
+link exists, and the PNG tile is not a fallback to it
+([runbook](./docs/runbooks/icon-install-repair.md)).
 
 See [the iOS runbook](./docs/runbooks/ios-verification.md) for the measured
 result table and the superseded arrangements.

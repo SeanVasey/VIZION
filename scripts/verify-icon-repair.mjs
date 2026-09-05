@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import sharp from "sharp";
-import { ANY_SIZES, OUTLINE_WIDTH, outlinedColorway } from "./generate-icons.mjs";
+import { ANY_SIZES, installedColorway } from "./generate-icons.mjs";
 import { buildIconDiagnostic, serveIconDiagnostic } from "./icon-diagnostic.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -39,7 +39,7 @@ export async function verifyIconRepair() {
   const source = (await read("public/brand/vizion-glyph.svg")).toString();
   const svg = (await read("public/icons/app-icon.svg")).toString();
   const tokens = (await read("src/styles/tokens.css")).toString();
-  const c = outlinedColorway();
+  const c = installedColorway();
   const plate = rgba(c.plate);
   const d = source.match(/<path[^>]*\sd="([^"]+)"/)?.[1];
   const paths = [...svg.matchAll(/<path\b[^>]*>/g)].map((m) => m[0]);
@@ -47,18 +47,17 @@ export async function verifyIconRepair() {
   const stripped = svg.replace(/<style>.*?<\/style>/gs, "");
   const foreground = stripped.replace(/<rect\b[^>]*\/>/g, "");
   await check(
-    "canonical geometry, positioning and stroke-under-fill ordering",
+    "canonical geometry and positioning: one flat mark path, no outline",
     async () => {
       assert(d, "Master glyph path is missing");
-      assert.equal(paths.length, 2);
-      for (const p of paths) assert.equal(p.match(/\sd="([^"]+)"/)?.[1], d);
-      assert.match(paths[0], /fill="none"/);
-      assert(paths[0].includes(`stroke="${c.outline}"`));
-      assert(paths[0].includes(`stroke-width="${OUTLINE_WIDTH}"`));
-      assert.match(paths[0], /stroke-linejoin="round"/);
-      assert.match(paths[1], /fill="url\(#mark\)"/);
-      assert.match(paths[1], /fill-rule="evenodd"/);
-      assert(!paths[1].includes("stroke="));
+      // Amendment 5: the installed tile is the flat Laser mark alone on the
+      // shaded plate — ONE path, no outline, no gradient.
+      assert.equal(paths.length, 1);
+      assert.equal(paths[0].match(/\sd="([^"]+)"/)?.[1], d);
+      assert(paths[0].includes(`fill="${c.mark}"`));
+      assert.match(paths[0], /fill-rule="evenodd"/);
+      assert(!paths[0].includes("stroke="));
+      assert(!svg.includes('<linearGradient id="mark"'));
       assert(svg.includes('transform="translate(133.12,165.69) scale(0.74000)"'));
       assert(!/<(?:clipPath|filter)\b|\srx=|<image\b/.test(svg));
       assert(svg.includes('viewBox="0 0 1024 1024"'));
@@ -67,7 +66,11 @@ export async function verifyIconRepair() {
   await check(
     "token-derived presentation fallback with an overridable CSS class",
     async () => {
-      assert.equal(c.plate, tokens.match(/--laser:\s*(#[0-9a-f]+)/i)?.[1]?.toUpperCase());
+      // The MARK is the Laser token; the PLATE is Laser shaded toward Void and
+      // must differ from the mark (iOS keeps only mark pixels distinct from
+      // the plate); the outline the `any` matrix keeps is the Void token.
+      assert.equal(c.mark, tokens.match(/--laser:\s*(#[0-9a-f]+)/i)?.[1]?.toUpperCase());
+      assert.notEqual(c.plate, c.mark);
       assert.equal(
         c.outline,
         tokens.match(/--void:\s*(#[0-9a-f]+)/i)?.[1]?.toUpperCase(),
@@ -82,7 +85,7 @@ export async function verifyIconRepair() {
     },
   );
   await check(
-    "stripped-style fallback paints lime at 60, 120 and 180 pixels",
+    "stripped-style fallback paints the shaded plate at 60, 120 and 180 pixels",
     async () => {
       for (const size of [60, 120, 180]) {
         const image = await raw(Buffer.from(stripped), size);
