@@ -62,12 +62,13 @@ A single `enhance(input, mode, target)` interface fans out to model-specific for
 
 - **Opus 5** — XML-tagged sections, explicit system/user separation, CoT scaffolds.
 - **Sonnet 5** — clear direct instructions, XML sections for layered context, literal precision.
+- **GPT-6 Astra** — goal and finished-answer criteria up front, planning left to the engine; explicit schema where wanted.
 - **GPT-5.6 Sol** — developer/system/user roles, JSON-mode / structured-output, tool schemas.
 - **GPT-5.6 Terra** — goal-first directive brief; the family's balanced mid tier.
 - **GPT-5.6 Luna** — short self-contained prompts, explicit format; the family's small, fast tier.
-- **Fable 5** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
-- **DeepSeek V4** — plain complete problem statement, reasoning left to the engine, explicit format.
-- **Gemini 3.6 Flash** — multimodal "parts", system-instruction conventions,
+- **Fable 5.1** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
+- **DeepSeek V4 Pro** — plain complete problem statement, reasoning left to the engine, explicit format.
+- **Gemini 3.8 Flash** — multimodal "parts", system-instruction conventions,
   grounding; goal and constraints in separate blocks for the reasoning passes.
 - **Muse Spark 1.1** — explicit goal up front, numbered constraints, output contract at the top.
 - **MiniMax M3** — tight ordered brief; goal, constraints, and deliverable up front.
@@ -75,8 +76,8 @@ A single `enhance(input, mode, target)` interface fans out to model-specific for
 - **Kimi K3** — clear goal + constraints with key context front-loaded; long-context friendly.
 - **Sonar Pro** — research-brief phrasing: scope, time window, source/citation expectations.
 - **Qwen3.8 Max** — well-separated task/context/format sections; language expectations stated.
-- **Grok 4.5** — direct plain-spoken instructions, inline context, explicit output format.
-- **GLM-5.2** — labeled task/context/constraints/format parts; acceptance criteria stated.
+- **Grok 4.6** — direct plain-spoken instructions, inline context, explicit output format.
+- **GLM-5.3** — labeled task/context/constraints/format parts; acceptance criteria stated.
 
 The seven 2026-07 additions (DeepSeek · Meta · MiniMax · Moonshot · Perplexity ·
 Qwen · Z.ai) all speak the OpenAI wire shape and share one streaming factory
@@ -85,32 +86,46 @@ swaps are a config change, not a refactor.
 
 ### Thinking dial
 
-Targets whose provider takes a per-request reasoning-depth option get a
-"Thinking" dial in the composer (`TARGET_THINKING_LEVELS` in
-`src/lib/constants.ts` — absent target = no knob = no rail). It is a slider,
-not a menu: `role="slider"` on the pill, arrow keys stepping the ladder, and a
-capsule track that expands over the pill under a tap or a hold
-([ADR-0014](./decisions/0014-dials.md)). The chosen level rides the enhance
-request (validated server-side) into the provider adapter, which translates it
-onto that provider's parameter:
+ONE reasoning-depth dial, for every model ([ADR-0018](./decisions/0018-one-ladder.md)):
+**Auto · Low · Medium · High · Max**. The rail shows for any target whose
+provider takes a per-request depth (`TARGET_HAS_THINKING` in
+`src/lib/constants.ts`) and always under Auto routing; a target with no knob
+(Mistral Large 3, Muse Spark, MiniMax, Sonar) shows no rail and is sent nothing.
+It is a slider, not a menu: `role="slider"` on the pill, arrow keys stepping the
+ladder, and a capsule track that expands over the pill under a tap or a hold
+([ADR-0014](./decisions/0014-dials.md)); at the screen's edge a held drag keeps
+stepping on a timer (edge auto-step, ADR-0018).
 
-| Provider                                | Parameter                                       | Levels offered                    |
-| --------------------------------------- | ----------------------------------------------- | --------------------------------- |
-| Anthropic (Fable 5 · Opus 5 · Sonnet 5) | `output_config.effort`                          | low · medium · high · xhigh · max |
-| OpenAI (GPT-5.6 Sol/Terra/Luna)         | `reasoning_effort`                              | low · medium · high               |
-| Google (Gemini 3.6 Flash)               | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high     |
-| Qwen (Qwen3.8 Max)                      | `enable_thinking` + `thinking_budget` (tokens)  | low · medium · high · xhigh · max |
-| xAI (Grok 4.5)                          | `reasoning_effort`                              | low · medium · high               |
+The level rides the enhance request in the app's vocabulary (validated
+server-side against `THINKING_LEVELS`); the **adapter** translates it onto its
+provider's parameter through one table, `providerEffort` in
+`src/lib/providers/errors.ts`:
 
-"Auto" (the default) sends nothing — the provider's own default applies. The
-selection persists per target in the UI store. Vendors' consumer-app picker
-labels (Gemini "Thinking"/"Fast", ChatGPT "Ultra"…) are marketing names for
-these values, not separate models or API strings.
+| Provider                                                | Parameter                                       | low · medium · high · max → |
+| ------------------------------------------------------- | ----------------------------------------------- | --------------------------- |
+| Anthropic (Fable 5.1 · Opus 5 · Sonnet 5)               | `output_config.effort`                          | low · medium · high · max   |
+| OpenAI (GPT-6 Astra · GPT-5.6 Sol/Terra/Luna)           | `reasoning_effort`                              | low · medium · high · max   |
+| xAI (Grok 4.6)                                          | `reasoning_effort`                              | low · medium · high · xhigh |
+| Google (Gemini 3.8 Flash)                               | `generationConfig.thinkingConfig.thinkingLevel` | low · medium · high · high  |
+| DeepSeek (V4 Pro) · Moonshot (Kimi K3) · Z.ai (GLM-5.3) | `reasoning_effort`                              | low · high · high · max     |
+| Qwen (Qwen3.8 Max)                                      | `enable_thinking` + `thinking_budget` (tokens)  | 1k · 4k · 8k · 16k          |
 
-A model **TIER** is not a thinking level either. "Max" in `Qwen3.8 Max` names
+Every column is monotone and keeps the ends honest — Low is the provider's
+cheapest word, Max its costliest — so the peak caption's "highest cost" holds on
+a three-valued API too. `minimal` and `xhigh` remain in the wire vocabulary for
+old drafts and stores and fold onto Low and High (`normalizeThinkingLevel`).
+
+"Auto" (the default) sends no level from the client; the **route** resolves it
+to the app's own default for the job — `medium` for the bounded modes,
+`high` for structure-inventing ones or a long/media-bearing input — the same
+tier split routing uses. Vendor defaults (`high` on Anthropic and Grok, `max`
+on Kimi K3 and GLM-5.3) are no longer inherited by an untuned run. The
+selection persists as one value in the UI store, whatever the model.
+
+A model **TIER** is not a thinking level. "Max" in `Qwen3.8 Max` names
 Alibaba's flagship tier (beside Plus and Turbo) and says nothing about
-reasoning depth — reading it as one is what left that target with no selector
-while its API took a `thinking_budget` all along.
+reasoning depth — reading it as one is what once left that target with no
+selector while its API took a `thinking_budget` all along.
 
 ## Data model (P2/P4)
 

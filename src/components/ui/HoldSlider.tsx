@@ -60,13 +60,6 @@ const TONE_COLOR: Record<Detent["tone"], string> = {
 };
 
 /**
- * Fraction of the gap to the next detent that a tone HOLDS at full strength
- * before blending on. See rampGradient — this is the number that keeps the
- * ramp out of sRGB's mud.
- */
-const TONE_HOLD = 0.55;
-
-/**
  * The fill's gradient, laid across the WHOLE track once and then revealed by
  * the fill's width — never repainted per step.
  *
@@ -75,33 +68,31 @@ const TONE_HOLD = 0.55;
  * uncovers, so the pixels already painted must not move or re-hue when the
  * value changes: that rules out a gradient anchored to the growing fill box,
  * which restretches every step. And a level's color is its IDENTITY, not its
- * ladder position (the DepthGlyph rule) — "High" must be laser on Grok's
- * three-step ladder and on Fable's five-step one — which rules out a fixed
- * ramp the detents merely sample, since the same level lands at a different
- * fraction on a shorter ladder.
+ * ladder position (the DepthGlyph rule), which rules out a fixed ramp the
+ * detents merely sample.
  *
  * So the ramp is BUILT FROM the detents: each stop's tone color is pinned at
- * that detent's own center. The ladder defines the ramp, the ramp is anchored
- * to the track, and the only thing that animates is the width of the window
- * onto it.
+ * that detent's own center, ONE stop per detent, and the browser blends
+ * continuously between them. The ladder defines the ramp, the ramp is
+ * anchored to the track, and the only things that move are the width of the
+ * window onto it and the sheen that drifts over it (`.hold-slider-sheen`).
  *
- * Each tone then HOLDS for TONE_HOLD of the gap before blending into the
- * next, which is not a stylistic flourish — it is what keeps the ramp out of
- * sRGB's mud. The hazard it was built against was the laser→ultra seam (near
- * wheel-opposites, whose straight sRGB line ran through a pale cream —
- * measured, both engines); the 2026-08-15 monochrome ramp removed laser, but
- * the hold survives it: the silver→ultra seam still crosses a desaturated
- * band, and holding each tone keeps every detent sitting in its OWN color —
- * which is the colour-coding's whole job — with the blend narrowed to a seam.
+ * WHAT THIS REPLACED (ADR-0018). Until 2026-09 each tone HELD at full
+ * strength for 55% of the gap to the next detent before blending — a guard
+ * built for the retired laser→ultra seam, whose straight sRGB line ran
+ * through a pale cream. With the ramp monochrome below ultra the hold had
+ * nothing left to guard, and what it produced instead was exactly what the
+ * owner named: "little grey or purple blocks that look like a segment" —
+ * each detent a plateau, each plateau's end an edge. The hold is gone; the
+ * silver family blends into itself without a seam to hide, and the one real
+ * seam (steel → ultra) is a short violet gradient, which reads as the ramp
+ * arriving rather than a block landing.
  *
- * Interpolating in a perceptual space was the obvious alternative and is
- * rejected on portability: `in oklch` does give the reference recording's
- * cyan→blue→violet path, but Chromium and WebKit disagree about it here
- * (measured), because the muted stops are near-achromatic color-mix()es whose
- * hue the two engines carry differently — the same fill would read green on
- * one engine and teal on the other. Plain sRGB with explicit stops renders
- * identically everywhere, which a decorative ramp in a two-engine PWA needs
- * more than it needs a prettier midpoint.
+ * Interpolating in a perceptual space (`in oklch`) is still rejected on
+ * portability — Chromium and WebKit carry the hue of near-achromatic
+ * color-mix() stops differently (measured, 2026-08), so the same fill would
+ * read green on one engine and teal on the other. Plain sRGB with one stop
+ * per detent renders identically everywhere.
  */
 function rampGradient(
   detents: readonly Detent[],
@@ -110,16 +101,7 @@ function rampGradient(
 ): string {
   const pct = (i: number) =>
     Math.max(0, Math.min(100, ((centers[i]! - FILL_INSET_PX) / rampWidth) * 100));
-  const stops: string[] = [];
-  detents.forEach((d, i) => {
-    const color = TONE_COLOR[d.tone];
-    const here = pct(i);
-    stops.push(`${color} ${here.toFixed(2)}%`);
-    const next = centers[i + 1] === undefined ? undefined : pct(i + 1);
-    if (next !== undefined) {
-      stops.push(`${color} ${(here + (next - here) * TONE_HOLD).toFixed(2)}%`);
-    }
-  });
+  const stops = detents.map((d, i) => `${TONE_COLOR[d.tone]} ${pct(i).toFixed(2)}%`);
   return `linear-gradient(90deg, ${stops.join(", ")})`;
 }
 
@@ -859,23 +841,38 @@ function HoldSliderOverlay({
               }}
             />
             {/* The ultra flood (the reference recording's wash): while the
-                CURRENT detent is an ultra stop — both of them, not just the
-                peak — violet sweeps in from the thumb end and settles as a
-                solid fill over the grey ramp. UNDER the starfield, so the
-                specks keep drifting over the flooded fill; the old surge sat
-                above them and a solid wash there would have erased the
-                texture. No React key, deliberately: stepping xhigh↔max keeps
-                this node, so the settled `forwards` animation does not replay
-                — the fill merely widens and the stretched final frame is
-                solid at any width. Leaving the ultra tier unmounts it (the
-                grey ramp returns); re-entering replays the flood, which is
-                the arrival event. */}
+                CURRENT detent is an ultra stop, violet fades up over the grey
+                ramp and settles as a LIVING fill — a soft two-tone violet
+                gradient that keeps drifting for as long as the capsule is up
+                (globals.css `.hold-slider-wash`: an opacity entrance plus an
+                infinite alternate background-position drift; no sliding
+                edge, so nothing ever reads as a block arriving). UNDER the
+                starfield, so the specks keep drifting over the flooded fill.
+                No React key, deliberately: stepping between ultra stops keeps
+                this node, so the entrance does not replay — the fill merely
+                widens. Leaving the ultra tier unmounts it (the grey ramp
+                returns); re-entering replays the fade-up, which is the
+                arrival event. */}
             {tone === "ultra" && (
               <span
                 data-hold-slider-wash=""
                 className="hold-slider-wash absolute inset-0 block"
               />
             )}
+            {/* The sheen — a soft band of light that sweeps the fill slowly
+                and continuously, whatever the tone (ADR-0018: "the gradients
+                should be … dynamically moving"). It is the thing that makes
+                the fill read as ALIVE at every stop, not only at ultra, and
+                it is deliberately a separate layer over the ramp rather than
+                motion IN the ramp: the ramp's colours are the level's
+                identity and must stay pinned to their detents; the sheen is
+                light passing over them. Same compositor-driven
+                background-position mechanism as the starfield; both
+                stand-downs remove it. */}
+            <span
+              data-hold-slider-sheen=""
+              className="hold-slider-sheen absolute inset-0 block"
+            />
             {/* The starfield — drifting specks inside the fill only, which is
                 where the reference control puts them. Pure CSS radial
                 gradients on a repeating tile: no image, no canvas, nothing

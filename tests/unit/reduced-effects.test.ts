@@ -64,6 +64,8 @@ describe("reduced-effects gate covers every ambient layer", () => {
     // The ultra flood (2026-08-15): under the toggle it settles instantly —
     // at the ultra stops the fill simply IS violet, no sweep.
     ".hold-slider-wash",
+    // The sheen (ADR-0018): endless motion over the fill, removed outright.
+    ".hold-slider-sheen",
   ])("%s is gated", (selector) => {
     expect(
       GATED_SELECTORS.some((s) => s.endsWith(` ${selector}`)),

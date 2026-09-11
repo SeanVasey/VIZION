@@ -101,7 +101,7 @@ describe("New prompt button", () => {
       editorDraft: "keep me",
       targetModel: "sonnet_5",
       activeMode: "expand",
-      thinkingLevels: { sonnet_5: "high" },
+      thinkingLevel: "high",
     });
     renderFab();
     fireEvent.click(fab());

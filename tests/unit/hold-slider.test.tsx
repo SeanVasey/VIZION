@@ -10,7 +10,10 @@ import {
 import {
   CENTER_INSET_PX,
   DETENT_SPACING_PX,
+  EDGE_DWELL_MS,
   EDGE_MARGIN_PX,
+  EDGE_STEP_MS,
+  EDGE_ZONE_PX,
   HOLD_MS,
   SLOP_PX,
   TRACK_PAD_PX,
@@ -282,7 +285,7 @@ describe("tap vs hold", () => {
     // The live readout is a chip on the track's own glass ground, never bare
     // text colliding with whatever the composer has at that y — and it says
     // only the LEVEL: the context is on screen already and in the commit
-    // announcement, so the chip never stacks "Fable 5" beside "Fable 5".
+    // announcement, so the chip never stacks "Fable 5.1" beside "Fable 5.1".
     const label = el!.querySelector("[data-hold-slider-label]")!;
     expect(label.className).toContain("glass-solid");
     expect(label.textContent).toBe("Auto");
@@ -976,7 +979,7 @@ describe("drag, commit, and the trailing click", () => {
     // Level only — the model qualifier belongs to the announce string, not
     // to a chip floating next to the rail that already names the model.
     expect(el.textContent).toContain("Extra High");
-    expect(el.textContent).not.toContain("Fable 5");
+    expect(el.textContent).not.toContain("Fable 5.1");
     expect(el.querySelector("[data-tone]")!.getAttribute("data-tone")).toBe("ultra");
   });
 
@@ -1425,30 +1428,26 @@ describe("the latched phase (latchOnTap)", () => {
     expect(wash()).toBeNull();
   });
 
-  it("lays the ramp across the TRACK, pinned to the detents' own tones", () => {
+  it("lays the ramp across the TRACK as ONE stop per detent — no holds, no blocks", () => {
     // Two properties at once (HoldSlider's rampGradient note): the ramp is
     // sized to the track so a growing fill reveals it rather than
     // restretching it, and its stops come from the DETENTS so a level's
-    // colour cannot drift with the ladder's length.
+    // colour cannot drift with the ladder's length. And since ADR-0018 there
+    // is exactly ONE stop per detent: the 55% "hold" that used to precede
+    // each blend painted every detent as a plateau with an edge — the "grey
+    // and purple blocks" the owner rejected — so the browser now blends
+    // continuously from centre to centre.
     render(<Host latchOnTap />);
     tapOpen();
     const ramp = overlay()!.querySelector<HTMLElement>("[data-hold-slider-ramp]")!;
     const image = ramp.style.backgroundImage;
-    // Two stops per detent — the tone's own position and the end of its HOLD
-    // — except the last, which has no gap to hold across. The two-decimal
-    // form is the STOP POSITION's: the muted tones are color-mix()es carrying
-    // whole-percent weights of their own, so the pattern has to tell the two
-    // kinds of percentage apart.
+    // The two-decimal form is the STOP POSITION's: the muted tones are
+    // color-mix()es carrying whole-percent weights of their own, so the
+    // pattern has to tell the two kinds of percentage apart.
     const positions = (image.match(/\d+\.\d\d%/g) ?? []).map((p) => parseFloat(p));
-    expect(positions).toHaveLength(DETENTS.length * 2 - 1);
-    // Monotonic, and every hold lands short of the next detent — a hold that
-    // overshot would put a detent inside its neighbour's blend, which is the
-    // colour-coding failing quietly.
+    expect(positions).toHaveLength(DETENTS.length);
     for (let i = 1; i < positions.length; i++) {
       expect(positions[i]!).toBeGreaterThan(positions[i - 1]!);
-    }
-    for (let i = 0; i < DETENTS.length - 1; i++) {
-      expect(positions[i * 2 + 1]!).toBeLessThan(positions[i * 2 + 2]!);
     }
     // Monochrome below ultra (2026-08-15): silver-family mixes up the ladder,
     // the ultra violet at the top, and the retired laser nowhere at all.
@@ -1466,7 +1465,129 @@ describe("the latched phase (latchOnTap)", () => {
       overlay()!.querySelector<HTMLElement>("[data-hold-slider-ramp]")!.style
         .backgroundImage,
     ).toBe(before);
+    // The sheen rides over the ramp at every stop, INSIDE the fill (so it is
+    // clipped to the value) and above the wash in DOM order.
+    const fill = overlay()!.querySelector<HTMLElement>("[data-tone]")!;
+    const sheen = fill.querySelector("[data-hold-slider-sheen]");
+    expect(sheen).not.toBeNull();
+    const children = [...fill.children];
+    expect(children.indexOf(fill.querySelector("[data-hold-slider-wash]")!)).toBeLessThan(
+      children.indexOf(sheen!),
+    );
   });
+});
+
+describe("edge auto-step (ADR-0018)", () => {
+  // jsdom's layout viewport is 1024px wide with no visualViewport, so the
+  // right edge zone starts at 1024 - EDGE_ZONE_PX.
+  const RIGHT_EDGE = 1024 - EDGE_ZONE_PX + 2;
+  const LEFT_EDGE = EDGE_ZONE_PX - 2;
+  // The press lands a few pixels INSIDE the zone, the way a thumb on a
+  // right-of-centre pill does — so the first move into the zone is under
+  // half a detent and the relative mapping itself moves nothing. Every step
+  // that follows is the timer's.
+  const PRESS_RIGHT = RIGHT_EDGE - 10;
+  const PRESS_LEFT = LEFT_EDGE + 10;
+
+  it("keeps stepping toward the edge the finger is holding, one detent per tick", () => {
+    // The composer pill sits right of centre on a phone: from Auto the
+    // thumb must travel the whole ladder to the RIGHT and the finger has a
+    // thumb's width of screen to do it in. At the edge the value climbs on a
+    // timer instead — reach the finger cannot buy by travelling.
+    const onCommit = vi.fn();
+    render(<Host onCommit={onCommit} />);
+    down({ clientX: PRESS_RIGHT });
+    hold();
+    expect(overlay()!.textContent).toContain("Auto");
+    moveTo(RIGHT_EDGE);
+    // Ten pixels of travel is no detent, and NOTHING happens inside the
+    // dwell: a slide that ends in the zone and lifts is still just a slide
+    // (the CI-caught regression, 2026-09-11)…
+    expect(readIndex()).toBe(0);
+    act(() => {
+      vi.advanceTimersByTime(EDGE_DWELL_MS - 1);
+    });
+    expect(readIndex()).toBe(0);
+    // …then the parked finger earns one detent, and one more per
+    // EDGE_STEP_MS while it stays in the zone…
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(readIndex()).toBe(1);
+    act(() => {
+      vi.advanceTimersByTime(EDGE_STEP_MS);
+    });
+    expect(readIndex()).toBe(2);
+    // …and stops at the ladder's end rather than wrapping or overflowing.
+    act(() => {
+      vi.advanceTimersByTime(EDGE_STEP_MS * 10);
+    });
+    expect(readIndex()).toBe(DETENTS.length - 1);
+    up(RIGHT_EDGE);
+    expect(onCommit).toHaveBeenCalledWith(DETENTS.length - 1);
+  });
+
+  it("stops the moment the finger leaves the zone, and the hand owns the thumb again", () => {
+    render(<Host selectedIndex={0} />);
+    down({ clientX: PRESS_RIGHT });
+    hold();
+    moveTo(RIGHT_EDGE);
+    act(() => {
+      vi.advanceTimersByTime(EDGE_DWELL_MS);
+    });
+    const stepped = readIndex();
+    expect(stepped).toBe(1);
+    // Back inside the screen: no further ticks…
+    moveTo(RIGHT_EDGE - EDGE_ZONE_PX * 2);
+    act(() => {
+      vi.advanceTimersByTime(EDGE_STEP_MS * 5);
+    });
+    // …and the offset was re-derived at each tick, so a small move from
+    // where the hand IS moves at most one detent — never a teleport back to
+    // where the press began.
+    expect(Math.abs(readIndex() - stepped)).toBeLessThanOrEqual(2);
+    fireEvent.pointerCancel(pill(), { pointerId: 1 });
+  });
+
+  it("steps down at the left edge and dies with the drag", () => {
+    const onCommit = vi.fn();
+    render(<Host selectedIndex={DETENTS.length - 1} onCommit={onCommit} />);
+    down({ clientX: PRESS_LEFT });
+    hold();
+    moveTo(LEFT_EDGE);
+    act(() => {
+      vi.advanceTimersByTime(EDGE_DWELL_MS + EDGE_STEP_MS * 20);
+    });
+    expect(readIndex()).toBe(0);
+    up(LEFT_EDGE);
+    expect(onCommit).toHaveBeenCalledWith(0);
+    // Nothing keeps ticking after release: no timer survives the teardown.
+    expect(overlay()).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(EDGE_STEP_MS * 5);
+    });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it("never engages in the LATCHED phase — the track is absolute there", () => {
+    render(<Host latchOnTap />);
+    down();
+    up();
+    const track = overlay()!;
+    fireEvent.pointerDown(track, { pointerId: 2, clientX: RIGHT_EDGE, clientY: 400 });
+    const before = readIndex();
+    act(() => {
+      vi.advanceTimersByTime(EDGE_DWELL_MS + EDGE_STEP_MS * 5);
+    });
+    expect(readIndex()).toBe(before);
+    fireEvent.pointerCancel(track, { pointerId: 2 });
+  });
+
+  /** The live detent, read from the overlay's chip. */
+  function readIndex(): number {
+    const label = overlay()!.querySelector("[data-hold-slider-label]")!.textContent;
+    return DETENTS.findIndex((d) => d.label === label);
+  }
 });
 
 describe("revert paths", () => {

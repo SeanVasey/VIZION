@@ -187,12 +187,12 @@ describe("resolveAutoTarget — availability", () => {
   it("resolves to the configured provider whenever any pool member is configured", () => {
     // The bug this router exists to fix: the old table could resolve to a
     // model whose key was missing and 503 a run the user never aimed there.
-    const onlyGemini = (t: TargetModelId) => t === "gemini_3_6_flash";
+    const onlyGemini = (t: TargetModelId) => t === "gemini_3_8_flash";
     for (const mode of MODES) {
       for (const preference of AUTO_PREFERENCES) {
         expect(
           resolveAutoTarget(mode.id, 100, false, preference, onlyGemini).target,
-        ).toBe("gemini_3_6_flash");
+        ).toBe("gemini_3_8_flash");
       }
     }
   });
@@ -212,7 +212,7 @@ describe("resolveAutoTarget — availability", () => {
     for (const env of Object.values(PROVIDER_KEY_ENV)) vi.stubEnv(env, "");
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     const { target } = resolveAutoTarget("expand", 100, false, "budget");
-    expect(["fable_5", "opus_5", "sonnet_5"]).toContain(target);
+    expect(["fable_5_1", "opus_5", "sonnet_5"]).toContain(target);
   });
 
   afterEach(() => {
@@ -224,8 +224,8 @@ describe("resolveAutoVisionTarget", () => {
   const seeing = new Set<TargetModelId>([
     "opus_5",
     "gpt_5_6_sol",
-    "gemini_3_6_flash",
-    "grok_4_5",
+    "gemini_3_8_flash",
+    "grok_4_6",
   ]);
   const canSee = (t: TargetModelId) => seeing.has(t);
 

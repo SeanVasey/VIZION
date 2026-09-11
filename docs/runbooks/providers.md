@@ -6,10 +6,10 @@ The enhance engine routes each **target** to its provider. Keys are **server-sid
 ## Keys (server env / Vercel project env)
 
 ```
-ANTHROPIC_API_KEY=   # Fable 5 + Opus 5 + Sonnet 5 targets
-OPENAI_API_KEY=      # GPT-5.6 Sol + Luna + Terra targets
-GOOGLE_API_KEY=      # Gemini 3.6 Flash target
-XAI_API_KEY=         # Grok 4.5 target
+ANTHROPIC_API_KEY=   # Fable 5.1 + Opus 5 + Sonnet 5 targets
+OPENAI_API_KEY=      # GPT-6 Astra + GPT-5.6 Sol + Luna + Terra targets
+GOOGLE_API_KEY=      # Gemini 3.8 Flash target
+XAI_API_KEY=         # Grok 4.6 target
 MISTRAL_API_KEY=     # Mistral Large 3 target
 DEEPSEEK_API_KEY=    # DeepSeek V4
 META_API_KEY=        # Muse Spark 1.1 (Meta Model API) — replaces LLAMA_API_KEY
@@ -17,7 +17,7 @@ MINIMAX_API_KEY=     # MiniMax M3
 MOONSHOT_API_KEY=    # Kimi K3 (Moonshot AI)
 PERPLEXITY_API_KEY=  # Sonar Pro
 DASHSCOPE_API_KEY=   # Qwen3.8 Max (Alibaba Cloud Model Studio)
-ZAI_API_KEY=         # GLM-5.2 (Z.ai open platform)
+ZAI_API_KEY=         # GLM-5.3 (Z.ai open platform)
 ```
 
 A target whose key is absent returns **503** with a "not configured" message; the other
@@ -53,6 +53,20 @@ check but the provider rejects the call with **401/403 "insufficient
 permissions"** — use an unrestricted key or grant the inference scope.
 `/api/media` retries such failures on another configured provider
 (see `docs/runbooks/media.md`); `/api/enhance` surfaces them directly.
+
+### Any provider's 401/403 is the SERVER'S key, and the message now says so
+
+> Seen in production 2026-09-11: **"Mistral request failed: 401 status code
+> (no body)"** — Mistral answers a refused key with an empty body, so the
+> user got a bare status and no next step. Every adapter now routes its HTTP
+> failures through `describeProviderFailure` (`src/lib/providers/errors.ts`):
+> a 401/403 names the env var to replace (`MISTRAL_API_KEY`, …) and says the
+> key was refused, not the prompt; a 404 points at the `MODEL_*` override;
+> and `[<provider>] upstream error <status>` is logged with `console.warn`
+> (survives the production strip) so the deployment logs carry it. Mistral
+> keys have two namespaces — a Codestral key 401s on `api.mistral.ai` even
+> though it is valid — and a key created before the Large 3 card may lack
+> the model; replace the key, then check `MODEL_MISTRAL` if a 404 follows.
 
 ### Gemini key/project refusals ("Your project has been denied access")
 
@@ -103,101 +117,130 @@ Defaults live in `src/lib/providers/config.ts`; override per deployment:
 ```
 MODEL_OPUS=claude-opus-5                              # default
 MODEL_SONNET=claude-sonnet-5                          # default
+MODEL_GPT_ASTRA=gpt-6-astra                           # default — OpenAI's tier above the 5.6 family
 MODEL_GPT=gpt-5.6-sol                                 # default — point at your deployed OpenAI model
 MODEL_GPT_LUNA=gpt-5.6-luna                           # default — the 5.6 family's small, cost-efficient tier
 MODEL_GPT_TERRA=gpt-5.6-terra                         # default — the 5.6 family's balanced mid tier
-MODEL_FABLE=claude-fable-5                            # default
+MODEL_FABLE=claude-fable-5-1                          # default — the 2026-09-01 point release (Fable 5 is legacy)
 MODEL_DEEPSEEK=deepseek-v4-pro                        # default — pinned exact flagship id (PRV-007)
-MODEL_GEMINI=gemini-3.6-flash                         # default — point at your deployed Gemini model (see note below)
+MODEL_GEMINI=gemini-3.8-flash                         # default — point at your deployed Gemini model (see note below)
 MODEL_MUSE=muse-spark-1.1                             # default — the Meta Model API serving string
 MODEL_MINIMAX=MiniMax-M3                              # default
 MODEL_MISTRAL=mistral-large-2512                      # default — pinned 2026-08-08 (see the note below)
 MODEL_KIMI=kimi-k3                                    # default
 MODEL_SONAR=sonar-pro                                 # default
 MODEL_QWEN=qwen3.8-max                                # default — pinned exact release id (PRV-007)
-MODEL_GROK=grok-4.5                                   # default — point at your deployed xAI model
-MODEL_GLM=glm-5.2                                     # default — point at a long-context variant string if Z.ai serves one separately
+MODEL_GROK=grok-4.6                                   # default — point at your deployed xAI model
+MODEL_GLM=glm-5.3                                     # default — point at a long-context variant string if Z.ai serves one separately
 ```
 
 The labels in the picker are named product targets; set the env to the exact
 model string your account serves. Swapping a model is a config change, not a
 refactor.
 
-> **Pinned ids & verified prices (audit PRV-007 / PRV-008 — resolved
-> 2026-08-08).** All sixteen defaults are now pinned to exact vendor ids, and
-> every price row was re-verified against the vendor's own page on 2026-08-08
-> (`pricesVerifiedAt` on each `TARGETS` entry; per-row sources and caveats in
-> the `config.ts` comments). The last deliberate float — `mistral-large-latest`
-> — closed when Mistral published `mistral-large-2512` on the Large 3 model
-> card, and the three provisional rows (Kimi K3, MiniMax M3, GLM-5.2) now
-> carry vendor-published rates. Standing caveats worth knowing before the next
-> re-verify: MiniMax's rate is a list price with a "permanent 50% off"
-> applied (if the promo ends, every figure doubles); DeepSeek has officially
-> announced a significant increase "in the near future"; Sonnet 5's intro
-> $2/$10 expires 2026-08-31 (the default already carries the standard $3/$15);
-> Qwen's rate is the Singapore/International region's, ~18% above the others;
-> Sonar Pro bills a per-request search fee (~$6/1k requests) the per-token
-> table cannot express. **A price change is a cost-cap change AND a routing
-> change**: Auto ranks candidates by the live `PRICE_*` values (see “Auto
-> routing” below), so after any repin check the deployed `PRICE_*` overrides
-> in Vercel — a stale override silently miscounts the daily cap _and_ skews
-> which model Auto picks.
+> **Pinned ids & verified prices — second full re-verify 2026-09-11 (first:
+> 2026-08-08, audit PRV-007 / PRV-008).** All seventeen defaults are pinned
+> to exact vendor ids, read from each vendor's own page (`pricesVerifiedAt`
+> on each `TARGETS` entry; per-row sources and caveats in the `config.ts`
+> comments). What moved: **Fable 5 → Fable 5.1** (`claude-fable-5-1`, same
+> $10/$50; Fable 5 is on Anthropic's legacy list), **Sonnet 5's base rate is
+> now $2/$10** (the intro price became the price), **GPT-6 Astra** joins at
+> $10/$50, **Gemini 3.6 → 3.8 Flash** (`gemini-3.8-flash`, no `minimal`
+> level; the $0.75/$3.75 listed is introductory through 2026-12-31, so 3.6's
+> $1.50/$7.50 standard is carried), **DeepSeek's announced increase landed
+> 2026-08-16** (the peak-hour cache-miss rate $1.32/$3.96 is carried; off-peak
+> is half), **Grok 4.5 → 4.6** (same $2/$6, adds `xhigh`), **GLM-5.2 → 5.3**
+> (rate not yet published — 5.2's $1.40/$4.40 carried, `pricesAssumed`), and
+> **Qwen3.8 Max's output ceiling is 131,072** (the 8,192 the adapter carried
+> was 3.7's). Carried, NOT re-verified: `mistral-large-2512` and Mistral's
+> $0.5/$1.5 (the models overview no longer surfaces the Large ids), and
+> MiniMax's 2026-08 rate (its pricing page could not be read; third-party
+> listings are lower, so the higher figure stays as the safe side). Standing
+> caveats: MiniMax is a list price with "permanent 50% off"; Qwen's rate is
+> the Singapore/International region's, ~18% above the others; Sonar Pro
+> bills a per-request search fee (~$6/1k requests) the per-token table cannot
+> express. **A price change is a cost-cap change AND a routing change**: Auto
+> ranks candidates by the live `PRICE_*` values (see “Auto routing” below),
+> so after any repin check the deployed `PRICE_*` overrides in Vercel — a
+> stale override silently miscounts the daily cap _and_ skews which model
+> Auto picks.
 
 > **A vendor's app picker is not its API model list.** Gemini's "Thinking" and
 > "Fast", ChatGPT's "Ultra"/"Light", etc. are consumer labels for a
 > reasoning-depth option on ONE model — not separate model strings. There is
-> **no `gemini-3.6-thinking`**: pointing `MODEL_GEMINI` at an invented name
+> **no `gemini-3.8-thinking`**: pointing `MODEL_GEMINI` at an invented name
 > 404s every call, and since `/api/media` reads 404 as a config error, media
 > analysis would silently fall back to another provider rather than surfacing
 > the mistake. Always take model strings from the provider's model-ID table.
 
 ## Thinking levels (per-request)
 
-Reasoning depth is a **request option**, not a model string. The composer's
-"Thinking" selector appears for targets listed in `TARGET_THINKING_LEVELS`
-(`src/lib/constants.ts`); the route validates the level and the adapter
-translates it onto the provider's parameter:
+Reasoning depth is a **request option**, not a model string — and since
+2026-09 it is **one ladder for every model** (ADR-0018): the composer's
+"Thinking" dial offers Auto · Low · Medium · High · Max whatever the target,
+the route validates the level against the app's vocabulary and resolves Auto
+to a task-shaped default, and each adapter translates the level onto its
+provider's parameter through one table (`providerEffort`,
+`src/lib/providers/errors.ts`). The rail appears for targets flagged in
+`TARGET_HAS_THINKING` (`src/lib/constants.ts`) and always under Auto.
 
-| Targets                     | Wire parameter                                  | Levels                            |
-| --------------------------- | ----------------------------------------------- | --------------------------------- |
-| Fable 5 · Opus 5 · Sonnet 5 | `output_config.effort`                          | low · medium · high · xhigh · max |
-| GPT-5.6 Sol / Terra / Luna  | `reasoning_effort`                              | low · medium · high               |
-| Gemini 3.6 Flash            | `generationConfig.thinkingConfig.thinkingLevel` | minimal · low · medium · high     |
-| Qwen3.8 Max                 | `enable_thinking` + `thinking_budget` (tokens)  | low · medium · high · xhigh · max |
-| Grok 4.5                    | `reasoning_effort`                              | low · medium · high               |
+| Targets                                  | Wire parameter                                  | low · medium · high · max → |
+| ---------------------------------------- | ----------------------------------------------- | --------------------------- |
+| Fable 5.1 · Opus 5 · Sonnet 5            | `output_config.effort`                          | low · medium · high · max   |
+| GPT-6 Astra · GPT-5.6 Sol / Terra / Luna | `reasoning_effort`                              | low · medium · high · max   |
+| Grok 4.6                                 | `reasoning_effort`                              | low · medium · high · xhigh |
+| Gemini 3.8 Flash                         | `generationConfig.thinkingConfig.thinkingLevel` | low · medium · high · high  |
+| DeepSeek V4 Pro · Kimi K3 · GLM-5.3      | `reasoning_effort` (three-valued)               | low · high · high · max     |
+| Qwen3.8 Max                              | `enable_thinking` + `thinking_budget` (tokens)  | 1,024 · 4,096 · 8,192 · 16k |
 
 Notes that keep this working:
 
-- **"Auto" sends nothing** — the provider default applies (Gemini: `medium`
-  dynamic; GPT-5.6: `medium`; Grok: `high`, reasoning can't be disabled;
-  Claude 5 family: thinking on by default at `high` effort; DashScope: whatever
-  `enable_thinking` defaults to for the served model).
-- **Gemini:** `thinkingLevel` and the Gemini-2.5-era `thinkingBudget` are
-  mutually exclusive — the adapter only ever sends the former.
+- **"Auto" is resolved by the ROUTE, not the vendor.** The client sends no
+  level; `/api/enhance` picks `medium` for the bounded modes (polish /
+  clarify / condense) and `high` for the structure-inventing ones (expand /
+  reformat / adapt) or a long / media-bearing input — the same tier split
+  Auto routing uses. Vendor defaults were `high` on Anthropic and Grok and
+  **`max` on Kimi K3 and GLM-5.3**, which is what made an untuned run on
+  those targets the slowest, costliest configuration for a grammar fix.
+- **Three-valued providers collapse Medium onto their `high`** — it is
+  their middle value and their default; Low and Max stay the true ends, so
+  the peak caption's "highest cost" is never a lie.
+- **Legacy stops fold, never 400.** `minimal` (Gemini 3.6's floor) and
+  `xhigh` (Anthropic's second ultra tier) stay in `THINKING_LEVELS` for old
+  drafts and stores; the route accepts them and `normalizeThinkingLevel`
+  lands them on Low / High. Anthropic, OpenAI and xAI still serve `xhigh`
+  as its own value, so it rides through there. There is no longer a
+  per-target 400 ("That thinking level isn't available for this model").
+- **Gemini 3.8:** `thinkingLevel` and the Gemini-2.5-era `thinkingBudget`
+  are mutually exclusive — the adapter only ever sends the former. 3.8 Flash
+  does not accept `minimal` (3.6 did); Max lands on `high`, its top.
 - **Anthropic:** thinking bills as output tokens against `max_tokens`, so the
-  adapter raises the output ceiling at `high` (32k) and `xhigh`/`max` (64k);
-  never send the retired `thinking.budget_tokens` (400 on the Claude 5 family).
-- **Qwen:** the knob is a token BUDGET, not an effort word, so the ladder maps
-  onto budgets in `openai-compat.ts` (512 · 1k · 2k · 3k · 4k). Every step stays
-  at or under half of DashScope's **8192** output ceiling — reasoning that eats
-  the ceiling leaves nothing for the JSON envelope, which surfaces as "hit its
-  length limit" rather than a result. Thinking is only honoured on a streamed
-  request (ours always are) and arrives in `delta.reasoning_content`, which the
-  adapter never reads, so `content` stays clean JSON.
+  adapter raises the output ceiling at `xhigh`/`max` (64k); never send the
+  retired `thinking.budget_tokens` (400 on the Claude 5 family).
+- **Qwen:** the knob is a token BUDGET, not an effort word, so the ladder
+  maps onto budgets in `openai-compat.ts` (1k · 4k · 8k · 16k). Every step
+  stays at or under half the **32k** ceiling the adapter sends (Model Studio
+  publishes 131,072 for qwen3.8-max) — reasoning that eats the ceiling leaves
+  nothing for the JSON envelope, which surfaces as "hit its length limit"
+  rather than a result. Thinking is only honoured on a streamed request (ours
+  always are) and arrives in `delta.reasoning_content`, which the adapter
+  never reads, so `content` stays clean JSON.
 - **A model tier is not a thinking level.** "Max" in `Qwen3.8 Max` is Alibaba's
   flagship tier (beside Plus and Turbo). Reading it as a reasoning depth is what
   left the target with no selector while its API took a budget all along — the
-  same class of mistake as inventing `gemini-3.6-thinking` above, in reverse.
+  same class of mistake as inventing `gemini-3.8-thinking` above, in reverse.
 - **Cost:** higher levels spend more output tokens, which the daily cost cap
   counts like any other output — expect fewer runs per day at `max`.
-- The remaining seven targets' providers expose no per-request knob through
-  our adapters, so they show no selector.
+- The four targets with no knob (Muse Spark 1.1, MiniMax M3, Mistral Large 3,
+  Sonar Pro) show no rail and are sent nothing; the dial's value waits for
+  the next model that can use it.
 
-Note on cost: Fable 5 lists at $10/$50 per 1M tokens (in/out) — noticeably pricier than
-the other targets, so users reach the daily cost cap sooner on it. At the other end,
-DeepSeek V4 (~$0.435/$0.87), GPT-5.6 Luna ($0.20/$1.20), and MiniMax M3
-($0.30/$1.20) barely dent the cap. Every default was re-verified against its
-vendor's published rates on 2026-08-08 (the "Pinned ids & verified prices" note
+Note on cost: Fable 5.1 and GPT-6 Astra list at $10/$50 per 1M tokens (in/out) —
+noticeably pricier than the other targets, so users reach the daily cost cap
+sooner on them. At the other end, GPT-5.6 Luna ($0.20/$1.20) and MiniMax M3
+($0.30/$1.20) barely dent the cap; DeepSeek V4 Pro is no longer in that group
+since its 2026-08-16 increase. Every default was re-verified against its
+vendor's published rates on 2026-09-11 (the "Pinned ids & verified prices" note
 above); `src/lib/providers/config.ts` is the authoritative per-target list, and
 each row carries its `pricesVerifiedAt` date. Override the matching `PRICE_*_IN`
 / `PRICE_*_OUT` env vars when your account's rates differ — and remember a price
@@ -206,20 +249,24 @@ override re-ranks Auto routing as well as re-pricing the cap.
 ## Output ceilings (`max_tokens`)
 
 The OpenAI-compatible factory sends **16k** by default, which keeps a runaway
-generation bounded without truncating a real answer. It is a per-API fact, not a
-preference: **DashScope caps `qwen-max` at 8192** and rejects anything higher
-with `400 InternalError.Algo.InvalidParameter: Range of max_tokens should be
-[1, 8192]` — which failed _every_ Qwen run until the provider declared its own
-`maxTokens`. When adding a compat provider, read its `max_tokens` range from the
-API reference rather than inheriting the default and hoping.
+generation bounded without truncating a real answer, and **32k** for the deep
+tier (High / Max) on providers that declare `deepMaxTokens` — DeepSeek, Kimi
+K3, GLM-5.3 — because reasoning bills against the same ceiling (the Anthropic
+lesson). The ceiling is a per-API fact, not a preference: **DashScope capped
+`qwen3.7-max` at 8192** and rejected anything higher with
+`400 InternalError.Algo.InvalidParameter: Range of max_tokens should be
+[1, 8192]` — which failed _every_ Qwen run until the provider declared its
+own `maxTokens`. That 8192 then outlived the model it described: Model
+Studio's `qwen3.8-max` page publishes **131,072**, and the carried 8192 with
+a 4096 thinking budget was why Qwen truncated sooner than any other target.
+When adding or bumping a compat provider, read its `max_tokens` range from the
+API reference rather than inheriting a default — in either direction.
 
-Qwen's 8192 is the tightest ceiling in the fleet and the `max` thinking budget
-(4096) consumes half of it, so Qwen truncates sooner than any other target. It
-is now `MAX_TOKENS_QWEN`-overridable: if Alibaba's model page publishes a higher
-range for **Qwen3.8 Max**, set the env var to that number rather than editing
-the adapter. Do not raise it on a guess — every value outside the published
-range 400s on _every_ call, which trades an occasional truncation for total
-failure.
+Qwen's adapter now sends 32k (four times the max thinking budget) and is still
+`MAX_TOKENS_QWEN`-overridable: if a region serves a lower range, set the env
+var to that number rather than editing the adapter. Do not raise it on a
+guess — every value outside the served range 400s on _every_ call, which
+trades an occasional truncation for total failure.
 
 ## Connection policy: idle, not elapsed
 
@@ -313,7 +360,7 @@ budget} × {light, heavy}:
 - The **tier** is the old table's split, kept verbatim: polish/clarify/condense
   are `light` until >4,000 chars or an attachment escalates; expand/reformat/
   adapt are always `heavy`.
-- Each ladder orders the pool (all sixteen minus `autoExcluded` — currently
+- Each ladder orders the pool (all seventeen minus `autoExcluded` — currently
   Sonar Pro, whose search-grounded answers and per-request search fee make it
   a manual-pick-only engine): **quality** sorts by strength then price;
   **balanced** does the same under a price ceiling (premium-tier models rank

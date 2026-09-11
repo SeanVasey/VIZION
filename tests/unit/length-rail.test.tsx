@@ -144,7 +144,7 @@ describe("length rail", () => {
 
   it("shows the mode's own words", () => {
     renderComposer();
-    expect(screen.getByRole("button", { name: "Tight" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Trim" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Focused" })).toBeNull();
   });
 
@@ -170,9 +170,9 @@ describe("length rail", () => {
 
   it("clears when the active depth is re-picked", () => {
     renderComposer();
-    fireEvent.click(screen.getByRole("button", { name: "Balanced" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compact" }));
     expect(useUIStore.getState().lengthByMode.condense).toBe("medium");
-    fireEvent.click(screen.getByRole("button", { name: "Balanced" }));
+    fireEvent.click(screen.getByRole("button", { name: "Compact" }));
     expect(useUIStore.getState().lengthByMode.condense).toBeUndefined();
   });
 

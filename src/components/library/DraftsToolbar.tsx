@@ -18,7 +18,7 @@ import { libraryHref, type LibraryFilter } from "@/lib/library/paging";
  *
  * The model chips offer only models the user's drafts actually contain, with
  * counts — the same rule the prompts filter sheet follows, and the reason this
- * takes facets rather than the global sixteen-model roster.
+ * takes facets rather than the global seventeen-model roster.
  */
 export function DraftsToolbar({
   filter,

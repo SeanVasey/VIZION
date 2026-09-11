@@ -4012,3 +4012,49 @@ test:e2e` hard-fails in global-setup until
   mark unchanged. The #114 dark screenshot had already shown that iOS keeps
   the fill as a region — even where its colour equals the plate — so the
   pale-fill insurance of #116 was never needed.
+
+## One ladder, edge auto-step, a living gradient, the 2026-09 roster (2026-09-11)
+
+- **Honesty to the wire belongs in the adapter, not the dial.** Per-target
+  ladders were exactly what each API accepted, and that made the control
+  wrong for the hand: the same gesture meant something different on every
+  model, and a level survived a model switch only by accident. The layer that
+  knows a provider's words is the only layer that should speak them. Moving
+  the translation into one table with two pinned properties (monotone, honest
+  ends) cost less code than the per-target lists it replaced.
+- **"Send nothing" is a decision, and it was the wrong one.** Auto inherited
+  vendor defaults that were `max` on two providers. An untuned run was the
+  slowest configuration in the fleet for the lightest job, and nobody had
+  chosen it. When a default is inherited, find out what it is before calling
+  it neutral.
+- **Do the arithmetic on the complaint before reaching for a redesign.** "You
+  start where you can't swipe" was a number: capsule 113→333 on a 393px
+  phone, finger at ~300, Auto's centre at 135, Max needing ~520. Once
+  written down, the fix (an edge zone that steps on a timer) was the standard
+  platform answer and touched nothing the ADRs had fought over.
+- **A guard that outlives its hazard becomes the artefact.** `TONE_HOLD`
+  protected the laser→ultra seam; the seam left in August, the hold stayed,
+  and by September it WAS the "grey blocks" — every detent a plateau. When a
+  hazard is removed, re-read every mitigation written for it.
+- **A moving EDGE is a block, however soft its fade.** The wash slid a solid
+  region across the fill; the owner saw a purple chunk. Motion that reads as
+  alive rather than arriving is opacity and drift, not translation of a
+  boundary.
+- **`overflow-hidden` is a scroll container, `overflow-clip` is not.** Both
+  clip to the corners; only one breaks `position: sticky` for everything
+  inside it. The sticky rail needed a one-word change on the chassis, and it
+  is the kind of change a test must pin, because the two look identical until
+  the page is taller than the screen.
+- **A price row can drift in EITHER direction.** The Qwen ceiling that
+  protected every call at 8,192 quietly truncated every deep run once the
+  model behind it published 131,072. A "per-API fact" is per model version;
+  re-read it on every bump, not only when a 400 forces it.
+- **Verify model ids on the vendor's page, in the session that changes
+  them.** Nine of seventeen rows moved in five weeks. Third-party listings
+  disagreed with vendor pages on two prices; the vendor page won, and where
+  the vendor page could not be read the old figure was carried and SAID so
+  rather than replaced with the third party's.
+- **A bare upstream status is a message to nobody.** "401 status code (no
+  body)" reached the one person who could not act on it. The remediation for
+  a refused key is the same on every provider, so it lives in one function
+  that names the env var — and logs the status where the operator will see it.

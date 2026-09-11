@@ -4,7 +4,12 @@ import { memo } from "react";
 import { HoldSliderHint } from "@/components/ui/HoldSlider";
 import { LEVEL_TONE, TONE_INK_CLASS } from "@/components/models/dial-detents";
 import { useUIStore } from "@/stores/ui";
-import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
+import {
+  THINKING_LADDER,
+  THINKING_LEVEL_LABEL,
+  type ThinkingLadderLevel,
+  type ThinkingLevel,
+} from "@/lib/constants";
 
 /**
  * Reasoning-depth dial — the composer rail's always-visible effort control.
@@ -15,7 +20,7 @@ import { THINKING_LEVEL_LABEL, type ThinkingLevel } from "@/lib/constants";
  * would prefer they not appear as dropdowns unless they actually utilize one
  * like the model selector... there should only be the dynamic slider". The
  * Target picker keeps its chevron because it genuinely opens a list of
- * sixteen models; depth is a five-step ladder, and a ladder is a slider.
+ * sixteen models; depth is a four-step ladder, and a ladder is a slider.
  *
  * So the pill IS the slider now, in three senses at once:
  *
@@ -53,18 +58,16 @@ export const ThinkingDial = memo(ThinkingDialImpl);
 
 function ThinkingDialImpl({
   value,
-  options,
   onChange,
   label,
   triggerClassName,
   holdHint,
 }: {
-  /** The chosen level, or undefined for Auto (send nothing). */
-  value: ThinkingLevel | undefined;
-  /** The selected target's ladder, in ascending order. */
-  options: readonly ThinkingLevel[];
+  /** The chosen level, or null for Auto (the route picks a task-shaped
+   *  default). One value for every model — ADR-0018. */
+  value: ThinkingLadderLevel | null;
   /** `null` clears back to Auto — the store's own "no level" signal. */
-  onChange: (next: ThinkingLevel | null) => void;
+  onChange: (next: ThinkingLadderLevel | null) => void;
   /** Accessible name for the dial, e.g. "Thinking depth". */
   label: string;
   triggerClassName?: string;
@@ -76,9 +79,11 @@ function ThinkingDialImpl({
   // device, and threading it through the composer would put a value that
   // never changes into the memo boundary this component exists behind.
   const dialTipSeen = useUIStore((s) => s.dialTipSeen);
-  // The dial's ladder is [Auto, ...the target's own levels], so index 0 is
-  // always "send nothing" and the capsule's detents line up 1:1 with these
-  // values (buildThinkingDetents composes the same list).
+  // The dial's ladder is [Auto, ...THINKING_LADDER] — the SAME five stops for
+  // every model (ADR-0018) — so index 0 is always Auto and the capsule's
+  // detents line up 1:1 with these values (THINKING_DETENTS composes the
+  // same list).
+  const options = THINKING_LADDER;
   const max = options.length;
   const index = value ? options.indexOf(value) + 1 : 0;
   const tone = value ? LEVEL_TONE[value] : "faint";

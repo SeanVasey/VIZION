@@ -6,6 +6,73 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### One thinking ladder for every model, a dial that reaches its ends, and the 2026-09 frontier roster
+
+**The Thinking dial is the same five stops on every model** — Auto · Low ·
+Medium · High · Max — and holds one value whatever the target. Each adapter
+translates the level onto its provider's own vocabulary through one table
+(`providerEffort`), monotone and with honest ends: Low is always the cheapest
+word, Max always the costliest. `minimal` and `xhigh` remain accepted on the
+wire and fold onto Low and High; there is no longer a per-target 400 for a
+level "not available for this model", and a target with no knob is simply
+sent nothing. Under Auto routing the rail always shows. **Auto no longer
+inherits the vendor's default** — which was `max` on Kimi K3 and GLM-5.3 and
+`high` on the Claude 5 family and Grok, the slowest configuration those APIs
+offer, chosen for a grammar fix by omission. The route resolves Auto with the
+same tier split routing uses: `medium` for the bounded modes, `high` for
+structure-inventing ones ([ADR-0018](./docs/decisions/0018-one-ladder.md)).
+DeepSeek V4 Pro, Kimi K3 and GLM-5.3 gain the knob their APIs expose.
+
+**A hold started at the screen's edge can still climb the ladder.** The
+capsule opens centred on a pill that sits right of centre, drag gain is 1:1,
+so from Auto the finger had a thumb's width of screen to travel the whole
+ladder in. Park the pointer inside 28px of the visible region's side and,
+after a half-second dwell, the value steps one detent every 260ms in that
+direction, with the same haptic tick, until the finger leaves the zone or the
+ladder ends — placement and gain untouched, the latched tap-to-pick path
+untouched, and a slide that merely ends near the edge still commits exactly
+what it slid to.
+
+**The capsule's gradient is continuous and alive.** The ramp is one colour
+stop per detent (the 55% hold that painted every detent as a plateau with an
+edge is gone), the ultra wash fades up in place and drifts endlessly instead
+of sliding a solid block across the fill, and a faint sheen sweeps the fill at
+every stop. All three motions stand down under reduced motion and the
+reduced-effects knob.
+
+**The form keeps its controls where the hand is.** A failed run's error line
+resets when the model, mode or routing changes instead of hanging around
+under a composer aimed elsewhere; the prompt field grows with its content
+between a 120px floor and a viewport cap; the action rail is sticky above the
+bottom nav so a long draft never puts ENHANCE a screen away (the chassis
+clips with `overflow-clip`, which does not break sticky); a character budget
+against the route's own 20,000 ceiling appears at a third of the limit and
+disables the primary past it; ⌘/Ctrl+Enter runs the enhancement. Condense's
+middle stop reads "Compact", not "Balanced", which Auto's routing preference
+already says one rail up.
+
+**Dependencies (security).** `next` 15.5.21 → 15.5.25 (GHSA-p293-qw3h-jr36,
+GHSA-2xp9-vwfh-vxw4), `sharp` 0.35.3 → 0.35.4 (GHSA-rgj7-g3m4-5g8c), `vitest`
+4.1.10 → 4.1.11 (GHSA-82fw-gwwq-j7x9) and the `js-yaml` override 4.3.1 → 4.3.2
+(GHSA-2883-xcg3-v3hh) — advisories published after this branch was cut that
+turned both CI audit gates red on any head; the icon tree is byte-identical
+under the new sharp (the generator drift check passes).
+
+**The roster moves to each vendor's current frontier** — every id and rate
+re-read from the vendor's own page on 2026-09-11: Fable 5 → **Fable 5.1**
+(`claude-fable-5-1`), Gemini 3.6 → **3.8 Flash** (`gemini-3.8-flash`, no
+`minimal`), Grok 4.5 → **4.6** (adds `xhigh`), GLM-5.2 → **5.3**, and
+**GPT-6 Astra** joins above the 5.6 family. Sonnet 5's base rate is now
+$2/$10; DeepSeek's announced increase landed (peak rate carried); Qwen's
+output ceiling rises from the carried 8,192 (qwen3.7-max's) to 32k under
+qwen3.8-max's published 131,072. One migration
+(`20260911120000_frontier_roster_2026_09.sql`) renames the four enum labels
+and adds the fifth; apply it before deploying, then `npm run check:db-enum`.
+Every provider's HTTP failure now names the env var to replace on a 401/403
+and the `MODEL_*` override on a 404 — the production screenshot read
+"Mistral request failed: 401 status code (no body)", which is Mistral
+refusing the server's key with an empty body, not the prompt.
+
 ### The scalable icon carries both appearances again, and the plate goes flat
 
 The installed icon's plate is **flat Laser** on every surface — the PNG tiles

@@ -6,7 +6,12 @@ import { useToast } from "@/components/ui/Toast";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useUIStore } from "@/stores/ui";
 import { THINKING_LEVELS } from "@/lib/constants";
-import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
+import {
+  normalizeThinkingLevel,
+  type ModeId,
+  type TargetModelId,
+  type ThinkingLevel,
+} from "@/lib/constants";
 import { MODEL_LABELS } from "@/lib/library/model-labels";
 import { Sheet } from "@/components/ui/Sheet";
 import {
@@ -221,10 +226,11 @@ export function DraftsList({
       setEditorDraft(got.body);
       setTargetModel(card.target_model as TargetModelId);
       setActiveMode(card.mode as ModeId);
+      // One dial for every model now (ADR-0018): the draft's level folds
+      // onto the ladder (a pre-2026-09 draft may carry `minimal`/`xhigh`).
       setThinkingLevel(
-        card.target_model as TargetModelId,
         card.thinking_level && LEVELS.has(card.thinking_level)
-          ? (card.thinking_level as ThinkingLevel)
+          ? normalizeThinkingLevel(card.thinking_level as ThinkingLevel)
           : null,
       );
       // The draft is now the live composer draft; drop the server copy so the

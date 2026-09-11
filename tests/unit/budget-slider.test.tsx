@@ -101,7 +101,7 @@ beforeEach(() => {
     autoTarget: true,
     autoPreference: "balanced",
     targetModel: "opus_5",
-    thinkingLevels: {},
+    thinkingLevel: null,
     dialTipSeen: true,
   });
 });
@@ -506,7 +506,7 @@ describe("the rest of the sheet is inert to the dial", () => {
   it("a press-and-slide on a model row stays a row tap", () => {
     renderComposer();
     openSheet();
-    const row = screen.getByRole("radio", { name: "Fable 5" });
+    const row = screen.getByRole("radio", { name: "Fable 5.1" });
     press(row);
     fireEvent.pointerMove(row, {
       pointerId: 1,
@@ -517,7 +517,7 @@ describe("the rest of the sheet is inert to the dial", () => {
     lift(row, DOWN_X + SLOP_PX + 4);
     expect(useUIStore.getState().autoPreference).toBe("balanced");
     fireEvent.click(row);
-    expect(useUIStore.getState().targetModel).toBe("fable_5");
+    expect(useUIStore.getState().targetModel).toBe("fable_5_1");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

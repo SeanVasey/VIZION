@@ -3,6 +3,8 @@ import { PROVIDER_IDLE_MS } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
+  isDeepEffort,
+  providerEffort,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
@@ -75,11 +77,13 @@ function parseGeminiFrame(frame: string): ProviderStreamChunk[] {
  * text deltas; usageMetadata rides the trailing frames. Server-side only; key
  * never reaches the client.
  *
- * `opts.thinkingLevel` is what distinguishes the Gemini "Thinking" target from
- * the "Flash" one — both send the same model string, because Gemini 3.x has no
+ * `opts.thinkingLevel` is what distinguishes a "Thinking" Gemini run from a
+ * "Fast" one — both send the same model string, because Gemini 3.x has no
  * separate thinking model ID. Only `thinkingLevel` is ever sent: it and the
  * Gemini-2.5-era `thinkingBudget` are mutually exclusive, and sending both is
- * an API error.
+ * an API error. The app's ladder is translated by `providerEffort("google")`:
+ * 3.8 Flash accepts low · medium · high only (no `minimal`, no `xhigh`), so
+ * Max lands on high — the model's own top.
  */
 export async function* streamGoogle(
   system: string,
@@ -109,6 +113,7 @@ export async function* streamGoogle(
   // same budget — one wall for the invocation, this timer cut from what
   // remains of it.
   const { deadline, timeoutMs } = providerBudget("google", opts.deadline);
+  const thinkingLevel = providerEffort("google", opts.thinkingLevel);
   const controller = new AbortController();
   const abortTotal = setTimeout(() => controller.abort(), timeoutMs);
   let abortIdle: ReturnType<typeof setTimeout> | undefined;
@@ -134,15 +139,13 @@ export async function* streamGoogle(
         contents: [{ role: "user", parts: [{ text: input }] }],
         generationConfig: {
           responseMimeType: "application/json",
-          // Thought tokens count against this budget, so the high-reasoning
-          // target needs headroom the fast one doesn't: a heavy reasoning pass
+          // Thought tokens count against this budget, so the deep tier
+          // needs headroom the fast one doesn't: a heavy reasoning pass
           // inside a tight cap truncates the JSON envelope mid-stream (turning
-          // a previously-good enhancement into a parse failure). 3.6 Flash
-          // allows 65,536 output tokens; this is a ceiling, not a target.
-          maxOutputTokens: opts.thinkingLevel === "high" ? 64_000 : 32_000,
-          ...(opts.thinkingLevel
-            ? { thinkingConfig: { thinkingLevel: opts.thinkingLevel } }
-            : {}),
+          // a previously-good enhancement into a parse failure). 3.8 Flash
+          // allows 64k output tokens; this is a ceiling, not a target.
+          maxOutputTokens: isDeepEffort(opts.thinkingLevel) ? 64_000 : 32_000,
+          ...(thinkingLevel ? { thinkingConfig: { thinkingLevel } } : {}),
         },
       }),
     });
@@ -155,7 +158,9 @@ export async function* streamGoogle(
       // Google's project), not this request or the model. Relayed bare it
       // reads as a VIZION capability gap and dead-ends at the wrong
       // support desk, so name the actual remediation (2026-08 incident;
-      // docs/runbooks/providers.md § Gemini key/project refusals).
+      // docs/runbooks/providers.md § Gemini key/project refusals). Kept as
+      // its own sentence rather than describeProviderFailure's generic one
+      // because the fix is a different PROJECT, not just a different key.
       const message =
         res.status === 401 || res.status === 403
           ? `Gemini request failed: ${upstream} — Google is refusing the server's API key/project, not this request. Replace GOOGLE_API_KEY with a key from a Google AI Studio project that has Gemini API access.`

@@ -32,7 +32,12 @@ export function hasLengthControl(mode: ModeId): boolean {
  * opposite things.
  */
 const LENGTH_LABEL: Partial<Record<ModeId, Record<LengthId, string>>> = {
-  condense: { short: "Tight", medium: "Balanced", long: "Essential" },
+  // "Trim · Compact · Essential", not "Tight · Balanced · Essential": the
+  // middle stop used to read "Balanced", which is ALSO Auto's routing
+  // preference one rail up ("Auto · Balanced") — two controls on one screen
+  // saying the same word about different things (owner, 2026-09-11). Ids are
+  // unchanged: they persist and ride the wire.
+  condense: { short: "Trim", medium: "Compact", long: "Essential" },
   expand: { short: "Focused", medium: "Thorough", long: "Comprehensive" },
 };
 

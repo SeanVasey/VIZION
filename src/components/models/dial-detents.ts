@@ -2,6 +2,7 @@ import type { Detent } from "@/components/ui/HoldSlider";
 import {
   AUTO_PREFERENCES,
   AUTO_PREFERENCE_LABEL,
+  THINKING_LADDER,
   THINKING_LEVEL_LABEL,
   type ThinkingLevel,
 } from "@/lib/constants";
@@ -18,12 +19,12 @@ import {
  */
 
 /** Hold-slider tone per thinking level — keyed to the level's IDENTITY, never
- *  its ladder position (the DepthGlyph rule), so "high" wears the same steel
- *  on Grok's 3-step ladder as on Fable's 5-step one. The ladder is a
- *  monochrome silver progression that brightens with depth — faint, silver,
- *  steel — and only the two tiers above High earn colour, the ultra violet
- *  the wash then floods (owner direction, 2026-08-15: no laser in the
- *  track). */
+ *  its ladder position (the DepthGlyph rule). Total over the wire vocabulary
+ *  so a legacy level still renders; the dial itself only ever shows the four
+ *  ladder stops (THINKING_LADDER). The ladder is a monochrome silver
+ *  progression that brightens with depth — faint, silver, steel — and only
+ *  the top tier earns colour, the ultra violet the wash then floods (owner
+ *  direction, 2026-08-15: no laser in the track). */
 export const LEVEL_TONE: Record<ThinkingLevel, Detent["tone"]> = {
   minimal: "silver",
   low: "silver",
@@ -53,7 +54,9 @@ export const TONE_INK_CLASS: Record<Detent["tone"], string> = {
  *  one-gesture route back to "send nothing, provider default applies". */
 export const AUTO_DETENT: Detent = { id: "auto", label: "Auto", tone: "faint" };
 
-export function buildThinkingDetents(ladder: readonly ThinkingLevel[]): Detent[] {
+export function buildThinkingDetents(
+  ladder: readonly ThinkingLevel[] = THINKING_LADDER,
+): Detent[] {
   return [
     AUTO_DETENT,
     ...ladder.map((level) => ({
@@ -63,6 +66,10 @@ export function buildThinkingDetents(ladder: readonly ThinkingLevel[]): Detent[]
     })),
   ];
 }
+
+/** THE thinking ladder's detents — one list, built once, for every model
+ *  (ADR-0018). Five stops: Auto · Low · Medium · High · Max. */
+export const THINKING_DETENTS: readonly Detent[] = buildThinkingDetents();
 
 /** Auto-routing's budget dial, cheapest first so the fill grows with spend:
  *  budget → balanced → quality. That is AUTO_PREFERENCES *reversed* — the

@@ -14,7 +14,7 @@ import { TARGETS } from "@/lib/providers/config";
  *
  * `strength` is an EDITORIAL rank — an opinion held in one reviewable place,
  * not a benchmark claim. Each entry carries a one-line rationale sourced from
- * the vendor's own positioning (checked 2026-08-08); re-rank here, never
+ * the vendor's own positioning (checked 2026-09-11); re-rank here, never
  * inline in the router.
  */
 
@@ -29,25 +29,28 @@ interface RoutingFacts {
   autoExcluded?: true;
 }
 
-/** Typed as a full Record: a seventeenth roster entry is a compile error
+/** Typed as a full Record: an eighteenth roster entry is a compile error
  *  here, not a silent hole in Auto's ladders. */
 export const TARGET_ROUTING: Record<TargetModelId, RoutingFacts> = {
   // Anthropic's most capable model — the reasoning ceiling of the roster.
-  fable_5: { strength: 10, speed: "deliberate" },
+  fable_5_1: { strength: 10, speed: "deliberate" },
   // Flagship Opus: frontier quality at half Fable's price.
   opus_5: { strength: 9, speed: "deliberate" },
   // Near-Opus judgement with the best latency of the Anthropic trio.
   sonnet_5: { strength: 8, speed: "fast" },
+  // OpenAI's frontier tier above the 5.6 family — Fable-class price and pace.
+  gpt_6_astra: { strength: 10, speed: "deliberate" },
   // OpenAI's flagship tier of the GPT-5.6 family.
   gpt_5_6_sol: { strength: 9, speed: "deliberate" },
   // The small, cost-efficient GPT-5.6 tier (the family's throughput model).
   gpt_5_6_luna: { strength: 5, speed: "fast" },
   // The balanced mid tier of the GPT-5.6 family.
   gpt_5_6_terra: { strength: 7, speed: "standard" },
-  // Open-weight flagship MoE; strong text reasoning at commodity pricing.
+  // Open-weight flagship MoE; strong text reasoning, no longer at commodity
+  // pricing since the 2026-08-16 increase.
   deepseek_v4: { strength: 7, speed: "standard" },
   // Google's fast tier — capable all-rounder tuned for latency.
-  gemini_3_6_flash: { strength: 7, speed: "fast" },
+  gemini_3_8_flash: { strength: 7, speed: "fast" },
   // Meta's general model; solid but below the frontier tier on hard tasks.
   muse_spark_1_1: { strength: 5, speed: "standard" },
   // Agentic MoE with adaptive thinking; executes well-scoped plans.
@@ -64,9 +67,9 @@ export const TARGET_ROUTING: Record<TargetModelId, RoutingFacts> = {
   // Alibaba's flagship tier; broad capability, thinking-budget control.
   qwen3_8_max: { strength: 7, speed: "standard" },
   // xAI's flagship: near-frontier reasoning at a mid-tier price.
-  grok_4_5: { strength: 8, speed: "standard" },
+  grok_4_6: { strength: 8, speed: "standard" },
   // Zhipu's open-weight flagship; capable, priced below its strength peers.
-  glm_5_2: { strength: 6, speed: "standard" },
+  glm_5_3: { strength: 6, speed: "standard" },
 };
 
 /**

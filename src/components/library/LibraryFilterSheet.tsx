@@ -93,7 +93,7 @@ const SORT_LABEL: Record<LibrarySort, string> = {
 /**
  * The library filter sheet (2026-07 UX audit): model/mode/tag/view/sort in
  * one summoned surface. Models show ONLY what the user's library contains,
- * with counts — never the sixteen-chip global roster wall.
+ * with counts — never the seventeen-chip global roster wall.
  */
 export function LibraryFilterSheet({
   open,
