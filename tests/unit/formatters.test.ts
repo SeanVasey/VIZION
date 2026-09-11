@@ -114,19 +114,19 @@ describe("buildSystemPrompt", () => {
   });
 
   it("targets Gemini idioms for the Gemini target", () => {
-    expect(buildSystemPrompt({ mode: "target", target: "gemini_3_6_flash" })).toContain(
+    expect(buildSystemPrompt({ mode: "target", target: "gemini_3_8_flash" })).toContain(
       "Gemini",
     );
   });
 
   it("targets Fable idioms for the Fable target", () => {
-    expect(buildSystemPrompt({ mode: "expand", target: "fable_5" })).toContain(
+    expect(buildSystemPrompt({ mode: "expand", target: "fable_5_1" })).toContain(
       "Claude Fable",
     );
   });
 
   it("targets Grok idioms for the Grok target", () => {
-    expect(buildSystemPrompt({ mode: "reformat", target: "grok_4_5" })).toContain("Grok");
+    expect(buildSystemPrompt({ mode: "reformat", target: "grok_4_6" })).toContain("Grok");
   });
 
   it("polish preserves the input's shape and skips target restructuring idioms", () => {

@@ -4,7 +4,9 @@ import { PROVIDER_MAX_RETRIES } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
-  toReasoningEffort,
+  describeProviderFailure,
+  isDeepEffort,
+  providerEffort,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
@@ -14,12 +16,46 @@ import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
  *  at api.x.ai — no extra dependency. */
 const XAI_BASE_URL = "https://api.x.ai/v1";
 
+/** Widened like openai.ts: Grok 4.6 accepts `xhigh` on `reasoning_effort`,
+ *  which this SDK version's trio type does not declare. */
+type XAIStreamParams = Omit<
+  OpenAI.ChatCompletionCreateParamsStreaming,
+  "reasoning_effort"
+> & {
+  reasoning_effort?: string;
+};
+
+/** Pure request-params builder (exported for tests). Grok reasons
+ *  unconditionally (xAI defaults to high effort, reasoning can't be
+ *  disabled), billing its reasoning against the ceiling like the OpenAI
+ *  path — so the deep tier gets the same headroom. */
+export function buildXAIParams(
+  model: string,
+  system: string,
+  input: string,
+  level?: ProviderRequestOptions["thinkingLevel"],
+): XAIStreamParams {
+  const reasoningEffort = providerEffort("xai", level);
+  return {
+    model,
+    max_tokens: isDeepEffort(level) ? 32_000 : 16_000,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: input },
+    ],
+    response_format: { type: "json_object" },
+    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+    stream: true,
+    stream_options: { include_usage: true },
+  };
+}
+
 /**
  * Streaming xAI (Grok) call: raw response-text deltas plus a final cumulative
  * usage snapshot. Server-side only; key never reaches the client.
  *
- * `opts.thinkingLevel` maps onto Grok's `reasoning_effort` (low/medium/high;
- * xAI defaults to high and reasoning can't be disabled).
+ * `opts.thinkingLevel` maps onto Grok's `reasoning_effort` (low/medium/high/
+ * xhigh on 4.6; the app's Max lands on xhigh, its top).
  */
 export async function* streamXAI(
   system: string,
@@ -40,27 +76,16 @@ export async function* streamXAI(
     timeout: timeoutMs,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
-  const reasoningEffort = toReasoningEffort(opts.thinkingLevel);
 
   try {
-    const stream = await client.chat.completions.create({
-      model,
-      // Output ceiling: a runaway generation must stay bounded — and Grok
-      // reasons unconditionally (xAI defaults to high effort), billing its
-      // reasoning against this ceiling like the OpenAI path. High effort gets
-      // the same headroom so a heavy pass can't truncate the envelope
-      // (audit 04 uncertain-01: this had drifted from openai.ts; vision.ts
-      // already granted Grok the reasoning-class headroom).
-      max_tokens: reasoningEffort === "high" ? 32_000 : 16_000,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: input },
-      ],
-      response_format: { type: "json_object" },
-      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
-      stream: true,
-      stream_options: { include_usage: true },
-    });
+    const stream = await client.chat.completions.create(
+      buildXAIParams(
+        model,
+        system,
+        input,
+        opts.thinkingLevel,
+      ) as OpenAI.ChatCompletionCreateParamsStreaming,
+    );
     // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()
     // settles at the response headers, so it bounds nothing once the body
     // streams. Idle wall + absolute deadline both live in idle-timeout.ts.
@@ -88,7 +113,13 @@ export async function* streamXAI(
     if (error instanceof OpenAI.APIError) {
       throw new ProviderError(
         "xai",
-        `Grok request failed: ${error.message}`,
+        describeProviderFailure(
+          "xai",
+          "Grok",
+          "XAI_API_KEY",
+          error.status,
+          error.message,
+        ),
         error.status,
       );
     }

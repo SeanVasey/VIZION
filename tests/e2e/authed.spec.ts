@@ -487,10 +487,11 @@ test.describe("thinking hold-slider", () => {
       .poll(() => dim.evaluate((el) => getComputedStyle(el).backgroundColor))
       .toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
     // The thinking capsule wears rising bars (the DepthGlyph vocabulary),
-    // six for Opus's ladder — the budget capsule keeps equal dots.
+    // five for the one ladder every model shares (ADR-0018) — the budget
+    // capsule keeps equal dots.
     await expect(
       page.locator("[data-hold-slider-overlay] [data-detent-bar]"),
-    ).toHaveCount(6);
+    ).toHaveCount(5);
     // The world pauses under the gesture: every idle ornament beneath the
     // blur holds its frame — the Horizon's breathe included, not only the
     // nebula blooms — so the filtered backdrop is genuinely static. A real
@@ -571,7 +572,7 @@ test.describe("thinking hold-slider", () => {
     await expect(latched).toBeVisible();
     // Anchored home, in a real engine against real layout: centred on the
     // pill it came out of, then clamped into the viewport's margins. On this
-    // phone the clamp BINDS — Opus's six stops make a 264px capsule and the
+    // phone the clamp BINDS — five stops make a 220px capsule and the
     // pill sits right of centre — which is exactly the case worth pinning
     // here, because it is the one jsdom's layoutless rects cannot produce.
     // Vertically there is nothing to clamp, so that centre is always exact.
@@ -610,7 +611,7 @@ test.describe("thinking hold-slider", () => {
     await page.getByRole("button", { name: /^Target model:/ }).click();
     const sheet = page.getByRole("dialog", { name: "Target model" });
     await expect(sheet).toBeVisible();
-    const row = sheet.getByRole("radio", { name: "Fable 5", exact: true });
+    const row = sheet.getByRole("radio", { name: "Fable 5.1", exact: true });
     const box = (await row.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
@@ -621,7 +622,7 @@ test.describe("thinking hold-slider", () => {
     // The row's own click landed: model picked, sheet closed, dial untouched.
     await expect(sheet).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Target model:/ })).toContainText(
-      "Fable 5",
+      "Fable 5.1",
     );
     await expect(pill).toContainText("Auto");
   });
@@ -685,7 +686,7 @@ test.describe("thinking hold-slider", () => {
     // The shield covers the sheet beneath it.
     await expect(
       page
-        .getByRole("radio", { name: "Fable 5", exact: true })
+        .getByRole("radio", { name: "Fable 5.1", exact: true })
         .click({ trial: true, timeout: 800 }),
     ).rejects.toThrow();
     await page.mouse.move(box.x + box.width / 2 + 44, cy, { steps: 4 });

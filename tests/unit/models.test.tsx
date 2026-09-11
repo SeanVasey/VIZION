@@ -3,11 +3,13 @@ import { render } from "@testing-library/react";
 import {
   TARGET_MODELS,
   TARGET_DEVELOPER,
-  TARGET_THINKING_LEVELS,
+  TARGET_HAS_THINKING,
+  THINKING_LADDER,
   THINKING_LEVELS,
   THINKING_LEVEL_LABEL,
   DEVELOPER_ORDER,
   DEVELOPER_LABEL,
+  normalizeThinkingLevel,
   type Developer,
 } from "@/lib/constants";
 import { DeveloperIcon } from "@/components/models/DeveloperIcon";
@@ -32,9 +34,9 @@ describe("model roster ordering", () => {
 
   it("puts the best Anthropic model first (Fable 5 before Opus 5 before Sonnet 5)", () => {
     const ids = TARGET_MODELS.map((m) => m.id);
-    expect(ids.indexOf("fable_5")).toBeLessThan(ids.indexOf("opus_5"));
+    expect(ids.indexOf("fable_5_1")).toBeLessThan(ids.indexOf("opus_5"));
     expect(ids.indexOf("opus_5")).toBeLessThan(ids.indexOf("sonnet_5"));
-    expect(ids[0]).toBe("fable_5");
+    expect(ids[0]).toBe("fable_5_1");
   });
 
   it("maps every target id to its developer", () => {
@@ -44,11 +46,13 @@ describe("model roster ordering", () => {
     }
   });
 
-  it("puts the best OpenAI tier first (Sol before Terra before Luna)", () => {
-    // OpenAI's own tiering: flagship / balanced mid / small. The roster
-    // briefly had Terra and Luna swapped — pinned so the picker's "best
-    // first within each developer" promise stays true.
+  it("puts the best OpenAI tier first (Astra, then Sol before Terra before Luna)", () => {
+    // OpenAI's own tiering: GPT-6 Astra above the 5.6 family, then flagship
+    // / balanced mid / small. The roster briefly had Terra and Luna swapped
+    // — pinned so the picker's "best first within each developer" promise
+    // stays true.
     const ids = TARGET_MODELS.map((m) => m.id);
+    expect(ids.indexOf("gpt_6_astra")).toBeLessThan(ids.indexOf("gpt_5_6_sol"));
     expect(ids.indexOf("gpt_5_6_sol")).toBeLessThan(ids.indexOf("gpt_5_6_terra"));
     expect(ids.indexOf("gpt_5_6_terra")).toBeLessThan(ids.indexOf("gpt_5_6_luna"));
   });
@@ -90,69 +94,74 @@ describe("model roster ordering", () => {
 
   it("keeps the Gemini target on the real 3.6 model string (no invented thinking ID)", () => {
     // Gemini 3.x has no separate thinking model ID — "Thinking" and "Fast" in
-    // the Gemini app are thinkingLevel values on `gemini-3.6-flash`. Inventing
+    // the Gemini app are thinkingLevel values on `gemini-3.8-flash`. Inventing
     // a `gemini-3.6-thinking` string 404s every call, and because 404 reads as
     // a config error the media route would silently fall back to another
     // provider instead of surfacing it.
-    expect(TARGETS.gemini_3_6_flash.model).toBe("gemini-3.6-flash");
-    expect(TARGETS.gemini_3_6_flash.model).not.toContain("thinking");
+    expect(TARGETS.gemini_3_8_flash.model).toBe("gemini-3.8-flash");
+    expect(TARGETS.gemini_3_8_flash.model).not.toContain("thinking");
   });
 });
 
 describe("thinking levels", () => {
-  it("declares levels only for roster targets, drawn from the ordered ladder", () => {
-    const rosterIds: string[] = TARGET_MODELS.map((m) => m.id);
-    for (const [id, levels] of Object.entries(TARGET_THINKING_LEVELS)) {
-      expect(rosterIds).toContain(id);
-      expect(levels.length).toBeGreaterThan(0);
-      const positions = levels.map((l) => THINKING_LEVELS.indexOf(l));
-      // Every level exists in the ladder, appears once, in ladder order —
-      // the composer renders the array verbatim as the selector.
-      expect(positions).not.toContain(-1);
-      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-      expect(new Set(levels).size).toBe(levels.length);
-      // Every offered level has a display label.
-      for (const l of levels) expect(THINKING_LEVEL_LABEL[l]).toBeTruthy();
-    }
+  it("offers ONE four-stop ladder, drawn in order from the wire vocabulary", () => {
+    // ADR-0018: the dial is the same for every model. The ladder is a
+    // strictly ascending subset of THINKING_LEVELS with Max at the top and
+    // Low at the bottom, and every stop has a display label.
+    expect([...THINKING_LADDER]).toEqual(["low", "medium", "high", "max"]);
+    const positions = THINKING_LADDER.map((l) => THINKING_LEVELS.indexOf(l));
+    expect(positions).not.toContain(-1);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    for (const l of THINKING_LADDER) expect(THINKING_LEVEL_LABEL[l]).toBeTruthy();
   });
 
-  it("pins each provider's ladder to the values its API accepts", () => {
-    // Gemini thinkingConfig.thinkingLevel — exactly these four.
-    expect(TARGET_THINKING_LEVELS.gemini_3_6_flash).toEqual([
-      "minimal",
-      "low",
-      "medium",
-      "high",
-    ]);
-    // OpenAI/xAI reasoning_effort — the SDK-typed trio (toReasoningEffort
-    // narrows to it, so anything wider would be silently dropped).
+  it("folds every wire level onto the ladder, monotonically", () => {
+    // `minimal` (Gemini 3.6's floor) and `xhigh` (Anthropic's second ultra
+    // tier) are legacy stops: each lands on its ladder neighbour, and a
+    // higher wire level never folds below a lower one.
+    const ladderIndex = (l: (typeof THINKING_LADDER)[number]) =>
+      THINKING_LADDER.indexOf(l);
+    let last = -1;
+    for (const level of THINKING_LEVELS) {
+      const folded = ladderIndex(normalizeThinkingLevel(level));
+      expect(folded).toBeGreaterThanOrEqual(last);
+      last = folded;
+    }
+    expect(normalizeThinkingLevel("minimal")).toBe("low");
+    expect(normalizeThinkingLevel("xhigh")).toBe("high");
+    for (const l of THINKING_LADDER) expect(normalizeThinkingLevel(l)).toBe(l);
+  });
+
+  it("declares a thinking knob for exactly the targets whose API takes one", () => {
+    // Total over the roster (the Record type enforces it); the VALUES are
+    // pinned per the vendor references read 2026-09-11.
+    for (const m of TARGET_MODELS)
+      expect(typeof TARGET_HAS_THINKING[m.id]).toBe("boolean");
     for (const id of [
+      "fable_5_1",
+      "opus_5",
+      "sonnet_5",
+      "gpt_6_astra",
       "gpt_5_6_sol",
-      "gpt_5_6_luna",
       "gpt_5_6_terra",
-      "grok_4_5",
+      "gpt_5_6_luna",
+      "deepseek_v4",
+      "gemini_3_8_flash",
+      "kimi_k3",
+      "qwen3_8_max",
+      "grok_4_6",
+      "glm_5_3",
     ] as const) {
-      expect(TARGET_THINKING_LEVELS[id]).toEqual(["low", "medium", "high"]);
+      expect(TARGET_HAS_THINKING[id], id).toBe(true);
     }
-    // Anthropic output_config.effort — the full five-step ladder.
-    for (const id of ["fable_5", "opus_5", "sonnet_5"] as const) {
-      expect(TARGET_THINKING_LEVELS[id]).toEqual([
-        "low",
-        "medium",
-        "high",
-        "xhigh",
-        "max",
-      ]);
+    for (const id of [
+      "muse_spark_1_1",
+      "minimax_m3",
+      "mistral_large_3",
+      "sonar_pro",
+    ] as const) {
+      expect(TARGET_HAS_THINKING[id], id).toBe(false);
     }
-    // DashScope enable_thinking + thinking_budget — a token budget, so the
-    // whole ladder maps onto it (the per-step budgets live in the adapter).
-    expect(TARGET_THINKING_LEVELS.qwen3_8_max).toEqual([
-      "low",
-      "medium",
-      "high",
-      "xhigh",
-      "max",
-    ]);
   });
 
   it("keeps Qwen's model TIER out of its thinking ladder", () => {
@@ -162,7 +171,7 @@ describe("thinking levels", () => {
     // independent, and the model string must carry no depth of its own.
     expect(TARGETS.qwen3_8_max.model).toBe("qwen3.8-max");
     expect(TARGETS.qwen3_8_max.model).not.toContain("thinking");
-    expect(TARGET_THINKING_LEVELS.qwen3_8_max).toBeDefined();
+    expect(TARGET_HAS_THINKING.qwen3_8_max).toBe(true);
   });
 });
 

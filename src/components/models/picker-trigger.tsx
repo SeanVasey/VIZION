@@ -6,7 +6,7 @@
  * renders (the unit suites) and lives here once so the pair cannot drift.
  *
  * The CHEVRON is now Target's alone (ADR-0014). It stays because Target
- * genuinely opens a list — sixteen models across twelve developers — while
+ * genuinely opens a list — seventeen models across twelve developers — while
  * the Thinking dial, which opens a slider, trades it for the grip. That is
  * the whole rule the owner set: a control looks like a dropdown only if it
  * is one. Keep this glyph out of any control that does not open a menu.

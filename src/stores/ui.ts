@@ -5,12 +5,14 @@ import { persist, createJSONStorage, type StateStorage } from "zustand/middlewar
 import {
   LEGACY_TARGET_IDS,
   TARGET_MODELS,
-  TARGET_THINKING_LEVELS,
+  THINKING_LADDER,
   UI_STORE_KEY,
+  normalizeThinkingLevel,
   type AutoPreference,
   type ModeId,
   type TargetModelId,
   type Theme,
+  type ThinkingLadderLevel,
   type ThinkingLevel,
 } from "@/lib/constants";
 import type { FormatId } from "@/lib/enhance/formats";
@@ -87,9 +89,12 @@ interface UIState {
   theme: Theme;
   activeMode: ModeId;
   targetModel: TargetModelId;
-  /** Chosen reasoning depth PER TARGET (only for targets with a knob —
-   *  TARGET_THINKING_LEVELS). No entry = "Auto" = provider default. */
-  thinkingLevels: Partial<Record<TargetModelId, ThinkingLevel>>;
+  /** The ONE chosen reasoning depth, for every model (ADR-0018). Null =
+   *  "Auto" = the route resolves a task-shaped default. Was a per-target
+   *  record until 2026-09; switching models then silently changed the
+   *  effort under the same dial, which is the mismatch the single value
+   *  removes. */
+  thinkingLevel: ThinkingLadderLevel | null;
   /** In-progress editor text, preserved across nav (product-spec §2.4). */
   editorDraft: string;
   /** The media privacy notice has been acknowledged on this device. */
@@ -130,7 +135,7 @@ interface UIState {
   setActiveMode: (mode: ModeId) => void;
   setTargetModel: (model: TargetModelId) => void;
   /** `null` clears back to Auto. */
-  setThinkingLevel: (target: TargetModelId, level: ThinkingLevel | null) => void;
+  setThinkingLevel: (level: ThinkingLadderLevel | null) => void;
   setEditorDraft: (draft: string) => void;
   setMediaNoticeAcknowledged: (v: boolean) => void;
   setMediaStoreByDefault: (v: boolean) => void;
@@ -154,7 +159,7 @@ export const useUIStore = create<UIState>()(
       theme: "system",
       activeMode: "clarify",
       targetModel: "opus_5",
-      thinkingLevels: {},
+      thinkingLevel: null,
       editorDraft: "",
       mediaNoticeAcknowledged: false,
       mediaStoreByDefault: true,
@@ -168,13 +173,7 @@ export const useUIStore = create<UIState>()(
       setTheme: (theme) => set({ theme }),
       setActiveMode: (activeMode) => set({ activeMode }),
       setTargetModel: (targetModel) => set({ targetModel }),
-      setThinkingLevel: (target, level) =>
-        set((s) => {
-          const thinkingLevels = { ...s.thinkingLevels };
-          if (level === null) delete thinkingLevels[target];
-          else thinkingLevels[target] = level;
-          return { thinkingLevels };
-        }),
+      setThinkingLevel: (thinkingLevel) => set({ thinkingLevel }),
       setEditorDraft: (editorDraft) => set({ editorDraft }),
       setMediaNoticeAcknowledged: (mediaNoticeAcknowledged) =>
         set({ mediaNoticeAcknowledged }),
@@ -203,33 +202,56 @@ export const useUIStore = create<UIState>()(
       // would 400 on /api/enhance, so map legacy values and fall back to the
       // default; stale thinking selections are re-keyed or dropped the same way.
       // v6: media privacy prefs (mediaNoticeAcknowledged, mediaStoreByDefault)
-      // — pass-through defaults, no re-keying.
-      version: 6,
+      // — pass-through defaults, no re-keying. v7: the per-target
+      // `thinkingLevels` record collapses to ONE `thinkingLevel` (ADR-0018);
+      // the pinned target's own entry carries over, folded onto the ladder,
+      // and the 2026-09 roster renames (fable_5 → fable_5_1 …) re-key the
+      // target through LEGACY_TARGET_IDS like every rename before them.
+      version: 7,
       migrate: (persisted) => {
-        const s = (persisted ?? {}) as Partial<UIState>;
+        const s = (persisted ?? {}) as Partial<UIState> & {
+          thinkingLevels?: Record<string, unknown>;
+        };
         const valid = new Set<string>(TARGET_MODELS.map((m) => m.id));
         const t = s.targetModel as string | undefined;
+        const targetModel: TargetModelId =
+          t && valid.has(t)
+            ? (t as TargetModelId)
+            : ((t ? LEGACY_TARGET_IDS[t] : undefined) ?? "opus_5");
 
-        // Re-key per-target levels across renames; drop entries whose target
-        // or level no longer exists (a stale level would 400 on /api/enhance).
-        const thinkingLevels: Partial<Record<TargetModelId, ThinkingLevel>> = {};
-        for (const [key, level] of Object.entries(s.thinkingLevels ?? {})) {
-          const id = valid.has(key) ? (key as TargetModelId) : LEGACY_TARGET_IDS[key];
-          if (!id || typeof level !== "string") continue;
-          if (
-            (TARGET_THINKING_LEVELS[id] as readonly string[] | undefined)?.includes(level)
-          ) {
-            thinkingLevels[id] = level as ThinkingLevel;
+        // The single level: a v7 value passes through (re-validated against
+        // the ladder); a pre-v7 record contributes the entry for the target
+        // the store lands on, keyed by either its current or its renamed id.
+        // Anything else — another target's dial, a stale value — is dropped:
+        // null is Auto, which is the safe default.
+        let level: unknown = s.thinkingLevel;
+        if (level === undefined && s.thinkingLevels) {
+          for (const [key, value] of Object.entries(s.thinkingLevels)) {
+            const id = valid.has(key) ? key : LEGACY_TARGET_IDS[key];
+            if (id === targetModel) level = value;
           }
         }
+        const ladder = THINKING_LADDER as readonly string[];
+        const wire = new Set<string>([
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+        ]);
+        const thinkingLevel =
+          typeof level === "string" && wire.has(level)
+            ? normalizeThinkingLevel(level as ThinkingLevel)
+            : null;
 
+        const { thinkingLevels: _dropped, ...rest } = s;
+        void _dropped;
         return {
-          ...s,
-          targetModel:
-            t && valid.has(t)
-              ? (t as TargetModelId)
-              : ((t && LEGACY_TARGET_IDS[t]) ?? "opus_5"),
-          thinkingLevels,
+          ...rest,
+          targetModel,
+          thinkingLevel:
+            thinkingLevel && ladder.includes(thinkingLevel) ? thinkingLevel : null,
           mediaNoticeAcknowledged: s.mediaNoticeAcknowledged ?? false,
           mediaStoreByDefault: s.mediaStoreByDefault ?? true,
         };
@@ -245,7 +267,7 @@ export const useUIStore = create<UIState>()(
         theme: state.theme,
         activeMode: state.activeMode,
         targetModel: state.targetModel,
-        thinkingLevels: state.thinkingLevels,
+        thinkingLevel: state.thinkingLevel,
         editorDraft: state.editorDraft,
         mediaNoticeAcknowledged: state.mediaNoticeAcknowledged,
         mediaStoreByDefault: state.mediaStoreByDefault,

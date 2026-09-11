@@ -49,7 +49,7 @@ import { tap } from "@/lib/haptics";
  * scrolling pane — the shape the library's swipe rows have always had, and
  * which they answer by keeping `pan-y`. The budget dial became that shape
  * when it moved into the Target sheet (ADR-0014) and grew full-width across
- * a sixteen-row `overflow-y-auto` list, so `scrollableHost` now carries the
+ * a seventeen-row `overflow-y-auto` list, so `scrollableHost` now carries the
  * same exemption. Only the vertical axis is handed back; horizontal stays
  * the gesture's.
  */
@@ -81,6 +81,28 @@ export const TRACK_PAD_PX = 22;
 const TRACK_HEIGHT_PX = 48;
 /** Minimum gap between the track and the viewport edges. */
 export const EDGE_MARGIN_PX = 16;
+/**
+ * Edge auto-step (ADR-0018). Drag gain is 1:1 and the capsule opens centred
+ * on its pill, clamped into the margins — which on a phone puts the Thinking
+ * pill's capsule right of centre and the finger that pressed it a thumb's
+ * width from the screen's edge. From Auto (the leftmost stop) the thumb has
+ * to travel the whole ladder to the RIGHT, and the finger has ~40px of screen
+ * to do it in: "you start where you can't actually swipe" (owner,
+ * 2026-09-11). Relative mapping cannot reach a detent the finger cannot
+ * travel to, and absolute mapping teleports the value on the first move.
+ *
+ * So the edge does what edges do in every drag-and-drop and text-selection
+ * surface on the platform: hold the pointer inside EDGE_ZONE_PX of the
+ * visible region's side and the value steps one detent per EDGE_STEP_MS in
+ * that direction, with the same haptic tick as a dragged step, until the
+ * finger leaves the zone or the ladder ends. Placement is untouched, gain is
+ * untouched — the zone is the only addition, and it only ever ADDS reach.
+ * The zone is measured from the visible region (pinch-zoom aware) and the
+ * offset is re-derived after every step, so the hand keeps owning the thumb
+ * the moment it leaves the zone.
+ */
+export const EDGE_ZONE_PX = 28;
+export const EDGE_STEP_MS = 260;
 
 export interface TrackGeometry {
   /** Viewport-fixed capsule box. */
@@ -336,7 +358,7 @@ export function useHoldDrag({
    * cannot hand a pan back after the fact: it stops the SLIDER engaging, but
    * the scroll is already lost. On a content-width pill in a rail that costs
    * a thumb-sized dead spot and is the accepted trade (ADR-0012). Across a
-   * full-width band in a sixteen-row list it is a scroll trap (Codex review,
+   * full-width band in a seventeen-row list it is a scroll trap (Codex review,
    * PR #109) — the same shape as the library's swipe rows, which have always
    * kept `pan-y` for this reason.
    *
@@ -375,6 +397,11 @@ export function useHoldDrag({
   /** Last pointer x seen while a press is live — onViewportChange re-derives
    *  dragOffset from it, or the value teleports under the hand. */
   const lastPointerX = useRef(0);
+  /** The edge auto-step's repeating timer and direction (see EDGE_ZONE_PX).
+   *  Armed only in the DRAG phase while the pointer sits in an edge zone;
+   *  cleared wherever the drag ends. */
+  const edgeTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const edgeDir = useRef<1 | -1 | 0>(0);
   /** Props can change mid-gesture (they don't in practice, but a stale
    *  closure in a window listener is not worth the bet). */
   const latest = useRef({ detentCount, selectedIndex, onCommit });
@@ -644,8 +671,58 @@ export function useHoldDrag({
     }
   }, []);
 
+  /** Stop an edge auto-step. Idempotent; every drag exit calls it. */
+  const stopEdgeStep = useCallback(() => {
+    if (edgeTimer.current !== undefined) clearInterval(edgeTimer.current);
+    edgeTimer.current = undefined;
+    edgeDir.current = 0;
+  }, []);
+
+  /** One auto-step tick: move one detent toward the edge the finger is
+   *  holding, re-derive the offset so the hand stays in charge, stop at the
+   *  ladder's end. Reads refs only — the interval outlives any render. */
+  const edgeStepTick = useCallback(() => {
+    const current = activeRef.current;
+    if (!current || current.phase !== "drag" || edgeDir.current === 0) {
+      stopEdgeStep();
+      return;
+    }
+    const last = latest.current.detentCount - 1;
+    const next = Math.max(0, Math.min(last, current.dragIndex + edgeDir.current));
+    if (next === current.dragIndex) {
+      stopEdgeStep();
+      return;
+    }
+    dragOffset.current = lastPointerX.current - current.geometry.detentCenters[next]!;
+    tap(5);
+    setActiveBothRef.current({ ...current, dragIndex: next });
+  }, [stopEdgeStep]);
+
+  /** Arm, re-arm or disarm the edge auto-step for a pointer x in the DRAG
+   *  phase. The zone is the VISIBLE region's edge, not the capsule's — the
+   *  capsule can end well inside the screen, and it is the screen the finger
+   *  runs out of. */
+  const updateEdgeStep = useCallback(
+    (clientX: number) => {
+      const view = sampleRegion();
+      const dir: 1 | -1 | 0 =
+        clientX >= view.left + view.width - EDGE_ZONE_PX
+          ? 1
+          : clientX <= view.left + EDGE_ZONE_PX
+            ? -1
+            : 0;
+      if (dir === edgeDir.current) return;
+      stopEdgeStep();
+      if (dir === 0) return;
+      edgeDir.current = dir;
+      edgeTimer.current = setInterval(edgeStepTick, EDGE_STEP_MS);
+    },
+    [stopEdgeStep, edgeStepTick],
+  );
+
   const teardown = useCallback(() => {
     clearTimeout(timer.current);
+    stopEdgeStep();
     // Pointer capture is deliberately NOT released here (eleventh pass).
     // Capture's lifetime is the PRESS's, not the overlay's: on the Escape
     // path the press record outlives this teardown until the finger lifts,
@@ -677,7 +754,14 @@ export function useHoldDrag({
     if (!press.current) disarmWindowNetRef.current();
     document.documentElement.removeAttribute("data-hold-gesture");
     setActiveBoth(null);
-  }, [onWindowTouchMove, onWindowWheel, onWindowKey, disarmViewportWatch, setActiveBoth]);
+  }, [
+    onWindowTouchMove,
+    onWindowWheel,
+    onWindowKey,
+    disarmViewportWatch,
+    setActiveBoth,
+    stopEdgeStep,
+  ]);
   teardownRef.current = teardown;
 
   /** The pre-hold safety net for UNCAPTURED exits (twelfth pass). A mouse
@@ -1032,6 +1116,9 @@ export function useHoldDrag({
       tap(5);
       setActiveBoth({ ...current, dragIndex: next });
     }
+    // …and at the screen's edge, where the finger can travel no further,
+    // the value keeps stepping on a timer (EDGE_ZONE_PX).
+    if (current.phase === "drag") updateEdgeStep(e.clientX);
   }
 
   function settle() {

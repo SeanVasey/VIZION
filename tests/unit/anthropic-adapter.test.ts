@@ -30,10 +30,16 @@ describe("buildAnthropicParams", () => {
     }
   });
 
+  it("folds the legacy `minimal` onto low — Anthropic has no such effort", () => {
+    const p = buildAnthropicParams("claude-sonnet-5", "sys", "in", "minimal");
+    expect(p.output_config).toEqual({ effort: "low" });
+    expect(p.max_tokens).toBe(32_000);
+  });
+
   it("carries the system prompt and a single user message", () => {
-    const p = buildAnthropicParams("claude-fable-5", "SYS", "INPUT");
+    const p = buildAnthropicParams("claude-fable-5-1", "SYS", "INPUT");
     expect(p.system).toBe("SYS");
     expect(p.messages).toEqual([{ role: "user", content: "INPUT" }]);
-    expect(p.model).toBe("claude-fable-5");
+    expect(p.model).toBe("claude-fable-5-1");
   });
 });

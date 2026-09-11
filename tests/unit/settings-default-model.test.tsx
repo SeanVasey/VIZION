@@ -61,16 +61,16 @@ describe("Settings default model", () => {
   it("stores a concrete pick and writes it through to the live store", async () => {
     renderPanel();
     fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.5/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.6/i }));
     await vi.waitFor(() =>
       expect(profileActions.updateProfileAction).toHaveBeenCalledWith({
-        default_model: "grok_4_5",
+        default_model: "grok_4_6",
       }),
     );
-    expect(useUIStore.getState().targetModel).toBe("grok_4_5");
+    expect(useUIStore.getState().targetModel).toBe("grok_4_6");
     // A concrete default is also the statement "do not open on Auto".
     expect(useUIStore.getState().autoTarget).toBe(false);
-    expect(trigger().textContent).toContain("Grok 4.5");
+    expect(trigger().textContent).toContain("Grok 4.6");
   });
 
   it("clears to Auto through the picker's Auto row", async () => {
@@ -121,9 +121,9 @@ describe("Settings default model", () => {
     useUIStore.setState({ targetModel: "kimi_k3", autoTarget: true });
     renderPanel({ ...PROFILE, default_model: null });
     fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.5/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.6/i }));
     // Optimistic apply moves both knobs…
-    expect(useUIStore.getState().targetModel).toBe("grok_4_5");
+    expect(useUIStore.getState().targetModel).toBe("grok_4_6");
     expect(useUIStore.getState().autoTarget).toBe(false);
     // …and the failure restores BOTH: Auto back on, fallback back to the
     // device's own pick.

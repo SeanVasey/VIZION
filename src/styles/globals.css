@@ -388,36 +388,44 @@
   /* The ultra flood (the reference recording's wash, and the owner's ask,
      2026-08-15: "once it reaches the purples, the purple takes over the
      entire gradient and washes over it"). Mounted while the CURRENT detent's
-     tone is ultra — both ultra stops, not only the peak — so it costs
-     nothing below that tier.
+     tone is ultra, so it costs nothing below that tier.
 
-     Mechanics: the gradient image is 3× the element (background-size 300%),
-     transparent through its left 40% and solid ultra through its right
-     third. Animating background-position 0 → 100% slides the solid third
-     into view, so the violet enters at the ELEMENT'S RIGHT — the thumb end —
-     and floods leftward, its leading edge kept soft by the 40→66% fade zone.
-     The settled frame shows only the solid third, at ANY element width,
-     which is what lets the fill's own width transition stretch this span
-     mid-flood without ever exposing a seam. Same compositor-driven
-     background-position mechanism as the starfield; the ultra-ink-hi tail
-     leaves a faint hot edge at the thumb, the recording's glow. Both
-     stand-downs settle it instantly — at the ultra stops the fill simply IS
-     violet. */
+     Mechanics (ADR-0018, superseding the 2026-08-15 slide). The first cut
+     slid a 300%-wide image with a transparent left and a solid right third
+     across the element — which put a MOVING EDGE inside the fill, and a
+     moving edge with a 26%-wide fade is a block travelling across the
+     track ("little … purple blocks", owner, 2026-09-11). The wash is now two
+     layers of motion with no edge in either: an OPACITY entrance (the
+     violet fades up over the grey ramp in place), and a slow, endless,
+     alternating background-position drift of a soft ultra → ultra-hi →
+     ultra gradient at 200% width, so the settled fill breathes rather than
+     sits. Ease-in-out both ways and `alternate`, so there is no loop seam.
+     Both stand-downs settle it instantly and hold it still — at the ultra
+     stops the fill simply IS violet. */
   .hold-slider-wash {
     background-image: linear-gradient(
       90deg,
-      transparent 0%,
-      transparent 40%,
-      color-mix(in srgb, var(--ultra-ink) 60%, transparent) 55%,
-      var(--ultra-ink) 66.67%,
-      var(--ultra-ink) 88%,
-      var(--ultra-ink-hi) 100%
+      var(--ultra-ink) 0%,
+      color-mix(in srgb, var(--ultra-ink) 78%, var(--ultra-ink-hi)) 35%,
+      var(--ultra-ink-hi) 55%,
+      color-mix(in srgb, var(--ultra-ink) 78%, var(--ultra-ink-hi)) 75%,
+      var(--ultra-ink) 100%
     );
-    background-size: 300% 100%;
-    background-position: 0 0;
-    animation: hold-slider-wash 1.2s ease-in-out forwards;
+    background-size: 200% 100%;
+    background-position: 0% 0;
+    animation:
+      hold-slider-wash-in 700ms ease-out forwards,
+      hold-slider-wash-drift 5.5s ease-in-out infinite alternate;
   }
-  @keyframes hold-slider-wash {
+  @keyframes hold-slider-wash-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes hold-slider-wash-drift {
     to {
       background-position: 100% 0;
     }
@@ -425,12 +433,55 @@
   @media (prefers-reduced-motion: reduce) {
     .hold-slider-wash {
       animation: none;
-      background-position: 100% 0;
+      opacity: 1;
+      background-image: none;
+      background-color: var(--ultra-ink);
     }
   }
   [data-reduced-effects] .hold-slider-wash {
     animation: none;
-    background-position: 100% 0;
+    opacity: 1;
+    background-image: none;
+    background-color: var(--ultra-ink);
+  }
+
+  /* The sheen (ADR-0018): a soft band of light sweeping the fill, endlessly,
+     at every stop — the "dynamically moving" the owner asked for, kept OUT
+     of the ramp itself so the level colours stay pinned to their detents.
+     A 300%-wide image whose middle third carries one faint, wide,
+     symmetric highlight; the drift alternates so the band never jumps.
+     Chalk-based so it inverts with the theme (a white band on the light
+     theme's pale fill would vanish; a chalk band there is dark and reads as
+     a passing shadow, which is the same gesture). Same pause-list
+     classification as the starfield: capsule-internal, above the halo,
+     never invalidates the filtered backdrop. Both stand-downs remove it —
+     a static band is a stripe. */
+  .hold-slider-sheen {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent 38%,
+      color-mix(in srgb, var(--chalk) 14%, transparent) 50%,
+      transparent 62%,
+      transparent 100%
+    );
+    background-size: 300% 100%;
+    background-position: 0% 0;
+    animation: hold-slider-sheen 4.2s ease-in-out infinite alternate;
+    mix-blend-mode: screen;
+  }
+  @keyframes hold-slider-sheen {
+    to {
+      background-position: 100% 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hold-slider-sheen {
+      display: none;
+    }
+  }
+  [data-reduced-effects] .hold-slider-sheen {
+    display: none;
   }
 
   /* The arrival burst — a dotted ring blooming off the thumb at the top stop.

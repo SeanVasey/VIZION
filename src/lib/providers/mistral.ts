@@ -4,6 +4,7 @@ import { PROVIDER_MAX_RETRIES } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
+  describeProviderFailure,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
@@ -81,9 +82,18 @@ export async function* streamMistral(
     // Already shaped (e.g. the idle-timeout 504) — re-wrapping drops status.
     if (error instanceof ProviderError) throw error;
     if (error instanceof OpenAI.APIError) {
+      // A 401 here is the 2026-09 screenshot ("401 status code (no body)"):
+      // Mistral answers a refused key with an EMPTY body, so without the
+      // helper's sentence the user gets a bare status and no next step.
       throw new ProviderError(
         "mistral",
-        `Mistral request failed: ${error.message}`,
+        describeProviderFailure(
+          "mistral",
+          "Mistral",
+          "MISTRAL_API_KEY",
+          error.status,
+          error.message,
+        ),
         error.status,
       );
     }

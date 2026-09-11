@@ -13,17 +13,19 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
     "Target engine: Claude Opus. Favor XML-tagged sections (e.g. <task>, <context>, <constraints>, <examples>) and chain-of-thought scaffolds where reasoning helps, all inside the one prompt. Structure for long context.",
   sonnet_5:
     "Target engine: Claude Sonnet. Favor clear, direct instructions with XML-tagged sections for layered context; state the goal, constraints, and expected output shape explicitly — this engine follows instructions literally and rewards precision over hint-dropping.",
+  gpt_6_astra:
+    "Target engine: GPT. State the goal and the finished-answer criteria up front, then let the engine plan — avoid over-prescriptive step lists; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
   gpt_5_6_sol:
     "Target engine: GPT. Favor terse, directive instructions; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
   gpt_5_6_luna:
     "Target engine: GPT. Keep the prompt short and self-contained with the goal and expected output format stated explicitly — this small, fast tier rewards brevity and concrete instructions over elaborate scaffolding.",
   gpt_5_6_terra:
     "Target engine: GPT. Favor terse, directive instructions with the goal stated first; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt — this balanced tier follows a crisp brief without heavy scaffolding.",
-  fable_5:
+  fable_5_1:
     "Target engine: Claude Fable. State the goal, constraints, and what a finished answer looks like, and avoid over-prescriptive step-by-step scaffolding — this engine plans best from a clear brief. XML-tagged sections are welcome for long or layered context.",
   deepseek_v4:
     "Target engine: DeepSeek. State the problem plainly and completely up front, then let the engine reason — avoid prescribing step-by-step chains. Spell out the expected output format explicitly near the end of the prompt.",
-  gemini_3_6_flash:
+  gemini_3_8_flash:
     "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. Keep the goal and the constraints in clearly separated blocks so the reasoning passes have something definite to work against.",
   muse_spark_1_1:
     "Target engine: Muse Spark. State the goal explicitly up front, enumerate requirements as numbered constraints, and put the output contract (format, length, done-criteria) near the top — this agentic engine executes a well-specified brief best and handles very long inline context.",
@@ -37,9 +39,9 @@ const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
     "Target engine: Perplexity Sonar. Phrase the prompt as a research brief: state what to find, the time window that matters, source expectations (e.g. cite sources), and the shape of the answer — this engine searches the web, so scoping and recency cues do real work.",
   qwen3_8_max:
     "Target engine: Qwen. Favor explicit, well-structured instructions with the task, context, and output format clearly separated; state language expectations when relevant — this engine is strong multilingually and rewards clean structure.",
-  grok_4_5:
+  grok_4_6:
     "Target engine: Grok. Favor direct, plain-spoken instructions with the needed context stated inline; spell out the desired output format and any tone constraints inside the prompt.",
-  glm_5_2:
+  glm_5_3:
     "Target engine: GLM. Favor structured, explicit specs — separate the task, context, constraints, and output format into clearly labeled parts and state acceptance criteria for code or reasoning work; this engine rewards complete, unambiguous specifications.",
 };
 

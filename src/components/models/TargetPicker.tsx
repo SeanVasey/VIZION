@@ -33,7 +33,7 @@ import {
  *
  * Replaces the native `<select>` on both surfaces that pick a model. A native
  * select can't render the developer marks (an `<option>` takes text only), so
- * sixteen models across twelve developers arrived as one flat alphabet-soup
+ * seventeen models across twelve developers arrived as one flat alphabet-soup
  * list with the mark stranded outside on the control's edge, describing only
  * whichever row happened to be selected. Grouping is the whole point: the
  * roster is *already* ordered by developer (`DEVELOPER_ORDER`, contiguity
@@ -248,7 +248,7 @@ function TargetPickerSheet({
   streaming?: boolean;
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null);
-  // Open on the current pick rather than the top of a sixteen-row list.
+  // Open on the current pick rather than the top of a seventeen-row list.
   const initialFocus = useMemo(() => selectedRef, []);
   // The radio roles promise arrow keys (A11Y-002). Picking closes the sheet,
   // so arrows move FOCUS only; Enter/Space activates.
@@ -466,7 +466,7 @@ function AutoTuningDial({
       // Block-level here: this dial spans the sheet's column under the card
       // it tunes, unlike the composer rail's content-width pills — which is
       // exactly why it also declares `scrollableHost`: a full-width band
-      // across an overflowing sixteen-row list would otherwise swallow the
+      // across an overflowing seventeen-row list would otherwise swallow the
       // pan that scrolls it.
       className="flex w-full"
       scrollableHost

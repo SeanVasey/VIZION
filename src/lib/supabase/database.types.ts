@@ -184,7 +184,7 @@ export type Database = {
           title: string;
           target_model: Database["public"]["Enums"]["model_target"];
           mode: Database["public"]["Enums"]["enhance_mode"];
-          /** `null` = Auto, matching an absent `thinkingLevels` entry. Text,
+          /** `null` = Auto, matching a null `thinkingLevel` in the UI store. Text,
            *  not an enum — THINKING_LEVELS has no database enum. */
           thinking_level: string | null;
           created_at: string;
@@ -553,17 +553,18 @@ export type Database = {
         | "opus_5"
         | "sonnet_5"
         | "gpt_5_6_sol"
-        | "fable_5"
+        | "gpt_6_astra"
+        | "fable_5_1"
         | "deepseek_v4"
-        | "gemini_3_6_flash"
+        | "gemini_3_8_flash"
         | "muse_spark_1_1"
         | "minimax_m3"
         | "mistral_large_3"
         | "kimi_k3"
         | "sonar_pro"
         | "qwen3_8_max"
-        | "grok_4_5"
-        | "glm_5_2"
+        | "grok_4_6"
+        | "glm_5_3"
         | "gpt_5_6_luna"
         | "gpt_5_6_terra";
       oauth_provider: "github" | "google";

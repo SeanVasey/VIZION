@@ -105,7 +105,7 @@ describe("useEnhanceViewStore", () => {
       submitted: { ...VALID_VIEW.submitted, format: "json", length: "medium" },
       result: {
         ...VALID_VIEW.result,
-        resolvedTarget: "fable_5",
+        resolvedTarget: "fable_5_1",
         assumptions: ["assumed X"],
         title: "A name",
         salvaged: true,

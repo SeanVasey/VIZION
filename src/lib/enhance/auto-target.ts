@@ -42,10 +42,9 @@ import { TARGET_ROUTING, blendedPrice, type SpeedClass } from "@/lib/providers/m
  *     let the route's existing pre-stream 503 say so — exactly what a manual
  *     pick of that model would do.
  *
- * Unlike the previous table, a resolved target may carry no thinking ladder
- * (no TARGET_THINKING_LEVELS entry). Deliberate, and safe: under `auto` the
- * route drops an out-of-ladder thinkingLevel as advisory (PRV-001), and the
- * composer's refine path already shows no dial for ladder-less models.
+ * A resolved target may carry no thinking knob (TARGET_HAS_THINKING false).
+ * Deliberate, and safe: the route sends nothing to a knob-less target and
+ * the dial's level stays an advisory preference (PRV-001, ADR-0018).
  */
 
 /**
@@ -56,7 +55,7 @@ import { TARGET_ROUTING, blendedPrice, type SpeedClass } from "@/lib/providers/m
  */
 export const LONG_INPUT_CHARS = 4_000;
 
-type AutoTier = "light" | "heavy";
+export type AutoTier = "light" | "heavy";
 
 /** Why routing landed where it did — reported back as `resolvedReason` so the
  *  result meta can say more than "Auto → X". Priority when several apply:
@@ -184,7 +183,13 @@ export const AUTO_LADDERS: Record<
   },
 };
 
-function classify(
+/**
+ * The job's TIER — exported because it is also what resolves the Thinking
+ * dial's "Auto" (ADR-0018): a light job gets a medium effort, a heavy one
+ * high, whichever provider runs it. One classifier for both decisions, so
+ * routing and depth can never disagree about what kind of job this is.
+ */
+export function classifyTier(
   mode: ModeId,
   inputChars: number,
   hasMedia: boolean,
@@ -208,12 +213,32 @@ export function resolveAutoTarget(
   preference: AutoPreference = "balanced",
   isConfigured: (t: TargetModelId) => boolean = isProviderConfigured,
 ): AutoRoute {
-  const { tier, reason } = classify(mode, inputChars, hasMedia);
+  const { tier, reason } = classifyTier(mode, inputChars, hasMedia);
   const ladder = AUTO_LADDERS[preference][tier];
-  // Ladders are total over a 15-model pool, so the final `?? "opus_5"` is
+  // Ladders are total over a 16-model pool, so the final `?? "opus_5"` is
   // unreachable — it exists because the index type can't prove non-emptiness.
   const target = ladder.find(isConfigured) ?? ladder[0] ?? "opus_5";
   return { target, tier, reason };
+}
+
+/**
+ * The Thinking dial's "Auto", resolved. Until 2026-09 Auto sent nothing and
+ * the provider's own default applied — which was `high` on the Claude 5
+ * family and Grok, and MAX on Kimi K3 and GLM-5.3: every untuned run on
+ * those targets was the slowest, costliest configuration their API offers,
+ * for a job that is usually "fix the grammar in this paragraph" (the
+ * "models slow, time out" report, 2026-09-11). Auto now means the APP's
+ * default for the job, not the vendor's: the same tier split routing uses —
+ * bounded modes get `medium`, structure-inventing ones (or a long or
+ * media-bearing input) get `high`. Explicit dial choices are untouched, and
+ * targets with no knob still get nothing sent.
+ */
+export function defaultThinkingLevel(
+  mode: ModeId,
+  inputChars: number,
+  hasMedia: boolean,
+): "medium" | "high" {
+  return classifyTier(mode, inputChars, hasMedia).tier === "heavy" ? "high" : "medium";
 }
 
 /**

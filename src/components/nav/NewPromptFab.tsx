@@ -58,7 +58,7 @@ export function NewPromptFab() {
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
   const targetModel = useUIStore((s) => s.targetModel);
   const activeMode = useUIStore((s) => s.activeMode);
-  const thinkingLevels = useUIStore((s) => s.thinkingLevels);
+  const thinkingLevel = useUIStore((s) => s.thinkingLevel);
 
   const [askOpen, setAskOpen] = useState(false);
   const [pending, startAction] = useTransition();
@@ -81,7 +81,7 @@ export function NewPromptFab() {
         body: editorDraft,
         target: targetModel,
         mode: activeMode,
-        thinkingLevel: thinkingLevels[targetModel] ?? null,
+        thinkingLevel,
       });
       if (!res.ok) {
         // Keep the draft and keep the sheet open — the user asked to preserve

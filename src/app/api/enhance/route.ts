@@ -3,9 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { writeErrorLogLine } from "@/lib/supabase/errors";
 import {
   AUTO_PREFERENCES,
+  MAX_INPUT_CHARS,
   MODES,
+  TARGET_HAS_THINKING,
   TARGET_MODELS,
-  TARGET_THINKING_LEVELS,
+  THINKING_LEVELS,
   type AutoPreference,
   type ModeId,
   type TargetModelId,
@@ -32,7 +34,7 @@ import { rateLimit } from "@/lib/security/rate-limit";
 import { reserveSpend, settleSpend, releaseSpend } from "@/lib/security/spend";
 import { getAppSettings, isOwnerUser } from "@/lib/owner/settings";
 import { boundedDiffWords } from "@/lib/enhance/diff";
-import { resolveAutoTarget } from "@/lib/enhance/auto-target";
+import { defaultThinkingLevel, resolveAutoTarget } from "@/lib/enhance/auto-target";
 import { isFormatId, type FormatId } from "@/lib/enhance/formats";
 import { isLengthId, type LengthId } from "@/lib/enhance/lengths";
 import {
@@ -42,10 +44,10 @@ import {
   type StreamStep,
 } from "@/lib/enhance/stream-events";
 
-const MAX_INPUT_CHARS = 20_000;
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
 const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 const REFINE_KIND_IDS = new Set<string>(REFINE_KINDS);
+const THINKING_LEVEL_IDS = new Set<string>(THINKING_LEVELS);
 
 /**
  * Streaming can outlive the default function window on long enhancements.
@@ -167,8 +169,9 @@ export async function POST(request: NextRequest) {
   const typedMode = mode as ModeId;
   // Auto routing resolves HERE — after the target gate that guarantees a real
   // fallback id, and before every gate below that reads the target. The
-  // thinking gate indexes TARGET_THINKING_LEVELS by target, so resolving later
-  // would validate the dial against a model the user isn't going to get.
+  // thinking gate reads TARGET_HAS_THINKING for the RESOLVED target, so
+  // resolving later would decide the dial against a model the user isn't
+  // going to get.
   //
   // Routing only needs to know WHETHER media is attached, so the cheap shape
   // check is enough; the array's full validation still runs below and still
@@ -185,28 +188,30 @@ export async function POST(request: NextRequest) {
     ? autoRoute.target
     : (target as TargetModelId);
 
-  // Optional per-request reasoning depth — only the exact values the target's
-  // provider accepts (TARGET_THINKING_LEVELS); anything else is a 400, so an
-  // invented level can never reach a provider as a bad wire value.
+  // Optional per-request reasoning depth — ONE ladder for every model
+  // (ADR-0018). Legality is checked against the app's wire vocabulary; the
+  // ADAPTER translates the level onto whatever its provider accepts, so no
+  // target can 400 a level another target offered. A target with no knob at
+  // all (Mistral, Sonar, …) simply gets nothing sent — advisory, never a
+  // 400: the user's dial position is a preference, not a claim about that
+  // provider's API.
   //
-  // Under Auto the level was chosen against the PINNED model, not the one
-  // routing resolves — Gemini's 'minimal' is valid UI state that no Anthropic
-  // ladder accepts (PRV-001). The user asked for routing, not that dial, so
-  // an out-of-ladder level is advisory there: dropped, never a 400.
-  const allowedLevels = TARGET_THINKING_LEVELS[typedTarget];
-  let typedThinkingLevel = thinkingLevel as ThinkingLevel | undefined;
+  // "Auto" (no level sent) is resolved HERE, not left to the vendor: a
+  // vendor default is `max` on Kimi/GLM and `high` on Anthropic/Grok, which
+  // made the untuned path the slowest one for a grammar fix. The tier split
+  // routing already uses picks medium for bounded jobs, high for
+  // structure-inventing ones (defaultThinkingLevel).
   if (
     thinkingLevel !== undefined &&
-    (typeof thinkingLevel !== "string" ||
-      !allowedLevels ||
-      !(allowedLevels as readonly string[]).includes(thinkingLevel))
+    (typeof thinkingLevel !== "string" || !THINKING_LEVEL_IDS.has(thinkingLevel))
   ) {
-    if (auto && typeof thinkingLevel === "string") {
-      typedThinkingLevel = undefined;
-    } else {
-      return err(400, "That thinking level isn't available for this model.");
-    }
+    return err(400, "Unknown thinking level.");
   }
+  const hasMediaForTier = Array.isArray(mediaContext) && mediaContext.length > 0;
+  const typedThinkingLevel: ThinkingLevel | undefined = TARGET_HAS_THINKING[typedTarget]
+    ? ((thinkingLevel as ThinkingLevel | undefined) ??
+      defaultThinkingLevel(typedMode, input.length, hasMediaForTier))
+    : undefined;
   // Reformat's output shape. Validated for legality only — buildSystemPrompt
   // gates it by mode, so a format sent alongside any other mode is inert
   // rather than contradictory, and a stale client can't produce a prompt that

@@ -85,7 +85,7 @@ beforeEach(() => {
     activeMode: "polish",
     autoTarget: false,
     targetModel: "opus_5",
-    thinkingLevels: {},
+    thinkingLevel: null,
     // Default the how-to line OUT of the way; its own block turns it back on.
     dialTipSeen: true,
   });
@@ -127,13 +127,13 @@ describe("thinking rail sizing", () => {
   });
 
   it("declares the ARIA slider contract its keyboard ladder implements", () => {
-    useUIStore.setState({ thinkingLevels: { opus_5: "high" } });
+    useUIStore.setState({ thinkingLevel: "high" });
     renderComposer();
     const dial = thinkingTrigger();
-    // [Auto, low, medium, high, xhigh, max] — Auto is index 0, so max is the
-    // LADDER length, not the ladder length plus one.
+    // [Auto, low, medium, high, max] — Auto is index 0, so max is the
+    // LADDER length, not the ladder length plus one (ADR-0018: four stops).
     expect(dial.getAttribute("aria-valuemin")).toBe("0");
-    expect(dial.getAttribute("aria-valuemax")).toBe("5");
+    expect(dial.getAttribute("aria-valuemax")).toBe("4");
     expect(dial.getAttribute("aria-valuenow")).toBe("3");
     // The NAME of the value, never its ordinal.
     expect(dial.getAttribute("aria-valuetext")).toBe("High");
@@ -162,7 +162,7 @@ describe("thinking rail sizing", () => {
     // to the SAME index the ARIA contract publishes — a hint that lagged the
     // label would be a second, wrong readout rather than a picture of the
     // first one.
-    useUIStore.setState({ thinkingLevels: { opus_5: "high" } });
+    useUIStore.setState({ thinkingLevel: "high" });
     renderComposer();
     const thumbX = () =>
       Number.parseFloat(
@@ -172,11 +172,11 @@ describe("thinking rail sizing", () => {
     expect(thinkingTrigger().getAttribute("aria-valuenow")).toBe("3");
     const atHigh = thumbX();
 
-    act(() => useUIStore.setState({ thinkingLevels: { opus_5: "max" } }));
-    expect(thinkingTrigger().getAttribute("aria-valuenow")).toBe("5");
+    act(() => useUIStore.setState({ thinkingLevel: "max" }));
+    expect(thinkingTrigger().getAttribute("aria-valuenow")).toBe("4");
     expect(thumbX()).toBeGreaterThan(atHigh);
 
-    act(() => useUIStore.setState({ thinkingLevels: {} }));
+    act(() => useUIStore.setState({ thinkingLevel: null }));
     expect(thinkingTrigger().getAttribute("aria-valuenow")).toBe("0");
     expect(thumbX()).toBeLessThan(atHigh);
   });
@@ -203,48 +203,48 @@ describe("thinking rail behaviour", () => {
   it("shows Auto until a depth is picked, then the chosen label", () => {
     const { rerender } = renderComposer();
     expect(thinkingTrigger()).toHaveTextContent("Auto");
-    useUIStore.setState({ thinkingLevels: { opus_5: "xhigh" } });
+    useUIStore.setState({ thinkingLevel: "max" });
     rerender(
       <ToastProvider>
         <EnhanceComposer />
       </ToastProvider>,
     );
-    expect(thinkingTrigger()).toHaveTextContent("Extra High");
+    expect(thinkingTrigger()).toHaveTextContent("Max");
   });
 
-  it("steps the ladder on the arrow keys, stores it per target, and sends it", () => {
+  it("steps the ladder on the arrow keys, stores it, and sends it", () => {
     // The keyboard path is what retired the sheet: the whole ladder is on
     // the control, so reaching a value never requires opening anything.
     renderComposer();
     fireEvent.keyDown(thinkingTrigger(), { key: "ArrowRight" });
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "low" });
+    expect(useUIStore.getState().thinkingLevel).toBe("low");
     fireEvent.keyDown(thinkingTrigger(), { key: "ArrowRight" });
     fireEvent.keyDown(thinkingTrigger(), { key: "ArrowRight" });
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "high" });
+    expect(useUIStore.getState().thinkingLevel).toBe("high");
     expect(submit().thinkingLevel).toBe("high");
   });
 
   it("jumps the ends with Home/End and clamps past them", () => {
     renderComposer();
     fireEvent.keyDown(thinkingTrigger(), { key: "End" });
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "max" });
+    expect(useUIStore.getState().thinkingLevel).toBe("max");
     // Already at the top: another step is a no-op, not an overflow.
     fireEvent.keyDown(thinkingTrigger(), { key: "ArrowRight" });
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "max" });
+    expect(useUIStore.getState().thinkingLevel).toBe("max");
     fireEvent.keyDown(thinkingTrigger(), { key: "Home" });
-    expect(useUIStore.getState().thinkingLevels).toEqual({});
+    expect(useUIStore.getState().thinkingLevel).toBeNull();
   });
 
   it("clears back to Auto, which sends no level at all", () => {
-    useUIStore.setState({ thinkingLevels: { opus_5: "low" } });
+    useUIStore.setState({ thinkingLevel: "low" });
     renderComposer();
     fireEvent.keyDown(thinkingTrigger(), { key: "ArrowLeft" });
-    expect(useUIStore.getState().thinkingLevels).toEqual({});
+    expect(useUIStore.getState().thinkingLevel).toBeNull();
     expect(submit()).not.toHaveProperty("thinkingLevel");
   });
 
   it("reflects the stored level in the dial glyph and its ink", () => {
-    useUIStore.setState({ thinkingLevels: { opus_5: "max" } });
+    useUIStore.setState({ thinkingLevel: "max" });
     const { rerender } = renderComposer();
     // Max breaks the meter (its tall bar overshoots) and carries ultra ink.
     expect(thinkingTrigger().querySelector('svg path[d="M18 19V4"]')).not.toBeNull();
@@ -258,7 +258,7 @@ describe("thinking rail behaviour", () => {
     // …while the middle of the ladder stays in the monochrome silver: the
     // sub-ultra ramp is one family (2026-08-15), so the tier is carried by
     // the WORD and the meter's filled bars, and only ultra earns colour…
-    useUIStore.setState({ thinkingLevels: { opus_5: "high" } });
+    useUIStore.setState({ thinkingLevel: "high" });
     rerender(
       <ToastProvider>
         <EnhanceComposer />
@@ -267,7 +267,7 @@ describe("thinking rail behaviour", () => {
     expect(screen.getByText("High").className).toContain("text-silver");
 
     // …and Auto keeps the neutral full meter in Silver, the original mark.
-    useUIStore.setState({ thinkingLevels: {} });
+    useUIStore.setState({ thinkingLevel: null });
     rerender(
       <ToastProvider>
         <EnhanceComposer />
@@ -280,36 +280,127 @@ describe("thinking rail behaviour", () => {
     expect(screen.getByText("Auto").className).toContain("text-silver");
   });
 
-  it("offers only the selected target's ladder, and no rail without one", () => {
+  it("offers the SAME ladder for every model, and no rail for one with no knob", () => {
+    // ADR-0018: one four-stop ladder, whatever the target. Opus, Gemini and
+    // Grok all top out at Max and start at Low; the ADAPTER translates.
     const { rerender } = renderComposer();
-    // Opus runs the five-step ladder, so End lands on Max…
     fireEvent.keyDown(thinkingTrigger(), { key: "End" });
     expect(thinkingTrigger()).toHaveTextContent("Max");
-    expect(thinkingTrigger().getAttribute("aria-valuemax")).toBe("5");
-
-    // …while Gemini's four-step ladder tops out at High and starts at
-    // Minimal, which is not on Opus's ladder at all.
-    useUIStore.setState({ targetModel: "gemini_3_6_flash" });
-    rerender(
-      <ToastProvider>
-        <EnhanceComposer />
-      </ToastProvider>,
-    );
     expect(thinkingTrigger().getAttribute("aria-valuemax")).toBe("4");
-    fireEvent.keyDown(thinkingTrigger(), { key: "End" });
-    expect(thinkingTrigger()).toHaveTextContent("High");
-    fireEvent.keyDown(thinkingTrigger(), { key: "Home" });
-    fireEvent.keyDown(thinkingTrigger(), { key: "ArrowRight" });
-    expect(thinkingTrigger()).toHaveTextContent("Minimal");
 
-    // DeepSeek takes no per-request level — the whole rail goes away.
-    useUIStore.setState({ targetModel: "deepseek_v4" });
+    for (const targetModel of ["gemini_3_8_flash", "grok_4_6", "kimi_k3"] as const) {
+      useUIStore.setState({ targetModel });
+      rerender(
+        <ToastProvider>
+          <EnhanceComposer />
+        </ToastProvider>,
+      );
+      // The level SURVIVES the switch — the dial no longer forgets per model.
+      expect(thinkingTrigger().getAttribute("aria-valuemax")).toBe("4");
+      expect(thinkingTrigger()).toHaveTextContent("Max");
+      expect(submit().thinkingLevel).toBe("max");
+    }
+
+    // Mistral takes no per-request level — the whole rail goes away, and the
+    // request carries no level for it (the route would drop it anyway; the
+    // preference is kept in the store for the next model that can use it).
+    useUIStore.setState({ targetModel: "mistral_large_3" });
     rerender(
       <ToastProvider>
         <EnhanceComposer />
       </ToastProvider>,
     );
     expect(screen.queryByText("Thinking")).toBeNull();
+    expect(useUIStore.getState().thinkingLevel).toBe("max");
+  });
+
+  it("keeps the rail under Auto — routing may land on a model with a knob", () => {
+    useUIStore.setState({ targetModel: "mistral_large_3", autoTarget: true });
+    renderComposer();
+    expect(screen.getByText("Thinking")).toBeInTheDocument();
+    fireEvent.keyDown(thinkingTrigger(), { key: "ArrowRight" });
+    fireEvent.keyDown(thinkingTrigger(), { key: "ArrowRight" });
+    const req = submit();
+    expect(req.auto).toBe(true);
+    expect(req.thinkingLevel).toBe("medium");
+  });
+
+  it("drops a failed run's error when the model, mode or routing changes", () => {
+    // "Mistral request failed: 401" must not keep sitting under a composer
+    // now aimed at Opus — a setting that hangs around past its relevance
+    // (owner, 2026-09-11). The mutation's error state resets on the change.
+    mockMutation.isError = true;
+    mockMutation.error = { message: "Mistral request failed: 401", status: 502 };
+    useUIStore.setState({ targetModel: "mistral_large_3" });
+    renderComposer();
+    expect(screen.getByRole("alert")).toHaveTextContent("Mistral request failed");
+    expect(mockMutation.reset).not.toHaveBeenCalled();
+    act(() => useUIStore.setState({ targetModel: "opus_5" }));
+    expect(mockMutation.reset).toHaveBeenCalledTimes(1);
+    mockMutation.isError = false;
+    mockMutation.error = null;
+  });
+});
+
+describe("the prompt field (2026-09 form pass)", () => {
+  it("counts the draft against the route's own ceiling and disables ENHANCE past it", () => {
+    renderComposer();
+    const field = screen.getByLabelText("Prompt input");
+    // Below a third of the limit the count stays out of the way.
+    fireEvent.change(field, { target: { value: "short" } });
+    expect(document.querySelector("[data-composer-chars]")).toBeNull();
+    // Approaching it, the count appears against the SAME number the route
+    // 413s on…
+    fireEvent.change(field, { target: { value: "x".repeat(7_000) } });
+    expect(document.querySelector("[data-composer-chars]")!.textContent).toContain(
+      "7,000 / 20,000",
+    );
+    expect(screen.getByRole("button", { name: /enhance/i })).toBeEnabled();
+    // …and past it the primary disables and nothing is sent.
+    fireEvent.change(field, { target: { value: "x".repeat(20_001) } });
+    expect(document.querySelector("[data-composer-chars]")!.className).toContain(
+      "text-flare",
+    );
+    expect(screen.getByRole("button", { name: /enhance/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /enhance/i }));
+    expect(mockMutation.mutate).not.toHaveBeenCalled();
+  });
+
+  it("runs on ⌘/Ctrl+Enter and keeps plain Enter as a newline", () => {
+    renderComposer();
+    const field = screen.getByLabelText("Prompt input");
+    fireEvent.change(field, { target: { value: "make this better" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(mockMutation.mutate).not.toHaveBeenCalled();
+    fireEvent.keyDown(field, { key: "Enter", metaKey: true });
+    expect(mockMutation.mutate).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(field, { key: "Enter", ctrlKey: true });
+    expect(mockMutation.mutate).toHaveBeenCalledTimes(2);
+  });
+
+  it("sizes itself to its content instead of a fixed eight rows", () => {
+    // The field grows with the draft between a floor and a viewport cap
+    // (measured, not guessed) and never carries a drag handle that would
+    // fight the measurement.
+    renderComposer();
+    const field = screen.getByLabelText("Prompt input") as HTMLTextAreaElement;
+    expect(field.className).toContain("resize-none");
+    expect(field.className).not.toContain("resize-y");
+    expect(field.style.height).toMatch(/px$/);
+    expect(Number.parseFloat(field.style.height)).toBeGreaterThanOrEqual(120);
+  });
+
+  it("keeps the action rail sticky above the bottom nav, outside any scroll container", () => {
+    // A long draft used to push ENHANCE a screen below the field. The rail
+    // sticks to the page scroll — which only works because the chassis clips
+    // with `overflow-clip`, never `overflow-hidden` (a scroll container).
+    const { container } = renderComposer();
+    const rail = container.querySelector<HTMLElement>("[data-composer-rail]")!;
+    expect(rail.className).toContain("sticky");
+    expect(rail.style.bottom).toContain("--bottom-nav-h");
+    const chassis = rail.closest(".glass-solid")!;
+    expect(chassis.className).toContain("overflow-clip");
+    expect(chassis.className).not.toContain("overflow-hidden");
   });
 });
 
@@ -342,7 +433,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     vi.useRealTimers();
   });
 
-  it("offers [Auto, ...the target's ladder] as rising bars — six for Opus", () => {
+  it("offers [Auto, ...the ladder] as rising bars — five, for every model", () => {
     renderComposer();
     fireEvent.pointerDown(thinkingTrigger(), {
       pointerId: 1,
@@ -363,7 +454,6 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       "low",
       "medium",
       "high",
-      "xhigh",
       "max",
     ]);
     // Ascending: the ladder's shape is legible in the ticks themselves.
@@ -377,8 +467,8 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     });
   });
 
-  it("adapts the detent count to the model — four for Grok, Minimal only for Gemini", () => {
-    useUIStore.setState({ targetModel: "grok_4_5" });
+  it("keeps the same five detents on Grok and Gemini — the ladder is not per model", () => {
+    useUIStore.setState({ targetModel: "grok_4_6" });
     const { rerender } = renderComposer();
     fireEvent.pointerDown(thinkingTrigger(), {
       pointerId: 1,
@@ -389,10 +479,10 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     act(() => {
       vi.advanceTimersByTime(HOLD_MS);
     });
-    expect(overlay()!.querySelectorAll("[data-detent-bar]")).toHaveLength(4);
+    expect(overlay()!.querySelectorAll("[data-detent-bar]")).toHaveLength(5);
     fireEvent.pointerCancel(thinkingTrigger(), { pointerId: 1 });
 
-    useUIStore.setState({ targetModel: "gemini_3_6_flash" });
+    useUIStore.setState({ targetModel: "gemini_3_8_flash" });
     rerender(
       <ToastProvider>
         <EnhanceComposer />
@@ -407,25 +497,26 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     act(() => {
       vi.advanceTimersByTime(HOLD_MS);
     });
-    expect(overlay()!.querySelector('[data-detent-bar="minimal"]')).not.toBeNull();
+    expect(overlay()!.querySelectorAll("[data-detent-bar]")).toHaveLength(5);
+    expect(overlay()!.querySelector('[data-detent-bar="minimal"]')).toBeNull();
     fireEvent.pointerCancel(thinkingTrigger(), { pointerId: 1 });
   });
 
-  it("drags to a depth, stores it per target, and sends it", () => {
+  it("drags to a depth, stores it, and sends it", () => {
     renderComposer();
     holdAndDrag(3); // Auto → low → medium → high
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "high" });
+    expect(useUIStore.getState().thinkingLevel).toBe("high");
     vi.useRealTimers(); // submit() renders a toast timer; real time is fine now
     expect(submit().thinkingLevel).toBe("high");
   });
 
   it("drags fully left back to Auto, which sends no level at all", () => {
-    useUIStore.setState({ thinkingLevels: { opus_5: "max" } });
+    useUIStore.setState({ thinkingLevel: "max" });
     renderComposer();
-    // The selected detent (max, index 5) anchors under the finger — five
+    // The selected detent (max, index 4) anchors under the finger — four
     // steps left lands on Auto.
-    holdAndDrag(-5);
-    expect(useUIStore.getState().thinkingLevels).toEqual({});
+    holdAndDrag(-4);
+    expect(useUIStore.getState().thinkingLevel).toBeNull();
     vi.useRealTimers();
     expect(submit()).not.toHaveProperty("thinkingLevel");
   });
@@ -458,7 +549,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     expect(fill().getAttribute("data-tone")).toBe("steel"); // high
     fireEvent.pointerMove(trigger, {
       pointerId: 1,
-      clientX: DOWN_X + 5 * DETENT_SPACING_PX,
+      clientX: DOWN_X + 4 * DETENT_SPACING_PX,
       clientY: 400,
     });
     expect(fill().getAttribute("data-tone")).toBe("ultra"); // max
@@ -469,10 +560,10 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     expect(overlay()!.textContent).not.toContain("Opus 5");
     fireEvent.pointerUp(trigger, {
       pointerId: 1,
-      clientX: DOWN_X + 5 * DETENT_SPACING_PX,
+      clientX: DOWN_X + 4 * DETENT_SPACING_PX,
       clientY: 400,
     });
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "max" });
+    expect(useUIStore.getState().thinkingLevel).toBe("max");
   });
 
   it("latches the capsule on a plain tap — and a tap on the track picks", () => {
@@ -512,12 +603,12 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     const left = Number(String(track.style.left).replace("px", ""));
     fireEvent.pointerDown(track, { pointerId: 2, clientX: left + x, clientY: 400 });
     fireEvent.pointerUp(track, { pointerId: 2, clientX: left + x, clientY: 400 });
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "high" });
+    expect(useUIStore.getState().thinkingLevel).toBe("high");
     expect(overlay()).toBeNull();
   });
 
   it("dismisses a latched capsule on an outside tap, committing nothing", () => {
-    useUIStore.setState({ thinkingLevels: { opus_5: "low" } });
+    useUIStore.setState({ thinkingLevel: "low" });
     renderComposer();
     fireEvent.pointerDown(thinkingTrigger(), {
       pointerId: 1,
@@ -535,7 +626,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     fireEvent.pointerDown(scrim, { pointerId: 2, clientX: 10, clientY: 10 });
     expect(overlay()).toBeNull();
     // Unchanged — dismiss is not a commit.
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "low" });
+    expect(useUIStore.getState().thinkingLevel).toBe("low");
     // …and the claim is released, so the next tap opens a fresh capsule.
     fireEvent.pointerDown(thinkingTrigger(), {
       pointerId: 3,
@@ -570,10 +661,10 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     fireEvent.keyDown(window, { key: "ArrowRight" });
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(overlay()!.textContent).toContain("Medium");
-    expect(useUIStore.getState().thinkingLevels).toEqual({});
+    expect(useUIStore.getState().thinkingLevel).toBeNull();
     fireEvent.keyDown(window, { key: "Enter" });
     expect(overlay()).toBeNull();
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "medium" });
+    expect(useUIStore.getState().thinkingLevel).toBe("medium");
 
     // Escape reverts instead.
     fireEvent.pointerDown(thinkingTrigger(), {
@@ -591,7 +682,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     expect(overlay()!.textContent).toContain("Max");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(overlay()).toBeNull();
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "medium" });
+    expect(useUIStore.getState().thinkingLevel).toBe("medium");
   });
 
   it("marks the ultra tier with the wash, and the top stop with its fanfare", () => {
@@ -616,20 +707,15 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     expect(overlay()!.querySelector("[data-hold-slider-wash]")).toBeNull();
     expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
 
-    // Extra High — the FIRST ultra stop — floods, without the peak's fanfare
+    // The sheen drifts over the fill at EVERY stop — the living gradient
+    // (ADR-0018) is not reserved for the ultra tier.
+    expect(overlay()!.querySelector("[data-hold-slider-sheen]")).not.toBeNull();
+
+    // Max — the ladder's one ultra stop — floods, bursts, and states its cost
     // ("once it reaches the purples, the purple takes over" — 2026-08-15).
     fireEvent.pointerMove(thinkingTrigger(), {
       pointerId: 1,
       clientX: DOWN_X + 4 * DETENT_SPACING_PX,
-      clientY: 400,
-    });
-    expect(overlay()!.querySelector("[data-hold-slider-wash]")).not.toBeNull();
-    expect(overlay()!.querySelector("[data-hold-slider-burst]")).toBeNull();
-    expect(overlay()!.querySelector("[data-hold-slider-caption]")).toBeNull();
-
-    fireEvent.pointerMove(thinkingTrigger(), {
-      pointerId: 1,
-      clientX: DOWN_X + 5 * DETENT_SPACING_PX,
       clientY: 400,
     });
     expect(overlay()!.querySelector("[data-hold-slider-burst]")).not.toBeNull();
@@ -672,7 +758,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientX: DOWN_X + DETENT_SPACING_PX,
       clientY: 400,
     });
-    expect(useUIStore.getState().thinkingLevels).toEqual({ opus_5: "low" });
+    expect(useUIStore.getState().thinkingLevel).toBe("low");
   });
 
   it("shields every other control while a capsule is up — no sheet under the gesture", () => {
@@ -747,7 +833,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientX: DOWN_X,
       clientY: 400,
     });
-    expect(useUIStore.getState().thinkingLevels).toEqual({});
+    expect(useUIStore.getState().thinkingLevel).toBeNull();
   });
 
   it("stays out of a foreign open sheet — a held row there is a tap, not a drag", () => {
@@ -759,7 +845,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     // in the Target sheet must be exactly a tap.
     renderComposer();
     fireEvent.click(targetTrigger());
-    const row = screen.getByRole("radio", { name: "Fable 5" });
+    const row = screen.getByRole("radio", { name: "Fable 5.1" });
     fireEvent.pointerDown(row, {
       pointerId: 1,
       clientX: DOWN_X,
@@ -773,7 +859,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     fireEvent.pointerUp(row, { pointerId: 1, clientX: DOWN_X, clientY: 400 });
     // The row's own tap still lands and closes the sheet.
     fireEvent.click(row);
-    expect(useUIStore.getState().targetModel).toBe("fable_5");
+    expect(useUIStore.getState().targetModel).toBe("fable_5_1");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

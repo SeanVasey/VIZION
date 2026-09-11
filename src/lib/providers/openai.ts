@@ -4,11 +4,49 @@ import { PROVIDER_MAX_RETRIES } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
-  toReasoningEffort,
+  describeProviderFailure,
+  isDeepEffort,
+  providerEffort,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
+
+/** The SDK's streaming params, widened: this SDK version types
+ *  `reasoning_effort` as the low/medium/high trio, while the GPT-5.6 family
+ *  and GPT-6 Astra accept `xhigh` and `max` on the same field
+ *  (developers.openai.com/api/docs/guides/reasoning, 2026-09-11). Unknown
+ *  values pass through to the wire as-is. */
+type OpenAIStreamParams = Omit<
+  OpenAI.ChatCompletionCreateParamsStreaming,
+  "reasoning_effort"
+> & { reasoning_effort?: string };
+
+/** Pure request-params builder (exported for tests — no SDK mocking needed).
+ *  Output ceiling: a runaway generation must stay bounded — the cost cap is
+ *  only checked pre-call. Reasoning bills against this ceiling (the Anthropic
+ *  path learned this first), so the deep tier gets the headroom that keeps a
+ *  heavy pass from truncating the envelope. */
+export function buildOpenAIParams(
+  model: string,
+  system: string,
+  input: string,
+  level?: ProviderRequestOptions["thinkingLevel"],
+): OpenAIStreamParams {
+  const reasoningEffort = providerEffort("openai", level);
+  return {
+    model,
+    max_completion_tokens: isDeepEffort(level) ? 32_000 : 16_000,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: input },
+    ],
+    response_format: { type: "json_object" },
+    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+    stream: true,
+    stream_options: { include_usage: true },
+  };
+}
 
 /**
  * Streaming OpenAI (GPT) call: yields raw response-text deltas, then one
@@ -39,25 +77,16 @@ export async function* streamOpenAI(
     timeout: timeoutMs,
     maxRetries: PROVIDER_MAX_RETRIES,
   });
-  const reasoningEffort = toReasoningEffort(opts.thinkingLevel);
 
   try {
-    const stream = await client.chat.completions.create({
-      model,
-      // Output ceiling: a runaway generation must stay bounded — the cost
-      // cap is only checked pre-call. Reasoning bills against this ceiling
-      // (the Anthropic path learned this first), so high effort gets the
-      // headroom that keeps a heavy pass from truncating the envelope.
-      max_completion_tokens: reasoningEffort === "high" ? 32_000 : 16_000,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: input },
-      ],
-      response_format: { type: "json_object" },
-      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
-      stream: true,
-      stream_options: { include_usage: true },
-    });
+    const stream = await client.chat.completions.create(
+      buildOpenAIParams(
+        model,
+        system,
+        input,
+        opts.thinkingLevel,
+      ) as OpenAI.ChatCompletionCreateParamsStreaming,
+    );
     // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()
     // settles at the response headers, so it bounds nothing once the body
     // streams. Idle wall + absolute deadline both live in idle-timeout.ts.
@@ -87,7 +116,13 @@ export async function* streamOpenAI(
       // deployment-shaped, not input-shaped) — same contract as vision.
       throw new ProviderError(
         "openai",
-        `GPT request failed: ${error.message}`,
+        describeProviderFailure(
+          "openai",
+          "GPT",
+          "OPENAI_API_KEY",
+          error.status,
+          error.message,
+        ),
         error.status,
       );
     }

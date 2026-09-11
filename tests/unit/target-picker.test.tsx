@@ -90,8 +90,8 @@ describe("TargetPicker sheet", () => {
 
   it("reports the picked model and closes", () => {
     const { onChange } = open("sonnet_5");
-    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.5/i }));
-    expect(onChange).toHaveBeenCalledWith("grok_4_5");
+    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.6/i }));
+    expect(onChange).toHaveBeenCalledWith("grok_4_6");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
@@ -197,9 +197,9 @@ describe("TargetPicker — Auto routing", () => {
     // Choosing a model IS turning Auto off — a separate toggle would let the
     // two disagree.
     const { onChange, onAutoChange } = openWithAuto(true);
-    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.5/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.6/i }));
     expect(onAutoChange).toHaveBeenCalledWith(false);
-    expect(onChange).toHaveBeenCalledWith("grok_4_5");
+    expect(onChange).toHaveBeenCalledWith("grok_4_6");
   });
 
   it("reads Auto on the trigger, not the fallback model", () => {

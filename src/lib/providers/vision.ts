@@ -250,9 +250,9 @@ async function describeGoogle(
 const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
   "opus_5",
   "gpt_5_6_sol",
-  "gemini_3_6_flash",
+  "gemini_3_8_flash",
   "mistral_large_3",
-  "grok_4_5",
+  "grok_4_6",
   "muse_spark_1_1",
   "kimi_k3",
   "qwen3_8_max",
@@ -260,7 +260,7 @@ const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
   "sonar_pro",
 ];
 
-/** Providers whose roster flagship takes image input. DeepSeek and GLM-5.2
+/** Providers whose roster flagship takes image input. DeepSeek and GLM-5.3
  *  are text-only flagships (their vision models are separate SKUs — e.g.
  *  Z.ai's glm-5v-turbo), so media analysis for those targets is routed to
  *  the fallback chain. MiniMax M3 and Qwen3.8-Max joined this set 2026-08:

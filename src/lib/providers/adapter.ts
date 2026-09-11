@@ -30,8 +30,8 @@ interface EnhanceArgs {
   input: string;
   mode: ModeId;
   target: TargetModelId;
-  /** User-selected reasoning depth (validated by the route against
-   *  TARGET_THINKING_LEVELS). Absent = the provider's own default. */
+  /** Reasoning depth in the app's ladder vocabulary (validated — and for
+   *  Auto, resolved — by the route). Absent = the target has no knob. */
   thinkingLevel?: ThinkingLevel;
   /** Refinement pass over an already-enhanced prompt (validated by the route). */
   refine?: EnhanceRefine;

@@ -4,6 +4,8 @@ import { PROVIDER_MAX_RETRIES } from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
+  describeProviderFailure,
+  providerEffort,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
@@ -25,6 +27,10 @@ type AnthropicStreamParams = Parameters<Anthropic["messages"]["stream"]>[0] & {
  * tier once made Auto the tightest path in the fleet, truncating envelopes
  * exactly when no thinking level was chosen. The daily cost cap and the
  * route's maxDuration still bound the true worst case.
+ *
+ * `effort` arrives in the APP's ladder vocabulary and is translated here
+ * (`providerEffort("five", …)`): Anthropic serves all five words, so the
+ * only fold is the legacy `minimal` → `low`.
  */
 export function buildAnthropicParams(
   model: string,
@@ -32,12 +38,13 @@ export function buildAnthropicParams(
   input: string,
   effort?: string,
 ): AnthropicStreamParams {
+  const wire = providerEffort("five", effort as ProviderRequestOptions["thinkingLevel"]);
   return {
     model,
-    max_tokens: effort === "xhigh" || effort === "max" ? 64_000 : 32_000,
+    max_tokens: wire === "xhigh" || wire === "max" ? 64_000 : 32_000,
     system,
     messages: [{ role: "user", content: input }],
-    ...(effort ? { output_config: { effort } } : {}),
+    ...(wire ? { output_config: { effort: wire } } : {}),
   };
 }
 
@@ -111,10 +118,16 @@ export async function* streamAnthropic(
     if (error instanceof ProviderError) throw error;
     if (error instanceof Anthropic.APIError) {
       // "Anthropic", not "Opus": this one stream serves Opus 5, Sonnet 5,
-      // and Fable 5 — naming one model mislabels the other two's failures.
+      // and Fable 5.1 — naming one model mislabels the other two's failures.
       throw new ProviderError(
         "anthropic",
-        `Anthropic request failed: ${error.message}`,
+        describeProviderFailure(
+          "anthropic",
+          "Anthropic",
+          "ANTHROPIC_API_KEY",
+          error.status,
+          error.message,
+        ),
         error.status,
       );
     }

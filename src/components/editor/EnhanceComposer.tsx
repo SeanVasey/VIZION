@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useUIStore } from "@/stores/ui";
 import { useEnhanceViewStore } from "@/stores/enhance-view";
 import {
-  TARGET_THINKING_LEVELS,
+  MAX_INPUT_CHARS,
+  TARGET_HAS_THINKING,
+  THINKING_LADDER,
   type AutoPreference,
-  type TargetModelId,
-  type ThinkingLevel,
+  type ThinkingLadderLevel,
 } from "@/lib/constants";
 import { NOT_CONFIGURED_MESSAGE, useEnhance } from "@/lib/enhance/use-enhance";
 import type { RefineKind } from "@/lib/providers/formatters";
@@ -16,7 +17,7 @@ import { TargetPicker } from "@/components/models/TargetPicker";
 import { ThinkingDial } from "@/components/models/ThinkingDial";
 import { targetLabel } from "@/components/models/target-label";
 import {
-  buildThinkingDetents,
+  THINKING_DETENTS,
   THINKING_PEAK_CAPTION,
 } from "@/components/models/dial-detents";
 import { DialCoachTip } from "@/components/editor/DialCoachTip";
@@ -39,17 +40,18 @@ import { LENGTHS, lengthOptions } from "@/lib/enhance/lengths";
 /** Frozen option list for the format rail — built once, not per render. */
 const FORMAT_OPTIONS = FORMATS.map((id) => ({ id, label: FORMAT_LABEL[id] }));
 
-/** The stored thinking level for a target, validated against that target's
- *  ladder — so a stale persisted level can never ride into a request. One
- *  rule, three consumers (composer rail, refine, answered re-run). */
-function validThinkingLevel(
-  target: TargetModelId,
-  levels: Partial<Record<TargetModelId, ThinkingLevel>>,
-): ThinkingLevel | undefined {
-  const ladder = TARGET_THINKING_LEVELS[target];
-  const stored = levels[target];
-  return ladder && stored && ladder.includes(stored) ? stored : undefined;
-}
+/**
+ * The prompt field's height band. It grows with its content between these
+ * two, so a two-line prompt does not sit in a 180px box with the rail a
+ * thumb-stretch below it, and a long paste does not push ENHANCE off the
+ * screen — the field stops growing at the cap and scrolls inside instead
+ * (owner, 2026-09-11: "text fields too small to read anything but too big to
+ * see anything but the field"). The cap is a fraction of the viewport, so a
+ * phone in landscape and a desktop pane get the same proportion.
+ */
+const FIELD_MIN_PX = 120;
+const FIELD_MAX_VH = 0.42;
+const FIELD_MAX_FLOOR_PX = 240;
 
 /**
  * The control pill shared by the Target and Thinking rails.
@@ -90,15 +92,17 @@ export function EnhanceComposer() {
   const setLengthForMode = useUIStore((s) => s.setLengthForMode);
   const setAutoTarget = useUIStore((s) => s.setAutoTarget);
   const setTargetModel = useUIStore((s) => s.setTargetModel);
-  const thinkingLevels = useUIStore((s) => s.thinkingLevels);
+  const thinkingLevel = useUIStore((s) => s.thinkingLevel);
   const setThinkingLevel = useUIStore((s) => s.setThinkingLevel);
   const editorDraft = useUIStore((s) => s.editorDraft);
   const setEditorDraft = useUIStore((s) => s.setEditorDraft);
 
-  // The selected target's thinking ladder (absent = no knob = no selector),
-  // and the stored choice — validated by validThinkingLevel above.
-  const levelOptions = TARGET_THINKING_LEVELS[targetModel];
-  const thinkingLevel = validThinkingLevel(targetModel, thinkingLevels);
+  // ONE thinking dial for every model (ADR-0018). The rail shows for any
+  // target whose provider takes a per-request depth — and always under Auto,
+  // because routing may land on one. A target with no knob (Mistral, Sonar…)
+  // gets no rail, and the route sends nothing for it; the stored level is a
+  // preference that simply waits for a model that can honour it.
+  const showThinking = autoTarget || TARGET_HAS_THINKING[targetModel];
 
   // The current mode's length dial, if it has one — and its stored value
   // re-validated against that mode's options, the same discipline the
@@ -119,7 +123,27 @@ export function EnhanceComposer() {
   // object itself (a fresh spread each render) — so the useCallback handlers
   // below depend on `runMutation`/`isPending`, never the whole object, keeping
   // their identity stable so the memoized result view + rails hold (PERF-003/006).
-  const { mutate: runMutation, isPending } = enhanceMutation;
+  const {
+    mutate: runMutation,
+    isPending,
+    isError,
+    reset: resetMutation,
+  } = enhanceMutation;
+
+  // A failed run's error line is about the run that failed. Changing the
+  // model, the mode or the routing is the user starting over — "Mistral
+  // request failed: 401" must not keep sitting under a composer now aimed at
+  // Opus (owner, 2026-09-11: settings "hang around on the page when they
+  // should change"). Reset the mutation's error state on any of those
+  // changes; a run in flight is untouched (it is not an error yet), and the
+  // reset never fires on mount, only on a change after one.
+  const errorScope = `${targetModel}|${activeMode}|${autoTarget}`;
+  const lastErrorScope = useRef(errorScope);
+  useEffect(() => {
+    if (lastErrorScope.current === errorScope) return;
+    lastErrorScope.current = errorScope;
+    if (isError) resetMutation();
+  }, [errorScope, isError, resetMutation]);
   const { toast } = useToast();
   // The rendered result + the R8 submitted snapshot (see EnhanceView). In the
   // view STORE, not component state, and both halves of that matter. Holding
@@ -168,12 +192,39 @@ export function EnhanceComposer() {
   const approxTokens = editorDraft.trim()
     ? Math.max(1, Math.ceil(editorDraft.trim().length / 4))
     : 0;
+  // The route's own ceiling, counted against the same constant it 413s on,
+  // so the composer can say "too long" BEFORE a request is refused for it.
+  const charCount = editorDraft.length;
+  const overLimit = charCount > MAX_INPUT_CHARS;
 
   const isEmpty = editorDraft.trim() === "";
 
+  // The field grows with its content between FIELD_MIN_PX and the viewport
+  // cap, measured (scrollHeight), not guessed from line counts — a wrapped
+  // paragraph and a pasted list both land right. Layout effect so the size
+  // is set before paint: no flash of the wrong height on a restored draft.
+  // `field-sizing: content` would do this in CSS, but iOS Safari does not
+  // ship it (ios-verification.md: never claim a platform capability the
+  // suite cannot see), and a measured height works on every engine.
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = fieldRef.current;
+    if (!el) return;
+    const cap = Math.max(
+      FIELD_MAX_FLOOR_PX,
+      Math.round(window.innerHeight * FIELD_MAX_VH),
+    );
+    el.style.height = "auto";
+    const next = Math.min(cap, Math.max(FIELD_MIN_PX, el.scrollHeight));
+    el.style.height = `${next}px`;
+    // Scroll inside only once the cap binds — otherwise the field owns the
+    // page's scroll gesture for no reason.
+    el.style.overflowY = el.scrollHeight > cap ? "auto" : "hidden";
+  }, [editorDraft]);
+
   const runEnhance = useCallback(() => {
     const input = useUIStore.getState().editorDraft.trim();
-    if (!input) return;
+    if (!input || input.length > MAX_INPUT_CHARS) return;
     const submitted = {
       input,
       mode: activeMode,
@@ -282,7 +333,9 @@ export function EnhanceComposer() {
       // iteration would change voice mid-conversation, and `auto` is deliberately
       // not re-sent: the routing decision was already made for this result.
       const refineTarget = v.result.resolvedTarget ?? v.submitted.target;
-      const level = validThinkingLevel(refineTarget, thinkingLevels);
+      // One ladder for every model: the dial's level rides along whatever
+      // the resolved target is; the route sends nothing to a knob-less one.
+      const level = thinkingLevel ?? undefined;
       runMutation(
         {
           input: currentOutput,
@@ -303,7 +356,7 @@ export function EnhanceComposer() {
         },
       );
     },
-    [view, thinkingLevels, isPending, runMutation, setView],
+    [view, thinkingLevel, isPending, runMutation, setView],
   );
 
   /** Clarify's answered re-run. NOT a refinement of the output — a redo of
@@ -318,7 +371,7 @@ export function EnhanceComposer() {
         .map((q, i) => `Q: ${q}\nA: ${answers[i]?.trim() || "(no answer given)"}`)
         .join("\n\n");
       const answeredTarget = v.result.resolvedTarget ?? v.submitted.target;
-      const level = validThinkingLevel(answeredTarget, thinkingLevels);
+      const level = thinkingLevel ?? undefined;
       runMutation(
         {
           input: v.submitted.input,
@@ -337,7 +390,7 @@ export function EnhanceComposer() {
         },
       );
     },
-    [view, thinkingLevels, isPending, runMutation, setView],
+    [view, thinkingLevel, isPending, runMutation, setView],
   );
 
   // The daily-cap warning, resolved here so its live region can be mounted
@@ -356,40 +409,34 @@ export function EnhanceComposer() {
   // re-render on a hint's state, and writing an already-true flag would
   // otherwise churn every subscriber (the handleUse pattern, PERF-003).
   const onThinkingChange = useCallback(
-    (next: ThinkingLevel | null) => {
+    (next: ThinkingLadderLevel | null) => {
       const store = useUIStore.getState();
       if (!store.dialTipSeen) store.setDialTipSeen(true);
-      setThinkingLevel(targetModel, next);
+      setThinkingLevel(next);
     },
-    [targetModel, setThinkingLevel],
+    [setThinkingLevel],
   );
 
-  // The thinking dial's ladder (ADR-0012, redesigned in ADR-0014): [Auto,
-  // ...the target's own ladder], so the detent count adapts per model (4/5/6)
-  // and a ladderless target — which renders no rail at all — never builds
-  // one. Everything here re-computes only on a target switch, the same
-  // cadence as onThinkingChange, so the memoized dial inside the wrapper
-  // holds.
-  const thinkingDetents = useMemo(
-    () => (levelOptions ? buildThinkingDetents(levelOptions) : null),
-    [levelOptions],
-  );
-  const thinkingSelectedIndex =
-    thinkingLevel && levelOptions ? levelOptions.indexOf(thinkingLevel) + 1 : 0;
+  // The thinking dial's ladder (ADR-0012 → 0014 → 0018): [Auto, Low, Medium,
+  // High, Max] — THINKING_DETENTS, one frozen list for every model, so the
+  // capsule is the same five stops whatever is selected and the memoized
+  // dial inside the wrapper never rebuilds on a target switch.
+  const thinkingSelectedIndex = thinkingLevel
+    ? THINKING_LADDER.indexOf(thinkingLevel) + 1
+    : 0;
   const onThinkingCommit = useCallback(
     (index: number) => {
-      const ladder = TARGET_THINKING_LEVELS[targetModel];
-      if (!ladder) return;
       const store = useUIStore.getState();
       if (!store.dialTipSeen) store.setDialTipSeen(true);
       // Index 0 is the Auto detent — the store's own "no level" signal.
-      setThinkingLevel(targetModel, index === 0 ? null : (ladder[index - 1] ?? null));
+      setThinkingLevel(index === 0 ? null : (THINKING_LADDER[index - 1] ?? null));
     },
-    [targetModel, setThinkingLevel],
+    [setThinkingLevel],
   );
   const thinkingLiveLabel = useCallback(
-    (detent: Detent) => `${targetLabel(targetModel)} · ${detent.label}`,
-    [targetModel],
+    (detent: Detent) =>
+      `${autoTarget ? "Auto" : targetLabel(targetModel)} · ${detent.label}`,
+    [autoTarget, targetModel],
   );
 
   // The routing dial retires the how-to line too (Codex review, PR #109).
@@ -487,7 +534,14 @@ export function EnhanceComposer() {
           The opaque tier keeps the hairline/sheen/grain material language and
           guarantees nothing behind the draft ever shows through it. */}
       <div
-        className={`glass-solid no-pull-refresh overflow-hidden rounded-2xl transition-shadow ${
+        // `overflow-clip`, not `overflow-hidden`: both clip to the rounded
+        // corners, but `hidden` makes the chassis a scroll container, and a
+        // scroll container is what breaks `position: sticky` for everything
+        // inside it — and the bottom rail below is sticky now (2026-09-11:
+        // a long draft must not put ENHANCE a screen away from the field).
+        // `clip` clips without becoming a scroller, so the rail sticks to the
+        // page's own scroll instead.
+        className={`glass-solid no-pull-refresh overflow-clip rounded-2xl transition-shadow ${
           dragging ? "shadow-focus" : "focus-within:shadow-focus"
         }`}
         // React focus events bubble (focusin/focusout), so the chassis knows
@@ -519,7 +573,7 @@ export function EnhanceComposer() {
         }}
       >
         {/* Top rail — model target, nested under the rounded top corners.
-            A sheet rather than a native select: sixteen models across twelve
+            A sheet rather than a native select: seventeen models across twelve
             developers need the grouping, and an <option> can't carry the
             developer mark. */}
         <div className="flex items-center justify-between gap-3 border-b border-hair px-3 py-2">
@@ -527,7 +581,7 @@ export function EnhanceComposer() {
             Target
           </span>
           {/* No hold-slider on this pill any more (ADR-0014). Target IS a
-              dropdown — sixteen models across twelve developers — so it keeps
+              dropdown — seventeen models across twelve developers — so it keeps
               its chevron and its sheet, and the budget dial it used to host
               moved INSIDE that sheet, under the Auto card it tunes (owner
               direction: the tuning slider belongs in "the model selection
@@ -551,17 +605,20 @@ export function EnhanceComposer() {
           />
         </div>
 
-        {/* Thinking rail — reasoning depth, only for targets whose provider
-            takes a per-request level (TARGET_THINKING_LEVELS). "Auto" sends
-            nothing and leaves the provider's own default in place; the choice
-            persists per target, so switching models keeps each one's dial.
+        {/* Thinking rail — ONE reasoning-depth dial for every model
+            (ADR-0018): Auto · Low · Medium · High · Max, translated onto each
+            provider's own vocabulary server-side. Shown for any target that
+            takes a depth, and always under Auto. "Auto" sends nothing and the
+            route resolves a task-shaped default (medium for bounded modes,
+            high for structure-inventing ones).
 
-            Trigger + sheet rather than a `<select>`, on the same grounds as the
-            Target rail above it: a select is floored at 16px on iOS and would
-            render this pill's label larger than the one directly above it. The
-            caption is a `<span>` because there is no longer a form element for
-            `htmlFor` to point at — the trigger carries its own accessible name. */}
-        {levelOptions && thinkingDetents && (
+            A button with slider semantics rather than a `<select>`, on the
+            same grounds as the Target rail above it: a select is floored at
+            16px on iOS and would render this pill's label larger than the one
+            directly above it. The caption is a `<span>` because there is no
+            form element for `htmlFor` to point at — the trigger carries its
+            own accessible name. */}
+        {showThinking && (
           <div className="flex flex-col gap-1 border-b border-hair px-3 py-2">
             <div className="flex items-center justify-between gap-3">
               <span className="font-body text-[0.625rem] uppercase tracking-[0.18em] text-silver">
@@ -587,7 +644,7 @@ export function EnhanceComposer() {
                   live mid-run (dialing the NEXT run), so this state is
                   real. */}
               <HoldSliderTrigger
-                detents={thinkingDetents}
+                detents={THINKING_DETENTS}
                 selectedIndex={thinkingSelectedIndex}
                 liveLabel={thinkingLiveLabel}
                 onCommit={onThinkingCommit}
@@ -600,7 +657,6 @@ export function EnhanceComposer() {
                 <ThinkingDial
                   label="Thinking depth"
                   value={thinkingLevel}
-                  options={levelOptions}
                   onChange={onThinkingChange}
                   triggerClassName={RAIL_TRIGGER_CLASS}
                   holdHint
@@ -655,8 +711,20 @@ export function EnhanceComposer() {
         </label>
         <textarea
           id="prompt-input"
+          ref={fieldRef}
           value={editorDraft}
           onChange={(e) => setEditorDraft(e.target.value)}
+          // ⌘/Ctrl+Enter runs the enhancement — the one keyboard shortcut
+          // every chat and composer surface has taught (the 2026-09 design
+          // review's "⌘ / Ctrl + Enter" hint, adopted because it is
+          // FUNCTION, not decoration). Plain Enter stays a newline: prompts
+          // are multi-line by nature.
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              runEnhance();
+            }
+          }}
           // Pasted TEXT falls through to the native insert (never hijack the
           // caret); pasted FILES — a screenshot from the iOS clipboard — go to
           // the tray instead of dropping on the floor.
@@ -667,8 +735,12 @@ export function EnhanceComposer() {
             intakeRef.current?.(files);
           }}
           placeholder="Type or paste your prompt…"
-          rows={8}
-          className="font-body block min-h-[180px] w-full resize-y bg-transparent px-3.5 py-3 text-base text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
+          rows={4}
+          // `resize-none`: the field sizes itself to its content (the layout
+          // effect above); a manual drag handle would fight the measurement
+          // on every keystroke. `min-h` is the effect's floor restated in CSS
+          // so the first paint before the effect runs is already right.
+          className="font-body block min-h-[120px] w-full resize-none bg-transparent px-3.5 py-3 text-base text-text placeholder:text-muted focus:outline-none focus-visible:shadow-none"
         />
 
         {dragging && (
@@ -682,7 +754,7 @@ export function EnhanceComposer() {
 
         {/* Paste affordance — offered only when there is nothing to lose and
             the field is live. In flow (not floating) so the chassis'
-            overflow-hidden can't clip it and it never covers the draft.
+            overflow clip can't clip it and it never covers the draft.
             iOS raises its own Paste confirmation on readText; that native
             second tap is the platform's, not ours to route around. */}
         {isEmpty && !dragging && (
@@ -716,17 +788,49 @@ export function EnhanceComposer() {
         <AttachmentTray onContextChange={setMediaContext} intakeRef={intakeRef} />
 
         {/* Bottom rail — readouts + clear / Enhance, nested under the rounded
-            bottom corners so the whole composer reads as one object. */}
-        <div className="flex items-center justify-between gap-2 border-t border-hair px-2.5 py-2">
+            bottom corners so the whole composer reads as one object.
+
+            STICKY to the bottom of the viewport (above the bottom nav) while
+            the composer is taller than the screen: a long draft or a tall
+            attachment tray used to push ENHANCE below the fold, so the eye
+            was on the field and the action was a scroll away (owner,
+            2026-09-11). It rides the page's scroll — the chassis is
+            `overflow-clip`, which does not create a scroll container — and
+            carries its own opaque ground because it now floats over the
+            field's text. The keyboard-open case is still KeyboardActionBar's
+            (a fixed bar above the software keyboard); this covers the
+            keyboard-closed case that bar deliberately never renders in. */}
+        <div
+          data-composer-rail=""
+          className="sticky z-10 flex items-center justify-between gap-2 border-t border-hair bg-[var(--glass-still)] px-2.5 py-2"
+          style={{
+            bottom: "calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           <div className="flex min-w-0 items-center gap-3">
             {/* No aria-live: the count changes per keystroke and would flood
                 screen readers — it's a passive visual readout. */}
-            <span className="font-body shrink-0 text-xs tabular-nums text-silver">
+            <span className="font-body min-w-0 truncate text-xs tabular-nums text-silver">
               <span aria-hidden="true">⌁ </span>
               {/* "≈": chars/4 is an estimate, and the result line renders the
                   authoritative provider counts — the two must not read as the
                   same kind of number (PRI-014, INV-04 cost truth). */}
               ≈{approxTokens} tokens
+              {/* The character budget, against the route's OWN ceiling, shown
+                  once the draft is a third of the way there — a number that
+                  only matters as it approaches the limit should not compete
+                  with the token readout on an empty field. Past the limit it
+                  turns flare and the primary disables: the 413 the route
+                  would send, said here, before the request. */}
+              {charCount >= MAX_INPUT_CHARS / 3 && (
+                <span
+                  data-composer-chars=""
+                  className={overLimit ? "text-flare" : undefined}
+                >
+                  {" · "}
+                  {charCount.toLocaleString()} / {MAX_INPUT_CHARS.toLocaleString()}
+                </span>
+              )}
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -747,7 +851,7 @@ export function EnhanceComposer() {
             <PressableButton
               subtle
               onClick={runEnhance}
-              disabled={enhanceMutation.isPending || isEmpty}
+              disabled={enhanceMutation.isPending || isEmpty || overLimit}
               className="btn-laser pill -my-1 flex h-11 items-center gap-1.5 px-4 text-sm"
             >
               {enhanceMutation.isPending ? (
@@ -863,7 +967,7 @@ export function EnhanceComposer() {
         active={composerFocused}
         tokens={approxTokens}
         pending={enhanceMutation.isPending}
-        disabled={enhanceMutation.isPending || isEmpty}
+        disabled={enhanceMutation.isPending || isEmpty || overLimit}
         onEnhance={runEnhance}
       />
 

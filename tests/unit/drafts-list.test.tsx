@@ -116,7 +116,7 @@ beforeEach(() => {
     editorDraft: "",
     targetModel: "opus_5",
     activeMode: "clarify",
-    thinkingLevels: {},
+    thinkingLevel: null,
   });
 });
 
@@ -133,7 +133,7 @@ describe("Drafts list", () => {
     // would silently change what the user gets back.
     expect(s.targetModel).toBe("sonnet_5");
     expect(s.activeMode).toBe("expand");
-    expect(s.thinkingLevels.sonnet_5).toBe("high");
+    expect(s.thinkingLevel).toBe("high");
     expect(routerMock.push).toHaveBeenCalledWith("/enhance");
   });
 

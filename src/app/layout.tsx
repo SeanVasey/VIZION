@@ -22,7 +22,7 @@ const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.v
 // every route.
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://vizion-io.vercel.app";
 const DESCRIPTION =
-  "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across sixteen target models from twelve AI developers.";
+  "A VASEY/AI prompt-engineering studio — polish, clarify, expand, condense, reformat, and re-target prompts across seventeen target models from twelve AI developers.";
 // Share artwork. Both are generated in-canon from tokens.css + the master glyph
 // by scripts/generate-social-card.mjs, so neither can disagree with the brand
 // green.

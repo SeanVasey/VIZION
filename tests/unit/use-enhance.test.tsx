@@ -26,7 +26,7 @@ function sseResponse(events: EnhanceStreamEvent[]): Response {
   });
 }
 
-const REQ = { input: "hello", mode: "clarify", target: "fable_5" } as const;
+const REQ = { input: "hello", mode: "clarify", target: "fable_5_1" } as const;
 
 const DONE: EnhanceStreamEvent = {
   type: "done",
@@ -36,7 +36,7 @@ const DONE: EnhanceStreamEvent = {
     diff: [],
     tokenIn: 10,
     tokenOut: 5,
-    modelUsed: "claude-fable-5",
+    modelUsed: "claude-fable-5-1",
     costUsd: 0.0003,
     usage: { todayCost: 0.01, capUsd: 2 },
   },

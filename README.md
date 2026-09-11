@@ -18,11 +18,11 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 </div>
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZION
-> _transforms_ it — across sixteen target models from twelve developers
-> (Fable 5 · Opus 5 · Sonnet 5 · GPT-5.6 Sol/Terra/Luna · DeepSeek V4 ·
-> Gemini 3.6 Flash · Muse Spark 1.1 · MiniMax M3 · Mistral Large 3 · Kimi K3 ·
-> Sonar Pro · Qwen3.8 Max · Grok 4.5 · GLM-5.2), a per-model thinking-depth
-> selector, six enhancement modes, and media-aware
+> _transforms_ it — across seventeen target models from twelve developers
+> (Fable 5.1 · Opus 5 · Sonnet 5 · GPT-6 Astra · GPT-5.6 Sol/Terra/Luna ·
+> DeepSeek V4 Pro · Gemini 3.8 Flash · Muse Spark 1.1 · MiniMax M3 ·
+> Mistral Large 3 · Kimi K3 · Sonar Pro · Qwen3.8 Max · Grok 4.6 · GLM-5.3),
+> one thinking-depth dial for every model, six enhancement modes, and media-aware
 > prompt construction, with accounts and a versioned prompt library.
 
 <div align="center">

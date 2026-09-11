@@ -142,7 +142,7 @@ describe("POST /api/media", () => {
       new ProviderError("google", "policy stop", 400, { tokenIn: 80, tokenOut: 20 }),
     );
     const res = await POST(
-      request({ dataUrl: PNG_DATA_URL, target: "gemini_3_6_flash" }),
+      request({ dataUrl: PNG_DATA_URL, target: "gemini_3_8_flash" }),
     );
     expect(res.status).toBe(502);
     expect(spend.releaseSpend).not.toHaveBeenCalled();
@@ -249,7 +249,7 @@ describe("POST /api/media — auto routing", () => {
 
   it("resolves auto through the vision ladder and does NOT report it as a fallback", async () => {
     vi.stubEnv("GOOGLE_API_KEY", "g-test");
-    router.resolveAutoVisionTarget.mockReturnValue("gemini_3_6_flash" as never);
+    router.resolveAutoVisionTarget.mockReturnValue("gemini_3_8_flash" as never);
     const res = await POST(
       request({
         dataUrl: PNG_DATA_URL,
@@ -264,7 +264,7 @@ describe("POST /api/media — auto routing", () => {
       vision.supportsVision,
     );
     const body = await res.json();
-    expect(body.usage.target).toBe("gemini_3_6_flash");
+    expect(body.usage.target).toBe("gemini_3_8_flash");
     // Routing is a choice, not a fallback — the client re-labels from
     // usage.target without a fallback banner.
     expect(body.fallbackFrom).toBeUndefined();

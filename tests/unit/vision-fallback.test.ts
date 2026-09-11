@@ -61,19 +61,19 @@ describe("visionFallbackTarget", () => {
   it("picks the first configured target on a different provider", () => {
     vi.stubEnv("OPENAI_API_KEY", "sk-test");
     vi.stubEnv("MISTRAL_API_KEY", "m-test");
-    expect(visionFallbackTarget("fable_5")).toBe("gpt_5_6_sol");
+    expect(visionFallbackTarget("fable_5_1")).toBe("gpt_5_6_sol");
   });
 
   it("prefers the Anthropic (Opus) fallback when available", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
     vi.stubEnv("GOOGLE_API_KEY", "g-test");
-    expect(visionFallbackTarget("grok_4_5")).toBe("opus_5");
+    expect(visionFallbackTarget("grok_4_6")).toBe("opus_5");
   });
 
   it("never falls back within the failed provider (same key would fail again)", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
-    // fable_5 and opus_5 share the anthropic key — no other provider is up.
-    expect(visionFallbackTarget("fable_5")).toBeNull();
+    // fable_5_1 and opus_5 share the anthropic key — no other provider is up.
+    expect(visionFallbackTarget("fable_5_1")).toBeNull();
     expect(visionFallbackTarget("opus_5")).toBeNull();
   });
 
@@ -99,7 +99,7 @@ describe("visionFallbackTarget", () => {
 describe("supportsVision", () => {
   it("flags text-only flagships so the route can redirect up front", () => {
     expect(supportsVision("deepseek_v4")).toBe(false);
-    expect(supportsVision("glm_5_2")).toBe(false);
+    expect(supportsVision("glm_5_3")).toBe(false);
   });
 
   it("keeps the multimodal targets on their own provider", () => {
@@ -137,7 +137,7 @@ describe("describeImage — Gemini error bodies", () => {
 
     let caught: unknown;
     try {
-      await describeImage("AAAA", "image/png", "gemini_3_6_flash");
+      await describeImage("AAAA", "image/png", "gemini_3_8_flash");
     } catch (e) {
       caught = e;
     }

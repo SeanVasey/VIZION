@@ -208,7 +208,7 @@ describe("enhanceStream / enhance", () => {
     for await (const e of enhanceStream({
       input: "hi",
       mode: "clarify",
-      target: "gemini_3_6_flash",
+      target: "gemini_3_8_flash",
       thinkingLevel: "high",
     })) {
       events.push(e);
@@ -220,7 +220,7 @@ describe("enhanceStream / enhance", () => {
     expect(streamGoogle).toHaveBeenCalledWith(
       expect.any(String),
       "hi",
-      "gemini-3.6-flash",
+      "gemini-3.8-flash",
       {
         thinkingLevel: "high",
       },

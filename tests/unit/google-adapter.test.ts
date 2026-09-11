@@ -6,7 +6,7 @@ import { streamGoogle } from "@/lib/providers/google";
  *
  * Gemini 3.x expresses reasoning depth as a request option, not a separate
  * model ID — the composer's thinking selector rides
- * `generationConfig.thinkingConfig` on the ONE `gemini-3.6-flash` model. Worth
+ * `generationConfig.thinkingConfig` on the ONE `gemini-3.8-flash` model. Worth
  * pinning on the wire:
  *   - `thinkingLevel` is sent when the user picked one, and never the
  *     Gemini-2.5-era `thinkingBudget` (the API rejects both in one request);
@@ -48,7 +48,7 @@ async function capture(
   vi.stubEnv("GOOGLE_API_KEY", "g-test");
   vi.stubGlobal("fetch", fetchMock);
 
-  for await (const _chunk of streamGoogle("sys", "in", "gemini-3.6-flash", opts)) {
+  for await (const _chunk of streamGoogle("sys", "in", "gemini-3.8-flash", opts)) {
     void _chunk;
   }
 
@@ -69,10 +69,18 @@ describe("streamGoogle request body", () => {
     expect(body.generationConfig.maxOutputTokens).toBe(64_000);
   });
 
-  it("sends the minimal level without widening the output budget", async () => {
+  it("folds the legacy `minimal` onto low — 3.8 Flash rejects minimal", async () => {
+    // Gemini 3.8 Flash accepts low · medium · high only (ai.google.dev,
+    // 2026-09-11); a pre-2026-09 store or draft can still carry `minimal`.
     const body = await capture({ thinkingLevel: "minimal" });
-    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "minimal" });
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "low" });
     expect(body.generationConfig.maxOutputTokens).toBe(32_000);
+  });
+
+  it("clamps the ladder's Max onto high — the model's own top", async () => {
+    const body = await capture({ thinkingLevel: "max" });
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "high" });
+    expect(body.generationConfig.maxOutputTokens).toBe(64_000);
   });
 
   it("omits thinkingConfig entirely when no level is configured", async () => {
@@ -88,7 +96,7 @@ describe("streamGoogle request body", () => {
       vi.fn().mockResolvedValue({ ok: true, status: 200, body: sseBody() }),
     );
     let usage: { tokenIn: number; tokenOut: number } | undefined;
-    for await (const chunk of streamGoogle("sys", "in", "gemini-3.6-flash", {
+    for await (const chunk of streamGoogle("sys", "in", "gemini-3.8-flash", {
       thinkingLevel: "high",
     })) {
       if (chunk.usage) usage = chunk.usage;
@@ -118,7 +126,7 @@ describe("streamGoogle upstream refusals", () => {
       }),
     );
     try {
-      for await (const _chunk of streamGoogle("sys", "in", "gemini-3.6-flash")) {
+      for await (const _chunk of streamGoogle("sys", "in", "gemini-3.8-flash")) {
         void _chunk;
       }
     } catch (e) {
@@ -196,7 +204,7 @@ describe("streamGoogle honours the caller's wall", () => {
     const started = Date.now();
     await expect(
       (async () => {
-        for await (const chunk of streamGoogle("sys", "in", "gemini-3.6-flash", {
+        for await (const chunk of streamGoogle("sys", "in", "gemini-3.8-flash", {
           deadline: Date.now() + 1_500,
         })) {
           void chunk;
@@ -215,7 +223,7 @@ describe("streamGoogle honours the caller's wall", () => {
 
     await expect(
       (async () => {
-        for await (const chunk of streamGoogle("sys", "in", "gemini-3.6-flash", {
+        for await (const chunk of streamGoogle("sys", "in", "gemini-3.8-flash", {
           deadline: Date.now() - 1,
         })) {
           void chunk;
@@ -241,7 +249,7 @@ async function drainText(body: ReadableStream<Uint8Array>): Promise<string> {
   vi.stubEnv("GOOGLE_API_KEY", "g-test");
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, body }));
   let text = "";
-  for await (const chunk of streamGoogle("sys", "in", "gemini-3.6-flash")) {
+  for await (const chunk of streamGoogle("sys", "in", "gemini-3.8-flash")) {
     if (chunk.text) text += chunk.text;
   }
   return text;
