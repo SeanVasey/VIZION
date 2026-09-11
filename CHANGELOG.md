@@ -51,6 +51,13 @@ disables the primary past it; ⌘/Ctrl+Enter runs the enhancement. Condense's
 middle stop reads "Compact", not "Balanced", which Auto's routing preference
 already says one rail up.
 
+**Dependencies (security).** `next` 15.5.21 → 15.5.25 (GHSA-p293-qw3h-jr36,
+GHSA-2xp9-vwfh-vxw4), `sharp` 0.35.3 → 0.35.4 (GHSA-rgj7-g3m4-5g8c), `vitest`
+4.1.10 → 4.1.11 (GHSA-82fw-gwwq-j7x9) and the `js-yaml` override 4.3.1 → 4.3.2
+(GHSA-2883-xcg3-v3hh) — advisories published after this branch was cut that
+turned both CI audit gates red on any head; the icon tree is byte-identical
+under the new sharp (the generator drift check passes).
+
 **The roster moves to each vendor's current frontier** — every id and rate
 re-read from the vendor's own page on 2026-09-11: Fable 5 → **Fable 5.1**
 (`claude-fable-5-1`), Gemini 3.6 → **3.8 Flash** (`gemini-3.8-flash`, no
