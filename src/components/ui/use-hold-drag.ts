@@ -93,16 +93,25 @@ export const EDGE_MARGIN_PX = 16;
  *
  * So the edge does what edges do in every drag-and-drop and text-selection
  * surface on the platform: hold the pointer inside EDGE_ZONE_PX of the
- * visible region's side and the value steps one detent per EDGE_STEP_MS in
- * that direction, with the same haptic tick as a dragged step, until the
- * finger leaves the zone or the ladder ends. Placement is untouched, gain is
- * untouched — the zone is the only addition, and it only ever ADDS reach.
- * The zone is measured from the visible region (pinch-zoom aware) and the
- * offset is re-derived after every step, so the hand keeps owning the thumb
- * the moment it leaves the zone.
+ * visible region's side and, after EDGE_DWELL_MS there, the value steps one
+ * detent per EDGE_STEP_MS in that direction, with the same haptic tick as a
+ * dragged step, until the finger leaves the zone or the ladder ends.
+ * Placement is untouched, gain is untouched — the zone is the only addition,
+ * and it only ever ADDS reach. The zone is measured from the visible region
+ * (pinch-zoom aware) and the offset is re-derived after every step, so the
+ * hand keeps owning the thumb the moment it leaves the zone.
+ *
+ * The DWELL is load-bearing, not politeness. On that same phone a
+ * press-and-slide of three detents from the pill ENDS inside the zone — so
+ * without it, the reference gesture (slide to High, lift) stepped on to Max
+ * whenever the lift came a beat late, which CI's slower runner did on every
+ * try (authed.spec "press-and-slide … commits", 2026-09-11). A slide that
+ * merely ends near the edge is a slide; a finger PARKED there for half a
+ * second is a request for more reach. The dwell is what tells them apart.
  */
 export const EDGE_ZONE_PX = 28;
 export const EDGE_STEP_MS = 260;
+export const EDGE_DWELL_MS = 550;
 
 export interface TrackGeometry {
   /** Viewport-fixed capsule box. */
@@ -397,10 +406,11 @@ export function useHoldDrag({
   /** Last pointer x seen while a press is live — onViewportChange re-derives
    *  dragOffset from it, or the value teleports under the hand. */
   const lastPointerX = useRef(0);
-  /** The edge auto-step's repeating timer and direction (see EDGE_ZONE_PX).
-   *  Armed only in the DRAG phase while the pointer sits in an edge zone;
-   *  cleared wherever the drag ends. */
-  const edgeTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  /** The edge auto-step's timer (the dwell timeout, then the repeating
+   *  interval) and direction (see EDGE_ZONE_PX). Armed only in the DRAG
+   *  phase while the pointer sits in an edge zone; cleared wherever the drag
+   *  ends. */
+  const edgeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const edgeDir = useRef<1 | -1 | 0>(0);
   /** Props can change mid-gesture (they don't in practice, but a stale
    *  closure in a window listener is not worth the bet). */
@@ -673,7 +683,12 @@ export function useHoldDrag({
 
   /** Stop an edge auto-step. Idempotent; every drag exit calls it. */
   const stopEdgeStep = useCallback(() => {
-    if (edgeTimer.current !== undefined) clearInterval(edgeTimer.current);
+    if (edgeTimer.current !== undefined) {
+      // Whichever phase the timer is in — the one-shot dwell or the
+      // repeating step — both clears are safe on either handle.
+      clearTimeout(edgeTimer.current);
+      clearInterval(edgeTimer.current);
+    }
     edgeTimer.current = undefined;
     edgeDir.current = 0;
   }, []);
@@ -715,7 +730,13 @@ export function useHoldDrag({
       stopEdgeStep();
       if (dir === 0) return;
       edgeDir.current = dir;
-      edgeTimer.current = setInterval(edgeStepTick, EDGE_STEP_MS);
+      // Dwell first, then repeat: a slide that ends in the zone and lifts
+      // within the dwell steps nothing (see EDGE_DWELL_MS).
+      edgeTimer.current = setTimeout(() => {
+        edgeStepTick();
+        if (edgeDir.current !== 0)
+          edgeTimer.current = setInterval(edgeStepTick, EDGE_STEP_MS);
+      }, EDGE_DWELL_MS);
     },
     [stopEdgeStep, edgeStepTick],
   );

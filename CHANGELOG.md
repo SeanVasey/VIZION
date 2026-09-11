@@ -26,10 +26,12 @@ DeepSeek V4 Pro, Kimi K3 and GLM-5.3 gain the knob their APIs expose.
 **A hold started at the screen's edge can still climb the ladder.** The
 capsule opens centred on a pill that sits right of centre, drag gain is 1:1,
 so from Auto the finger had a thumb's width of screen to travel the whole
-ladder in. Hold the pointer inside 28px of the visible region's side and the
-value now steps one detent every 260ms in that direction, with the same
-haptic tick, until the finger leaves the zone or the ladder ends — placement
-and gain untouched, the latched tap-to-pick path untouched.
+ladder in. Park the pointer inside 28px of the visible region's side and,
+after a half-second dwell, the value steps one detent every 260ms in that
+direction, with the same haptic tick, until the finger leaves the zone or the
+ladder ends — placement and gain untouched, the latched tap-to-pick path
+untouched, and a slide that merely ends near the edge still commits exactly
+what it slid to.
 
 **The capsule's gradient is continuous and alive.** The ramp is one colour
 stop per detent (the 55% hold that painted every detent as a plateau with an

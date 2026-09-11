@@ -10,6 +10,7 @@ import {
 import {
   CENTER_INSET_PX,
   DETENT_SPACING_PX,
+  EDGE_DWELL_MS,
   EDGE_MARGIN_PX,
   EDGE_STEP_MS,
   EDGE_ZONE_PX,
@@ -1499,11 +1500,18 @@ describe("edge auto-step (ADR-0018)", () => {
     hold();
     expect(overlay()!.textContent).toContain("Auto");
     moveTo(RIGHT_EDGE);
-    // Ten pixels of travel is no detent; the timer then adds one per
-    // EDGE_STEP_MS while the finger stays in the zone…
+    // Ten pixels of travel is no detent, and NOTHING happens inside the
+    // dwell: a slide that ends in the zone and lifts is still just a slide
+    // (the CI-caught regression, 2026-09-11)…
     expect(readIndex()).toBe(0);
     act(() => {
-      vi.advanceTimersByTime(EDGE_STEP_MS);
+      vi.advanceTimersByTime(EDGE_DWELL_MS - 1);
+    });
+    expect(readIndex()).toBe(0);
+    // …then the parked finger earns one detent, and one more per
+    // EDGE_STEP_MS while it stays in the zone…
+    act(() => {
+      vi.advanceTimersByTime(1);
     });
     expect(readIndex()).toBe(1);
     act(() => {
@@ -1525,9 +1533,10 @@ describe("edge auto-step (ADR-0018)", () => {
     hold();
     moveTo(RIGHT_EDGE);
     act(() => {
-      vi.advanceTimersByTime(EDGE_STEP_MS);
+      vi.advanceTimersByTime(EDGE_DWELL_MS);
     });
     const stepped = readIndex();
+    expect(stepped).toBe(1);
     // Back inside the screen: no further ticks…
     moveTo(RIGHT_EDGE - EDGE_ZONE_PX * 2);
     act(() => {
@@ -1547,7 +1556,7 @@ describe("edge auto-step (ADR-0018)", () => {
     hold();
     moveTo(LEFT_EDGE);
     act(() => {
-      vi.advanceTimersByTime(EDGE_STEP_MS * 20);
+      vi.advanceTimersByTime(EDGE_DWELL_MS + EDGE_STEP_MS * 20);
     });
     expect(readIndex()).toBe(0);
     up(LEFT_EDGE);
@@ -1568,7 +1577,7 @@ describe("edge auto-step (ADR-0018)", () => {
     fireEvent.pointerDown(track, { pointerId: 2, clientX: RIGHT_EDGE, clientY: 400 });
     const before = readIndex();
     act(() => {
-      vi.advanceTimersByTime(EDGE_STEP_MS * 5);
+      vi.advanceTimersByTime(EDGE_DWELL_MS + EDGE_STEP_MS * 5);
     });
     expect(readIndex()).toBe(before);
     fireEvent.pointerCancel(track, { pointerId: 2 });

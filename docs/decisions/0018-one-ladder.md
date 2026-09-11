@@ -89,12 +89,19 @@ detent the clamp left under the finger on the first move (the failure
 0012 amendment 4's rejected "floaty" placement. The fix that keeps every
 existing rule is the one every drag-and-drop and text-selection surface on
 the platform already uses: **hold the pointer inside `EDGE_ZONE_PX` (28px) of
-the visible region's side and the value steps one detent per `EDGE_STEP_MS`
-(260ms) in that direction**, with the same haptic tick as a dragged step,
-until the finger leaves the zone or the ladder ends. Placement is untouched,
-gain is untouched, the latched phase (absolute, on the track) is untouched.
-The offset is re-derived after every tick so the hand owns the thumb the
-moment it leaves the zone. Pinned in `hold-slider.test.tsx`.
+the visible region's side and, after an `EDGE_DWELL_MS` (550ms) dwell, the
+value steps one detent per `EDGE_STEP_MS` (260ms) in that direction**, with
+the same haptic tick as a dragged step, until the finger leaves the zone or
+the ladder ends. Placement is untouched, gain is untouched, the latched phase
+(absolute, on the track) is untouched. The offset is re-derived after every
+tick so the hand owns the thumb the moment it leaves the zone. Pinned in
+`hold-slider.test.tsx`.
+
+The dwell is load-bearing. The first cut had none, and CI caught it on the
+reference gesture: a three-detent press-and-slide from the pill ENDS inside
+the zone on a 393px phone, so the slide to High stepped on to Max whenever
+the lift came a beat late. A slide that ends near the edge is a slide; a
+finger parked there for half a second is a request for more reach.
 
 ### 4. The gradient is continuous and alive
 
