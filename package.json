@@ -32,6 +32,7 @@
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
     "@tanstack/react-query": "^5.62.7",
+    "@vercel/speed-insights": "^2.1.0",
     "next": "^15.5.25",
     "openai": "^4.77.0",
     "react": "^19.0.0",

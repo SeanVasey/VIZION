@@ -10,6 +10,7 @@ import { ScrollStateManager } from "@/components/ScrollStateManager";
 import { AmbientNebula } from "@/components/background/AmbientNebula";
 import { SafeAreaProvider } from "@/components/nav/SafeAreaProvider";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const fontVars = `${bebasNeue.variable} ${redditSans.variable} ${jetBrainsMono.variable}`;
 
@@ -228,6 +229,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <SafeAreaProvider>{children}</SafeAreaProvider>
           <BottomNav />
         </QueryProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
