@@ -69,11 +69,11 @@ every capped call carries 4096 tokens (Gemini's call sets no cap and gets the
 low level only).
 
 **Two migrations — apply, then deploy. Neither is applied to the hosted
-project yet.** `20261128120000_frontier_roster_2026_11.sql` is fourteen
+project yet.** `20261128094340_frontier_roster_2026_11.sql` is fourteen
 `RENAME VALUE` and four `ADD VALUE`; the renames are the tight direction and
 this one renames the default target, so keep the window short and run
 `npm run check:db-enum` afterwards.
-`20261128120100_rehash_after_roster_rename.sql` re-runs the Q5 content-hash
+`20261128094348_rehash_after_roster_rename.sql` re-runs the Q5 content-hash
 backfill: `prompt_versions.content_hash` includes the target's enum label, so
 a rename leaves every stored hash stale and duplicate detection silently
 misses — a save of content the user already has files a second card. That has

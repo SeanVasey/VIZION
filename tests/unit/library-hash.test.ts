@@ -12,7 +12,7 @@ describe("contentHash", () => {
     // the formula's bytes, so it must not follow a roster rename (a sweep
     // that renamed it changes the digest and proves nothing). What a rename
     // does to STORED hashes is a real effect, handled where it belongs —
-    // supabase/migrations/20261128120100_rehash_after_roster_rename.sql.
+    // supabase/migrations/20261128094348_rehash_after_roster_rename.sql.
     expect(contentHash("hello", "world", "polish", "opus_5")).toBe(
       "ed7fe59f65467baf9681bef517f84e544ed613dc8a9a115b7a3616bcdbc33873",
     );

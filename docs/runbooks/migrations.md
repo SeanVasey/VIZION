@@ -163,7 +163,7 @@ select proname, md5(regexp_replace(regexp_replace(prosrc, '--[^\n]*', '', 'g'), 
   label, finds no match, and files a **duplicate card — silently**, because a
   missed dedupe is not an error and no gate can see it. The fix is the Q5
   backfill run again, as its own migration immediately after the rename
-  (`20261128120100_rehash_after_roster_rename.sql` is the template): it keys
+  (`20261128094348_rehash_after_roster_rename.sql` is the template): it keys
   on the parent prompt's `target_model::text`, which now reads the new label,
   writes only rows whose hash actually changes, and is idempotent. Keep it a
   separate file — it is DML over existing rows and belongs in its own
@@ -198,18 +198,18 @@ at eighteen labels instead of four, and this time including the default target.
 
 | file                                            | what it does                                                                                                                                       |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `20261128120000_frontier_roster_2026_11.sql`    | 14 × `RENAME VALUE` (the renamed slots) + 4 × `ADD VALUE IF NOT EXISTS` (`haiku_5_5`, `gemini_4_carbon`, `gemini_4_neon`, `muse_wonder_1_0`)       |
-| `20261128120100_rehash_after_roster_rename.sql` | re-runs the Q5 content-hash backfill so stored hashes match the renamed labels (and repairs what the `20260808` and `20260911` renames left stale) |
+| `20261128094340_frontier_roster_2026_11.sql`    | 14 × `RENAME VALUE` (the renamed slots) + 4 × `ADD VALUE IF NOT EXISTS` (`haiku_5_5`, `gemini_4_carbon`, `gemini_4_neon`, `muse_wonder_1_0`)       |
+| `20261128094348_rehash_after_roster_rename.sql` | re-runs the Q5 content-hash backfill so stored hashes match the renamed labels (and repairs what the `20260808` and `20260911` renames left stale) |
 
 Order, and why:
 
-1. **Apply `20261128120000`** on its own. `ALTER TYPE … ADD VALUE` cannot run
+1. **Apply `20261128094340`** on its own. `ALTER TYPE … ADD VALUE` cannot run
    inside a transaction block (Supabase applies each migration independently).
    The renames are the tight direction — this one renames the **default**
    target (`opus_5` → `opus_5_5`), so the window touches every user who has
    never picked a model. `deepseek_v4`, `sonar_pro` and `glm_5_3` keep their
    labels.
-2. **Apply `20261128120100`** after the enum change has committed.
+2. **Apply `20261128094348`** after the enum change has committed.
 3. **Deploy** the code immediately — apply → deploy, never the reverse, and
    keep the gap short.
 4. **`npm run check:db-enum -- --strict`** to confirm the hosted enum caught

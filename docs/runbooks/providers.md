@@ -680,11 +680,14 @@ the vendor's own page on 2026-11-28; none was confirmed by a response.
   re-pointed models.
 - **Muse Wonder 1.0's regional availability** on the account behind
   `META_API_KEY`.
-- **Neither migration has been applied to the hosted project**
-  (`docs/runbooks/migrations.md`).
 
 Record the first live result per provider here, dated, and delete the matching
 bullet.
+
+Both 2026-11 migrations were applied to the hosted project on 2026-11-28
+(ledger versions `20261128094340` and `20261128094348`): the enum carries the
+21 labels and the content-hash re-key left 0 stale hashes across 86 versions
+(16 had been stale from the 2026-08 and 2026-09 renames).
 
 ## Modes (`src/lib/enhance/modes.ts`)
 

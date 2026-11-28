@@ -140,7 +140,7 @@ export const LEGACY_TARGET_IDS: Record<string, TargetModelId> = {
   gemini_3_6_flash: "gemini_4_hydrogen",
   grok_4_5: "grok_4_7",
   glm_5_2: "glm_5_3",
-  // The 2026-11 frontier re-verify (20261128120000_frontier_roster): fourteen
+  // The 2026-11 frontier re-verify (20261128094340_frontier_roster): fourteen
   // of the seventeen slots moved in one pass.
   fable_5_1: "fable_5_2",
   opus_5: "opus_5_5",

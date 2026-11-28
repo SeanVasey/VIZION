@@ -10,7 +10,7 @@
 --
 -- That has been true since Q5 for every rename migration (20260808 and
 -- 20260911 both left stale hashes behind); nobody noticed because nothing
--- fails. 20261128120000 renames fourteen labels including the default
+-- fails. 20261128094340 renames fourteen labels including the default
 -- target, which would have un-matched most of every library at once.
 --
 -- The fix is the Q5 backfill, run again: it keys on the parent prompt's
