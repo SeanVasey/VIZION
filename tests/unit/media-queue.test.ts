@@ -69,16 +69,16 @@ describe("admitFiles", () => {
 
 describe("itemStepLabel", () => {
   it("labels each stage, naming the model during analysis", () => {
-    expect(itemStepLabel(item({ status: "queued" }), "Fable 5.1")).toBe("Waiting…");
-    expect(itemStepLabel(item({ status: "reserving" }), "Fable 5.1")).toBe(
+    expect(itemStepLabel(item({ status: "queued" }), "Fable 5.2")).toBe("Waiting…");
+    expect(itemStepLabel(item({ status: "reserving" }), "Fable 5.2")).toBe(
       "Reserving storage…",
     );
-    expect(itemStepLabel(item({ status: "uploading" }), "Fable 5.1")).toBe("Uploading…");
-    expect(itemStepLabel(item({ status: "analyzing" }), "Fable 5.1")).toBe(
-      "Analyzing with Fable 5.1…",
+    expect(itemStepLabel(item({ status: "uploading" }), "Fable 5.2")).toBe("Uploading…");
+    expect(itemStepLabel(item({ status: "analyzing" }), "Fable 5.2")).toBe(
+      "Analyzing with Fable 5.2…",
     );
-    expect(itemStepLabel(item({ status: "ready" }), "Fable 5.1")).toBe("Ready");
-    expect(itemStepLabel(item({ status: "error", error: "boom" }), "Fable 5.1")).toBe(
+    expect(itemStepLabel(item({ status: "ready" }), "Fable 5.2")).toBe("Ready");
+    expect(itemStepLabel(item({ status: "error", error: "boom" }), "Fable 5.2")).toBe(
       "boom",
     );
   });

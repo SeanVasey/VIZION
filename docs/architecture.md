@@ -60,25 +60,30 @@ on every theme change; CSS `env(safe-area-inset-*)` utilities handle layout inse
 
 A single `enhance(input, mode, target)` interface fans out to model-specific formatters:
 
-- **Opus 5** — XML-tagged sections, explicit system/user separation, CoT scaffolds.
-- **Sonnet 5** — clear direct instructions, XML sections for layered context, literal precision.
-- **GPT-6 Astra** — goal and finished-answer criteria up front, planning left to the engine; explicit schema where wanted.
-- **GPT-5.6 Sol** — developer/system/user roles, JSON-mode / structured-output, tool schemas.
-- **GPT-5.6 Terra** — goal-first directive brief; the family's balanced mid tier.
-- **GPT-5.6 Luna** — short self-contained prompts, explicit format; the family's small, fast tier.
-- **Fable 5.1** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
+- **Fable 5.2** — goal + constraints briefs over step-by-step scaffolds; XML sections for layered context.
+- **Opus 5.5** — XML-tagged sections, CoT scaffolds where reasoning helps, structured for long context.
+- **Sonnet 5.5** — clear direct instructions, XML sections for layered context, literal precision.
+- **Haiku 5.5** — compact self-contained brief: one goal, the constraints that matter, the exact output shape; the small, fast tier.
+- **GPT-6.2 Astra** — goal and finished-answer criteria up front, planning left to the engine; explicit schema where wanted.
+- **GPT-6.2 Sol** — terse directive instructions; exact output format or schema spelled out where a machine-readable result is wanted.
+- **GPT-6.1 Terra** — goal-first directive brief; the balanced mid tier.
+- **GPT-6 Luna** — short self-contained prompts, explicit format; the small, fast tier.
 - **DeepSeek V4 Pro** — plain complete problem statement, reasoning left to the engine, explicit format.
-- **Gemini 3.8 Flash** — multimodal "parts", system-instruction conventions,
-  grounding; goal and constraints in separate blocks for the reasoning passes.
-- **Muse Spark 1.1** — explicit goal up front, numbered constraints, output contract at the top.
-- **MiniMax M3** — tight ordered brief; goal, constraints, and deliverable up front.
-- **Mistral Large 3** — concise front-loaded instructions; economy over scaffolding.
-- **Kimi K3** — clear goal + constraints with key context front-loaded; long-context friendly.
+- **Gemini 4 Carbon** — goal, constraints and finished-answer criteria, planning left to the engine; the deep-reasoning tier.
+- **Gemini 4 Neon** — concrete well-scoped instructions with explicit grounding; for engineering work, files, interfaces and acceptance criteria named outright.
+- **Gemini 4 Hydrogen** — concrete grounded instructions in a tight brief; goal and constraints in separate blocks; the fast tier.
+- **Muse Wonder 1.0** — goal and done-criteria up front, the route left to the engine; numbered constraints, output contract near the top.
+- **Muse Spark 1.3** — explicit goal up front, numbered constraints, output contract at the top.
+- **MiniMax M3.1 Flash** — tight ordered brief; goal, constraints, and deliverable up front.
+- **Mistral Large 4** — concise front-loaded instructions; economy over scaffolding.
+- **Kimi K3.1 Pro** — clear goal + constraints with key context front-loaded; long-context friendly.
 - **Sonar Pro** — research-brief phrasing: scope, time window, source/citation expectations.
-- **Qwen3.8 Max** — well-separated task/context/format sections; language expectations stated.
-- **Grok 4.6** — direct plain-spoken instructions, inline context, explicit output format.
+- **Qwen4 Max** — well-separated task/context/format sections; language expectations stated.
+- **Grok 4.7** — direct plain-spoken instructions, inline context, explicit output format.
 - **GLM-5.3** — labeled task/context/constraints/format parts; acceptance criteria stated.
 
+Twenty-one targets from twelve developers (the 2026-11-28 roster; the text of
+each convention is `TARGET_CONVENTIONS` in `src/lib/providers/formatters.ts`).
 The seven 2026-07 additions (DeepSeek · Meta · MiniMax · Moonshot · Perplexity ·
 Qwen · Z.ai) all speak the OpenAI wire shape and share one streaming factory
 (`src/lib/providers/openai-compat.ts`). Model strings live in server config so
@@ -88,44 +93,73 @@ swaps are a config change, not a refactor.
 
 ONE reasoning-depth dial, for every model ([ADR-0018](./decisions/0018-one-ladder.md)):
 **Auto · Low · Medium · High · Max**. The rail shows for any target whose
-provider takes a per-request depth (`TARGET_HAS_THINKING` in
+API takes a per-request depth (`TARGET_HAS_THINKING` in
 `src/lib/constants.ts`) and always under Auto routing; a target with no knob
-(Mistral Large 3, Muse Spark, MiniMax, Sonar) shows no rail and is sent nothing.
+shows no rail and is sent nothing. Since 2026-11-28 that is Sonar Pro alone —
+Mistral Large 4, both Muse models and MiniMax M3.1 Flash each gained an effort
+word.
 It is a slider, not a menu: `role="slider"` on the pill, arrow keys stepping the
 ladder, and a capsule track that expands over the pill under a tap or a hold
 ([ADR-0014](./decisions/0014-dials.md)); at the screen's edge a held drag keeps
 stepping on a timer (edge auto-step, ADR-0018).
 
 The level rides the enhance request in the app's vocabulary (validated
-server-side against `THINKING_LEVELS`); the **adapter** translates it onto its
-provider's parameter through one table, `providerEffort` in
-`src/lib/providers/errors.ts`:
+server-side against `THINKING_LEVELS`); the **adapter** translates it onto the
+model's own words through one table, `providerEffort` in
+`src/lib/providers/errors.ts`. The vocabulary is chosen **per target**
+(`TARGETS[id].effort` in `src/lib/providers/config.ts`), not per provider
+(ADR-0018, Amendment 1): Gemini 4 Carbon stops at `high` where Neon and
+Hydrogen add `xhigh`, so one "Google vocabulary" would either 400 Carbon or cap
+its siblings a stop short. A vocabulary is named for its shape, and
+`tests/unit/models.test.tsx` pins `TARGET_HAS_THINKING` to the presence of
+`effort` so the client's and the server's copy of the fact cannot disagree.
 
-| Provider                                                | Parameter                                       | low · medium · high · max → |
-| ------------------------------------------------------- | ----------------------------------------------- | --------------------------- |
-| Anthropic (Fable 5.1 · Opus 5 · Sonnet 5)               | `output_config.effort`                          | low · medium · high · max   |
-| OpenAI (GPT-6 Astra · GPT-5.6 Sol/Terra/Luna)           | `reasoning_effort`                              | low · medium · high · max   |
-| xAI (Grok 4.6)                                          | `reasoning_effort`                              | low · medium · high · xhigh |
-| Google (Gemini 3.8 Flash)                               | `generationConfig.thinkingConfig.thinkingLevel` | low · medium · high · high  |
-| DeepSeek (V4 Pro) · Moonshot (Kimi K3) · Z.ai (GLM-5.3) | `reasoning_effort`                              | low · high · high · max     |
-| Qwen (Qwen3.8 Max)                                      | `enable_thinking` + `thinking_budget` (tokens)  | 1k · 4k · 8k · 16k          |
+| Vocabulary | Targets                                                  | Parameter                                                                      | low · medium · high · max → |
+| ---------- | -------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------- |
+| `five`     | Fable 5.2 · Opus 5.5 · Sonnet 5.5 · Haiku 5.5            | `output_config.effort`                                                         | low · medium · high · max   |
+| `five`     | Muse Wonder 1.0 · Muse Spark 1.3 · MiniMax M3.1 Flash    | `reasoning_effort`                                                             | low · medium · high · max   |
+| `openai`   | GPT-6.2 Astra · GPT-6.2 Sol · GPT-6.1 Terra · GPT-6 Luna | `reasoning_effort`                                                             | low · medium · high · max   |
+| `toXhigh`  | Grok 4.7 · Gemini 4 Neon · Gemini 4 Hydrogen             | `reasoning_effort` (Grok) · `generationConfig.thinkingConfig.thinkingLevel`    | low · medium · high · xhigh |
+| `toHigh`   | Gemini 4 Carbon · Mistral Large 4                        | `generationConfig.thinkingConfig.thinkingLevel` · `reasoning_effort` (Mistral) | low · medium · high · high  |
+| `three`    | DeepSeek V4 Pro · Kimi K3.1 Pro · GLM-5.3                | `reasoning_effort`                                                             | low · high · high · max     |
+| `threeX`   | Qwen4 Max                                                | `reasoning_effort`                                                             | low · high · high · xhigh   |
+| —          | Sonar Pro                                                | none (the legacy chat endpoint documents no knob)                              | nothing is sent             |
 
-Every column is monotone and keeps the ends honest — Low is the provider's
-cheapest word, Max its costliest — so the peak caption's "highest cost" holds on
-a three-valued API too. `minimal` and `xhigh` remain in the wire vocabulary for
-old drafts and stores and fold onto Low and High (`normalizeThinkingLevel`).
+Every row is monotone and keeps the ends honest — Low is the model's cheapest
+word, Max its costliest — so the peak caption's "highest cost" holds on a
+three-valued API too. `minimal` and `xhigh` remain in the wire vocabulary for
+old drafts and stores and fold onto Low and High (`normalizeThinkingLevel`),
+except where the API serves `xhigh` as a tier of its own (`five`, `openai`,
+`toXhigh`, `threeX`), where it rides through. Qwen moved from a token budget
+(`enable_thinking` + `thinking_budget`) to an effort word with Qwen4; the
+per-stop budget table is gone.
 
 "Auto" (the default) sends no level from the client; the **route** resolves it
-to the app's own default for the job — `medium` for the bounded modes,
-`high` for structure-inventing ones or a long/media-bearing input — the same
-tier split routing uses. Vendor defaults (`high` on Anthropic and Grok, `max`
-on Kimi K3 and GLM-5.3) are no longer inherited by an untuned run. The
-selection persists as one value in the UI store, whatever the model.
+to the app's own default for the job, using the same tier split routing uses
+(`defaultThinkingLevel` in `src/lib/enhance/auto-target.ts`). A heavy job —
+a structure-inventing mode, or a long or media-bearing input — gets `high`. A
+light job gets the **moderate** stop, read off the target's vocabulary:
+`medium` where Medium is a word of its own, **`low`** where it is not
+(`hasDistinctMedium` — the `three` and `threeX` rows: DeepSeek V4 Pro, Kimi
+K3.1 Pro, GLM-5.3, Qwen4 Max). Before 2026-11-28 Auto returned `medium` for
+every light job, which those APIs fold onto `high`: the lightest job ran at the
+heaviest job's depth. Vendor defaults (`high` on most of the roster, `max` on
+Kimi K3.1 Pro, GLM-5.3, Muse Wonder 1.0 and MiniMax M3.1 Flash) are not
+inherited by an untuned run. The route echoes what it chose as
+`resolvedThinking` on the result — present only when the dial was on Auto and
+the target has a knob — and the result meta reads it back as, for example,
+"· Medium thinking (auto)". The selection persists as one value in the UI
+store, whatever the model.
 
-A model **TIER** is not a thinking level. "Max" in `Qwen3.8 Max` names
-Alibaba's flagship tier (beside Plus and Turbo) and says nothing about
-reasoning depth — reading it as one is what once left that target with no
-selector while its API took a `thinking_budget` all along.
+A completed turn the model **declined** — a refusal stop reason (`refusal`,
+`content_filter`, Gemini's `SAFETY` family; `REFUSAL_STOPS`) with nothing
+decoded — is raised as `ProviderRefusalError` and reaches the client as a 422
+error event that says the model declined, rather than as "non-JSON response".
+
+A model **TIER** is not a thinking level. "Max" in `Qwen4 Max` names
+Alibaba's flagship tier and says nothing about reasoning depth — reading it as
+one is what once left that target with no selector while its API took a
+reasoning control all along.
 
 ## Data model (P2/P4)
 

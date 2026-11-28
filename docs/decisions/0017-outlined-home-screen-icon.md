@@ -1,7 +1,7 @@
 # 17. The installed icon is outlined, so no treatment of its plate can hide it
 
 Date: 2026-09-04
-Status: accepted, confirmed on device 2026-09-04 (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change; Amendment 2 restores the scalable icon's dark appearance; Amendment 3 flattens the plate)
+Status: accepted; the original outlined artwork was confirmed on device 2026-09-04, the tile that ships now (Amendment 7, 2026-11-28) has no device pass (supersedes the artwork half of [ADR-0015](./0015-pinned-home-screen-tile.md); its arrangement half stands; Amendment 1 records the measurement and a withdrawn change; Amendment 2 restores the scalable icon's dark appearance; Amendment 3 flattens the plate; Amendments 5–6 inverted the tile and are superseded by Amendment 7 — Laser plate, charcoal mark, a stroke under it)
 
 ## Current scope correction: September 4 repair
 
@@ -245,3 +245,73 @@ Amendment-5 fraction is removed rather than kept as a fallback.
 
 **Verify on device.** Re-add: the sheet preview shows the Laser mark on the
 same green as the header mark in the light theme.
+
+## Amendment 7 (2026-11-28) — Laser plate, charcoal mark, a stroke in the plate's colour
+
+**Owner reference.** A direction, not a screenshot: the installed tile is to be
+a Laser-coloured plate with a dark charcoal mark, the mark stroked "in the same
+colour as Laser so it isn't visible and blends into the background" in Light;
+in iOS's Dark appearance, where iOS swaps the plate for its own dark one, that
+stroke is to show as a Laser outline around the dark mark. No photograph of
+this tile on a device exists.
+
+**Decision.** This supersedes Amendments 5–6: the inverted tile (accent-ink
+plate, flat Laser mark, no outline) no longer ships on any surface, and
+`lightToken()` leaves the generator with it. Every colour is derived from
+`tokens.css`; the hexes below are today's values, quoted for the reader and
+restated nowhere in code.
+
+- **Plate:** `--laser`, flat (Amendment 3 stands).
+- **Mark:** the dark theme's `--onyx` (`#2B2D33`), flat — 11.5:1 on the plate.
+- **Stroke:** painted _under_ the fill as a second path, as this ADR's
+  original Decision drew it — round joins and caps, `OUTLINE_WIDTH` unchanged
+  at 60, so a 30-unit ring shows (~4 px on the 180 px Apple tile). Its colour
+  depends on whether anything evaluates the file:
+  - `app-icon.svg`: the stroke **is `--laser`**. In the light branch it lies on
+    the Laser plate and cannot be seen; in the `prefers-color-scheme: dark`
+    branch the plate is the existing `#plate-dark` gradient and the same stroke
+    is the outline. This is the owner's model exactly. The light plate is still
+    both the presentation `fill` and the `.plate` class rule, never an inline
+    style.
+  - the transparent `any` matrix: charcoal fill and the **full Laser** stroke,
+    no plate.
+  - the opaque PNG tiles (`apple-touch-icon.png`, `maskable-192/512.png`): the
+    stroke is `mix(LASER, VOID, TILE_STROKE_SHADE)` with
+    `TILE_STROKE_SHADE = 0.25` (`#99C221`) — **not** exactly Laser.
+- Favicons, `favicon.ico` and the splash screens are unchanged, byte for byte.
+
+**Why the PNG's stroke is not the plate's colour.** A PNG is flat pixels. A
+stroke identical to the plate does not exist in the file, so nothing can keep
+it: iOS builds the Dark tile by segmenting a foreground from the flat plate by
+colour, and a plate-coloured ring goes with the plate. That literal tile — flat
+Laser plate, flat dark mark — is the #105-era tile whose Dark result is already
+recorded in Amendment 3: plate swapped to `#101113`, the dark mark kept and
+invisible. The shade gives the ring pixels of its own. 0.25 toward Void is the
+low end of the range the Amendment-4 mark was filled with (0.25–0.35), which
+the 2026-09-05 screenshots in Amendment 5 showed iOS keeping; it is the least
+visible ring in Light for which any evidence of survival exists. It is one
+exported constant so it can be retuned after a device pass.
+
+**What it costs.** In Light the PNG ring is a faint darker-green halo (1.7:1
+against the plate), not nothing. In Dark a kept ring is that shaded green
+(≈9:1 on `#101113`), not full Laser, around a charcoal fill that is itself
+≈1.4:1 on such a plate — the Dark tile is an outline drawing, and it rests
+entirely on the ring being kept. This ADR's title is true again of every
+installed surface.
+
+**Not verified.** No device pass exists for this tile. That iOS keeps a
+0.25-shaded ring 30 glyph units wide as foreground is an expectation drawn from
+the Amendment 4–5 screenshots, not a result: there the shaded region was the
+mark's whole fill inside a Void outline, here it is a thin ring lying directly
+against the plate. If iOS discards the ring, Dark is Amendment 3's outcome.
+What is measured is the artwork only: unit pixel tests on every tile (the ring
+is present, in the derived colour, distinct from the plate), a Chromium render
+of the SVG in both schemes, and byte-identical regeneration.
+
+**Verify on device.** Delete and re-add in Light: a Laser plate, a charcoal
+mark, a faint darker-green ring around it. Switch to Dark and photograph it
+both at once and later (Amendment 1's lesson): the pass is iOS's dark plate
+with a visibly kept green ring outlining the mark; the fail is a dark plate on
+which the mark is lost, or a tile merely dimmed. Record which. If the ring is
+not kept, or the Light halo is judged too visible, retune `TILE_STROKE_SHADE`
+and regenerate — do not add a link, a `media` query or a matcher.

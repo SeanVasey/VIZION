@@ -71,7 +71,7 @@ beforeEach(() => {
     editorDraft: "",
     autoTarget: false,
     autoPreference: "balanced",
-    targetModel: "opus_5",
+    targetModel: "opus_5_5",
     activeMode: "clarify",
   });
 });
@@ -87,7 +87,7 @@ describe("Auto routing on the wire", () => {
     // The preference travels WITH the flag or not at all — sent alone it
     // would be inert on the server, but it shouldn't ride at all.
     expect(requestAt(0).autoPreference).toBeUndefined();
-    expect(requestAt(0).target).toBe("opus_5");
+    expect(requestAt(0).target).toBe("opus_5_5");
   });
 
   it("sends the stored routing preference beside the auto flag", () => {
@@ -111,7 +111,7 @@ describe("Auto routing on the wire", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /enhance/i }));
     expect(requestAt(0).auto).toBe(true);
-    expect(requestAt(0).target).toBe("opus_5");
+    expect(requestAt(0).target).toBe("opus_5_5");
     expect(String(requestAt(0).target)).not.toBe("auto");
   });
 
@@ -120,11 +120,11 @@ describe("Auto routing on the wire", () => {
     // and the routing decision for this result was already made.
     useUIStore.setState({ autoTarget: true });
     renderComposer();
-    runAndSettle({ ...BASE_RESULT, resolvedTarget: "sonnet_5" });
+    runAndSettle({ ...BASE_RESULT, resolvedTarget: "sonnet_5_5" });
 
     fireEvent.click(screen.getByRole("button", { name: "Make shorter" }));
     const refine = requestAt(1);
-    expect(refine.target).toBe("sonnet_5");
+    expect(refine.target).toBe("sonnet_5_5");
     expect(refine.auto).toBeUndefined();
     // The routing decision for this result was already made — a refine
     // re-sends neither the flag nor the preference that shaped it.
@@ -135,14 +135,14 @@ describe("Auto routing on the wire", () => {
     renderComposer();
     runAndSettle(BASE_RESULT);
     fireEvent.click(screen.getByRole("button", { name: "Make shorter" }));
-    expect(requestAt(1).target).toBe("opus_5");
+    expect(requestAt(1).target).toBe("opus_5_5");
   });
 
   it("names the model Auto chose in the result meta", () => {
     useUIStore.setState({ autoTarget: true });
     renderComposer();
-    runAndSettle({ ...BASE_RESULT, resolvedTarget: "sonnet_5" });
-    expect(screen.getByText(/Auto → Sonnet 5/)).toBeTruthy();
+    runAndSettle({ ...BASE_RESULT, resolvedTarget: "sonnet_5_5" });
+    expect(screen.getByText(/Auto → Sonnet 5.5/)).toBeTruthy();
   });
 
   it("adds the routing reason when the server explains itself", () => {
@@ -150,10 +150,10 @@ describe("Auto routing on the wire", () => {
     renderComposer();
     runAndSettle({
       ...BASE_RESULT,
-      resolvedTarget: "sonnet_5",
+      resolvedTarget: "sonnet_5_5",
       resolvedReason: "light-task",
     });
-    expect(screen.getByText(/Auto → Sonnet 5 \(quick task\)/)).toBeTruthy();
+    expect(screen.getByText(/Auto → Sonnet 5.5 \(quick task\)/)).toBeTruthy();
   });
 
   it("renders an unknown reason as nothing — garnish, never load-bearing", () => {
@@ -161,11 +161,31 @@ describe("Auto routing on the wire", () => {
     renderComposer();
     runAndSettle({
       ...BASE_RESULT,
-      resolvedTarget: "sonnet_5",
+      resolvedTarget: "sonnet_5_5",
       resolvedReason: "a-reason-this-build-never-heard-of",
     });
-    const meta = screen.getByText(/Auto → Sonnet 5/);
+    const meta = screen.getByText(/Auto → Sonnet 5.5/);
     expect(meta.textContent).not.toContain("(");
+  });
+
+  it("says which depth an Auto dial resolved to", () => {
+    renderComposer();
+    runAndSettle({ ...BASE_RESULT, resolvedThinking: "medium" });
+    expect(screen.getByText(/Medium thinking \(auto\)/)).toBeTruthy();
+  });
+
+  it("renders an unknown resolved depth as nothing", () => {
+    renderComposer();
+    runAndSettle({ ...BASE_RESULT, resolvedThinking: "a-level-from-the-future" });
+    expect(screen.queryByText(/thinking \(auto\)/)).toBeNull();
+    // …and the rest of the meta line is intact.
+    expect(screen.getByText(/claude-sonnet-5/)).toBeTruthy();
+  });
+
+  it("says nothing about depth when the user set the dial themselves", () => {
+    renderComposer();
+    runAndSettle(BASE_RESULT);
+    expect(screen.queryByText(/thinking \(auto\)/)).toBeNull();
   });
 
   it("says nothing about routing on a run the user routed themselves", () => {

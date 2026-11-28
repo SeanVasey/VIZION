@@ -59,7 +59,11 @@ beforeEach(() => {
       opts?.onSuccess?.(FAKE_RESPONSE);
     },
   );
-  useUIStore.setState({ editorDraft: "", activeMode: "clarify", targetModel: "opus_5" });
+  useUIStore.setState({
+    editorDraft: "",
+    activeMode: "clarify",
+    targetModel: "opus_5_5",
+  });
   Object.defineProperty(navigator, "clipboard", {
     value: { writeText: vi.fn(async () => {}) },
     configurable: true,
@@ -87,7 +91,7 @@ describe("refinement chips (composer wiring)", () => {
     expect(req).toMatchObject({
       input: "an enhanced prompt",
       mode: "clarify",
-      target: "opus_5",
+      target: "opus_5_5",
       refine: { kind: "shorter" },
     });
     expect(req.refine.baseInput).toBeUndefined();
@@ -104,7 +108,7 @@ describe("refinement chips (composer wiring)", () => {
     useUIStore.setState({
       editorDraft: "",
       activeMode: "reformat",
-      targetModel: "opus_5",
+      targetModel: "opus_5_5",
       reformatFormat: "xml",
     });
     render(

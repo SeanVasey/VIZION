@@ -65,7 +65,7 @@ beforeEach(() => {
     lengthByMode: {},
     reformatFormat: null,
     autoTarget: false,
-    targetModel: "opus_5",
+    targetModel: "opus_5_5",
   });
 });
 
@@ -108,21 +108,21 @@ describe("length catalogue", () => {
 
 describe("length instructions in the system prompt", () => {
   it.each(DIAL_MODES)("appends the chosen depth for %s", (mode) => {
-    const prompt = buildSystemPrompt({ mode, target: "opus_5", length: "long" });
+    const prompt = buildSystemPrompt({ mode, target: "opus_5_5", length: "long" });
     expect(prompt).toContain(LENGTH_INSTRUCTIONS[mode]!.long);
   });
 
   it.each(NO_DIAL_MODES)("ignores a length sent with %s", (mode) => {
     // Keyed by mode, so a length on a dial-less mode finds nothing to append.
-    const withKnob = buildSystemPrompt({ mode, target: "opus_5", length: "long" });
-    const without = buildSystemPrompt({ mode, target: "opus_5" });
+    const withKnob = buildSystemPrompt({ mode, target: "opus_5_5", length: "long" });
+    const without = buildSystemPrompt({ mode, target: "opus_5_5" });
     expect(withKnob).toBe(without);
   });
 
   it("does not cross the two modes' instructions", () => {
     const prompt = buildSystemPrompt({
       mode: "condense",
-      target: "opus_5",
+      target: "opus_5_5",
       length: "long",
     });
     expect(prompt).not.toContain(LENGTH_INSTRUCTIONS.expand!.long);

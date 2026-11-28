@@ -4,7 +4,8 @@ import {
   type ModeId,
   type TargetModelId,
 } from "@/lib/constants";
-import { isProviderConfigured } from "@/lib/providers/config";
+import { TARGETS, isProviderConfigured } from "@/lib/providers/config";
+import { hasDistinctMedium } from "@/lib/providers/errors";
 import { TARGET_ROUTING, blendedPrice, type SpeedClass } from "@/lib/providers/manifest";
 
 /**
@@ -215,30 +216,45 @@ export function resolveAutoTarget(
 ): AutoRoute {
   const { tier, reason } = classifyTier(mode, inputChars, hasMedia);
   const ladder = AUTO_LADDERS[preference][tier];
-  // Ladders are total over a 16-model pool, so the final `?? "opus_5"` is
+  // Ladders are total over the pool, so the final `?? "opus_5_5"` is
   // unreachable — it exists because the index type can't prove non-emptiness.
-  const target = ladder.find(isConfigured) ?? ladder[0] ?? "opus_5";
+  const target = ladder.find(isConfigured) ?? ladder[0] ?? "opus_5_5";
   return { target, tier, reason };
 }
 
 /**
  * The Thinking dial's "Auto", resolved. Until 2026-09 Auto sent nothing and
- * the provider's own default applied — which was `high` on the Claude 5
- * family and Grok, and MAX on Kimi K3 and GLM-5.3: every untuned run on
- * those targets was the slowest, costliest configuration their API offers,
- * for a job that is usually "fix the grammar in this paragraph" (the
- * "models slow, time out" report, 2026-09-11). Auto now means the APP's
- * default for the job, not the vendor's: the same tier split routing uses —
- * bounded modes get `medium`, structure-inventing ones (or a long or
- * media-bearing input) get `high`. Explicit dial choices are untouched, and
- * targets with no knob still get nothing sent.
+ * the provider's own default applied — which was `high` on most of the
+ * roster and MAX on Kimi and GLM (and, since, on Muse Wonder and MiniMax
+ * M3.1): every untuned run on those targets was the slowest, costliest
+ * configuration their API offers, for a job that is usually "fix the grammar
+ * in this paragraph" (the "models slow, time out" report, 2026-09-11). Auto
+ * means the APP's default for the job, not the vendor's: the same tier split
+ * routing uses — bounded modes get the MODERATE stop, structure-inventing
+ * ones (or a long or media-bearing input) get `high`.
+ *
+ * "Moderate" is read off the target, which is the 2026-11 correction. The
+ * first cut returned `medium` for every light job, and on a three-valued API
+ * (DeepSeek, Kimi, GLM, Qwen4: low · high · top) there is no medium: the
+ * adapter folds it onto `high`. So on four of the roster's models Auto sent
+ * `high` for a light job and `high` for a heavy one — it was choosing
+ * nothing, and the lightest job ran at the same depth as the heaviest. Where
+ * Medium is not a word of its own, the moderate stop is `low`.
+ *
+ * Explicit dial choices are untouched, and a target with no knob still gets
+ * nothing sent (the route gates on TARGET_HAS_THINKING before calling this).
+ * `target` is optional so the tier rule stays callable on its own; without
+ * it the answer is the plain ladder split.
  */
 export function defaultThinkingLevel(
   mode: ModeId,
   inputChars: number,
   hasMedia: boolean,
-): "medium" | "high" {
-  return classifyTier(mode, inputChars, hasMedia).tier === "heavy" ? "high" : "medium";
+  target?: TargetModelId,
+): "low" | "medium" | "high" {
+  if (classifyTier(mode, inputChars, hasMedia).tier === "heavy") return "high";
+  const vocabulary = target ? TARGETS[target].effort : undefined;
+  return vocabulary && !hasDistinctMedium(vocabulary) ? "low" : "medium";
 }
 
 /**
@@ -246,7 +262,7 @@ export function defaultThinkingLevel(
  * analysis IS the visual-context job), pool narrowed to vision-capable
  * targets. The caller supplies `isVisionCapable` (vision.ts `supportsVision`)
  * rather than this module importing vision.ts — that file pulls provider SDKs
- * this pure policy module has no business loading. The `"opus_5"` tail is a
+ * this pure policy module has no business loading. The `"opus_5_5"` tail is a
  * defensive backstop for an empty capability set, matching the media route's
  * long-standing default.
  */
@@ -256,5 +272,5 @@ export function resolveAutoVisionTarget(
   isConfigured: (t: TargetModelId) => boolean = isProviderConfigured,
 ): TargetModelId {
   const ladder = AUTO_LADDERS[preference].heavy.filter(isVisionCapable);
-  return ladder.find(isConfigured) ?? ladder[0] ?? "opus_5";
+  return ladder.find(isConfigured) ?? ladder[0] ?? "opus_5_5";
 }

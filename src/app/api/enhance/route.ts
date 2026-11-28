@@ -6,8 +6,8 @@ import {
   MAX_INPUT_CHARS,
   MODES,
   TARGET_HAS_THINKING,
-  TARGET_MODELS,
   THINKING_LEVELS,
+  resolveTargetId,
   type AutoPreference,
   type ModeId,
   type TargetModelId,
@@ -22,7 +22,7 @@ import {
   RATE_LIMIT_PER_MIN,
   COST_CAP_USD_PER_DAY,
 } from "@/lib/providers/config";
-import { ProviderNotConfiguredError } from "@/lib/providers/errors";
+import { ProviderNotConfiguredError, ProviderRefusalError } from "@/lib/providers/errors";
 import {
   REFINE_KINDS,
   buildSystemPrompt,
@@ -45,7 +45,6 @@ import {
 } from "@/lib/enhance/stream-events";
 
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
-const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 const REFINE_KIND_IDS = new Set<string>(REFINE_KINDS);
 const THINKING_LEVEL_IDS = new Set<string>(THINKING_LEVELS);
 
@@ -150,7 +149,10 @@ export async function POST(request: NextRequest) {
   if (typeof mode !== "string" || !MODE_IDS.has(mode)) {
     return err(400, "Unknown enhancement mode.");
   }
-  if (typeof target !== "string" || !TARGET_IDS.has(target)) {
+  // A retired id is folded forward, not refused: a tab open across a roster
+  // deploy still holds last roster's id (resolveTargetId, constants.ts).
+  const liveTarget = resolveTargetId(target);
+  if (!liveTarget) {
     return err(400, "Unknown target model.");
   }
   if (auto !== undefined && typeof auto !== "boolean") {
@@ -184,23 +186,22 @@ export async function POST(request: NextRequest) {
         (autoPreference as AutoPreference | undefined) ?? "balanced",
       )
     : null;
-  const typedTarget: TargetModelId = autoRoute
-    ? autoRoute.target
-    : (target as TargetModelId);
+  const typedTarget: TargetModelId = autoRoute ? autoRoute.target : liveTarget;
 
   // Optional per-request reasoning depth — ONE ladder for every model
   // (ADR-0018). Legality is checked against the app's wire vocabulary; the
   // ADAPTER translates the level onto whatever its provider accepts, so no
   // target can 400 a level another target offered. A target with no knob at
-  // all (Mistral, Sonar, …) simply gets nothing sent — advisory, never a
+  // all (Sonar) simply gets nothing sent — advisory, never a
   // 400: the user's dial position is a preference, not a claim about that
   // provider's API.
   //
   // "Auto" (no level sent) is resolved HERE, not left to the vendor: a
-  // vendor default is `max` on Kimi/GLM and `high` on Anthropic/Grok, which
-  // made the untuned path the slowest one for a grammar fix. The tier split
-  // routing already uses picks medium for bounded jobs, high for
-  // structure-inventing ones (defaultThinkingLevel).
+  // vendor default is `max` on Kimi/GLM/Muse Wonder/MiniMax and `high` on
+  // most of the rest, which made the untuned path the slowest one for a
+  // grammar fix. The tier split routing already uses picks the moderate stop
+  // for bounded jobs — `medium`, or `low` where the target's API has no
+  // medium — and `high` for structure-inventing ones (defaultThinkingLevel).
   if (
     thinkingLevel !== undefined &&
     (typeof thinkingLevel !== "string" || !THINKING_LEVEL_IDS.has(thinkingLevel))
@@ -210,8 +211,13 @@ export async function POST(request: NextRequest) {
   const hasMediaForTier = Array.isArray(mediaContext) && mediaContext.length > 0;
   const typedThinkingLevel: ThinkingLevel | undefined = TARGET_HAS_THINKING[typedTarget]
     ? ((thinkingLevel as ThinkingLevel | undefined) ??
-      defaultThinkingLevel(typedMode, input.length, hasMediaForTier))
+      defaultThinkingLevel(typedMode, input.length, hasMediaForTier, typedTarget))
     : undefined;
+  // What Auto chose, reported back like `resolvedTarget`: present ONLY when
+  // the dial was on Auto and the target has a knob, so its presence is the
+  // signal. An explicit level is the user's own and needs no echo.
+  const autoThinkingLevel: ThinkingLevel | undefined =
+    thinkingLevel === undefined ? typedThinkingLevel : undefined;
   // Reformat's output shape. Validated for legality only — buildSystemPrompt
   // gates it by mode, so a format sent alongside any other mode is inert
   // rather than contradictory, and a stale client can't produce a prompt that
@@ -449,6 +455,9 @@ export async function POST(request: NextRequest) {
             ...(autoRoute
               ? { resolvedTarget: typedTarget, resolvedReason: autoRoute.reason }
               : {}),
+            // Depth provenance, same presence rule: an Auto dial says which
+            // level the route resolved for this job on this model.
+            ...(autoThinkingLevel ? { resolvedThinking: autoThinkingLevel } : {}),
           },
         });
         if (result.salvaged) {
@@ -462,6 +471,10 @@ export async function POST(request: NextRequest) {
         try {
           if (e instanceof ProviderNotConfiguredError) {
             send({ type: "error", status: 503, error: e.message, notConfigured: true });
+          } else if (e instanceof ProviderRefusalError) {
+            // Not a 502: nothing upstream failed. The model declined, and
+            // the sentence already says what to try next.
+            send({ type: "error", status: 422, error: e.message });
           } else {
             send({
               type: "error",

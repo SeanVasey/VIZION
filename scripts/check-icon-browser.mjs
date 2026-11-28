@@ -53,13 +53,22 @@ export async function verifyIconBrowser(page) {
     assert(darkCorner.every((v, i) => Math.abs(v - rgb(C.plateDarkTop)[i]) <= 2));
     assert.notDeepEqual(at(light, 1, 1), at(dark, 1, 1));
     const mask = await pixels(await renderIconInBrowser(page, foreground, size, "light"));
-    // Compare every mark pixel that is not an anti-aliased edge: opaque itself
-    // and with all eight neighbours opaque (a 1 px erosion — AA is 1 px wide).
-    // The threshold is a share of the mark's own opaque area, not a function of
-    // the canvas: with no outline the ring is ~3 px wide at 60 px, so a 2 px
-    // erosion left nothing to compare and a canvas-sized floor was unreachable.
+    // Compare every foreground pixel (stroke and fill alike) that is not an
+    // anti-aliased edge: opaque itself and with all eight neighbours opaque (a
+    // 1 px erosion — AA is 1 px wide). The threshold is a share of the
+    // foreground's own opaque area, not a function of the canvas: at 60 px the
+    // mark's ring is ~3 px wide, so a 2 px erosion leaves almost nothing to
+    // compare and a canvas-sized floor is unreachable.
+    //
+    // The stroke is the owner's model, checked as pixels (ADR-0017 Amendment
+    // 7): it IS the plate's colour, so every stroke pixel is indistinguishable
+    // from the light plate — and, being invariant, the very same pixels are
+    // Laser on the dark plate, where they are the outline. `strokeOnly` counts
+    // the interior foreground pixels that are exactly the plate colour.
+    const plateRgba = [...rgb(C.plate), 255];
     let opaque = 0;
     let compared = 0;
+    let strokeOnly = 0;
     for (let y = 1; y < size - 1; y++) {
       for (let x = 1; x < size - 1; x++) {
         if (at(mask, x, y)[3] !== 255) continue;
@@ -76,16 +85,23 @@ export async function verifyIconBrowser(page) {
         if (!interior) continue;
         assert.deepEqual(at(light, x, y), at(dark, x, y));
         compared++;
+        if (at(light, x, y).every((v, i) => v === plateRgba[i])) strokeOnly++;
       }
     }
     assert(
       compared >= opaque * 0.15 && compared > 0,
       `Too few interior foreground pixels at ${size}px (${compared} of ${opaque} opaque)`,
     );
+    // At 180 px the stroke's ring is ~4 px wide, so some of it survives the
+    // erosion; at 60 px it is ~1.3 px and none need survive.
+    if (size === 180) {
+      assert(strokeOnly > 0, "No stroke pixel in the plate's colour at 180px");
+    }
     checks.push({
       size,
       scheme: "light/dark",
       invariantInteriorPixels: compared,
+      plateColouredStrokePixels: strokeOnly,
       lightPlate: at(light, 1, 1),
       darkPlate: at(dark, 1, 1),
     });

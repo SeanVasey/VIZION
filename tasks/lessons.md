@@ -4058,3 +4058,79 @@ test:e2e` hard-fails in global-setup until
   body)" reached the one person who could not act on it. The remediation for
   a refused key is the same on every provider, so it lives in one function
   that names the env var — and logs the status where the operator will see it.
+
+## Per-target effort, a hash that did not follow a rename, a stroke that is not in the file (2026-11-28)
+
+- **A per-provider table holds only until one vendor ships two models with
+  different words.** `providerEffort("google")` was correct for as long as
+  Google served one Gemini on the roster. Gemini 4 Carbon stops at `high`,
+  Neon and Hydrogen add `xhigh`, and "the Google vocabulary" could then only
+  400 one or under-reach the other two. Key a capability fact by TARGET from
+  the start; a provider-level set is a cache of a coincidence. Vision
+  capability is still provider-level and carries the same expiry date — the
+  comment on it now says so.
+- **Auto returning `medium` was choosing nothing on three-valued APIs.** The
+  ladder said light → medium, heavy → high, and the unit test agreed, because
+  it tested the app's own vocabulary. On DeepSeek, Kimi, GLM and Qwen4 the
+  adapter folds medium onto `high`, so both tiers sent the same word and the
+  lightest job ran at the heaviest job's depth — the exact defect Auto was
+  built to remove. Test a default on the WIRE (the translated word), not on
+  the vocabulary the default was written in.
+- **A digest that includes an enum label does not follow `RENAME VALUE`.**
+  The rename relabels every row for free, which is why the runbook said "no
+  backfill" — true of the column, false of `content_hash`, which had the old
+  label baked into its bytes. Duplicate detection had been silently missing
+  after every rename since Q5. It surfaced only because a sweep-rename
+  "broke" the hash fixture test: that failure was the finding, not an
+  obstacle to it. Ship the re-hash with every rename, and when a pinned
+  fixture goes red under a mechanical change, ask what in production has the
+  same dependency before touching the fixture.
+- **Review a mechanical rename's diff for literals that merely look like
+  ids.** A bulk `sed` over the tests renamed `opus_5` inside the hash
+  fixture — a literal copied from a query run on the hosted project, pinned
+  to a digest, not a roster id. The renamed line changed the digest and
+  proved nothing. A sweep is correct for references and wrong for evidence;
+  the fixture now carries a comment saying which it is.
+- **A knob-less list goes stale in the other direction too.** Three vendors
+  shipped an effort knob between the 2026-09-11 and 2026-11-28 re-verifies
+  (Mistral, Meta, MiniMax), and every
+  assumption sized for "this model does not reason" turned into a bug
+  without a line changing: a 1024-token vision cap silently returns empty
+  attributes on a reasoning model, and a flat 16k ceiling starts truncating.
+  When a model gains reasoning, re-read every cap and every "no need to send
+  X" written for it, not just the dial.
+- **A PNG has no strokes, only pixels.** The owner asked for a stroke the
+  same colour as the plate, invisible in Light and revealed in Dark. In the
+  SVG that works exactly, because something evaluates the file. In a PNG a
+  stroke the plate's colour is not in the file, so nothing downstream can
+  reveal it — and the device screenshot of precisely that tile (flat Laser
+  plate, flat dark mark: kept and invisible) was already in ADR-0017. Check
+  a literal request against the medium it lands in, and against evidence the
+  repo already holds, before building it; then say plainly where the build
+  departs from the words and why.
+- **A vendor can sunset an endpoint while it keeps answering.** Sonar's Chat
+  Completions support ended 2026-09-27 and the endpoint has returned 200
+  ever since, reformulating requests behind the scenes; the pricing page
+  quietly stopped listing the model. "Still works" is not "still supported".
+  On a re-verify, read the docs' status for each endpoint, not the response
+  code — and a price that has disappeared from the vendor's page is a
+  carried figure, to be flagged as one.
+- **Nothing in this pass ran against a live provider, and the changelog says
+  so.** Fourteen renamed ids, four new ones, a new parameter on four models
+  and a changed parameter kind on a fifth all pass a gate that has no
+  provider keys. A green gate is evidence about what the app sends, not
+  about what an API accepts. Write the limit of the evidence next to the
+  claim — in the changelog, the ADR and the runbook — rather than letting a
+  green check imply the rest.
+- **A lockfile one npm resolves is not a lockfile another npm will install.**
+  The dependency pass resolved under npm 12 with both audits at zero, and
+  `npm ci` under npm 10 — the command CI runs — refused it: the flat
+  `"glob@11"` override key is not applied by npm 10 to a direct dependency's
+  dependency, so its ideal tree and the lockfile disagreed. The parent-scoped
+  form works on both. Zero advisories is not the acceptance test for a
+  dependency change; a clean install by CI's own npm is.
+- **A gate that only runs in CI rots between runs.** `main` had not run CI for
+  eleven weeks, and in that time the runner image moved under Playwright and
+  nineteen advisories accumulated. None of it was this change's, and all of it
+  landed on this change's PR. A red check on a quiet repo is as likely to be
+  the calendar as the diff: read which STEP failed before reading the diff.

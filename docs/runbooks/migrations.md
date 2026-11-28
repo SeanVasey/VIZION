@@ -151,14 +151,81 @@ select proname, md5(regexp_replace(regexp_replace(prosrc, '--[^\n]*', '', 'g'), 
   label, which stops existing the instant the rename runs; new code writes the
   new label, which doesn't exist until it does. Keep apply→deploy short.
   Renaming relabels existing rows for free (enum values are stored by OID), so
-  no backfill is needed.
+  the enum-typed COLUMNS need no backfill.
+- **A `RENAME VALUE` ships the content-hash re-key beside it — every time.**
+  "No backfill" is true of the columns and false of anything DERIVED from the
+  label. `prompt_versions.content_hash` is
+  `sha256(input ∥ US ∥ output ∥ US ∥ mode ∥ US ∥ target)` (ruling Q5,
+  `20260801200000_library_media_correctness.sql`): the target's enum **label**
+  is inside the digest. A rename changes the label under every stored row, but
+  a hash computed from the old label is just bytes and does not follow. After
+  the rename, saving content the user already has computes a hash from the new
+  label, finds no match, and files a **duplicate card — silently**, because a
+  missed dedupe is not an error and no gate can see it. The fix is the Q5
+  backfill run again, as its own migration immediately after the rename
+  (`20261128094348_rehash_after_roster_rename.sql` is the template): it keys
+  on the parent prompt's `target_model::text`, which now reads the new label,
+  writes only rows whose hash actually changes, and is idempotent. Keep it a
+  separate file — it is DML over existing rows and belongs in its own
+  transaction, after the enum change has committed — and keep its expression
+  byte-matched with `src/lib/library/hash.ts` and the original in
+  `20260801200000`. This was missed on **both** earlier post-Q5 renames
+  (`20260808` and `20260911` left stale hashes behind; nothing failed, so
+  nobody noticed); the 2026-11-28 re-key repairs those leftovers in the same
+  pass.
 - **Enum values cannot be dropped in Postgres.** An `ADD VALUE` is permanent —
   a typo'd label is forever. This is what makes step 4 worth running before the
   deploy rather than after.
 - **A `RENAME VALUE` needs a `LEGACY_TARGET_IDS` entry** in
   `src/lib/constants.ts` plus a `version` bump in the `ui.ts` persist config, or
   a stale localStorage selection 400s on `/api/enhance`. The enum-contract test
-  fails if the entry is missing.
+  fails if the entry is missing, and `tests/unit/ui-store.test.ts` ties the
+  persist version to the size of the legacy map so the bump cannot be forgotten.
+  The same map is what the SERVER folds a retired id forward with
+  (`resolveTargetId`, used by `/api/enhance`, `/api/media` and the library and
+  draft save actions): a rename and a deploy are not atomic for a client, so a
+  tab left open across the deploy, or a save queued in the offline outbox, still
+  presents last roster's id. With the entry it is resolved to the live id;
+  without it, it is a 400.
+
+## The 2026-11-28 roster pair — NOT yet applied to the hosted project
+
+Two migrations ship with the twenty-one-model roster, and **neither has been
+applied to the hosted project** as of 2026-11-28. Deploy the code before they
+are and the hosted `model_target` enum is behind the app's roster: every write
+for a renamed or new target fails with `22P02` — the 2026-07-25 incident above,
+at eighteen labels instead of four, and this time including the default target.
+
+| file                                            | what it does                                                                                                                                       |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `20261128094340_frontier_roster_2026_11.sql`    | 14 × `RENAME VALUE` (the renamed slots) + 4 × `ADD VALUE IF NOT EXISTS` (`haiku_5_5`, `gemini_4_carbon`, `gemini_4_neon`, `muse_wonder_1_0`)       |
+| `20261128094348_rehash_after_roster_rename.sql` | re-runs the Q5 content-hash backfill so stored hashes match the renamed labels (and repairs what the `20260808` and `20260911` renames left stale) |
+
+Order, and why:
+
+1. **Apply `20261128094340`** on its own. `ALTER TYPE … ADD VALUE` cannot run
+   inside a transaction block (Supabase applies each migration independently).
+   The renames are the tight direction — this one renames the **default**
+   target (`opus_5` → `opus_5_5`), so the window touches every user who has
+   never picked a model. `deepseek_v4`, `sonar_pro` and `glm_5_3` keep their
+   labels.
+2. **Apply `20261128094348`** after the enum change has committed.
+3. **Deploy** the code immediately — apply → deploy, never the reverse, and
+   keep the gap short.
+4. **`npm run check:db-enum -- --strict`** to confirm the hosted enum caught
+   up with the roster.
+5. **Regenerate `src/lib/supabase/database.types.ts` from the live schema**
+   (step 3 of "Applying a migration") and expect no diff. The committed file
+   already lists the twenty-one labels, and it cannot have come from the hosted
+   schema, which has not moved — so until this step runs it agrees with the
+   migration _files_, which is exactly the state the 2026-07-25 incident hid
+   behind.
+
+Client side, the same renames are carried by fourteen new `LEGACY_TARGET_IDS`
+entries and the UI store's persist `version` bump (7 → 8); both are in the
+code already and need no operator step. What to check after the deploy:
+`MODEL_*` / `PRICE_*` overrides that outlived the move
+(`docs/runbooks/providers.md`).
 
 ## What the guardrails cover
 
@@ -167,6 +234,7 @@ select proname, md5(regexp_replace(regexp_replace(prosrc, '--[^\n]*', '', 'g'), 
 | `npm run typecheck`                          | roster ids that disagree with the generated types union                                                              | a hand-edited types file                    |
 | `npm run test` (`model-target-enum.test.ts`) | a roster entry with no migration; generated types that disagree with the migrations; a rename with no legacy mapping | whether the hosted project applied anything |
 | `npm run check:db-enum -- --strict`          | the hosted enum missing a roster label                                                                               | schema beyond `model_target`                |
+| `npm run test` (`library-hash.test.ts`)      | the hash FORMULA drifting from the bytes Postgres computed (a fixture pinned against the hosted project)             | stored hashes left stale by a rename        |
 
 The first two run in CI. The third needs credentials
 (`NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, or the anon key) and

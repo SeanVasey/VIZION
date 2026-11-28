@@ -611,7 +611,7 @@ test.describe("thinking hold-slider", () => {
     await page.getByRole("button", { name: /^Target model:/ }).click();
     const sheet = page.getByRole("dialog", { name: "Target model" });
     await expect(sheet).toBeVisible();
-    const row = sheet.getByRole("radio", { name: "Fable 5.1", exact: true });
+    const row = sheet.getByRole("radio", { name: "Fable 5.2", exact: true });
     const box = (await row.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
@@ -622,7 +622,7 @@ test.describe("thinking hold-slider", () => {
     // The row's own click landed: model picked, sheet closed, dial untouched.
     await expect(sheet).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Target model:/ })).toContainText(
-      "Fable 5.1",
+      "Fable 5.2",
     );
     await expect(pill).toContainText("Auto");
   });
@@ -686,7 +686,7 @@ test.describe("thinking hold-slider", () => {
     // The shield covers the sheet beneath it.
     await expect(
       page
-        .getByRole("radio", { name: "Fable 5.1", exact: true })
+        .getByRole("radio", { name: "Fable 5.2", exact: true })
         .click({ trial: true, timeout: 800 }),
     ).rejects.toThrow();
     await page.mouse.move(box.x + box.width / 2 + 44, cy, { steps: 4 });

@@ -8,7 +8,7 @@ import {
   type TargetModelId,
 } from "@/lib/constants";
 
-function open(value: TargetModelId = "sonnet_5", onChange = vi.fn()) {
+function open(value: TargetModelId = "sonnet_5_5", onChange = vi.fn()) {
   const utils = render(
     <TargetPicker label="Target model" value={value} onChange={onChange} />,
   );
@@ -18,9 +18,9 @@ function open(value: TargetModelId = "sonnet_5", onChange = vi.fn()) {
 
 describe("TargetPicker trigger", () => {
   it("names the current model and its developer mark", () => {
-    render(<TargetPicker label="Target model" value="opus_5" onChange={vi.fn()} />);
+    render(<TargetPicker label="Target model" value="opus_5_5" onChange={vi.fn()} />);
     const trigger = screen.getByRole("button", { name: /target model/i });
-    expect(trigger.textContent).toContain("Opus 5");
+    expect(trigger.textContent).toContain("Opus 5.5");
     // aria-haspopup tells a screen reader this opens a dialog, not a menu of
     // its own — the Sheet primitive supplies the actual dialog semantics.
     expect(trigger.getAttribute("aria-haspopup")).toBe("dialog");
@@ -44,7 +44,7 @@ describe("TargetPicker trigger", () => {
 
   it("does not open when disabled", () => {
     render(
-      <TargetPicker label="Target model" value="opus_5" onChange={vi.fn()} disabled />,
+      <TargetPicker label="Target model" value="opus_5_5" onChange={vi.fn()} disabled />,
     );
     fireEvent.click(screen.getByRole("button", { name: /target model/i }));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -81,22 +81,22 @@ describe("TargetPicker sheet", () => {
   });
 
   it("marks exactly the current pick as checked", () => {
-    open("kimi_k3");
+    open("kimi_k3_1_pro");
     const rows = screen.getAllByRole("radio");
     const checked = rows.filter((r) => r.getAttribute("aria-checked") === "true");
     expect(checked).toHaveLength(1);
-    expect(checked[0]!.textContent).toContain("Kimi K3");
+    expect(checked[0]!.textContent).toContain("Kimi K3.1 Pro");
   });
 
   it("reports the picked model and closes", () => {
-    const { onChange } = open("sonnet_5");
-    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.6/i }));
-    expect(onChange).toHaveBeenCalledWith("grok_4_6");
+    const { onChange } = open("sonnet_5_5");
+    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.7/i }));
+    expect(onChange).toHaveBeenCalledWith("grok_4_7");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("implements the radio arrow-key contract: roving tabindex + focus moves (A11Y-002)", () => {
-    open("sonnet_5");
+    open("sonnet_5_5");
     const radios = screen.getAllByRole("radio");
     // Exactly one tab stop — the checked radio.
     const stops = radios.filter((r) => r.getAttribute("tabindex") === "0");
@@ -130,7 +130,7 @@ describe("TargetPicker — Auto routing", () => {
     render(
       <TargetPicker
         label="Target model"
-        value="sonnet_5"
+        value="sonnet_5_5"
         onChange={onChange}
         auto={auto}
         onAutoChange={onAutoChange}
@@ -156,7 +156,7 @@ describe("TargetPicker — Auto routing", () => {
     render(
       <TargetPicker
         label="Default model"
-        value="sonnet_5"
+        value="sonnet_5_5"
         onChange={vi.fn()}
         auto={false}
         onAutoChange={vi.fn()}
@@ -197,16 +197,16 @@ describe("TargetPicker — Auto routing", () => {
     // Choosing a model IS turning Auto off — a separate toggle would let the
     // two disagree.
     const { onChange, onAutoChange } = openWithAuto(true);
-    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.6/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /grok 4\.7/i }));
     expect(onAutoChange).toHaveBeenCalledWith(false);
-    expect(onChange).toHaveBeenCalledWith("grok_4_6");
+    expect(onChange).toHaveBeenCalledWith("grok_4_7");
   });
 
   it("reads Auto on the trigger, not the fallback model", () => {
     render(
       <TargetPicker
         label="Target model"
-        value="sonnet_5"
+        value="sonnet_5_5"
         onChange={vi.fn()}
         auto
         onAutoChange={vi.fn()}
@@ -214,7 +214,7 @@ describe("TargetPicker — Auto routing", () => {
     );
     const trigger = screen.getByRole("button", { name: /target model/i });
     expect(trigger.textContent).toContain("Auto");
-    expect(trigger.textContent).not.toContain("Sonnet 5");
+    expect(trigger.textContent).not.toContain("Sonnet 5.5");
   });
 
   it("names the routing preference on the trigger when one is wired", () => {
@@ -224,7 +224,7 @@ describe("TargetPicker — Auto routing", () => {
     render(
       <TargetPicker
         label="Target model"
-        value="sonnet_5"
+        value="sonnet_5_5"
         onChange={vi.fn()}
         auto
         onAutoChange={vi.fn()}
@@ -245,7 +245,7 @@ describe("TargetPicker — Auto routing preference", () => {
     render(
       <TargetPicker
         label="Target model"
-        value="sonnet_5"
+        value="sonnet_5_5"
         onChange={onChange}
         auto={auto}
         onAutoChange={onAutoChange}
@@ -264,7 +264,7 @@ describe("TargetPicker — Auto routing preference", () => {
     render(
       <TargetPicker
         label="Target model"
-        value="sonnet_5"
+        value="sonnet_5_5"
         onChange={vi.fn()}
         auto={false}
         onAutoChange={onAutoChange}
@@ -319,7 +319,7 @@ describe("TargetPicker — Auto routing preference", () => {
     const { rerender } = render(
       <TargetPicker
         label="Target model"
-        value="sonnet_5"
+        value="sonnet_5_5"
         onChange={vi.fn()}
         auto={false}
         onAutoChange={vi.fn()}
@@ -329,7 +329,7 @@ describe("TargetPicker — Auto routing preference", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /target model/i }));
     const autoRadio = () => screen.getByRole("radio", { name: /^Auto/ });
-    const sonnet = () => screen.getByRole("radio", { name: "Sonnet 5" });
+    const sonnet = () => screen.getByRole("radio", { name: "Sonnet 5.5" });
     expect(sonnet().getAttribute("tabindex")).toBe("0");
     expect(autoRadio().getAttribute("tabindex")).toBe("-1");
 
@@ -337,7 +337,7 @@ describe("TargetPicker — Auto routing preference", () => {
     rerender(
       <TargetPicker
         label="Target model"
-        value="sonnet_5"
+        value="sonnet_5_5"
         onChange={vi.fn()}
         auto
         onAutoChange={vi.fn()}
@@ -359,7 +359,7 @@ describe("TargetPicker — Auto routing preference", () => {
     openWithPreference();
     // Start from the checked row, which the sheet has already focused — so
     // the handler's index and the DOM agree before the first key.
-    const sonnet = screen.getByRole("radio", { name: "Sonnet 5" });
+    const sonnet = screen.getByRole("radio", { name: "Sonnet 5.5" });
     expect(document.activeElement).toBe(sonnet);
     fireEvent.keyDown(sonnet, { key: "ArrowDown" });
     const moved = document.activeElement as HTMLElement;

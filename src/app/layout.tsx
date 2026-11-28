@@ -86,11 +86,11 @@ export const metadata: Metadata = {
    *
    * Production keeps ONE unconditional Apple touch PNG. WebKit documents that
    * an explicit apple-touch-icon takes precedence over manifest icons on iOS.
-   * It is not a fallback to the SVG below. The tile is inverted (ADR-0017,
-   * Amendments 5–6): a flat plate in the light theme's --accent-ink (the deep
-   * green the header mark wears on light surfaces) and the flat Laser mark, no
-   * outline — iOS segments the mark from the plate and keeps it, so Dark shows
-   * the full-Laser mark on iOS's own near-black plate.
+   * It is not a fallback to the SVG below. The tile (ADR-0017, Amendment 7)
+   * is a flat Laser plate with a charcoal (--onyx) mark painted over a
+   * stroke shaded TILE_STROKE_SHADE toward Void — a ring meant to stay with
+   * the mark when iOS swaps the plate for its own dark one. That Dark result
+   * is an expectation from earlier screenshots, not a recorded device pass.
    *
    * The adaptive SVG is offered to SVG-aware icon consumers. Its order here
    * or in the manifest does not prove iPhone selection, and its CSS rendering

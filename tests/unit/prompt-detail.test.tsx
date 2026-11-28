@@ -52,7 +52,7 @@ const FAKE_RESPONSE = {
 const PROMPT = {
   id: "p1",
   title: "Launch email",
-  target_model: "opus_5",
+  target_model: "opus_5_5",
   tags: [],
   current_ver: "v2",
 };

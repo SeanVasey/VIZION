@@ -7,7 +7,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import sharp from "sharp";
-import { ANY_SIZES, installedColorway } from "./generate-icons.mjs";
+import {
+  ANY_SIZES,
+  OUTLINE_WIDTH,
+  TILE_STROKE_SHADE,
+  installedColorway,
+} from "./generate-icons.mjs";
 import { buildIconDiagnostic, serveIconDiagnostic } from "./icon-diagnostic.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -29,6 +34,14 @@ function pixel(image, x, y) {
   const offset = (y * image.info.width + x) * 4;
   return [...image.data.subarray(offset, offset + 4)];
 }
+/** A token's hex as tokens.css declares it first — the dark-block value. */
+function tokenHex(css, name) {
+  const hex = css.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "i"))?.[1];
+  assert(hex, `tokens.css: --${name} not found`);
+  return hex.toUpperCase();
+}
+/** Largest per-channel RGB difference between two pixels. */
+const channelGap = (a, b) => Math.max(...[0, 1, 2].map((k) => Math.abs(a[k] - b[k])));
 
 export async function verifyIconRepair() {
   const checks = [];
@@ -46,17 +59,41 @@ export async function verifyIconRepair() {
   const rect = svg.match(/<rect\b[^>]*>/)?.[0];
   const stripped = svg.replace(/<style>.*?<\/style>/gs, "");
   const foreground = stripped.replace(/<rect\b[^>]*\/>/g, "");
+  // The plate and the vector stroke are the SAME colour by design, so a bare
+  // string replace of that hex could land on the wrong element. Every plate
+  // edit below goes through the <rect> tag; every stroke edit through the
+  // `stroke=` attribute, which only the stroke path carries.
+  const withPlate = (text, fill) => {
+    assert(rect && text.includes(rect), "The plate <rect> is missing");
+    const swapped = rect.replace(` fill="${c.plate}"`, fill ? ` fill="${fill}"` : "");
+    assert.notEqual(swapped, rect, "The plate <rect> lost its presentation fill");
+    return text.replace(rect, swapped);
+  };
+  // The opaque PNG tiles are this same drawing with ONE difference: the stroke
+  // is shaded away from the plate (TILE_STROKE_SHADE), because a bitmap cannot
+  // carry a stroke in the plate's own colour.
+  const asTile = (text) => {
+    const swapped = text.replace(`stroke="${c.stroke}"`, `stroke="${c.tileStroke}"`);
+    assert.notEqual(swapped, text, "The stroke path is missing");
+    return swapped;
+  };
   await check(
-    "canonical geometry and positioning: one flat mark path, no outline",
+    "canonical geometry and positioning: the master path twice, stroke under fill",
     async () => {
       assert(d, "Master glyph path is missing");
-      // Amendment 5: the installed tile is the flat Laser mark alone on the
-      // accent-ink plate — ONE path, no outline, no gradient.
-      assert.equal(paths.length, 1);
-      assert.equal(paths[0].match(/\sd="([^"]+)"/)?.[1], d);
-      assert(paths[0].includes(`fill="${c.mark}"`));
-      assert.match(paths[0], /fill-rule="evenodd"/);
-      assert(!paths[0].includes("stroke="));
+      // Amendment 7: the mark is the master path painted twice — a stroke
+      // first, the flat charcoal fill over it. No gradient on either.
+      assert.equal(paths.length, 2);
+      const [strokePath, fillPath] = paths;
+      for (const p of paths) assert.equal(p.match(/\sd="([^"]+)"/)?.[1], d);
+      assert(strokePath.includes('fill="none"'));
+      assert(strokePath.includes(`stroke="${c.stroke}"`));
+      assert(strokePath.includes(`stroke-width="${OUTLINE_WIDTH}"`));
+      assert(strokePath.includes('stroke-linejoin="round"'));
+      assert(strokePath.includes('stroke-linecap="round"'));
+      assert(fillPath.includes(`fill="${c.mark}"`));
+      assert.match(fillPath, /fill-rule="evenodd"/);
+      assert(!fillPath.includes("stroke"));
       assert(!svg.includes('<linearGradient id="mark"'));
       assert(svg.includes('transform="translate(133.12,165.69) scale(0.74000)"'));
       assert(!/<(?:clipPath|filter)\b|\srx=|<image\b/.test(svg));
@@ -66,15 +103,15 @@ export async function verifyIconRepair() {
   await check(
     "token-derived presentation fallback with an overridable CSS class",
     async () => {
-      // The MARK is the Laser token; the PLATE is the light theme's --accent-ink and
-      // must differ from the mark (iOS keeps only mark pixels distinct from
-      // the plate); the outline the `any` matrix keeps is the Void token.
-      assert.equal(c.mark, tokens.match(/--laser:\s*(#[0-9a-f]+)/i)?.[1]?.toUpperCase());
+      // The PLATE is the Laser token; the MARK is the dark theme's --onyx
+      // (tokens.css's first match) and must differ from the plate; the vector
+      // STROKE is the plate's own colour — the owner's literal model, which
+      // only a stylesheet-evaluating consumer can honour.
+      assert.equal(c.plate, tokenHex(tokens, "laser"));
+      assert.equal(c.mark, tokenHex(tokens, "onyx"));
       assert.notEqual(c.plate, c.mark);
-      assert.equal(
-        c.outline,
-        tokens.match(/--void:\s*(#[0-9a-f]+)/i)?.[1]?.toUpperCase(),
-      );
+      assert.equal(c.stroke, c.plate);
+      assert.equal(c.plateDarkBottom, tokenHex(tokens, "void"));
       assert(rect?.includes(`fill="${c.plate}"`));
       assert(rect?.includes('class="plate"'));
       assert(!/\sstyle=/.test(rect));
@@ -85,7 +122,7 @@ export async function verifyIconRepair() {
     },
   );
   await check(
-    "stripped-style fallback paints the accent-ink plate at 60, 120 and 180 pixels",
+    "stripped-style fallback paints the Laser plate at 60, 120 and 180 pixels",
     async () => {
       for (const size of [60, 120, 180]) {
         const image = await raw(Buffer.from(stripped), size);
@@ -98,19 +135,75 @@ export async function verifyIconRepair() {
           assert.deepEqual(pixel(image, x, y), plate);
         }
         // Red/green control: the old missing-attribute fixture has a black plate.
-        const old = stripped.replace(` fill="${c.plate}"`, "");
+        const old = withPlate(stripped, null);
         assert.notDeepEqual(pixel(await raw(Buffer.from(old), size), 1, 1), plate);
       }
     },
   );
-  await check("Apple PNG pixels equal the authored light fallback", async () => {
-    const apple = await raw(await read("public/icons/apple-touch-icon.png"));
-    assert.equal(apple.info.width, 180);
-    assert.equal(apple.info.height, 180);
-    const expected = await raw(Buffer.from(stripped), 180);
-    assert.deepEqual(apple.data, expected.data);
-    for (let i = 3; i < apple.data.length; i += 4) assert.equal(apple.data[i], 255);
-  });
+  await check(
+    "Apple PNG pixels equal the authored light fallback with the tile stroke",
+    async () => {
+      const apple = await raw(await read("public/icons/apple-touch-icon.png"));
+      assert.equal(apple.info.width, 180);
+      assert.equal(apple.info.height, 180);
+      const expected = await raw(Buffer.from(asTile(stripped)), 180);
+      assert.deepEqual(apple.data, expected.data);
+      for (let i = 3; i < apple.data.length; i += 4) assert.equal(apple.data[i], 255);
+    },
+  );
+  await check(
+    "the PNG tile's stroke is real pixels, distinct from the plate",
+    async () => {
+      // The shade is a mix of two tokens by the exported constant — recomputed
+      // here from tokens.css, not read back from the generator.
+      const laser = rgba(tokenHex(tokens, "laser"));
+      const toward = rgba(tokenHex(tokens, "void"));
+      const want = laser.map((v, k) =>
+        k === 3 ? 255 : Math.round(v + (toward[k] - v) * TILE_STROKE_SHADE),
+      );
+      const tileStroke = rgba(c.tileStroke);
+      assert.deepEqual(tileStroke, want);
+      assert(TILE_STROKE_SHADE > 0 && TILE_STROKE_SHADE < 1);
+      assert.notEqual(c.tileStroke, c.mark);
+      // Count the solid stroke pixels in each shipped tile. The control is the
+      // vector drawing, whose stroke is the plate's own colour: rendered at the
+      // same size it holds NO pixel of the shade (measured: zero at 180, 192
+      // and 512), so the count is the ring and not anti-aliasing between the
+      // plate and the mark. The ring measures 3.5–6.4 % of a tile's area.
+      const near = (image, target) => {
+        let n = 0;
+        for (let i = 0; i < image.data.length; i += 4) {
+          if (channelGap(image.data.subarray(i, i + 4), target) <= 3) n++;
+        }
+        return n;
+      };
+      assert(channelGap(tileStroke, plate) > 12, "The shade merges with the plate");
+      for (const [file, size] of [
+        ["apple-touch-icon.png", 180],
+        ["maskable-192.png", 192],
+        ["maskable-512.png", 512],
+      ]) {
+        const shipped = await raw(await read(`public/icons/${file}`));
+        const ring = near(shipped, tileStroke);
+        assert(ring > size * size * 0.02, `${file}: only ${ring} stroke pixels`);
+        assert.equal(near(await raw(Buffer.from(stripped), size), tileStroke), 0);
+      }
+      // The transparent `any` matrix carries the FULL Laser stroke around the
+      // charcoal fill: both colours present as solid opaque pixels.
+      const any = await raw(await read("public/icons/icon-512.png"));
+      const mark = rgba(c.mark);
+      const stroke = rgba(c.stroke);
+      let strokePx = 0,
+        markPx = 0;
+      for (let i = 0; i < any.data.length; i += 4) {
+        const p = [...any.data.subarray(i, i + 4)];
+        if (p[3] !== 255) continue;
+        if (channelGap(p, stroke) <= 3) strokePx++;
+        else if (channelGap(p, mark) <= 3) markPx++;
+      }
+      assert(strokePx > 512 * 4 && markPx > 512 * 4);
+    },
+  );
   await check(
     "transparent export dimensions, antialiasing and unclipped borders",
     async () => {
@@ -159,10 +252,7 @@ export async function verifyIconRepair() {
       const mask = await raw(Buffer.from(foreground), 180);
       const light = await raw(Buffer.from(stripped), 180);
       // Explicit authored fixture, not a simulated iOS darkening algorithm.
-      const dark = await raw(
-        Buffer.from(stripped.replace(`fill="${c.plate}"`, 'fill="url(#plate-dark)"')),
-        180,
-      );
+      const dark = await raw(Buffer.from(withPlate(stripped, "url(#plate-dark)")), 180);
       let compared = 0;
       for (let i = 0; i < mask.data.length; i += 4) {
         if (mask.data[i + 3] !== 255) continue;

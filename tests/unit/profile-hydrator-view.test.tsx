@@ -6,7 +6,7 @@ import { useEnhanceViewStore, type EnhanceView } from "@/stores/enhance-view";
 import { ENHANCE_VIEW_STORE_KEY } from "@/lib/constants";
 
 const VIEW: EnhanceView = {
-  submitted: { input: "make this better", mode: "clarify", target: "opus_5" },
+  submitted: { input: "make this better", mode: "clarify", target: "opus_5_5" },
   result: {
     output: "a better prompt",
     rationale: "why",
@@ -27,7 +27,9 @@ function seedViewStorage(view: EnhanceView, userId?: string) {
 }
 
 function hydrateFor(userId: string) {
-  return render(<ProfileHydrator theme="system" defaultModel="opus_5" userId={userId} />);
+  return render(
+    <ProfileHydrator theme="system" defaultModel="opus_5_5" userId={userId} />,
+  );
 }
 
 beforeEach(() => {

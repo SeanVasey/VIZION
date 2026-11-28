@@ -146,7 +146,8 @@ worked. Its dark half was unreachable, and because the LIGHT tile was declared
 last, "last one wins" resolved to the one artwork that iOS then destroys. That
 is exactly the failure the owner reported.
 
-**What ships now — ONE tile, the OUTLINED colorway (ADR-0017, 2026-09-04).**
+**What ships now — ONE tile, the OUTLINED colorway (ADR-0017, 2026-09-04;
+its colours last changed by Amendment 7, 2026-11-28).**
 iOS keeps exactly one image and freezes it at capture, so there is still one
 link and no query
 ([ADR-0015](../decisions/0015-pinned-home-screen-tile.md) — the arrangement
@@ -155,20 +156,26 @@ half of it stands). What changed is the artwork behind the link
 
 - `metadata.icons.apple` is **one unconditional link** at
   `/icons/apple-touch-icon.png` — a FLAT Laser plate under the mark FILLED in
-  Laser (a slight top-lit ramp) and STROKED in Void (ADR-0017 amendment 3: the
-  flat plate is the one iOS swaps cleanly for its neutral dark plate). No
+  charcoal (the dark theme's `--onyx`) and STROKED, under that fill, in Laser
+  shaded 0.25 toward Void (ADR-0017 amendment 7; amendment 3: the flat plate is
+  the one iOS swaps cleanly for its neutral dark plate). The Laser-filled,
+  Void-stroked tile measured below and the inverted tile of amendments 5–6 are
+  both superseded, and **the current tile has no device pass**. No
   `media`: iOS does
   not evaluate it on icons, so a query would imply a selection that never
   happens. With one link, "last one wins" is a tautology and there is no order
   left to get wrong.
 - The tile no longer has to be dark to survive. The dark tile was legible under
   every treatment because darkening dark artwork is a no-op — and it cost the
-  brand green the Home Screen. The outlined mark carries its own contrast: on
-  the Laser plate the Void outline reads; on a plate iOS has darkened or
-  replaced, the Laser fill reads.
-- `/icons/app-icon.svg` is the outlined tile as vector in BOTH appearances
+  brand green the Home Screen. The mark carries a stroke of its own instead: on
+  the Laser plate the charcoal fill reads; on a plate iOS has replaced with its
+  dark one, the stroke is what is meant to read — an expectation for the
+  current tile, not a measurement.
+- `/icons/app-icon.svg` is the same drawing as vector in BOTH appearances
   (ADR-0017 amendment 2): the plate follows `prefers-color-scheme` — flat
-  Laser in light, Void in dark — and the mark is the outlined mark in both.
+  Laser in light, Void in dark — and the mark is the stroked mark in both
+  (charcoal fill; the stroke is the Laser token itself, so it cannot be seen on
+  the light plate and is the outline on the dark one).
   Default LIGHT: a media-blind renderer captures the green tile, which iOS's
   dark pass separates; a captured dark tile would stay dark in light. It is the
   manifest's first icon, and Safari 26 uses manifest icons, SVG included, for

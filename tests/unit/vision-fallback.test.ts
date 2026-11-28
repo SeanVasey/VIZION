@@ -61,38 +61,38 @@ describe("visionFallbackTarget", () => {
   it("picks the first configured target on a different provider", () => {
     vi.stubEnv("OPENAI_API_KEY", "sk-test");
     vi.stubEnv("MISTRAL_API_KEY", "m-test");
-    expect(visionFallbackTarget("fable_5_1")).toBe("gpt_5_6_sol");
+    expect(visionFallbackTarget("fable_5_2")).toBe("gpt_6_2_sol");
   });
 
   it("prefers the Anthropic (Opus) fallback when available", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
     vi.stubEnv("GOOGLE_API_KEY", "g-test");
-    expect(visionFallbackTarget("grok_4_6")).toBe("opus_5");
+    expect(visionFallbackTarget("grok_4_7")).toBe("opus_5_5");
   });
 
   it("never falls back within the failed provider (same key would fail again)", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
-    // fable_5_1 and opus_5 share the anthropic key — no other provider is up.
-    expect(visionFallbackTarget("fable_5_1")).toBeNull();
-    expect(visionFallbackTarget("opus_5")).toBeNull();
+    // fable_5_2 and opus_5_5 share the anthropic key — no other provider is up.
+    expect(visionFallbackTarget("fable_5_2")).toBeNull();
+    expect(visionFallbackTarget("opus_5_5")).toBeNull();
   });
 
   it("returns null when nothing is configured", () => {
-    expect(visionFallbackTarget("gpt_5_6_sol")).toBeNull();
+    expect(visionFallbackTarget("gpt_6_2_sol")).toBeNull();
   });
 
   it("offers the new vision-capable providers as a last resort", () => {
     vi.stubEnv("MOONSHOT_API_KEY", "k-test");
-    expect(visionFallbackTarget("minimax_m3")).toBe("kimi_k3");
+    expect(visionFallbackTarget("minimax_m3_1_flash")).toBe("kimi_k3_1_pro");
   });
 
   it("reaches the 2026-08 additions before Sonar, after the incumbents", () => {
-    // MiniMax M3 and Qwen3.8-Max joined the capable set; search-grounded
+    // MiniMax M3.1 Flash and Qwen3.8-Max joined the capable set; search-grounded
     // Sonar stays the last resort.
     vi.stubEnv("MINIMAX_API_KEY", "m3-test");
-    expect(visionFallbackTarget("deepseek_v4")).toBe("minimax_m3");
+    expect(visionFallbackTarget("deepseek_v4")).toBe("minimax_m3_1_flash");
     vi.stubEnv("DASHSCOPE_API_KEY", "q-test");
-    expect(visionFallbackTarget("deepseek_v4")).toBe("qwen3_8_max");
+    expect(visionFallbackTarget("deepseek_v4")).toBe("qwen4_max");
   });
 });
 
@@ -103,17 +103,17 @@ describe("supportsVision", () => {
   });
 
   it("keeps the multimodal targets on their own provider", () => {
-    expect(supportsVision("opus_5")).toBe(true);
-    expect(supportsVision("sonnet_5")).toBe(true);
-    expect(supportsVision("muse_spark_1_1")).toBe(true);
-    expect(supportsVision("kimi_k3")).toBe(true);
-    expect(supportsVision("gpt_5_6_luna")).toBe(true);
-    expect(supportsVision("gpt_5_6_terra")).toBe(true);
+    expect(supportsVision("opus_5_5")).toBe(true);
+    expect(supportsVision("sonnet_5_5")).toBe(true);
+    expect(supportsVision("muse_spark_1_3")).toBe(true);
+    expect(supportsVision("kimi_k3_1_pro")).toBe(true);
+    expect(supportsVision("gpt_6_luna")).toBe(true);
+    expect(supportsVision("gpt_6_1_terra")).toBe(true);
     expect(supportsVision("sonar_pro")).toBe(true);
     // 2026-08 additions: both flagships take image_url content parts natively
     // (verified against platform.minimax.io and Model Studio's model page).
-    expect(supportsVision("minimax_m3")).toBe(true);
-    expect(supportsVision("qwen3_8_max")).toBe(true);
+    expect(supportsVision("minimax_m3_1_flash")).toBe(true);
+    expect(supportsVision("qwen4_max")).toBe(true);
   });
 });
 
@@ -137,7 +137,7 @@ describe("describeImage — Gemini error bodies", () => {
 
     let caught: unknown;
     try {
-      await describeImage("AAAA", "image/png", "gemini_3_8_flash");
+      await describeImage("AAAA", "image/png", "gemini_4_hydrogen");
     } catch (e) {
       caught = e;
     }
@@ -145,5 +145,47 @@ describe("describeImage — Gemini error bodies", () => {
     expect((caught as ProviderError).status).toBe(401);
     // The whole point: the fallback classifier must still see it as config-shaped.
     expect(isVisionConfigError(caught)).toBe(true);
+  });
+});
+
+describe("describeImage — reasoning headroom on a one-shot call", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  /** Capture the JSON body of the one Gemini call a describeImage makes. */
+  async function geminiBodyFor(target: "gemini_4_carbon" | "gemini_4_hydrogen") {
+    vi.stubEnv("GOOGLE_API_KEY", "g-test");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          candidates: [{ content: { parts: [{ text: "{}" }] } }],
+          usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 },
+        }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await describeImage("AAAA", "image/png", target);
+    const init = fetchMock.mock.calls[0]![1] as { body: string };
+    return {
+      url: fetchMock.mock.calls[0]![0] as string,
+      body: JSON.parse(init.body) as {
+        generationConfig: { thinkingConfig?: { thinkingLevel?: string } };
+      },
+    };
+  }
+
+  it("asks Gemini for its LOWEST thinking level, on the right model", async () => {
+    // An image analysis is a bounded extraction under a 55s wall — it must
+    // not inherit a vendor default of `high`. `low` is a word every Gemini 4
+    // model accepts (`minimal` is rejected).
+    const hydrogen = await geminiBodyFor("gemini_4_hydrogen");
+    expect(hydrogen.url).toContain("gemini-4-hydrogen");
+    expect(hydrogen.body.generationConfig.thinkingConfig?.thinkingLevel).toBe("low");
+    const carbon = await geminiBodyFor("gemini_4_carbon");
+    expect(carbon.url).toContain("gemini-4-carbon");
+    expect(carbon.body.generationConfig.thinkingConfig?.thinkingLevel).toBe("low");
   });
 });

@@ -126,7 +126,7 @@ function renderResult() {
       <TransformationDiff
         input="the enhanced prompt"
         mode="clarify"
-        target="opus_5"
+        target="opus_5_5"
         result={RESULT}
       />
     </ToastProvider>,

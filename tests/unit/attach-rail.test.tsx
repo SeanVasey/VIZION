@@ -35,7 +35,7 @@ function renderTray() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useUIStore.setState({ mediaStoreByDefault: true, targetModel: "opus_5" });
+  useUIStore.setState({ mediaStoreByDefault: true, targetModel: "opus_5_5" });
 });
 
 describe("attach rail", () => {

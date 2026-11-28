@@ -777,7 +777,7 @@ function HoldSliderOverlay({
           designed surface. The chip says only the LEVEL — the model/mode
           context is already on screen (the rail above, the eyebrow) and is
           spoken in full by the commit announcement; printing it here again
-          stacked "Opus 5" beside "Opus 5" (owner, 2026-08-10). */}
+          stacked "Opus 5.5" beside "Opus 5.5" (owner, 2026-08-10). */}
         {/* Centred on the capsule but NOT bounded by it: the track is as wide
             as its ladder is long, and the three-stop budget dial's capsule is
             132px — narrow enough to truncate its own readout ("Strongest

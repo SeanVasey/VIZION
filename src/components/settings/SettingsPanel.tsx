@@ -398,7 +398,7 @@ export function SettingsPanel({
               trigger reads "Auto", so the fallback never shows. */}
           <TargetPicker
             label="Default model"
-            value={defaultModel ?? "opus_5"}
+            value={defaultModel ?? "opus_5_5"}
             onChange={changeDefaultModel}
             auto={defaultModel === null}
             onAutoChange={(on) => {

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import {
+  LEGACY_TARGET_IDS,
+  resolveTargetId,
   TARGET_MODELS,
   TARGET_DEVELOPER,
   TARGET_HAS_THINKING,
@@ -32,11 +34,11 @@ describe("model roster ordering", () => {
     expect(rest).toEqual([...rest].sort());
   });
 
-  it("puts the best Anthropic model first (Fable 5 before Opus 5 before Sonnet 5)", () => {
+  it("puts the best Anthropic model first (Fable 5 before Opus 5.5 before Sonnet 5.5)", () => {
     const ids = TARGET_MODELS.map((m) => m.id);
-    expect(ids.indexOf("fable_5_1")).toBeLessThan(ids.indexOf("opus_5"));
-    expect(ids.indexOf("opus_5")).toBeLessThan(ids.indexOf("sonnet_5"));
-    expect(ids[0]).toBe("fable_5_1");
+    expect(ids.indexOf("fable_5_2")).toBeLessThan(ids.indexOf("opus_5_5"));
+    expect(ids.indexOf("opus_5_5")).toBeLessThan(ids.indexOf("sonnet_5_5"));
+    expect(ids[0]).toBe("fable_5_2");
   });
 
   it("maps every target id to its developer", () => {
@@ -47,14 +49,14 @@ describe("model roster ordering", () => {
   });
 
   it("puts the best OpenAI tier first (Astra, then Sol before Terra before Luna)", () => {
-    // OpenAI's own tiering: GPT-6 Astra above the 5.6 family, then flagship
+    // OpenAI's own tiering: GPT-6.2 Astra above the 5.6 family, then flagship
     // / balanced mid / small. The roster briefly had Terra and Luna swapped
     // — pinned so the picker's "best first within each developer" promise
     // stays true.
     const ids = TARGET_MODELS.map((m) => m.id);
-    expect(ids.indexOf("gpt_6_astra")).toBeLessThan(ids.indexOf("gpt_5_6_sol"));
-    expect(ids.indexOf("gpt_5_6_sol")).toBeLessThan(ids.indexOf("gpt_5_6_terra"));
-    expect(ids.indexOf("gpt_5_6_terra")).toBeLessThan(ids.indexOf("gpt_5_6_luna"));
+    expect(ids.indexOf("gpt_6_2_astra")).toBeLessThan(ids.indexOf("gpt_6_2_sol"));
+    expect(ids.indexOf("gpt_6_2_sol")).toBeLessThan(ids.indexOf("gpt_6_1_terra"));
+    expect(ids.indexOf("gpt_6_1_terra")).toBeLessThan(ids.indexOf("gpt_6_luna"));
   });
 
   it("keeps the client-safe developer field in sync with the server provider config", () => {
@@ -92,14 +94,25 @@ describe("model roster ordering", () => {
     }
   });
 
-  it("keeps the Gemini target on the real 3.6 model string (no invented thinking ID)", () => {
-    // Gemini 3.x has no separate thinking model ID — "Thinking" and "Fast" in
-    // the Gemini app are thinkingLevel values on `gemini-3.8-flash`. Inventing
-    // a `gemini-3.6-thinking` string 404s every call, and because 404 reads as
-    // a config error the media route would silently fall back to another
-    // provider instead of surfacing it.
-    expect(TARGETS.gemini_3_8_flash.model).toBe("gemini-3.8-flash");
-    expect(TARGETS.gemini_3_8_flash.model).not.toContain("thinking");
+  it("keeps every Gemini target on a real model string (no invented thinking ID)", () => {
+    // Gemini has no separate thinking model ID — depth is a `thinkingLevel`
+    // value on the one model string. Inventing a `gemini-…-thinking` string
+    // 404s every call, and because 404 reads as a config error the media
+    // route would silently fall back to another provider instead of
+    // surfacing it. Gemini 4 names its tiers by element; the ids are the
+    // vendor's own (aistudio.google.com/docs/models, 2026-11-28).
+    expect(TARGETS.gemini_4_carbon.model).toBe("gemini-4-carbon");
+    expect(TARGETS.gemini_4_neon.model).toBe("gemini-4-neon");
+    expect(TARGETS.gemini_4_hydrogen.model).toBe("gemini-4-hydrogen");
+    for (const id of ["gemini_4_carbon", "gemini_4_neon", "gemini_4_hydrogen"] as const)
+      expect(TARGETS[id].model).not.toContain("thinking");
+  });
+
+  it("orders Gemini 4 best first — the element names do not sort themselves", () => {
+    // Carbon > Neon > Hydrogen is Google's own positioning, and nothing in
+    // the names says so (alphabetical and periodic order both get it wrong).
+    const google = TARGET_MODELS.filter((m) => m.developer === "google").map((m) => m.id);
+    expect(google).toEqual(["gemini_4_carbon", "gemini_4_neon", "gemini_4_hydrogen"]);
   });
 });
 
@@ -116,7 +129,7 @@ describe("thinking levels", () => {
   });
 
   it("folds every wire level onto the ladder, monotonically", () => {
-    // `minimal` (Gemini 3.6's floor) and `xhigh` (Anthropic's second ultra
+    // `minimal` (Gemini 3.6's old floor) and `xhigh` (Anthropic's second ultra
     // tier) are legacy stops: each lands on its ladder neighbour, and a
     // higher wire level never folds below a lower one.
     const ladderIndex = (l: (typeof THINKING_LADDER)[number]) =>
@@ -134,44 +147,45 @@ describe("thinking levels", () => {
 
   it("declares a thinking knob for exactly the targets whose API takes one", () => {
     // Total over the roster (the Record type enforces it); the VALUES are
-    // pinned per the vendor references read 2026-09-11.
+    // pinned per the vendor references read 2026-11-28. One model is left
+    // without a knob — Mistral, Meta and MiniMax each shipped one since the
+    // 2026-09 pass.
     for (const m of TARGET_MODELS)
       expect(typeof TARGET_HAS_THINKING[m.id]).toBe("boolean");
-    for (const id of [
-      "fable_5_1",
-      "opus_5",
-      "sonnet_5",
-      "gpt_6_astra",
-      "gpt_5_6_sol",
-      "gpt_5_6_terra",
-      "gpt_5_6_luna",
-      "deepseek_v4",
-      "gemini_3_8_flash",
-      "kimi_k3",
-      "qwen3_8_max",
-      "grok_4_6",
-      "glm_5_3",
-    ] as const) {
-      expect(TARGET_HAS_THINKING[id], id).toBe(true);
-    }
-    for (const id of [
-      "muse_spark_1_1",
-      "minimax_m3",
-      "mistral_large_3",
-      "sonar_pro",
-    ] as const) {
-      expect(TARGET_HAS_THINKING[id], id).toBe(false);
+    const knobless = TARGET_MODELS.map((m) => m.id).filter(
+      (id) => !TARGET_HAS_THINKING[id],
+    );
+    expect(knobless).toEqual(["sonar_pro"]);
+  });
+
+  it("agrees with the server about WHICH targets have a knob", () => {
+    // The same fact lives on both sides of the wire: the client's boolean
+    // (does the rail show?) and the server's vocabulary (what does the
+    // adapter send?). A target the dial offers but the adapter has no words
+    // for would silently send nothing; the reverse would send an effort the
+    // user was never shown.
+    for (const m of TARGET_MODELS) {
+      expect(TARGET_HAS_THINKING[m.id], m.id).toBe(TARGETS[m.id].effort !== undefined);
     }
   });
 
+  it("gives each Gemini 4 model its OWN vocabulary — they do not share one", () => {
+    // The reason the vocabulary is per target. Carbon stops at `high`; Neon
+    // and Hydrogen add `xhigh`. One provider-wide table either 400s Carbon
+    // or caps the other two a stop short.
+    expect(TARGETS.gemini_4_carbon.effort).toBe("toHigh");
+    expect(TARGETS.gemini_4_neon.effort).toBe("toXhigh");
+    expect(TARGETS.gemini_4_hydrogen.effort).toBe("toXhigh");
+  });
+
   it("keeps Qwen's model TIER out of its thinking ladder", () => {
-    // "Max" in `Qwen3.8 Max` is Alibaba's flagship tier (beside Plus and
-    // Turbo), not a reasoning depth. Reading the tier as a thinking level is
-    // what once left this target with no selector at all — the two are
-    // independent, and the model string must carry no depth of its own.
-    expect(TARGETS.qwen3_8_max.model).toBe("qwen3.8-max");
-    expect(TARGETS.qwen3_8_max.model).not.toContain("thinking");
-    expect(TARGET_HAS_THINKING.qwen3_8_max).toBe(true);
+    // "Max" in `Qwen4 Max` is Alibaba's flagship tier, not a reasoning
+    // depth. Reading the tier as a thinking level is what once left this
+    // target with no selector at all — the two are independent, and the
+    // model string must carry no depth of its own.
+    expect(TARGETS.qwen4_max.model).toBe("qwen4-max");
+    expect(TARGETS.qwen4_max.model).not.toContain("thinking");
+    expect(TARGET_HAS_THINKING.qwen4_max).toBe(true);
   });
 });
 
@@ -207,5 +221,56 @@ describe("DeveloperIcon", () => {
     expect(d.startsWith("M6.915 4.03c-1.968 0-3.683 1.28-4.871 3.113")).toBe(true);
     expect(d).toContain("zm10.16 2.053c1.147 0 2.188.758 2.992 1.999");
     expect(d).toContain("zm-10.201.553c1.265 0 2.058.791 2.675 1.446");
+  });
+});
+
+describe("resolveTargetId", () => {
+  it("passes a live id through and folds a retired one forward", () => {
+    // A tab open across a roster deploy, or a save queued offline, presents
+    // last roster's id. That is not a bad request.
+    expect(resolveTargetId("opus_5_5")).toBe("opus_5_5");
+    expect(resolveTargetId("opus_5")).toBe("opus_5_5");
+    expect(resolveTargetId("gemini_3_8_flash")).toBe("gemini_4_hydrogen");
+    // A chain resolves in ONE hop — every legacy entry points at a live id.
+    expect(resolveTargetId("gemini_pro_3_1")).toBe("gemini_4_hydrogen");
+    for (const [legacy, current] of Object.entries(LEGACY_TARGET_IDS)) {
+      expect(resolveTargetId(legacy), legacy).toBe(current);
+      expect(
+        TARGET_MODELS.some((m) => m.id === current),
+        legacy,
+      ).toBe(true);
+    }
+  });
+
+  it("refuses anything that was never a target — including object keys", () => {
+    for (const bad of ["", "auto", "bogus", "constructor", "toString", "__proto__"])
+      expect(resolveTargetId(bad), bad).toBeUndefined();
+    for (const bad of [undefined, null, 5, {}, ["opus_5_5"]])
+      expect(resolveTargetId(bad)).toBeUndefined();
+  });
+});
+
+describe("strEnv", () => {
+  it("treats a blank override as unset — a copied .env.example must not blank a model id", async () => {
+    const { strEnv } = await import("@/lib/providers/config");
+    const prev = process.env.VIZION_TEST_STR;
+    try {
+      delete process.env.VIZION_TEST_STR;
+      expect(strEnv("VIZION_TEST_STR", "fallback")).toBe("fallback");
+      process.env.VIZION_TEST_STR = "";
+      expect(strEnv("VIZION_TEST_STR", "fallback")).toBe("fallback");
+      process.env.VIZION_TEST_STR = "   ";
+      expect(strEnv("VIZION_TEST_STR", "fallback")).toBe("fallback");
+      process.env.VIZION_TEST_STR = "custom-model";
+      expect(strEnv("VIZION_TEST_STR", "fallback")).toBe("custom-model");
+    } finally {
+      if (prev === undefined) delete process.env.VIZION_TEST_STR;
+      else process.env.VIZION_TEST_STR = prev;
+    }
+  });
+
+  it("gives every roster target a non-empty model id", () => {
+    for (const m of TARGET_MODELS)
+      expect(TARGETS[m.id].model.length, m.id).toBeGreaterThan(0);
   });
 });

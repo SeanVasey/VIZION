@@ -29,6 +29,47 @@ export class ProviderError extends Error {
 }
 
 /**
+ * Raised when the model itself DECLINED the request — a completed, HTTP-200
+ * response whose stop reason is a refusal, with no usable output.
+ *
+ * Not a ProviderError: nothing failed. The key is fine, the model id is
+ * served, the request was well-formed; a safety classifier ended the turn.
+ * The Claude 5.5 generation made this an ordinary outcome rather than a
+ * rarity — `stop_reason: "refusal"` with a category (cyber, bio,
+ * frontier_llm, reasoning_extraction, general_harms; platform.claude.com
+ * refusals docs, 2026-11) — and a prompt-engineering tool is exactly where
+ * a security or biology prompt arrives as legitimate input. Unhandled, the
+ * empty stream fell through to "The model returned a non-JSON response.",
+ * which names the wrong party and offers no next step.
+ */
+export class ProviderRefusalError extends Error {
+  constructor(
+    public provider: Provider,
+    /** The provider's own category word, when it gave one. Relayed, never
+     *  interpreted: the set is open and vendor-defined. */
+    public category?: string,
+  ) {
+    super(
+      `The model declined this request${category ? ` (${category})` : ""}. Nothing was produced — try a different target model, or rephrase the prompt.`,
+    );
+    this.name = "ProviderRefusalError";
+  }
+}
+
+/** Stop/finish wire values that mean "the model declined" (Anthropic:
+ *  refusal · OpenAI-compat: content_filter · Gemini: SAFETY, PROHIBITED_CONTENT,
+ *  BLOCKLIST, SPII, RECITATION). */
+export const REFUSAL_STOPS: ReadonlySet<string> = new Set([
+  "refusal",
+  "content_filter",
+  "SAFETY",
+  "PROHIBITED_CONTENT",
+  "BLOCKLIST",
+  "SPII",
+  "RECITATION",
+]);
+
+/**
  * The sentence a provider's HTTP failure becomes, and the log line beside it.
  *
  * The 2026-09 screenshot read "Mistral request failed: 401 status code (no
@@ -79,6 +120,9 @@ export interface ProviderStreamChunk {
    *  "length", "MAX_TOKENS", …). Lets the adapter tell "hit the output
    *  ceiling" apart from "returned a malformed envelope". */
   stopReason?: string;
+  /** The provider's refusal category, when a refusal stop carried one
+   *  (Anthropic `stop_details.category`). Display-only. */
+  refusalCategory?: string;
   /** Reasoning tokens the provider BILLS as output but that never appear in
    *  `text` (stripped <think> spans, `reasoning_content` deltas). A floor
    *  contribution for the adapter's no-usage fallback estimate only —
@@ -92,6 +136,12 @@ export interface ProviderStreamChunk {
  *  its provider's vocabulary (`providerEffort`). Absent = provider default. */
 export interface ProviderRequestOptions {
   thinkingLevel?: ThinkingLevel;
+  /** The TARGET's effort vocabulary (`TARGETS[id].effort`), supplied by the
+   *  adapter layer, which is the only caller that knows the target. Models
+   *  from one provider no longer share a vocabulary, so the provider adapter
+   *  cannot assume one. Absent (tests, direct adapter use) = the adapter's
+   *  own documented fallback. */
+  effortVocabulary?: EffortVocabulary;
   /** Absolute epoch-ms wall for the whole call, taken by the ROUTE at entry.
    *  The budget has to start there, not in the adapter: auth, settings, JSON
    *  parsing and reserveSpend all run first, and time spent in them is time
@@ -104,35 +154,52 @@ export interface ProviderRequestOptions {
 }
 
 /**
- * The ONE translation table from the app's ladder onto each provider's
- * reasoning vocabulary (ADR-0018). The dial shows four stops for every
- * model; this is where "High" becomes whatever this provider calls high.
+ * The ONE translation table from the app's ladder onto each API's reasoning
+ * vocabulary (ADR-0018). The dial shows four stops for every model; this is
+ * where "High" becomes whatever this model's API calls high.
+ *
+ * A vocabulary is named for its SHAPE, not for a vendor, and it is chosen
+ * PER TARGET (`TARGETS[id].effort` in config.ts), not per provider. Until
+ * 2026-11 it was per provider, which held only while every model a vendor
+ * served took the same words. Gemini 4 ended that: Carbon tops out at `high`
+ * while Neon and Hydrogen add `xhigh`, so "the Google vocabulary" would have
+ * either 400'd Carbon or quietly capped the other two a stop short of what
+ * the peak caption promises.
  *
  * Read down a column and the mapping is monotone — a higher stop never sends
- * a lower provider value — and where a provider has fewer than four values
- * the collapse is chosen so the ENDS stay honest: Low is the provider's
- * cheapest, Max is its most expensive (the peak caption promises "highest
- * cost", so Max may never quietly send a middle value).
+ * a lower word — and where an API has fewer than four words the collapse is
+ * chosen so the ENDS stay honest: Low is its cheapest, Max is its most
+ * expensive (the peak caption promises "highest cost", so Max may never
+ * quietly send a middle value).
  *
- *   ladder →   low      medium   high     max
- *   anthropic  low      medium   high     max      output_config.effort
- *   openai     low      medium   high     max      reasoning_effort (5.6 and 6)
- *   xai        low      medium   high     xhigh    reasoning_effort (4.6: xhigh is its top)
- *   google     low      medium   high     high     thinkingConfig.thinkingLevel (3.8: no minimal, no xhigh)
- *   deepseek   low      high     high     max      reasoning_effort (three values: low · high · max)
- *   moonshot   low      high     high     max      reasoning_effort (three values, default max)
- *   zai        low      high     high     max      reasoning_effort (three values, default max)
- *   qwen       (token budgets — openai-compat's QWEN_THINKING_BUDGET)
+ *   ladder →  low      medium   high     max      who (2026-11-28)
+ *   five      low      medium   high     max      Anthropic (output_config.effort) · Muse · MiniMax M3.1
+ *   openai    low      medium   high     max      GPT-6.2 / 6.1 / 6 — reasoning_effort
+ *   toXhigh   low      medium   high     xhigh    Grok 4.7 · Gemini 4 Neon, Hydrogen
+ *   toHigh    low      medium   high     high     Gemini 4 Carbon · Mistral Large 4
+ *   three     low      high     high     max      DeepSeek V4 · Kimi · GLM (low · high · max)
+ *   threeX    low      high     high     xhigh    Qwen4 Max (low · high · xhigh)
  *
- * Three-valued providers collapse Medium onto High rather than Low because
- * their "high" IS their middle value (low < high < max) and their default.
- * Sources: platform.claude.com/docs/en/build-with-claude/effort ·
- * developers.openai.com/api/docs/guides/reasoning · docs.x.ai/docs/guides/
- * reasoning · ai.google.dev/gemini-api/docs/latest-model ·
- * api-docs.deepseek.com/guides/thinking_mode · platform.kimi.ai ·
- * docs.z.ai/guides/llm/glm-5.3 — all read 2026-09-11.
+ * Three-valued APIs collapse Medium onto High rather than Low because their
+ * "high" IS their middle word (low < high < max). That collapse is also why
+ * Auto does not send Medium to them — see `hasDistinctMedium` below.
+ *
+ * Sources, all read 2026-11-28: platform.claude.com effort docs ·
+ * developers.openai.com/api/docs/guides/reasoning (+ per-model pages; `none`
+ * is rejected on 6.2 and never sent) · docs.x.ai model-capabilities/text/
+ * reasoning · aistudio.google.com/docs/thinking · docs.mistral.ai/inference/
+ * conversations/reasoning · api-docs.deepseek.com/guides/thinking_mode ·
+ * platform.kimi.ai · docs.z.ai/guides/llm/glm-5.3 · alibabacloud.com/help/en/
+ * model-studio/qwen4-max · dev.meta.ai/docs/reasoning · platform.minimax.io
+ * text-openai-api.
  */
-export type EffortVocabulary = "five" | "openai" | "xai" | "google" | "three";
+export type EffortVocabulary =
+  | "five"
+  | "openai"
+  | "toXhigh"
+  | "toHigh"
+  | "three"
+  | "threeX";
 
 const EFFORT_TABLE: Record<EffortVocabulary, Record<ThinkingLevel, string>> = {
   five: {
@@ -151,7 +218,7 @@ const EFFORT_TABLE: Record<EffortVocabulary, Record<ThinkingLevel, string>> = {
     xhigh: "xhigh",
     max: "max",
   },
-  xai: {
+  toXhigh: {
     minimal: "low",
     low: "low",
     medium: "medium",
@@ -159,7 +226,7 @@ const EFFORT_TABLE: Record<EffortVocabulary, Record<ThinkingLevel, string>> = {
     xhigh: "xhigh",
     max: "xhigh",
   },
-  google: {
+  toHigh: {
     minimal: "low",
     low: "low",
     medium: "medium",
@@ -175,14 +242,21 @@ const EFFORT_TABLE: Record<EffortVocabulary, Record<ThinkingLevel, string>> = {
     xhigh: "high",
     max: "max",
   },
+  threeX: {
+    minimal: "low",
+    low: "low",
+    medium: "high",
+    high: "high",
+    xhigh: "xhigh",
+    max: "xhigh",
+  },
 };
 
-/** Translate an app-ladder level onto a provider's own effort word. Undefined
- *  in = undefined out (Auto: the route already resolved a level, or the
- *  provider default applies). The wire-vocabulary legacy stops (`minimal`,
- *  `xhigh`) fold onto the ladder first, except where a provider genuinely
- *  serves `xhigh` (Anthropic, OpenAI, xAI) — there it rides through as its
- *  own value, since it is a real, distinct tier on that API. */
+/** Translate an app-ladder level onto an API's own effort word. Undefined
+ *  in = undefined out (the target has no knob, or a direct adapter call left
+ *  it unset). The wire-vocabulary legacy stops (`minimal`, `xhigh`) fold onto
+ *  the ladder first, except where the API genuinely serves `xhigh` — there it
+ *  rides through as its own value, since it is a real, distinct tier. */
 export function providerEffort(
   vocabulary: EffortVocabulary,
   level: ThinkingLevel | undefined,
@@ -190,8 +264,22 @@ export function providerEffort(
   if (!level) return undefined;
   const table = EFFORT_TABLE[vocabulary];
   const keepsXhigh =
-    vocabulary === "five" || vocabulary === "openai" || vocabulary === "xai";
+    vocabulary === "five" ||
+    vocabulary === "openai" ||
+    vocabulary === "toXhigh" ||
+    vocabulary === "threeX";
   return table[keepsXhigh ? level : normalizeThinkingLevel(level)];
+}
+
+/**
+ * Whether Medium is a word of its own on this API, or only a second name for
+ * High. Auto's "moderate" default reads this: sending Medium to a
+ * three-valued API lands on `high`, so the light tier would cost exactly what
+ * the heavy tier does and Auto would be choosing nothing. Derived from the
+ * table rather than listed, so a new vocabulary cannot be forgotten here.
+ */
+export function hasDistinctMedium(vocabulary: EffortVocabulary): boolean {
+  return providerEffort(vocabulary, "medium") !== providerEffort(vocabulary, "high");
 }
 
 /** Whether a level is in the provider's DEEP tier — the two top ladder stops,

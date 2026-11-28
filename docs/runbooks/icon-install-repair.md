@@ -6,23 +6,44 @@ separately. No iPhone result is implied by this document.
 
 ## Current decision
 
-Keep exactly one explicit Apple touch PNG: the INVERTED tile — a flat plate
-in the light theme's `--accent-ink` (`installedColorway().plate`; the deep
-green the in-app mark wears on light surfaces) and the canonical symbol filled
-with the flat Laser token, with no outline.
+Keep exactly one explicit Apple touch PNG (ADR-0017 Amendment 7, owner
+direction 2026-11-28): a flat Laser plate (`installedColorway().plate`), the
+canonical symbol filled with charcoal (the dark theme's `--onyx`,
+`installedColorway().mark`, ≈11.5:1 on the plate), and under that fill a stroke
+in Laser shaded `TILE_STROKE_SHADE` (0.25) toward Void
+(`installedColorway().tileStroke`). All of it is derived from `tokens.css` by
+`scripts/generate-icons.mjs`.
+
+The owner's model is a stroke in the plate's own colour: invisible in Light, a
+Laser outline around the dark mark once the plate is dark. The adaptive SVG
+and the transparent `any` matrix carry exactly that (`installedColorway().stroke`
+is the Laser token). The opaque PNG cannot. A PNG is flat pixels, so a stroke
+identical to the plate is not in the file at all; that literal tile is the
+flat Laser plate with a flat dark mark whose Dark appearance the owner
+photographed (ADR-0017 Amendment 3): plate swapped, dark mark kept and
+invisible. The shade exists so the ring is pixels of its own.
+
 iOS derives Dark appearance from this PNG by segmenting a foreground from the
 plate and keeping it. Owner screenshots 2026-08-11 (flat Void mark: plate
 swapped, mark kept), 2026-09-05 morning (Laser-filled outlined mark on a
 Laser plate: no swap, tile only dimmed) and 2026-09-05 later (mark shaded
-darker than the plate: plate swapped, mark kept) establish that iOS keeps
-exactly the mark pixels whose colour is distinct from the plate. Inverting
-makes the kept mark the full Laser token on iOS's near-black plate (≈16:1)
-and reads at ≈5:1 on the accent-ink plate in Light; the outline that carried
-Light contrast on a Laser plate is no longer needed on installed tiles and
-stays only on the transparent `any` matrix. Do not replace the tile with a
-permanently dark one. Preserve the master path, transform, fill rule,
-transparent foreground exports and Android maskable safe area. The adaptive
-SVG never reaches the iPhone Home Screen while the Apple link exists.
+0.25–0.35 darker than the plate: plate swapped, mark kept) are the recorded
+basis for "iOS keeps the mark pixels whose colour is distinct from the plate".
+They are reports about those tiles on that build.
+
+No device pass exists for the current tile. It is an expectation, not a
+result, that iOS keeps a 0.25-shaded ring 30 glyph units wide (about 4 px on
+the 180 px tile) lying directly against the plate; the screenshots above show
+a whole shaded fill being kept, not a thin ring. The authored cost is known:
+in Light the ring is a faint darker-green halo rather than nothing, and in Dark
+a kept ring is the shaded green, not full Laser, around a charcoal fill that
+does not itself stand out from a near-black plate. `TILE_STROKE_SHADE` is one
+exported constant so it can be retuned after the device pass below.
+
+Do not replace the tile with a permanently dark one. Preserve the master path,
+transform, fill rule, transparent foreground exports and Android maskable safe
+area. The adaptive SVG never reaches the iPhone Home Screen while the Apple
+link exists.
 
 WebKit's documented explicit Apple-touch precedence is the conservative
 production contract [1, 2]. The PNG is not a fallback subordinate to the first
@@ -93,9 +114,12 @@ Run generation again and compare hashes for every generated output. Only
 `public/icons/app-icon.svg` should differ from this repair's baseline, and
 second-run output must match first-run output. Keep a separate report when a
 newer HEAD legitimately changes inputs. Do not reset to the reference commit.
+(Amendment 7, 2026-11-28, is such a change: it regenerated the SVG, the Apple
+tile, both maskable tiles and the thirteen `any` PNGs; the favicons,
+`favicon.ico` and the splash screens came out byte-identical.)
 
 The new unit wrapper runs geometry, alpha, safe-area, fallback-pixel,
-reference and diagnostic checks. The browser tests exercise actual CSS light
+tile-stroke, reference and diagnostic checks. The browser tests exercise actual CSS light
 and dark at 60, 120 and 180 pixels, compare eroded opaque foreground pixels,
 and use a missing-attribute negative control. Their shared helpers can run
 with a Playwright Page independently of the application server. This does
@@ -161,9 +185,14 @@ For each candidate, first install under Light and observe Light and Dark.
 Then make a separate dark-installed test instance and observe Dark and Light.
 Record immediate and later observations without inventing a required waiting
 interval. Include the SVG branch/source markers when present. The pass
-requires the same geometry, the deep green (accent-ink) plate with a bright
-Laser mark in Light, and on the observed dark plate a visibly kept Laser mark — not a
-dimmed tile and not a frozen wrong background.
+requires the same geometry; in Light, the Laser plate with the charcoal mark
+on it (a faint darker-green ring around the mark is the authored stroke, not a
+defect); and on the observed dark plate a visibly kept ring outlining the
+mark — not a dimmed tile, not a frozen wrong background, and not a dark plate
+on which the mark has been lost. Record the ring's observed colour: the
+charcoal fill is not expected to stand out from a near-black plate, so the
+ring is the whole Dark result. A lost mark is a recorded failure of this
+artwork's shade, not grounds for a second link, a `media` query or a matcher.
 Do not promise exact colors produced by the OS or behavior on untested builds.
 
 Keep production installed while testing. Before a production removal/re-add,

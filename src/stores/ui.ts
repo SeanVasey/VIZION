@@ -158,7 +158,7 @@ export const useUIStore = create<UIState>()(
       userId: null,
       theme: "system",
       activeMode: "clarify",
-      targetModel: "opus_5",
+      targetModel: "opus_5_5",
       thinkingLevel: null,
       editorDraft: "",
       mediaNoticeAcknowledged: false,
@@ -207,7 +207,14 @@ export const useUIStore = create<UIState>()(
       // the pinned target's own entry carries over, folded onto the ladder,
       // and the 2026-09 roster renames (fable_5 → fable_5_1 …) re-key the
       // target through LEGACY_TARGET_IDS like every rename before them.
-      version: 7,
+      // v8: the 2026-11 roster renames (opus_5 → opus_5_5 and thirteen more).
+      // No new migration LOGIC — the bump is the whole change, and it is not
+      // optional: `migrate` runs only when the stored version differs, so a
+      // rename shipped under an unchanged version leaves every device that
+      // had picked a renamed model holding an id the route 400s on. Every
+      // roster rename bumps this (tests/unit/ui-store.test.ts pins it to the
+      // legacy map's size so the two cannot move apart).
+      version: 8,
       migrate: (persisted) => {
         const s = (persisted ?? {}) as Partial<UIState> & {
           thinkingLevels?: Record<string, unknown>;
@@ -217,7 +224,7 @@ export const useUIStore = create<UIState>()(
         const targetModel: TargetModelId =
           t && valid.has(t)
             ? (t as TargetModelId)
-            : ((t ? LEGACY_TARGET_IDS[t] : undefined) ?? "opus_5");
+            : ((t ? LEGACY_TARGET_IDS[t] : undefined) ?? "opus_5_5");
 
         // The single level: a v7 value passes through (re-validated against
         // the ladder); a pre-v7 record contributes the entry for the target

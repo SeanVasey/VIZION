@@ -1,5 +1,5 @@
 import type { DiffSegment } from "@/lib/enhance/diff";
-import type { TargetModelId } from "@/lib/constants";
+import type { TargetModelId, ThinkingLevel } from "@/lib/constants";
 import type { AutoRouteReason } from "@/lib/enhance/auto-target";
 
 /**
@@ -63,6 +63,12 @@ export interface EnhanceResult {
    *  the result meta say "quick task" or "long input" instead of leaving the
    *  pick unexplained. Display-only; unknown values render as nothing. */
   resolvedReason?: AutoRouteReason;
+  /** Which depth the Thinking dial's Auto resolved to for this run. Present
+   *  ONLY when the dial was on Auto and the model has a knob — the same
+   *  presence-is-the-signal rule as `resolvedTarget`. Without it "Auto" told
+   *  the user nothing about how hard the model was asked to think, which is
+   *  most of what a run costs. */
+  resolvedThinking?: ThinkingLevel;
 }
 
 export type EnhanceStreamEvent =

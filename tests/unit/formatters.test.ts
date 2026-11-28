@@ -15,7 +15,7 @@ describe("buildSystemPrompt", () => {
     for (const kind of ["shorter", "detail"] as const) {
       const p = buildSystemPrompt({
         mode: "clarify",
-        target: "opus_5",
+        target: "opus_5_5",
         refine: { kind },
       });
       expect(p).toContain("supersedes any earlier rule");
@@ -29,7 +29,7 @@ describe("buildSystemPrompt", () => {
     for (const kind of ["tone", "answers"] as const) {
       const p = buildSystemPrompt({
         mode: "polish",
-        target: "opus_5",
+        target: "opus_5_5",
         refine: { kind, baseInput: "orig" },
       });
       expect(p).toContain("format, voice, and length");
@@ -37,13 +37,13 @@ describe("buildSystemPrompt", () => {
   });
 
   it("no refine → the preservation clause is untouched", () => {
-    const p = buildSystemPrompt({ mode: "clarify", target: "opus_5" });
+    const p = buildSystemPrompt({ mode: "clarify", target: "opus_5_5" });
     expect(p).toContain("format, voice, and length");
     expect(p).not.toContain("supersedes any earlier rule");
   });
 
   it("includes the mode instruction and target conventions", () => {
-    const p = buildSystemPrompt({ mode: "expand", target: "opus_5" });
+    const p = buildSystemPrompt({ mode: "expand", target: "opus_5_5" });
     expect(p).toContain("EXPAND");
     expect(p).toContain("Claude Opus");
     expect(p).toContain('"output"');
@@ -108,29 +108,29 @@ describe("buildSystemPrompt", () => {
   });
 
   it("targets GPT idioms for the GPT target", () => {
-    expect(buildSystemPrompt({ mode: "reformat", target: "gpt_5_6_sol" })).toContain(
+    expect(buildSystemPrompt({ mode: "reformat", target: "gpt_6_2_sol" })).toContain(
       "GPT",
     );
   });
 
   it("targets Gemini idioms for the Gemini target", () => {
-    expect(buildSystemPrompt({ mode: "target", target: "gemini_3_8_flash" })).toContain(
+    expect(buildSystemPrompt({ mode: "target", target: "gemini_4_hydrogen" })).toContain(
       "Gemini",
     );
   });
 
   it("targets Fable idioms for the Fable target", () => {
-    expect(buildSystemPrompt({ mode: "expand", target: "fable_5_1" })).toContain(
+    expect(buildSystemPrompt({ mode: "expand", target: "fable_5_2" })).toContain(
       "Claude Fable",
     );
   });
 
   it("targets Grok idioms for the Grok target", () => {
-    expect(buildSystemPrompt({ mode: "reformat", target: "grok_4_6" })).toContain("Grok");
+    expect(buildSystemPrompt({ mode: "reformat", target: "grok_4_7" })).toContain("Grok");
   });
 
   it("polish preserves the input's shape and skips target restructuring idioms", () => {
-    const p = buildSystemPrompt({ mode: "polish", target: "opus_5" });
+    const p = buildSystemPrompt({ mode: "polish", target: "opus_5_5" });
     expect(p).toContain("POLISH");
     // No XML/structured idioms leak in for a shape-preserving mode.
     expect(p).not.toContain("XML-tagged");
@@ -140,18 +140,18 @@ describe("buildSystemPrompt", () => {
   });
 
   it("clarify no longer injects the target's structured-output idioms", () => {
-    const p = buildSystemPrompt({ mode: "clarify", target: "gpt_5_6_sol" });
+    const p = buildSystemPrompt({ mode: "clarify", target: "gpt_6_2_sol" });
     expect(p).not.toContain("JSON-mode");
     expect(p).toMatch(/preserve the input's existing format/i);
   });
 
   it("appends a refinement pass only when requested", () => {
-    expect(buildSystemPrompt({ mode: "condense", target: "opus_5" })).not.toContain(
+    expect(buildSystemPrompt({ mode: "condense", target: "opus_5_5" })).not.toContain(
       "REFINEMENT PASS",
     );
     const p = buildSystemPrompt({
       mode: "condense",
-      target: "opus_5",
+      target: "opus_5_5",
       refine: { kind: "shorter" },
     });
     expect(p).toContain("REFINEMENT PASS");
@@ -163,7 +163,7 @@ describe("buildSystemPrompt", () => {
     // envelope contract that follows it — the context rides the user message.
     const p = buildSystemPrompt({
       mode: "clarify",
-      target: "opus_5",
+      target: "opus_5_5",
       refine: {
         kind: "tone",
         baseInput: "my casual original words",
@@ -190,7 +190,7 @@ describe("buildSystemPrompt", () => {
       for (const mode of MODES) {
         const p = buildSystemPrompt({
           mode: mode.id,
-          target: "gpt_5_6_sol",
+          target: "gpt_6_2_sol",
           refine: { kind, baseInput: "x" },
         });
         expect(p).toContain("THE OUTPUT IS THE PROMPT ITSELF");

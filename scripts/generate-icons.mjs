@@ -31,21 +31,41 @@
 // `translate(133.12, 165.66) scale(0.74)`) to 0.03 px at 1024² — i.e. the
 // generated tiles are the shipped artwork, not an approximation.
 //
-// INSTALLED ARTWORK AND SOURCE SELECTION (ADR-0017, Amendment 5)
+// INSTALLED ARTWORK AND SOURCE SELECTION (ADR-0017, Amendment 7)
 // -----------------------------------------------------------------------
-// The installed tiles (the Apple tile, the maskable tiles, the adaptive SVG's
-// light branch) are INVERTED: a flat plate in the light theme's --accent-ink
-// (the deep green the in-app mark wears on light surfaces) and the flat Laser
-// mark on it, with NO outline. iOS derives the Dark Home Screen tile by
-// segmenting the foreground from the flat plate and keeping it (owner
-// screenshots 2026-08-11 and 2026-09-05), so what it keeps is the full-Laser
-// mark on its own near-black plate; in Light the Laser mark reads on the
-// deep green plate at ~5:1, and the tile, the header mark and every other
-// light-surface use of the brand green are one token. The transparent `any` PNGs
-// keep the OUTLINED mark — Laser fill, Void stroke — because a launcher paints
-// its own ground behind them and the outline is what carries a Laser mark on
-// a light one. This supplies contrast on authored light and dark grounds, not
-// a guarantee about every undocumented system transformation.
+// Owner direction 2026-11-28: the installed tile is a flat LASER plate under a
+// dark CHARCOAL mark (the dark theme's --onyx, ~11:1 on Laser), and the mark
+// carries a stroke "in the same colour as Laser so it isn't visible and blends
+// into the background" in Light — which is meant to show as a Laser outline
+// around the dark mark once iOS has swapped the plate for its own dark one.
+//
+// That model is implemented literally wherever a renderer evaluates the file,
+// and as closely as a flat bitmap allows where nothing does:
+//
+//   • app-icon.svg (vector consumers). The stroke IS the Laser token. In the
+//     light branch it lies on the Laser plate and cannot be seen; in the
+//     `prefers-color-scheme: dark` branch the plate becomes the dark gradient
+//     and the very same stroke is the outline. The stylesheet does the swap.
+//   • The transparent `any` PNGs. Charcoal fill + the FULL Laser stroke, no
+//     plate. A launcher paints its own ground behind them: on a dark one the
+//     Laser stroke is the outline, on a light one the charcoal fill carries.
+//   • The opaque PNG tiles (apple-touch-icon.png, maskable-*). The stroke is
+//     Laser shaded TILE_STROKE_SHADE toward Void — deliberately NOT exactly
+//     Laser. A PNG is flat pixels: a stroke identical to the plate does not
+//     exist in the file, so nothing could keep it. iOS derives the Dark tile
+//     by segmenting a foreground from the flat plate by colour, and a
+//     plate-coloured ring would go with the plate. That literal tile — flat
+//     Laser plate, flat dark mark — is the #105-era tile whose Dark result the
+//     owner already photographed: plate swapped to #101113, the dark mark kept
+//     and INVISIBLE (ADR-0017 Amendment 3). The shade is what gives the ring
+//     pixels of its own to be kept; the cost is that in Light the ring is a
+//     faint darker-green halo rather than nothing at all.
+//
+// None of this is a device result. No iPhone has shown this tile; whether iOS
+// keeps the shaded ring as foreground is an expectation, argued at
+// TILE_STROKE_SHADE below, and the shade is one constant so it can be retuned
+// after a device pass. This supplies contrast on authored light and dark
+// grounds, not a guarantee about every undocumented system transformation.
 //
 // Production deliberately declares one unconditional apple-touch-icon PNG.
 // WebKit documents that this takes precedence over manifest icons on iOS.
@@ -58,20 +78,22 @@
 // RULES (never work around)
 // -------------------------
 //   • Full-bleed square. NO pre-rounded corners, NO specular gloss, NO drop
-//     shadow — the OS rounds and glassifies at runtime. Both the PLATE and
-//     the MARK are flat: iOS segments the mark from the plate by colour, and
-//     a ramp on either side only blurs that edge (owner decision 2026-09-05).
+//     shadow — the OS rounds and glassifies at runtime. The PLATE, the MARK
+//     and its STROKE are each one flat colour: iOS segments the mark from the
+//     plate by colour, and a ramp on either side only blurs that edge (owner
+//     decision 2026-09-05).
 //   • Maskable is the only padded exception: 0.58 glyph fraction so the art
 //     clears Android's 80% safe-zone circle. Everything else uses 0.74.
 //   • Alpha contract (guardrail §6 / INV-09, enforced by
 //     tests/unit/icon-alpha.test.ts): the `any` matrix ships TRANSPARENT — the
-//     outlined mark alone, no plate. maskable, the apple-touch tile and the
+//     stroked mark alone, no plate. maskable, the apple-touch tile and the
 //     favicons ship OPAQUE, because iOS renders a transparent tile on black and
 //     Android's mask has nothing to fill.
 //   • The favicons and favicon.ico keep the FLAT house colorway (Void ink on a
-//     Laser plate). At 16–48 px a 4 px outline is sub-pixel, and the flat mark
-//     is the crisper small-size rendition of the same identity. They are the
-//     browser tab, not an install surface.
+//     Laser plate, no stroke). At 16–48 px a 4 px stroke is sub-pixel, and the
+//     flat mark is the crisper small-size rendition of the same identity. They
+//     are the browser tab, not an install surface. The splash screens are
+//     likewise untouched (Laser mark on a Void plate).
 //   • public/brand/ is never written to. This script only reads from it.
 //
 // EVERY OUTPUT LANDS UNDER public/. There are no `src/app/` convention icons
@@ -117,14 +139,10 @@ const TOKENS = path.join(repoRoot, "src", "styles", "tokens.css");
  * and every derivative follows by construction — the icons cannot disagree
  * with the design system about what the brand green is.
  *
- * `token()` reads the DARK-block values (the first match), which is most of the
- * palette this pipeline needs: an app icon has no theme, it has an appearance.
- * `lightToken()` reads the `:root[data-theme="light"]` block, for the one
- * colour that IS theme-specific by construction: --accent-ink, the deep green
- * the in-app mark wears on light surfaces (BrandMark paints `currentColor`
- * from it). The installed tile's plate is that token, so the Home Screen tile
- * and the header mark cannot disagree about what the brand green looks like
- * on a light ground.
+ * `token()` reads the DARK-block values (the first match in the file), which
+ * is the whole palette this pipeline needs: an app icon has no theme, it has
+ * an appearance. That is also what makes `--onyx` the charcoal here — the dark
+ * theme's opaque surface, not the light theme's white of the same name.
  */
 const tokensCss = await fs.readFile(TOKENS, "utf8");
 function token(name) {
@@ -132,30 +150,24 @@ function token(name) {
   if (!m) throw new Error(`tokens.css: --${name} not found (or is not a hex)`);
   return m[1].toUpperCase();
 }
-function lightToken(name) {
-  const block = tokensCss.match(/:root\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/);
-  if (!block) throw new Error('tokens.css: :root[data-theme="light"] block not found');
-  const m = block[1].match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{3,8})`));
-  if (!m) throw new Error(`tokens.css: --${name} not found in the light theme block`);
-  return m[1].toUpperCase();
-}
 
-// LASER is the brand green — the installed mark, and the favicons' plate; VOID
-// the dark plate of the splash screens (and the manifest's theme_color/
-// background_color); INK the dark ink on a Laser plate — the favicons' mark and
-// the `any` matrix's stroke; ACCENT_INK_LIGHT the deep green the brand wears on
-// light surfaces — the installed tile's plate.
+// LASER is the brand green — the installed plate, the favicons' plate, and the
+// stroke of the vector/`any` mark; VOID the dark plate of the splash screens
+// and of the adaptive SVG's dark branch (and the manifest's theme_color/
+// background_color), and the colour the tile stroke is shaded toward; INK the
+// dark ink on a Laser plate — the favicons' mark; CHARCOAL the installed
+// mark's fill.
 const LASER = token("laser");
 const VOID = token("void");
 const INK = VOID;
-const ACCENT_INK_LIGHT = lightToken("accent-ink");
+const CHARCOAL = token("onyx");
 
 // Appearance for the FLAT derivatives that keep it — the favicons. 'light' =
 // Laser plate + Void ink, the house colorway.
 const BASE = "light";
 
 // ---------------------------------------------------------------------------
-// The OUTLINED colorway — what gets installed
+// The INSTALLED colorway — Laser plate, charcoal mark, a stroke around it
 // ---------------------------------------------------------------------------
 
 /** `#RRGGBB` → [r, g, b]. */
@@ -188,42 +200,69 @@ function mix(a, b, t) {
 }
 
 /**
- * The installed tile is INVERTED: the PLATE is the light theme's --accent-ink
- * and the MARK is the Laser token, both flat. iOS derives the Dark Home
- * Screen tile by segmenting the foreground from the flat plate and keeping
- * it — a mark whose colour matches the plate is discarded with it (owner
- * screenshots 2026-09-05: the Laser-filled outlined mark on a Laser plate was
- * only dimmed; a mark shaded away from the plate was kept). Inverting puts the
- * FULL-Laser mark on iOS's near-black plate in Dark (≈16:1) and on the deep
- * green plate in Light (≈5:1). An ad-hoc 0.55 mix toward Void was the first
- * cut (ADR-0017 Amendment 5); the owner replaced it with the token the header
- * mark already wears on light surfaces, so the two are one colour by
- * construction (Amendment 6). `plateDarkTop` is the adaptive SVG's dark plate
- * lift only.
+ * How far the opaque PNG tiles' stroke is shaded from Laser toward Void
+ * (0 = exactly Laser, i.e. exactly the plate). ONE constant, exported, so the
+ * owner can retune it after a device pass and every tile and test follows.
+ *
+ * Why it is not 0. The owner's model is a stroke in the plate's own colour:
+ * invisible in Light, an outline in Dark. A vector consumer can honour that —
+ * the SVG and the `any` matrix do (see `stroke` below). A flat bitmap cannot:
+ * at 0 the stroke's pixels ARE plate pixels, the file holds no ring at all, and
+ * iOS — which builds the Dark tile by segmenting a foreground from the flat
+ * plate by colour — has nothing to keep. At 0 this tile is the #105-era tile
+ * (flat Laser plate, flat dark mark), and its Dark result is on record: plate
+ * swapped to #101113, the dark mark kept and invisible (ADR-0017 Amendment 3).
+ *
+ * Why 0.25. The 2026-09-05 owner screenshots (Amendments 4–5) showed iOS
+ * swapping this same Laser plate and keeping a mark whose fill ran from 0.25
+ * to 0.35 toward Void, where the tile whose mark was filled with exactly
+ * Laser had got no swap at all (the whole tile was only dimmed). 0.25 is the
+ * low end of that range: the least visible ring in Light for which there is
+ * any recorded evidence of survival in Dark.
+ *
+ * What that evidence does NOT cover: there it was a large fill inside a Void
+ * outline; here it is a ring ~30 glyph units wide lying directly against the
+ * plate. Whether iOS keeps a ring that thin and that close to the plate's
+ * colour is an expectation, not a measurement — and a kept ring shows in Dark
+ * as this shaded green, not as full Laser. No device pass exists for this
+ * tile (docs/runbooks/icon-install-repair.md).
  */
+export const TILE_STROKE_SHADE = 0.25;
+
+/** `plateDarkTop` is the adaptive SVG's dark plate lift only. */
 const LIGHTING = { plateDarkTop: 0.05 };
 
 /**
- * The outline's stroke width in GLYPH units. The stroke is painted UNDER the
- * fill, so only its outer half is visible: 60 units → a 30-unit outline, which
- * at the 0.74 tile fraction is 22 px on the 1024 canvas and ~4 px on the 180 px
+ * The stroke's width in GLYPH units. The stroke is painted UNDER the fill, so
+ * only its outer half is visible: 60 units → a 30-unit ring, which at the 0.74
+ * tile fraction is 22 px on the 1024 canvas and ~4 px on the 180 px
  * apple-touch tile. Every interior gap in the mark (bar ↔ ring ≈ 20 units,
- * chevron ↔ ring ≈ 25) is narrower than twice this, so the gaps fill solid and
- * the shapes stay separated by a line rather than a sliver of plate.
+ * chevron ↔ ring ≈ 25) is narrower than twice this, so the gaps fill solid
+ * with the stroke colour and the shapes stay separated by a line rather than a
+ * sliver of plate.
  */
 export const OUTLINE_WIDTH = 60;
 
 /**
  * The installed colorway's colours, every one derived from the tokens so the
- * tests can import them instead of restating a hex. `mark` IS the Laser token;
- * `plate` IS the light theme's --accent-ink; `outline` is the Void stroke that
- * only the transparent `any` matrix still carries.
+ * tests can import them instead of restating a hex.
+ *
+ *   plate       the Laser token, flat.
+ *   mark        the charcoal fill — the dark theme's --onyx.
+ *   stroke      the owner's literal stroke: the Laser token, i.e. the plate's
+ *               own colour. Carried by the adaptive SVG (invisible on its
+ *               light plate, the outline on its dark one) and by the
+ *               transparent `any` matrix.
+ *   tileStroke  the stroke of the opaque PNG tiles: Laser shaded
+ *               TILE_STROKE_SHADE toward Void, so the ring exists as pixels
+ *               distinct from the plate (see the constant).
  */
 export function installedColorway() {
   return {
-    plate: ACCENT_INK_LIGHT,
-    mark: LASER,
-    outline: INK,
+    plate: LASER,
+    mark: CHARCOAL,
+    stroke: LASER,
+    tileStroke: mix(LASER, VOID, TILE_STROKE_SHADE),
     // The dark appearance's plate, for the scalable icon only (below): the Void
     // token with a whisper of lift at the top, so it reads as a plate rather
     // than a hole — the same shape the Icon Composer dark background takes.
@@ -250,7 +289,7 @@ export const SCALABLE_ICON = "app-icon.svg";
 
 // THE home-screen tile's frozen filename — one file, no appearance suffix. It
 // used to be `apple-touch-icon-dark.png`, named for the Void colorway it
-// carried; the outlined colorway is neither light nor dark, and a file named
+// carried; the installed colorway is neither light nor dark, and a file named
 // for a colorway it no longer carries is the exact confusion the earlier
 // naming saga existed to prevent. Read by main() and by src/app/layout.tsx's
 // `metadata.icons.apple` (a literal there, pinned by the e2e head test, plus a
@@ -323,7 +362,7 @@ function transformFor(canvasW, canvasH, frac, lift) {
   return `translate(${tx.toFixed(2)},${ty.toFixed(2)}) scale(${scale.toFixed(5)})`;
 }
 
-/** The flat mark: one path, one fill. */
+/** The flat mark: one path, one fill — the favicons and the splash screens. */
 function glyphGroup(canvasW, canvasH, frac, fill, lift) {
   return (
     `<g transform="${transformFor(canvasW, canvasH, frac, lift)}">` +
@@ -332,49 +371,56 @@ function glyphGroup(canvasW, canvasH, frac, fill, lift) {
 }
 
 /**
- * The OUTLINED mark (the transparent `any` matrix only): the same path twice,
- * stroke first, fill on top.
+ * The STROKED mark — every installed surface: the same path twice, stroke
+ * first, fill on top. `stroke` is the only thing that differs between
+ * surfaces (`tileStroke` on the opaque PNG tiles, `stroke` everywhere else).
  *
  * Two paths rather than `paint-order="stroke"` on one, deliberately. sharp's
  * librsvg renders the two identically (measured, byte-for-byte), and so does
  * every browser that will ever paint app-icon.svg — but a stroke painted under
  * a fill is SVG 1.1 and needs no renderer to know a property. A renderer that
  * dropped `paint-order` would centre the stroke on the edge instead and eat
- * half the outline out of the fill's thinnest features (the ring is ~65 glyph
- * units where the stroke is 60). Two paths cannot degrade that way.
+ * half the stroke out of the fill's thinnest features (the glyph's ring is
+ * ~65 units wide where the stroke is 60). Two paths cannot degrade that way.
  *
- * Round joins: the chevron's tips are acute, and a mitred outline would spike
+ * Round joins: the chevron's tips are acute, and a mitred stroke would spike
  * well past them.
  */
-function outlinedMark(canvasW, canvasH, frac, lift) {
-  const { outline, mark } = installedColorway();
+function outlinedMark(canvasW, canvasH, frac, lift, stroke) {
+  const { mark } = installedColorway();
   return (
     `<g transform="${transformFor(canvasW, canvasH, frac, lift)}">` +
-    `<path d="${GLYPH_D}" fill="none" stroke="${outline}" stroke-width="${OUTLINE_WIDTH}" ` +
+    `<path d="${GLYPH_D}" fill="none" stroke="${stroke}" stroke-width="${OUTLINE_WIDTH}" ` +
     `stroke-linejoin="round" stroke-linecap="round"/>` +
     `<path d="${GLYPH_D}" fill="${mark}" fill-rule="evenodd"/></g>`
   );
 }
 
 /**
- * Full-bleed opaque square in the INSTALLED colorway: the accent-ink plate and the
- * flat Laser mark, no outline — the Apple tile and the maskable tiles.
+ * Full-bleed opaque square in the INSTALLED colorway: the flat Laser plate,
+ * the charcoal mark, and the SHADED stroke under it (`tileStroke`) — the Apple
+ * tile and the maskable tiles. See TILE_STROKE_SHADE for why a bitmap's
+ * stroke cannot be the plate's own colour.
  */
 function installedTileSVG(frac, size = CANVAS) {
   const c = installedColorway();
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
     `<rect width="${size}" height="${size}" fill="${c.plate}"/>` +
-    glyphGroup(size, size, frac, c.mark, 0.0156) +
+    outlinedMark(size, size, frac, 0.0156, c.tileStroke) +
     `</svg>`
   );
 }
 
-/** Transparent square: the outlined mark alone, no plate (the `any` matrix). */
+/**
+ * Transparent square: the charcoal mark and its FULL Laser stroke, no plate
+ * (the `any` matrix). With no plate in the file the stroke is not hidden by
+ * anything, so it can be the literal Laser.
+ */
 function outlinedGlyphSVG(frac, size = CANVAS) {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
-    outlinedMark(size, size, frac, 0.0156) +
+    outlinedMark(size, size, frac, 0.0156, installedColorway().stroke) +
     `</svg>`
   );
 }
@@ -387,12 +433,14 @@ function outlinedGlyphSVG(frac, size = CANVAS) {
  * SVG presentation attributes have specificity zero, so the .plate class
  * overrides that fallback, including the dark media rule. Do not use an
  * inline style here: that would interfere with the class-based override.
- * With the stylesheet absent the plate is still the deep green, not SVG's
- * default black. A stripped-style fixture tests resilience, not an iOS
- * algorithm.
+ * With the stylesheet absent the plate is still Laser, not SVG's default
+ * black. A stripped-style fixture tests resilience, not an iOS algorithm.
  *
- * The canonical mark — flat Laser, no outline — is unchanged in both modes;
- * only the plate swaps. color-scheme advertises supported schemes;
+ * The mark — charcoal fill over a stroke that IS the Laser token — is
+ * unchanged in both modes; only the plate swaps. This is the owner's model
+ * exactly: on the light plate the stroke is the plate's own colour and cannot
+ * be seen; on the dark plate the same stroke is a Laser outline around the
+ * charcoal mark. color-scheme advertises supported schemes;
  * prefers-color-scheme selects the override when the consuming renderer
  * evaluates the query.
  */
@@ -411,7 +459,7 @@ function scalableIconSVG(frac, size = CANVAS) {
     `<stop offset="1" stop-color="${c.plateDarkBottom}"/></linearGradient>` +
     `</defs>` +
     `<rect class="plate" width="${size}" height="${size}" fill="${c.plate}"/>` +
-    glyphGroup(size, size, frac, c.mark, 0.0156) +
+    outlinedMark(size, size, frac, 0.0156, c.stroke) +
     `</svg>`
   );
 }
@@ -641,9 +689,9 @@ async function main() {
   assertAnyEntriesMatchMatrix(manifestAny, ANY_SIZES, ICONS_DIR);
   assertScalableEntries(manifestScalable, ICONS_DIR);
 
-  // 1. Transparent `any` matrix: the outlined mark alone, no plate. A consumer
-  //    paints its own ground behind an `any` icon, and the outline is what
-  //    makes the mark legible on whichever ground that turns out to be — the
+  // 1. Transparent `any` matrix: the charcoal mark and its Laser stroke, no
+  //    plate. A consumer paints its own ground behind an `any` icon; the fill
+  //    carries the mark on a light ground and the stroke on a dark one — the
   //    bare Laser glyph this used to be was a 1.3:1 smear on a light launcher.
   console.log("Rendering transparent 'any' icons...");
   for (const size of ANY_SIZES) {
@@ -675,7 +723,7 @@ async function main() {
   );
 
   // 4. Favicon PNGs — the FLAT house colorway (a plated flat tile reads better
-  //    than an outlined one at 16px; see the rules above).
+  //    than a stroked one at 16px; see the rules above).
   console.log("Rendering favicons...");
   const baseSvg = plateSVG(appearance(BASE), FRAC_STANDARD);
   const basePlate = appearance(BASE).plate;
@@ -706,8 +754,8 @@ async function main() {
   // 6. iOS splash screens. Dark appearance (Void plate + Laser glyph) so the
   //    launch image matches the manifest's background_color #0F1012 — a Laser
   //    plate here would flash full-bleed lime before the app paints. Glyph at
-  //    30% of the device width, optically centred. Flat, not outlined: this is
-  //    a launch screen on a known ground, not an icon on an unknown one.
+  //    30% of the device width, optically centred. Flat, with no stroke: this
+  //    is a launch screen on a known ground, not an icon on an unknown one.
   console.log("Rendering iOS splash screens...");
   const splashApp = appearance("dark");
   for (const [width, height] of SPLASH_SIZES) {

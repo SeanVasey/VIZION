@@ -18,7 +18,15 @@ concurrency:
 jobs:
   verify:
     name: lint · typecheck · test · build · audit
-    runs-on: ubuntu-latest
+    # PINNED, not `ubuntu-latest`. `playwright install --with-deps` installs
+    # OS packages from a per-distro list baked into the Playwright release,
+    # so the runner image and the pinned Playwright are one compatibility
+    # pair. When `ubuntu-latest` rolled to 26.04 the install step failed
+    # outright on every run ("Playwright does not support webkit on
+    # ubuntu26.04-x64", Playwright 1.60) — with lint, types, tests and build
+    # all green before it. A floating image turns someone else's rollout into
+    # this repo's red CI. Move this label and the Playwright version TOGETHER.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

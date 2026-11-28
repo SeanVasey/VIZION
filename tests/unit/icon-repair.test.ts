@@ -5,6 +5,6 @@ describe("icon repair assets and isolated diagnostic", () => {
   it("preserves canonical pixels, alpha contracts, references and isolation", async () => {
     const result = await verifyIconRepair();
     expect(result.status).toBe("passed");
-    expect(result.checks).toHaveLength(9);
+    expect(result.checks).toHaveLength(10);
   }, 30_000);
 });

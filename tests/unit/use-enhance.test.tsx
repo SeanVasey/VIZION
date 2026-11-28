@@ -26,7 +26,7 @@ function sseResponse(events: EnhanceStreamEvent[]): Response {
   });
 }
 
-const REQ = { input: "hello", mode: "clarify", target: "fable_5_1" } as const;
+const REQ = { input: "hello", mode: "clarify", target: "fable_5_2" } as const;
 
 const DONE: EnhanceStreamEvent = {
   type: "done",

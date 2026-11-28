@@ -16,7 +16,7 @@ describe("parseLibraryParams", () => {
   it("accepts valid values and takes the first of arrays", () => {
     const f = parseLibraryParams({
       q: " launch ",
-      model: "opus_5",
+      model: "opus_5_5",
       mode: "target",
       tag: "marketing",
       view: ["favorites", "archived"],
@@ -24,7 +24,7 @@ describe("parseLibraryParams", () => {
     });
     expect(f).toEqual({
       q: "launch",
-      model: "opus_5",
+      model: "opus_5_5",
       mode: "target",
       tag: "marketing",
       view: "favorites",
@@ -67,7 +67,7 @@ describe("libraryHref", () => {
   it("round-trips through parseLibraryParams", () => {
     const filter = {
       q: "spec",
-      model: "gpt_5_6_sol" as const,
+      model: "gpt_6_2_sol" as const,
       collection: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
       view: "favorites" as const,
       sort: "title" as const,
@@ -89,7 +89,7 @@ describe("countActiveFilters", () => {
       countActiveFilters({
         view: "favorites",
         sort: "title",
-        model: "opus_5",
+        model: "opus_5_5",
         mode: "polish",
         tag: "x",
         collection: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -125,5 +125,16 @@ describe("cursor", () => {
     // server minted is always a UUID, so anything else is a crafted cursor.
     expect(decodeCursor(encodeCursor("2026-01-01", "x,id.not.is.null"))).toBeNull();
     expect(decodeCursor(encodeCursor("2026-01-01", "abc-123"))).toBeNull();
+  });
+});
+
+describe("parseLibraryParams — retired model ids", () => {
+  it("folds a bookmarked pre-rename model filter forward instead of dropping it", () => {
+    expect(parseLibraryParams({ model: "opus_5" }).model).toBe("opus_5_5");
+    expect(parseLibraryParams({ model: "gemini_3_8_flash" }).model).toBe(
+      "gemini_4_hydrogen",
+    );
+    expect(parseLibraryParams({ model: "opus_5_5" }).model).toBe("opus_5_5");
+    expect(parseLibraryParams({ model: "not-a-model" }).model).toBeUndefined();
   });
 });

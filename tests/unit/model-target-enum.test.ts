@@ -15,7 +15,7 @@ import type { Enums } from "@/lib/supabase/database.types";
  * Three sources have to agree on the model-id vocabulary: the roster in
  * `src/lib/constants.ts`, the generated `database.types.ts` union, and the
  * Postgres enum itself. Nothing pinned them, and they drifted: the GPT-5.6
- * Luna/Terra + Kimi K3 + MiniMax M3 migration was committed but never applied
+ * Luna/Terra + Kimi K3.1 Pro + MiniMax M3.1 Flash migration was committed but never applied
  * to the hosted project, so those four targets 22P02'd on every DB write while
  * lint, typecheck, tests, and build all stayed green.
  *
@@ -80,7 +80,7 @@ function readEnumOps(): EnumOp[] {
   for (const file of files) {
     const sql = stripComments(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
     // Interleave by position so a rename and an add in the same file keep
-    // their written order (20260724 renames opus_4_8 then adds AFTER 'opus_5').
+    // their written order (20260724 renames opus_4_8 then adds AFTER 'opus_5_5').
     const found: { at: number; op: EnumOp }[] = [];
     for (const m of sql.matchAll(RENAME_RE)) {
       found.push({
@@ -235,20 +235,20 @@ describe("enum-mismatch write errors", () => {
     code: "22P02",
     details: null,
     hint: null,
-    message: 'invalid input value for enum model_target: "gpt_5_6_terra"',
+    message: 'invalid input value for enum model_target: "gpt_6_1_terra"',
   };
 
   it("classifies the real PostgREST enum error", () => {
     expect(enumMismatch(REAL)).toEqual({
       enumName: "model_target",
-      value: "gpt_5_6_terra",
+      value: "gpt_6_1_terra",
     });
   });
 
   it("names the model by its display label instead of leaking the raw error", () => {
     const msg = describeWriteError(REAL, "Couldn't save.");
     expect(msg).toBe(
-      "GPT-5.6 Terra isn't available on the server yet — pick another model and try again.",
+      "GPT-6.1 Terra isn't available on the server yet — pick another model and try again.",
     );
     expect(msg).not.toContain("invalid input value");
     expect(msg).not.toContain("model_target");
@@ -348,7 +348,7 @@ describe("enum-mismatch write errors", () => {
     const line = writeErrorLogLine("enhance", "usage ledger write", REAL);
     expect(line).toContain("[enhance]");
     expect(line).toContain("SCHEMA DRIFT");
-    expect(line).toContain("gpt_5_6_terra");
+    expect(line).toContain("gpt_6_1_terra");
     expect(line).toContain("check:db-enum");
 
     expect(

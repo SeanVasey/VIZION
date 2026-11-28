@@ -1,4 +1,4 @@
-import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
+import { MODES, resolveTargetId, type ModeId, type TargetModelId } from "@/lib/constants";
 
 /**
  * Library filter + cursor plumbing (2026-07 UX audit): filtering is
@@ -61,7 +61,6 @@ export interface LibraryFilter {
   sort: LibrarySort;
 }
 
-const MODEL_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
 const VIEW_IDS = new Set<string>(LIBRARY_VIEWS);
 const SORT_IDS = new Set<string>(LIBRARY_SORTS);
@@ -82,7 +81,9 @@ export function parseLibraryParams(
   const sort = one(sp?.sort);
   return {
     ...(q ? { q } : {}),
-    ...(model && MODEL_IDS.has(model) ? { model: model as TargetModelId } : {}),
+    // Retired ids fold forward: a bookmarked filter link from before a roster
+    // rename keeps filtering by the same slot instead of silently dropping.
+    ...(model && resolveTargetId(model) ? { model: resolveTargetId(model)! } : {}),
     ...(mode && MODE_IDS.has(mode) ? { mode: mode as ModeId } : {}),
     ...(tag ? { tag } : {}),
     ...(collection && UUID_RE.test(collection) ? { collection } : {}),

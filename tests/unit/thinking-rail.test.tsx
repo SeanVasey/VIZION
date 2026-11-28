@@ -84,7 +84,7 @@ beforeEach(() => {
     editorDraft: "",
     activeMode: "polish",
     autoTarget: false,
-    targetModel: "opus_5",
+    targetModel: "opus_5_5",
     thinkingLevel: null,
     // Default the how-to line OUT of the way; its own block turns it back on.
     dialTipSeen: true,
@@ -288,7 +288,11 @@ describe("thinking rail behaviour", () => {
     expect(thinkingTrigger()).toHaveTextContent("Max");
     expect(thinkingTrigger().getAttribute("aria-valuemax")).toBe("4");
 
-    for (const targetModel of ["gemini_3_8_flash", "grok_4_6", "kimi_k3"] as const) {
+    for (const targetModel of [
+      "gemini_4_hydrogen",
+      "grok_4_7",
+      "kimi_k3_1_pro",
+    ] as const) {
       useUIStore.setState({ targetModel });
       rerender(
         <ToastProvider>
@@ -301,10 +305,12 @@ describe("thinking rail behaviour", () => {
       expect(submit().thinkingLevel).toBe("max");
     }
 
-    // Mistral takes no per-request level — the whole rail goes away, and the
-    // request carries no level for it (the route would drop it anyway; the
-    // preference is kept in the store for the next model that can use it).
-    useUIStore.setState({ targetModel: "mistral_large_3" });
+    // Sonar Pro takes no per-request level — the whole rail goes away, and
+    // the request carries no level for it (the route would drop it anyway;
+    // the preference is kept in the store for the next model that can use
+    // it). It is the ONLY knob-less model left on the roster: Mistral, the
+    // example this test used until 2026-11, gained one with Large 4.
+    useUIStore.setState({ targetModel: "sonar_pro" });
     rerender(
       <ToastProvider>
         <EnhanceComposer />
@@ -315,7 +321,7 @@ describe("thinking rail behaviour", () => {
   });
 
   it("keeps the rail under Auto — routing may land on a model with a knob", () => {
-    useUIStore.setState({ targetModel: "mistral_large_3", autoTarget: true });
+    useUIStore.setState({ targetModel: "sonar_pro", autoTarget: true });
     renderComposer();
     expect(screen.getByText("Thinking")).toBeInTheDocument();
     fireEvent.keyDown(thinkingTrigger(), { key: "ArrowRight" });
@@ -331,11 +337,11 @@ describe("thinking rail behaviour", () => {
     // (owner, 2026-09-11). The mutation's error state resets on the change.
     mockMutation.isError = true;
     mockMutation.error = { message: "Mistral request failed: 401", status: 502 };
-    useUIStore.setState({ targetModel: "mistral_large_3" });
+    useUIStore.setState({ targetModel: "mistral_large_4" });
     renderComposer();
     expect(screen.getByRole("alert")).toHaveTextContent("Mistral request failed");
     expect(mockMutation.reset).not.toHaveBeenCalled();
-    act(() => useUIStore.setState({ targetModel: "opus_5" }));
+    act(() => useUIStore.setState({ targetModel: "opus_5_5" }));
     expect(mockMutation.reset).toHaveBeenCalledTimes(1);
     mockMutation.isError = false;
     mockMutation.error = null;
@@ -468,7 +474,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
   });
 
   it("keeps the same five detents on Grok and Gemini — the ladder is not per model", () => {
-    useUIStore.setState({ targetModel: "grok_4_6" });
+    useUIStore.setState({ targetModel: "grok_4_7" });
     const { rerender } = renderComposer();
     fireEvent.pointerDown(thinkingTrigger(), {
       pointerId: 1,
@@ -482,7 +488,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     expect(overlay()!.querySelectorAll("[data-detent-bar]")).toHaveLength(5);
     fireEvent.pointerCancel(thinkingTrigger(), { pointerId: 1 });
 
-    useUIStore.setState({ targetModel: "gemini_3_8_flash" });
+    useUIStore.setState({ targetModel: "gemini_4_hydrogen" });
     rerender(
       <ToastProvider>
         <EnhanceComposer />
@@ -553,11 +559,11 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
       clientY: 400,
     });
     expect(fill().getAttribute("data-tone")).toBe("ultra"); // max
-    // Chip says the level alone — "Opus 5" is already on the Target rail
+    // Chip says the level alone — "Opus 5.5" is already on the Target rail
     // and in the commit announcement; the readout must not stack the model
     // name beside itself (owner de-duplication, 2026-08-10).
     expect(overlay()!.textContent).toContain("Max");
-    expect(overlay()!.textContent).not.toContain("Opus 5");
+    expect(overlay()!.textContent).not.toContain("Opus 5.5");
     fireEvent.pointerUp(trigger, {
       pointerId: 1,
       clientX: DOWN_X + 4 * DETENT_SPACING_PX,
@@ -845,7 +851,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     // in the Target sheet must be exactly a tap.
     renderComposer();
     fireEvent.click(targetTrigger());
-    const row = screen.getByRole("radio", { name: "Fable 5.1" });
+    const row = screen.getByRole("radio", { name: "Fable 5.2" });
     fireEvent.pointerDown(row, {
       pointerId: 1,
       clientX: DOWN_X,
@@ -859,7 +865,7 @@ describe("thinking rail hold-slider (ADR-0012)", () => {
     fireEvent.pointerUp(row, { pointerId: 1, clientX: DOWN_X, clientY: 400 });
     // The row's own tap still lands and closes the sheet.
     fireEvent.click(row);
-    expect(useUIStore.getState().targetModel).toBe("fable_5_1");
+    expect(useUIStore.getState().targetModel).toBe("fable_5_2");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

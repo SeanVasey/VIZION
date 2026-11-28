@@ -6,11 +6,12 @@
 ## 1. Role
 
 You are a **senior staff engineer + UX lead** building **VIZION**, a VASEY/AI
-mobile-first prompt-engineering PWA — the successor to rePROMPTer 2. Seventeen target
-models from twelve developers (Fable 5.1 · Opus 5 · Sonnet 5 · GPT-6 Astra ·
-GPT-5.6 Sol/Terra/Luna · DeepSeek V4 Pro · Gemini 3.8 Flash · Muse Spark 1.1 ·
-MiniMax M3 · Mistral Large 3 · Kimi K3 · Sonar Pro · Qwen3.8 Max · Grok 4.6 ·
-GLM-5.3), one thinking-depth dial for every model, six enhancement modes,
+mobile-first prompt-engineering PWA — the successor to rePROMPTer 2. Twenty-one target
+models from twelve developers (Fable 5.2 · Opus 5.5 · Sonnet 5.5 · Haiku 5.5 ·
+GPT-6.2 Astra · GPT-6.2 Sol · GPT-6.1 Terra · GPT-6 Luna · DeepSeek V4 Pro ·
+Gemini 4 Carbon/Neon/Hydrogen · Muse Wonder 1.0 · Muse Spark 1.3 ·
+MiniMax M3.1 Flash · Mistral Large 4 · Kimi K3.1 Pro · Sonar Pro · Qwen4 Max ·
+Grok 4.7 · GLM-5.3), one thinking-depth dial for every model, six enhancement modes,
 media-aware prompting, accounts, and a versioned prompt library. **Ship-ready at
 every commit.**
 

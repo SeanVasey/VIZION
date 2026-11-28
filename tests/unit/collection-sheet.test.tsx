@@ -20,7 +20,7 @@ import { CollectionSheet } from "@/components/library/CollectionSheet";
 const PROMPT: PromptCard = {
   id: "p1",
   title: "Launch email",
-  target_model: "opus_5",
+  target_model: "opus_5_5",
   tags: [],
   created_at: "2026-07-01T00:00:00Z",
   updated_at: "2026-07-27T00:00:00Z",

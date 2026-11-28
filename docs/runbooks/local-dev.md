@@ -51,14 +51,16 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
   (DOC-010: no longer placeholders).
 - Adding or renaming an icon means editing the `metadata.icons` block too —
   nothing auto-wires it now. The `apple` array holds **exactly one** link, with
-  **no `media` query**, pointing at `apple-touch-icon.png` — the **outlined**
-  tile (flat Laser plate, Laser-filled mark, Void outline). One link is a decision,
+  **no `media` query**, pointing at `apple-touch-icon.png` — the **stroked**
+  tile (flat Laser plate, charcoal `--onyx` mark, and under it a stroke in Laser
+  shaded `TILE_STROKE_SHADE` toward Void; ADR-0017 Amendment 7, not yet
+  device-verified). One link is a decision,
   not an oversight ([ADR-0015](../decisions/0015-pinned-home-screen-tile.md)):
   iOS freezes the tile at Add-to-Home-Screen and auto-darkens it. The tile used
   to be pinned to the dark colorway because only already-dark _flat_ artwork
-  survived that; the outlined colorway
-  ([ADR-0017](../decisions/0017-outlined-home-screen-icon.md)) carries its own
-  contrast instead, so the brand green is back on the tile. **Do not add a
+  survived that; since
+  [ADR-0017](../decisions/0017-outlined-home-screen-icon.md) the mark carries
+  a stroke of its own instead, so the brand green is back on the tile. **Do not add a
   second link, a `media` query, or a JS matcher** — all three have shipped here
   and all three shipped the invisible mark. Pinned by `tests/e2e/shell.spec.ts`.
 - The manifest link is hand-written in the root layout's `<head>` with
@@ -79,10 +81,10 @@ npm run lint && npm run typecheck && npm run test && npm run test:e2e && npm run
 - The `any` matrix ships transparent and the maskable/apple-touch/favicon set
   ships opaque — `tests/unit/icon-alpha.test.ts` enforces it (guardrail §6 /
   INV-09), so a regeneration that flattens the wrong set fails the gate rather
-  than shipping. The same test pins the outlined colorway on every installed
-  tile — a green-led plate, a green-led fill at the mark's centre, and a Void
-  stroke on the row through it — so a regeneration that drops either carrier
-  fails the gate.
+  than shipping. The same test pins the installed colorway on every installed
+  tile — the Laser plate, the charcoal fill at the mark's centre, and the shaded
+  stroke between them as pixels distinct from the plate — so a regeneration
+  that drops the stroke, or lets it merge with the plate, fails the gate.
 
 ## Playwright
 

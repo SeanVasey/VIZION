@@ -6,6 +6,154 @@ All notable changes to VIZION are documented here. The format follows
 
 ## [Unreleased]
 
+### Twenty-one models, an effort vocabulary per target, refusals named as refusals, and a hash that follows a rename
+
+**The roster moves to each vendor's current frontier — twenty-one models,
+still twelve developers.** Every id and rate re-read from the vendor's own
+page on 2026-11-28 (the third full re-verify). Fourteen of the seventeen slots
+move in place: Fable 5.1 → **5.2** (`claude-fable-5-2`, $8/$40, a cut), Opus 5
+→ **5.5** (`claude-opus-5-5`, $4/$20), Sonnet 5 → **5.5**, GPT-6 Astra →
+**GPT-6.2 Astra** ($8/$40), GPT-5.6 Sol → **GPT-6.2 Sol** ($2/$10, was $5/$30),
+GPT-5.6 Terra → **GPT-6.1 Terra**, GPT-5.6 Luna → **GPT-6 Luna**, Gemini 3.8
+Flash → **Gemini 4 Hydrogen**, Muse Spark 1.1 → **1.3**, MiniMax M3 → **M3.1
+Flash**, Mistral Large 3 → **Large 4** (pinned to `mistral-large-4-0`), Kimi K3
+→ **K3.1 Pro**, Qwen3.8 Max → **Qwen4 Max**, Grok 4.6 → **4.7**. Four slots
+join: **Haiku 5.5**, **Gemini 4 Carbon**, **Gemini 4 Neon** and **Muse Wonder
+1.0** (a preview, not offered in every region). DeepSeek V4 Pro, Sonar Pro and
+GLM-5.3 keep their ids; GLM-5.3's rate is now vendor-published, so its
+assumed-price flag is gone. Display order is best-first per developer — Gemini
+reads Carbon, Neon, Hydrogen. Where a vendor lists an introductory rate the
+base rate is carried: Gemini 4 Carbon ships at $4/$20, not the $2/$10 that
+ends 2026-11-30. Looked at and not added, because each needs a new adapter, key
+and developer mark: Tencent Hy4 and Xiaomi MiMo-V2.6-Pro. GLM-5.4 exists but is
+Coding Plan only.
+
+**The effort vocabulary is per target, not per provider.** One table per
+provider held only until one vendor shipped two models with different words:
+Gemini 4 Carbon accepts `low · medium · high`, Neon and Hydrogen add `xhigh`.
+Each roster row now names its own vocabulary (`TARGETS[id].effort`), named by
+shape — `five`, `openai`, `toXhigh`, `toHigh`, `three`, `threeX` — and the
+adapter layer hands it to the provider adapter. Mistral Large 4, both Muse
+models and MiniMax M3.1 Flash gained a knob; **only Sonar Pro has none**. Qwen
+moved from a token budget (`enable_thinking` + `thinking_budget`) to a
+`reasoning_effort` word (low · high · xhigh), and the per-stop budget table is
+removed ([ADR-0018, Amendment 1](./docs/decisions/0018-one-ladder.md)).
+
+**Auto thinking now chooses something on every model, and says what it
+chose.** Auto returned `medium` for a light job. On a three-valued API
+(DeepSeek V4 Pro, Kimi, GLM-5.3, Qwen4 Max) there is no medium — the adapter
+folds it onto `high` — so a light job and a heavy job were both sent `high`:
+the grammar fix ran at the restructuring job's depth. Auto's moderate stop is
+now read off the target: `medium` where the API has one, `low` where it does
+not; heavy jobs still get `high`. The route reports the level it resolved as
+`resolvedThinking` (present only when the dial was on Auto and the model has a
+knob) and the result meta shows it — "· Medium thinking (auto)".
+
+**A model that declines is reported as a refusal.** A completed turn whose
+stop reason is a refusal (Anthropic `refusal`, OpenAI-compatible
+`content_filter`, Gemini `SAFETY` and its siblings) with no output now raises
+`ProviderRefusalError` and reaches the client as a **422** — "The model
+declined this request … try a different target model, or rephrase the prompt"
+— instead of falling through to "The model returned a non-JSON response",
+which blamed the wrong party. The provider's category is relayed when it gives
+one. Server-side refusal fallbacks (Anthropic's `fallbacks` beta) are
+deliberately not enabled: a fallback model bills at its own rate and the
+ledger prices by target, so that is a cost-accounting decision for the owner.
+
+**Image analysis asks for the lowest effort and has room to answer.** Every
+vision-capable model on the roster now reasons, and reasoning bills against
+the output cap before any JSON is written — the 1024-token caps sized for
+non-reasoning models could be spent on thinking and return empty attributes
+with no error. Vision calls now send the model's own lowest effort word and
+every capped call carries 4096 tokens (Gemini's call sets no cap and gets the
+low level only).
+
+**Two migrations — apply, then deploy. Neither is applied to the hosted
+project yet.** `20261128094340_frontier_roster_2026_11.sql` is fourteen
+`RENAME VALUE` and four `ADD VALUE`; the renames are the tight direction and
+this one renames the default target, so keep the window short and run
+`npm run check:db-enum` afterwards.
+`20261128094348_rehash_after_roster_rename.sql` re-runs the Q5 content-hash
+backfill: `prompt_versions.content_hash` includes the target's enum label, so
+a rename leaves every stored hash stale and duplicate detection silently
+misses — a save of content the user already has files a second card. That has
+been true of every rename since Q5; this pass also repairs what the 20260808
+and 20260911 renames left behind. **Rule from here on: every rename migration
+ships the re-hash statement beside it** (`docs/runbooks/migrations.md`).
+`LEGACY_TARGET_IDS` gains the fourteen renames and the UI store's persist
+version moves to 8, so a stale stored selection resolves instead of 400ing.
+The server folds a retired id forward too (`resolveTargetId`, in both model
+routes and the library and draft save actions): a tab left open across the
+deploy, or a save queued in the offline outbox under the old roster, runs
+against the live id — this rename moves the default target, so otherwise every
+open tab's next run would have 400ed until it was reloaded.
+
+**Environment.** New names: `MODEL_HAIKU`, `PRICE_HAIKU_IN/OUT`,
+`MODEL_GEMINI_CARBON`, `PRICE_GEMINI_CARBON_IN/OUT`, `MODEL_GEMINI_NEON`,
+`PRICE_GEMINI_NEON_IN/OUT`, `MODEL_MUSE_WONDER`, `PRICE_MUSE_WONDER_IN/OUT`,
+and `QWEN_BASE_URL` (Alibaba is moving the API to a per-workspace host).
+`MODEL_GEMINI` / `PRICE_GEMINI_*` now mean Hydrogen and `MODEL_GPT` means
+GPT-6.2 Sol. **A `MODEL_*` or `PRICE_*` override outlives a roster move** — a
+deployment still setting `MODEL_OPUS=claude-opus-5` keeps calling Opus 5 under
+the Opus 5.5 label and price — so clear stale overrides after this bump.
+`.env.example` no longer carries `MAX_TOKENS_QWEN=8192`: the adapter default
+is 32,000, and copying the old example re-imposed qwen3.7's ceiling. A blank
+`MODEL_*` or `QWEN_BASE_URL` — what a copied `.env.example` sets — is now read
+as unset (`strEnv`) instead of being sent as an empty model id.
+
+**Sonar Pro is on a sunset endpoint.** Perplexity ended Sonar Chat Completions
+support on 2026-09-27; the legacy endpoint still answers (requests are
+reformulated as Agent API requests, rolling out by model) and the pricing page
+no longer lists `sonar-pro`, so its $3/$15 is a carried reference figure. The
+slot is unchanged here. Moving it to the Agent API is the open follow-up in
+`docs/runbooks/providers.md` — a new adapter, not a config change.
+
+**The installed icon is a Laser plate under a charcoal mark, with a stroke
+under the mark** ([ADR-0017, Amendment 7](./docs/decisions/0017-outlined-home-screen-icon.md)
+— an owner direction, superseding the inverted accent-ink tile of Amendments
+5–6). The mark is the dark theme's `--onyx`. In `app-icon.svg` the stroke is
+the Laser token itself: invisible on the light plate, the outline on the dark
+one, because a vector consumer evaluates the stylesheet. The transparent `any`
+matrix carries the charcoal mark with the full Laser stroke and no plate. On
+the opaque PNG tiles the stroke is Laser shaded 0.25 toward Void, **not**
+Laser: a PNG has no strokes, only pixels, and a ring the plate's own colour is
+not in the file for iOS to keep — that literal tile is the #105-era one whose
+Dark result (mark kept, invisible) is already in the ADR. The shade is one
+constant, `TILE_STROKE_SHADE`. Favicons and splash screens are unchanged.
+**This tile has no device pass**: that iOS keeps the shaded ring in Dark is an
+expectation from the 2026-09-05 screenshots, not a result.
+
+**Not verified against live APIs.** The gate has no provider keys. Every id,
+rate and effort word above was read from a vendor page; none was confirmed by
+a response, and the green gate covers request builders, stubbed streams and
+the translation table only. Mistral Large 4's typed-chunk `content` handling
+(`mistralText`) is written from the documented shape, not from a captured
+stream. The first live run per provider is the real test
+(`docs/runbooks/providers.md`, "What is not verified").
+
+**Dependencies patched past the advisories published since 2026-09.** Both
+audit gates had gone red on `main`'s own tree: production on `next` (critical,
+≤ 15.5.28), `sharp` (< 0.35.5) and `source-map-js` (≤ 1.2.1); the full tree on
+`vitest`, `vite`, `brace-expansion`, `fast-uri`, `postcss-selector-parser`,
+`serialize-javascript`, `minimatch` and `glob`. Now `next ^15.5.29`,
+`sharp ^0.35.5`, `vite ^7.3.8`, `vitest ^4.1.12`, and overrides for
+`source-map-js ^1.2.2`, `fast-uri ^3.1.9`, the three `brace-expansion` majors
+(`^1.1.21` / `^2.1.7` / `^5.0.12`), `minimatch@10 → ^11.0.1` and, scoped to
+`workbox-build`, `glob ^14.0.2` — the last two have no patched release on
+their old major. Both audits report 0. The lockfile moved only those packages
+and their own transitives (Playwright, Supabase and React are untouched),
+`generate:icons` is byte-identical under the new sharp, and the service
+worker still builds through glob 14. Lock resolved with npm 12 (npm 10's
+arborist crashes on an override change) and verified with `npm ci` under
+npm 10, which is what CI runs.
+
+**CI pins its runner image.** `ubuntu-latest` rolled to Ubuntu 26.04, which
+the pinned Playwright (1.60) cannot install WebKit's OS dependencies on, so
+the browser-install step failed on every run before any e2e test started —
+with lint, typecheck, unit tests and build green ahead of it. The `verify` job
+now runs on `ubuntu-24.04`; the image and the Playwright version are one
+compatibility pair and move together.
+
 ### One thinking ladder for every model, a dial that reaches its ends, and the 2026-09 frontier roster
 
 **The Thinking dial is the same five stops on every model** — Auto · Low ·

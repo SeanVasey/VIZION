@@ -22,7 +22,7 @@ import { LibraryBrowser } from "@/components/library/LibraryBrowser";
 const CARD: PromptCard = {
   id: "p1",
   title: "Launch email",
-  target_model: "opus_5",
+  target_model: "opus_5_5",
   tags: [],
   created_at: "2026-07-01T00:00:00Z",
   updated_at: "2026-07-27T00:00:00Z",
@@ -177,7 +177,7 @@ describe("the developer mark", () => {
     // DeveloperIcon is aria-hidden; a label or sr-only string added later
     // would break every getByText on the model name.
     renderBrowser();
-    expect(screen.getByText("Opus 5")).toBeTruthy();
+    expect(screen.getByText("Opus 5.5")).toBeTruthy();
   });
 
   it("degrades to no mark, and no colour, on an id this build doesn't know", () => {
