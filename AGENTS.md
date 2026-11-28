@@ -94,6 +94,17 @@ chromium` — the same line CI uses (the two engines the configured projects
   is **zero-exemption** — any advisory that appears hard-fails, which is the
   intended posture. CI still gates `npm audit --omit=dev --audit-level=high`
   (0) plus the full-tree `npm run audit:check`.
+- **A cross-major override is written PARENT-SCOPED, not as `name@major`.**
+  `glob` 11 has no patched release, so `workbox-build`'s copy is forced to 14
+  with `"workbox-build": { "glob": "^14.0.2" }`. The flat form
+  `"glob@11": "^14.0.2"` resolves fine under npm 12 and then fails CI: npm 10's
+  `npm ci` does not apply that key to a direct dependency's own dependency,
+  rebuilds the tree with glob 11, and rejects the lockfile as out of sync
+  ("Missing: glob@11.1.0 from lock file"). The `name@major` form is still right
+  for the `brace-expansion` floors and for `minimatch@10`, which npm 10 does
+  honour. After ANY override change: resolve with npm 12 (npm 10's arborist
+  crashes — "Cannot read properties of null (reading 'edgesOut')"), then run
+  `npm ci` under npm 10 before pushing, because that is the command CI runs.
 - **`eslint-plugin-tailwindcss` must stay on the `3.x` line** while this project
   is on Tailwind 3. `4.x` declares `peer tailwindcss@^4` and will not install
   without `--force`. Its `settings.tailwindcss.config` also has to be an

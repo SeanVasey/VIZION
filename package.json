@@ -32,7 +32,7 @@
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
     "@tanstack/react-query": "^5.62.7",
-    "next": "^15.5.25",
+    "next": "^15.5.29",
     "openai": "^4.77.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -56,11 +56,11 @@
     "jsdom": "^25.0.1",
     "postcss": "^8.5.23",
     "prettier": "^3.4.2",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
-    "vite": "^7.3.6",
-    "vitest": "^4.1.11",
+    "vite": "^7.3.8",
+    "vitest": "^4.1.12",
     "workbox-build": "^7.3.0",
     "workbox-cacheable-response": "^7.4.1",
     "workbox-core": "^7.4.1",
@@ -72,12 +72,17 @@
   "overrides": {
     "postcss": "^8.5.23",
     "nanoid": "^3.3.17",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
+    "source-map-js": "^1.2.2",
     "js-yaml": "^4.3.2",
-    "fast-uri": "^3.1.6",
+    "fast-uri": "^3.1.9",
     "browserslist": "^4.28.7",
-    "brace-expansion@1": "^1.1.18",
-    "brace-expansion@2": "^2.1.4",
-    "brace-expansion@5": "^5.0.9"
+    "brace-expansion@1": "^1.1.21",
+    "brace-expansion@2": "^2.1.7",
+    "brace-expansion@5": "^5.0.12",
+    "minimatch@10": "^11.0.1",
+    "workbox-build": {
+      "glob": "^14.0.2"
+    }
   }
 }

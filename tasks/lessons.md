@@ -4122,3 +4122,15 @@ test:e2e` hard-fails in global-setup until
   about what an API accepts. Write the limit of the evidence next to the
   claim — in the changelog, the ADR and the runbook — rather than letting a
   green check imply the rest.
+- **A lockfile one npm resolves is not a lockfile another npm will install.**
+  The dependency pass resolved under npm 12 with both audits at zero, and
+  `npm ci` under npm 10 — the command CI runs — refused it: the flat
+  `"glob@11"` override key is not applied by npm 10 to a direct dependency's
+  dependency, so its ideal tree and the lockfile disagreed. The parent-scoped
+  form works on both. Zero advisories is not the acceptance test for a
+  dependency change; a clean install by CI's own npm is.
+- **A gate that only runs in CI rots between runs.** `main` had not run CI for
+  eleven weeks, and in that time the runner image moved under Playwright and
+  nineteen advisories accumulated. None of it was this change's, and all of it
+  landed on this change's PR. A red check on a quiet repo is as likely to be
+  the calendar as the diff: read which STEP failed before reading the diff.

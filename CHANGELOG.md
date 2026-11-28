@@ -131,6 +131,22 @@ the translation table only. Mistral Large 4's typed-chunk `content` handling
 stream. The first live run per provider is the real test
 (`docs/runbooks/providers.md`, "What is not verified").
 
+**Dependencies patched past the advisories published since 2026-09.** Both
+audit gates had gone red on `main`'s own tree: production on `next` (critical,
+≤ 15.5.28), `sharp` (< 0.35.5) and `source-map-js` (≤ 1.2.1); the full tree on
+`vitest`, `vite`, `brace-expansion`, `fast-uri`, `postcss-selector-parser`,
+`serialize-javascript`, `minimatch` and `glob`. Now `next ^15.5.29`,
+`sharp ^0.35.5`, `vite ^7.3.8`, `vitest ^4.1.12`, and overrides for
+`source-map-js ^1.2.2`, `fast-uri ^3.1.9`, the three `brace-expansion` majors
+(`^1.1.21` / `^2.1.7` / `^5.0.12`), `minimatch@10 → ^11.0.1` and, scoped to
+`workbox-build`, `glob ^14.0.2` — the last two have no patched release on
+their old major. Both audits report 0. The lockfile moved only those packages
+and their own transitives (Playwright, Supabase and React are untouched),
+`generate:icons` is byte-identical under the new sharp, and the service
+worker still builds through glob 14. Lock resolved with npm 12 (npm 10's
+arborist crashes on an override change) and verified with `npm ci` under
+npm 10, which is what CI runs.
+
 **CI pins its runner image.** `ubuntu-latest` rolled to Ubuntu 26.04, which
 the pinned Playwright (1.60) cannot install WebKit's OS dependencies on, so
 the browser-install step failed on every run before any e2e test started —
