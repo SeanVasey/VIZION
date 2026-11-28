@@ -14,6 +14,7 @@ import {
   ProviderNotConfiguredError,
   providerEffort,
 } from "@/lib/providers/errors";
+import { mistralText as contentText } from "@/lib/providers/mistral";
 import { QWEN_BASE_URL } from "@/lib/providers/openai-compat";
 import {
   MEDIA_EXTRACT_SYSTEM,
@@ -184,7 +185,12 @@ async function describeOpenAICompatible(
     ],
   });
   return {
-    raw: response.choices[0]?.message?.content ?? "",
+    // `contentText`, not the raw field: a reasoning model may return
+    // `content` as an ARRAY of typed chunks (`thinking` beside `text`) rather
+    // than the string the SDK types — Mistral Large 4 documents that shape.
+    // Handed to the string parsers as-is, an array parsed as empty while the
+    // call still billed (Codex, PR #129). A string passes through unchanged.
+    raw: contentText(response.choices[0]?.message?.content),
     tokenIn: response.usage?.prompt_tokens ?? 0,
     tokenOut: response.usage?.completion_tokens ?? 0,
     ...(response.usage ? {} : { usageEstimated: true }),
