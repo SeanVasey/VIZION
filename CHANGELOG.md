@@ -131,6 +131,13 @@ the translation table only. Mistral Large 4's typed-chunk `content` handling
 stream. The first live run per provider is the real test
 (`docs/runbooks/providers.md`, "What is not verified").
 
+**CI pins its runner image.** `ubuntu-latest` rolled to Ubuntu 26.04, which
+the pinned Playwright (1.60) cannot install WebKit's OS dependencies on, so
+the browser-install step failed on every run before any e2e test started —
+with lint, typecheck, unit tests and build green ahead of it. The `verify` job
+now runs on `ubuntu-24.04`; the image and the Playwright version are one
+compatibility pair and move together.
+
 ### One thinking ladder for every model, a dial that reaches its ends, and the 2026-09 frontier roster
 
 **The Thinking dial is the same five stops on every model** — Auto · Low ·
