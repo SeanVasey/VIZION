@@ -236,7 +236,7 @@ export function resolveAutoTarget(
  * "Moderate" is read off the target, which is the 2026-11 correction. The
  * first cut returned `medium` for every light job, and on a three-valued API
  * (DeepSeek, Kimi, GLM, Qwen4: low · high · top) there is no medium: the
- * adapter folds it onto `high`. So on five of the roster's models Auto sent
+ * adapter folds it onto `high`. So on four of the roster's models Auto sent
  * `high` for a light job and `high` for a heavy one — it was choosing
  * nothing, and the lightest job ran at the same depth as the heaviest. Where
  * Medium is not a word of its own, the moderate stop is `low`.

@@ -186,3 +186,68 @@ the env var to replace instead of relaying "401 status code (no body)".
   should look") and edge auto-step fixes the reach without a second control.
 - **`in oklch` for the ramp.** Still rejected on the measured cross-engine
   hue disagreement for near-achromatic mixes.
+
+## Amendment 1 (2026-11-28) — the vocabulary is per target, and Auto reads it
+
+The decision stands: one ladder, one stored value, the adapter translates, and
+the two pinned properties (monotone, honest ends) are unchanged. Three things
+under it moved with the 2026-11-28 roster (twenty-one models; fourteen slots
+renamed, four added).
+
+**1. The effort vocabulary is keyed by TARGET, not by provider.** §1 says the
+adapter "translates the level onto its provider's vocabulary", and the first
+table was keyed that way (`providerEffort("google", …)`). That held only while
+every model a vendor served took the same words. Gemini 4 ended it: Carbon
+accepts `low · medium · high`; Neon and Hydrogen add `xhigh`. A single "Google
+vocabulary" would either 400 Carbon or stop its siblings a word short of what
+the peak caption promises. So each roster row now names its own vocabulary —
+`TARGETS[id].effort` in `src/lib/providers/config.ts` — and the adapter layer
+passes it down as `opts.effortVocabulary`. Vocabularies are named for their
+shape, not for a vendor, because two vendors can share one and one vendor can
+need two:
+
+| vocabulary | low · medium · high · max → | targets                                                             |
+| ---------- | --------------------------- | ------------------------------------------------------------------- |
+| `five`     | low · medium · high · max   | Fable 5.2 · Opus 5.5 · Sonnet 5.5 · Haiku 5.5 · both Muse · MiniMax |
+| `openai`   | low · medium · high · max   | GPT-6.2 Astra · GPT-6.2 Sol · GPT-6.1 Terra · GPT-6 Luna            |
+| `toXhigh`  | low · medium · high · xhigh | Grok 4.7 · Gemini 4 Neon · Gemini 4 Hydrogen                        |
+| `toHigh`   | low · medium · high · high  | Gemini 4 Carbon · Mistral Large 4                                   |
+| `three`    | low · high · high · max     | DeepSeek V4 Pro · Kimi K3.1 Pro · GLM-5.3                           |
+| `threeX`   | low · high · high · xhigh   | Qwen4 Max                                                           |
+
+§1's knob-less list (Mistral, Sonar, Muse, MiniMax) is down to Sonar Pro:
+Mistral Large 4, both Muse models and MiniMax M3.1 Flash each shipped an effort
+word, and Qwen4 replaced its token budget with one (the budget table is
+removed). "Absent `effort`" is the server's statement of no knob and
+`TARGET_HAS_THINKING` the client's; `tests/unit/models.test.tsx` pins them to
+each other. `xhigh` now rides through on four vocabularies (`five`, `openai`,
+`toXhigh`, `threeX`) rather than "the three providers" §1 names.
+
+**2. Auto's moderate stop reads the vocabulary.** §2 resolves Auto to `medium`
+for the bounded modes. On a three-valued API there is no medium — §1's own
+rule collapses it onto `high` — so on DeepSeek V4 Pro, Kimi, GLM-5.3 (and now
+Qwen4 Max) Auto sent `high` for a light job and `high` for a heavy one. It was
+choosing nothing, and the defect §2 set out to remove (the lightest job at a
+heavy job's depth) survived on exactly those models. `defaultThinkingLevel`
+now takes the target: a heavy job still gets `high`; a light job gets
+`medium` where Medium is a word of its own and **`low`** where it is not
+(`hasDistinctMedium`, derived from the table so a new vocabulary cannot be
+forgotten). The honest-ends and monotone rules are untouched — this changes
+which STOP Auto picks, not what any stop sends — and an explicit Medium on a
+three-valued model still lands on `high`, as the Consequences section already
+records. The check that would have caught this is on the wire, not on the
+ladder: the test now asserts that the word SENT for a light job is below the
+word sent for a heavy one.
+
+**3. The route says what Auto chose.** `/api/enhance` reports the resolved
+level as `resolvedThinking` on the result, present only when the dial was on
+Auto and the target has a knob — the same presence-is-the-signal rule as
+`resolvedTarget` — and the result meta reads it back ("· Medium thinking
+(auto)"). An explicit choice is not echoed. "Auto" had been telling the user
+nothing about how hard the model was asked to think, which is most of what a
+run costs.
+
+**Not verified.** No effort word in the table above has been sent to a live
+API: the gate has no provider keys. Every vocabulary was read from the
+vendor's own reference on 2026-11-28; the first live run per provider is the
+test (`docs/runbooks/providers.md`, "What is not verified").

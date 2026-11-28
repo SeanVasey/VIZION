@@ -18,10 +18,11 @@ _Clarify · Polish · Expand · Condense · Reformat · Adapt — the same idea,
 </div>
 
 > **Successor to rePROMPTer 2.** Where rePROMPTer _upgraded_ a prompt, VIZION
-> _transforms_ it — across seventeen target models from twelve developers
-> (Fable 5.1 · Opus 5 · Sonnet 5 · GPT-6 Astra · GPT-5.6 Sol/Terra/Luna ·
-> DeepSeek V4 Pro · Gemini 3.8 Flash · Muse Spark 1.1 · MiniMax M3 ·
-> Mistral Large 3 · Kimi K3 · Sonar Pro · Qwen3.8 Max · Grok 4.6 · GLM-5.3),
+> _transforms_ it — across twenty-one target models from twelve developers
+> (Fable 5.2 · Opus 5.5 · Sonnet 5.5 · Haiku 5.5 · GPT-6.2 Astra · GPT-6.2 Sol ·
+> GPT-6.1 Terra · GPT-6 Luna · DeepSeek V4 Pro · Gemini 4 Carbon/Neon/Hydrogen ·
+> Muse Wonder 1.0 · Muse Spark 1.3 · MiniMax M3.1 Flash · Mistral Large 4 ·
+> Kimi K3.1 Pro · Sonar Pro · Qwen4 Max · Grok 4.7 · GLM-5.3),
 > one thinking-depth dial for every model, six enhancement modes, and media-aware
 > prompt construction, with accounts and a versioned prompt library.
 
@@ -48,16 +49,16 @@ Client (PWA, Next.js 15 · React 19)
   └─ Service worker: SWR(same-origin static assets) · NetworkOnly navigations → offline.html
         │  HTTPS — no model keys client-side
         ▼
-Next Route Handlers (Node) ── Provider Adapter ──┬─ Anthropic  (fable_5 · opus_5 · sonnet_5)
-  ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI     (gpt_5_6_sol · gpt_5_6_luna · gpt_5_6_terra)
-  ├─ /api/media     (extract → attributes)        ├─ Google     (gemini_3_6_flash)
-  └─ per-user rate limit + cost cap + audit log   ├─ Mistral    (mistral_large_3)
-                                                  ├─ xAI        (grok_4_5)
+Next Route Handlers (Node) ── Provider Adapter ──┬─ Anthropic  (fable_5_2 · opus_5_5 · sonnet_5_5 · haiku_5_5)
+  ├─ /api/enhance   (mode + target → formatter)  ├─ OpenAI     (gpt_6_2_astra · gpt_6_2_sol · gpt_6_1_terra · gpt_6_luna)
+  ├─ /api/media     (extract → attributes)        ├─ Google     (gemini_4_carbon · gemini_4_neon · gemini_4_hydrogen)
+  └─ per-user rate limit + cost cap + audit log   ├─ Mistral    (mistral_large_4)
+                                                  ├─ xAI        (grok_4_7)
                                                   └─ OpenAI-compatible proxy:
-                                                     DeepSeek (deepseek_v4) · Meta (muse_spark_1_1)
-                                                     MiniMax (minimax_m3) · Moonshot (kimi_k3)
-                                                     Perplexity (sonar_pro) · Qwen (qwen3_8_max)
-                                                     Z.ai (glm_5_2)
+                                                     DeepSeek (deepseek_v4) · Meta (muse_wonder_1_0 · muse_spark_1_3)
+                                                     MiniMax (minimax_m3_1_flash) · Moonshot (kimi_k3_1_pro)
+                                                     Perplexity (sonar_pro) · Qwen (qwen4_max)
+                                                     Z.ai (glm_5_3)
         │
         ▼
 Supabase ── Postgres (RLS) · Auth (magic link · GitHub · Google) · Storage (avatars, media)
@@ -116,40 +117,55 @@ shipped as an iOS 26 Liquid Glass icon set under `public/brand/`.
 
 **`public/brand/vizion-glyph.svg` is the single raster source of truth**: the
 mark alone, flat, on a tight 1024 × 892.8 viewBox. `npm run generate:icons`
-composes the entire 32-file icon + splash matrix from it via `sharp`, painting
+composes the entire 31-file icon + splash matrix from it via `sharp`, painting
 it with the locked colorways it reads from `tokens.css` — `Laser #C7FD26`,
-`Void #0F1012`. Don't hand-edit the PNGs, and don't edit `public/brand/` to
-change a derivative.
+`Void #0F1012`, and the dark theme's `--onyx` (`#2B2D33`) for the charcoal
+mark. Don't hand-edit the PNGs, and don't edit `public/brand/` to change a
+derivative.
 
 The colorways are:
 
-- **Installed** (flat plate in the light theme's `--accent-ink`, the deep
-  green the header mark wears on light surfaces · flat Laser mark · no outline) — **every plated surface a launcher installs**: the
+- **Installed** (flat Laser plate · charcoal `--onyx` mark · a stroke painted
+  under the mark) — **every plated surface a launcher installs**: the
   Add-to-Home-Screen tile (`apple-touch-icon.png`), the maskable tiles and the
-  scalable `app-icon.svg`'s light branch.
-- **Outlined** (Laser mark · Void outline · no plate) — the transparent `any`
-  matrix only, because a launcher paints its own ground behind it.
+  scalable `app-icon.svg`'s light branch. On the PNG tiles the stroke is Laser
+  shaded 0.25 toward Void (`#99C221` from today's tokens); in the SVG it is the
+  Laser token itself.
+- **Outlined, no plate** (charcoal mark · full Laser stroke) — the transparent
+  `any` matrix only, because a launcher paints its own ground behind it: the
+  charcoal fill carries the mark on a light ground, the Laser stroke on a dark
+  one.
 - **Light** (Laser plate + Void ink, flat) — the house colorway for the raster
   favicons plus `favicon.ico`, and the square `og:image` share tile.
 - **Dark** (Void plate + Laser glyph, flat) — the iOS splash screens (matching
   the manifest's `background_color`).
 
-**The installed tile is inverted so that what iOS keeps in Dark is the brand
-green itself** ([ADR-0017, Amendment 5](./docs/decisions/0017-outlined-home-screen-icon.md)).
-Device passes (2026-08-12 and -13) established that iOS reads
-`apple-touch-icon` from the head, does **not** evaluate `media` on icons and
-**freezes** the tile at capture. Owner screenshots (2026-08-11 and 2026-09-05)
-established how it derives the dark appearance from that PNG: it segments a
-foreground from the flat plate and keeps only the pixels whose colour is
-distinct from the plate, on its own near-black plate. A Laser mark on a Laser
-plate was discarded with the plate (tile merely dimmed); a mark shaded darker
-than the plate was kept (device pass 2026-09-05). So the tile is a flat plate
-in the light theme's `--accent-ink` — the same deep green the in-app mark
-paints on light surfaces — with the flat Laser mark on it: in Dark iOS keeps a
-full-Laser mark on near-black, in Light the mark reads on the deep green at
-about 5:1, and the tile and the header mark are one token.
-The outline that once carried Light contrast on a Laser plate is gone from
-installed tiles and remains only on the transparent `any` matrix.
+**The installed tile is a Laser plate under a charcoal mark, with a stroke
+meant to be invisible in Light and to become the outline in Dark**
+([ADR-0017, Amendment 7](./docs/decisions/0017-outlined-home-screen-icon.md),
+2026-11-28 — an owner direction, superseding the inverted accent-ink tile of
+Amendments 5–6). **This tile has no device pass.** What earlier passes
+established still stands: iOS reads `apple-touch-icon` from the head, does
+**not** evaluate `media` on icons and **freezes** the tile at capture (device
+passes 2026-08-12 and -13), and it derives the dark appearance from that PNG by
+segmenting a foreground from the flat plate and keeping only the pixels whose
+colour is distinct from the plate, on its own near-black plate (owner
+screenshots 2026-08-11 and 2026-09-05).
+
+That mechanism is why the PNG tiles' stroke is **not** literally Laser. A PNG
+is flat pixels: a stroke identical to the plate does not exist in the file, so
+nothing downstream can keep it. The literal tile — flat Laser plate, flat dark
+mark — is the #105-era tile the owner already photographed (ADR-0017,
+Amendment 3): in Dark the plate was swapped for `#101113` and the dark mark was
+kept and invisible. The shade gives the ring pixels of its own. 0.25 toward
+Void is the low end of the 0.25–0.35 range the 2026-09-05 screenshots showed
+iOS keeping, so it is the least visible ring in Light for which any evidence of
+survival exists; that evidence was a large fill inside a Void outline, not a
+ring ~30 glyph units wide lying against the plate, so whether iOS keeps this
+one is an expectation, not a measurement. The cost in Light is a faint
+darker-green halo (1.7:1 against the plate) rather than nothing. The shade is
+one exported constant, `TILE_STROKE_SHADE` in `scripts/generate-icons.mjs`, to
+retune after a device pass — never a second link, a `media` query or a matcher.
 `docs/runbooks/icon-install-repair.md` is the icon contract.
 
 The **arrangement** ADR-0015 settled is unchanged: `metadata.icons.apple` holds
@@ -161,10 +177,13 @@ Screen route (#111). Every one bet that iOS would re-resolve or select
 something; it does not.
 
 `/icons/app-icon.svg` is the installed tile as vector in **both** appearances:
-the plate follows `prefers-color-scheme` (the light theme's accent ink in light, Void in
-dark) while the mark stays the flat Laser mark. It serves SVG-aware icon
-consumers; it does not reach the iPhone Home Screen while the explicit Apple
-link exists, and the PNG tile is not a fallback to it
+the plate follows `prefers-color-scheme` (flat Laser in light, a Void gradient
+in dark) while the mark stays the charcoal mark with a Laser stroke. Because a
+vector consumer evaluates the stylesheet, the owner's model holds literally
+here: on the light plate the stroke is the plate's own colour and cannot be
+seen, and on the dark plate the same stroke is the outline. It serves SVG-aware
+icon consumers; it does not reach the iPhone Home Screen while the explicit
+Apple link exists, and the PNG tile is not a fallback to it
 ([runbook](./docs/runbooks/icon-install-repair.md)).
 
 See [the iOS runbook](./docs/runbooks/ios-verification.md) for the measured
@@ -218,9 +237,9 @@ The brand green is `--laser`, and the **token leads**. It was retuned `#B7FF3C`
 → `#DFFA04` to meet the Liquid Glass set, then pulled back off yellow to
 `#C7FD26` (hue ~75°) when the `#DFFA04` set read too yellow beside the neon
 buttons — see [ADR-0013](./docs/decisions/0013-brand-green-retune.md) and its
-2026-08-11 amendment. The generator closes the loop: it reads `--laser` and
-`--void` out of `tokens.css` rather than restating them, so every generated icon
-follows the token by construction. The Liquid Glass **source** SVGs in
+2026-08-11 amendment. The generator closes the loop: it reads `--laser`,
+`--void` and the dark theme's `--onyx` out of `tokens.css` rather than restating
+them, so every generated icon follows the token by construction. The Liquid Glass **source** SVGs in
 `public/brand/` still carry `#DFFA04` — they are Icon Composer artwork for a
 future native `.icon` build, never rasterized into the PWA, so their green is
 independent of the shipped token until that art is re-exported.

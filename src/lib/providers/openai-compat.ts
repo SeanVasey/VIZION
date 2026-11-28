@@ -346,14 +346,32 @@ export const streamPerplexity = makeOpenAICompatStream({
  *
  * Output: the cap covers chain-of-thought AND answer (ceiling 131,072
  * non-thinking / 262,144 thinking), so the deep tier steps up like every
- * other reasoning adapter. `MAX_TOKENS_QWEN` still overrides the base step
- * for an account whose scope serves a lower range.
+ * other reasoning adapter. `MAX_TOKENS_QWEN`, when set, caps BOTH steps for
+ * an account whose scope serves a lower range.
  *
  * The base URL is env-overridable because Alibaba is moving this API to a
  * per-workspace host (`https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com
  * /compatible-mode/v1`); the shared dashscope-intl host is the one being
  * migrated FROM. Set QWEN_BASE_URL when your workspace is moved.
  */
+/** The operator's ceiling, or undefined when unset/blank/non-numeric. */
+const QWEN_MAX_TOKENS = ((n) => (Number.isFinite(n) ? n : undefined))(
+  numEnv("MAX_TOKENS_QWEN", Number.NaN),
+);
+
+/**
+ * Qwen's two output steps. An explicit MAX_TOKENS_QWEN is a statement about
+ * what the account's scope SERVES, so it bounds the deep step too — a fixed
+ * 64k there would 400 every High/Max run on exactly the accounts that set
+ * the override. Pure and exported so that rule is testable without env.
+ */
+export function qwenCeilings(override: number | undefined): {
+  maxTokens: number;
+  deepMaxTokens: number;
+} {
+  return { maxTokens: override ?? 32_000, deepMaxTokens: override ?? 64_000 };
+}
+
 export const QWEN_BASE_URL = strEnv(
   "QWEN_BASE_URL",
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
@@ -364,8 +382,7 @@ export const streamQwen = makeOpenAICompatStream({
   label: "Qwen",
   keyEnv: "DASHSCOPE_API_KEY",
   baseURL: QWEN_BASE_URL,
-  maxTokens: numEnv("MAX_TOKENS_QWEN", 32_000),
-  deepMaxTokens: 64_000,
+  ...qwenCeilings(QWEN_MAX_TOKENS),
   effort: "threeX",
 });
 

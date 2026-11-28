@@ -81,6 +81,8 @@ function stripThinkSpans(raw: string): string {
  * empty attributes with no error (the lesson the OpenAI path learned first).
  * The 1024 caps this file carried for Anthropic, Mistral, Meta, Kimi and
  * Qwen were each sized when that model had no reasoning to pay for.
+ * (Gemini's call sets no cap at all — its default is the model's own
+ * ceiling — so it only takes the low thinking level.)
  */
 const VISION_MAX_TOKENS = 4096;
 

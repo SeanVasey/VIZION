@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCompatBody } from "@/lib/providers/openai-compat";
+import { buildCompatBody, qwenCeilings } from "@/lib/providers/openai-compat";
 
 /**
  * The OpenAI-compatible request body. Three facts are pinned here because
@@ -170,5 +170,15 @@ describe("buildCompatBody", () => {
     // Auto sends nothing — the route resolves a level before it gets here,
     // and a bare call must not inherit the vendor's default-max by accident.
     expect("reasoning_effort" in buildCompatBody(THREE, "s", "i", "kimi-k3")).toBe(false);
+  });
+});
+
+describe("MAX_TOKENS_QWEN", () => {
+  it("caps the deep step too — an operator's ceiling is about what the scope serves", () => {
+    // The override exists for accounts whose scope serves a LOWER range. A
+    // deep step that ignored it would 400 every High/Max run on exactly
+    // those accounts.
+    expect(qwenCeilings(undefined)).toEqual({ maxTokens: 32_000, deepMaxTokens: 64_000 });
+    expect(qwenCeilings(8192)).toEqual({ maxTokens: 8192, deepMaxTokens: 8192 });
   });
 });
