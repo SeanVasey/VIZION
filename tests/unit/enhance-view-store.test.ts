@@ -4,7 +4,7 @@ import { useUIStore } from "@/stores/ui";
 import { ENHANCE_VIEW_STORE_KEY } from "@/lib/constants";
 
 const VALID_VIEW: EnhanceView = {
-  submitted: { input: "make this better", mode: "clarify", target: "opus_5" },
+  submitted: { input: "make this better", mode: "clarify", target: "opus_5_5" },
   result: {
     output: "a better prompt",
     rationale: "why",
@@ -105,7 +105,7 @@ describe("useEnhanceViewStore", () => {
       submitted: { ...VALID_VIEW.submitted, format: "json", length: "medium" },
       result: {
         ...VALID_VIEW.result,
-        resolvedTarget: "fable_5_1",
+        resolvedTarget: "fable_5_2",
         assumptions: ["assumed X"],
         title: "A name",
         salvaged: true,

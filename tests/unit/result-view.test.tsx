@@ -71,7 +71,7 @@ function renderView(props: Partial<Parameters<typeof TransformationDiff>[0]> = {
       <TransformationDiff
         input={input}
         mode={props.mode ?? "clarify"}
-        target={props.target ?? "opus_5"}
+        target={props.target ?? "opus_5_5"}
         result={result}
         {...props}
       />
@@ -186,14 +186,14 @@ describe("result view (mobile-first order)", () => {
       mode: "expand",
       result: makeResult("a", "b c", { targetNotes: "Added XML sections." }),
     });
-    expect(screen.getByText("For Opus 5")).toBeTruthy();
+    expect(screen.getByText("For Opus 5.5")).toBeTruthy();
     expect(screen.getByText("Added XML sections.")).toBeTruthy();
   });
 
   it("states the shape-preserving honesty line for clarify/polish without notes", () => {
     renderView({ mode: "clarify" });
     expect(screen.getByText(/keeps your prompt/)).toBeTruthy();
-    expect(screen.getByText(/no Opus 5-specific formatting was applied/)).toBeTruthy();
+    expect(screen.getByText(/no Opus 5.5-specific formatting was applied/)).toBeTruthy();
   });
 
   it("fires onRefine with the kind and the current output", () => {
@@ -315,7 +315,7 @@ describe("Polish per-change accept/reject", () => {
           <TransformationDiff
             input={INPUT}
             mode="polish"
-            target="opus_5"
+            target="opus_5_5"
             result={makeResult(INPUT, OUTPUT)}
             initialRejected={[0]}
           />

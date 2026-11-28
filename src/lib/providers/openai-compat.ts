@@ -1,7 +1,11 @@
 import "server-only";
 import OpenAI from "openai";
-import { normalizeThinkingLevel, type ThinkingLevel } from "@/lib/constants";
-import { PROVIDER_MAX_RETRIES, numEnv, type Provider } from "@/lib/providers/config";
+import {
+  PROVIDER_MAX_RETRIES,
+  numEnv,
+  strEnv,
+  type Provider,
+} from "@/lib/providers/config";
 import {
   ProviderError,
   ProviderNotConfiguredError,
@@ -28,7 +32,10 @@ import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
  *   chars/token estimate.
  * - Classic `max_tokens` (not `max_completion_tokens`) — the widest-supported
  *   output-ceiling field across compat APIs. 16k keeps runaways bounded, and a
- *   provider whose API caps it lower declares its own (`maxTokens`).
+ *   provider whose API caps it lower declares its own (`maxTokens`). Several
+ *   vendors now document `max_completion_tokens` as the preferred name and
+ *   `max_tokens` as a deprecated alias (Qwen, Kimi, Meta, MiniMax) — an alias
+ *   every one of them still serves, so the one field stays.
  */
 interface CompatOptions {
   provider: Provider;
@@ -48,16 +55,11 @@ interface CompatOptions {
    *  rejects that (DashScope caps `qwen-max` at 8192 and 400s above it, which
    *  failed EVERY Qwen run — the ceiling is a per-API fact, not a preference). */
   maxTokens?: number;
-  /** Thinking-token budget per app-wide level, for compat APIs whose reasoning
-   *  knob is a BUDGET rather than an effort word (DashScope: `enable_thinking`
-   *  + `thinking_budget`). Keyed by the LADDER's four stops; the legacy wire
-   *  stops fold onto them first. */
-  thinkingBudget?: Partial<Record<ThinkingLevel, number>>;
-  /** Effort-WORD vocabulary for compat APIs that take `reasoning_effort`
-   *  (DeepSeek, Kimi K3, GLM-5.3 — all three-valued: low · high · max). See
-   *  `providerEffort`. Absent (and no `thinkingBudget`) = this provider
-   *  exposes no per-request knob, so `TARGET_HAS_THINKING` must say false for
-   *  its targets. */
+  /** Fallback effort-WORD vocabulary for this API's `reasoning_effort`, used
+   *  when the caller supplies none (tests, direct adapter use). In a real
+   *  request the TARGET's vocabulary arrives in `req.effortVocabulary`
+   *  (config.ts) and wins. Absent on both sides = this target exposes no
+   *  per-request knob, so `TARGET_HAS_THINKING` must say false for it. */
   effort?: EffortVocabulary;
   /** Output ceiling for the DEEP tier (high/max) when the API allows more
    *  headroom than `maxTokens` for a reasoning pass — same shape as the
@@ -65,9 +67,8 @@ interface CompatOptions {
   deepMaxTokens?: number;
 }
 
-/** The streaming request body, widened for the non-standard keys a compat API
- *  may accept (DashScope's thinking pair). Unknown keys pass through the SDK
- *  to the wire as-is. */
+/** The streaming request body, widened for effort words outside the SDK's
+ *  own trio. Unknown keys pass through the SDK to the wire as-is. */
 type CompatBody = OpenAI.ChatCompletionCreateParamsStreaming & Record<string, unknown>;
 
 /**
@@ -99,19 +100,10 @@ export function buildCompatBody(
       : { response_format: { type: "json_object" as const } }),
     stream: true,
   };
-  const budget = req.thinkingLevel
-    ? opts.thinkingBudget?.[normalizeThinkingLevel(req.thinkingLevel)]
-    : undefined;
-  if (budget !== undefined) {
-    // DashScope only honours thinking on a streamed request, which this always
-    // is. Reasoning arrives in `delta.reasoning_content` — a field we never
-    // read — so the `content` stream stays clean JSON and needs no filter.
-    body.enable_thinking = true;
-    body.thinking_budget = budget;
-  }
-  const effort = opts.effort ? providerEffort(opts.effort, req.thinkingLevel) : undefined;
+  const vocabulary = req.effortVocabulary ?? opts.effort;
+  const effort = vocabulary ? providerEffort(vocabulary, req.thinkingLevel) : undefined;
   // Through the widened index type: the SDK types `reasoning_effort` as its
-  // own trio, and the three-valued providers' `max` is outside it.
+  // own trio, and several providers' words (`max`, `xhigh`) are outside it.
   if (effort !== undefined) (body as Record<string, unknown>).reasoning_effort = effort;
   return body;
 }
@@ -284,26 +276,40 @@ export const streamDeepSeek = makeOpenAICompatStream({
   deepMaxTokens: 32_000,
 });
 
-/** Meta Model API — Muse Spark (Meta Superintelligence Labs), the successor
- *  to the retired Llama API endpoint. */
+/** Meta Model API — the Muse family (Meta Superintelligence Labs). Both
+ *  roster models reason and cannot stop: `reasoning_effort` minimal…max, and
+ *  `none` is a 400 (dev.meta.ai/docs/reasoning, 2026-11-28). Muse Wonder's
+ *  VENDOR default is max, so like Kimi it must never run on an inherited
+ *  default. `reasoning_content` is redacted to empty on this endpoint, so
+ *  `content` is clean. Reasoning bills against the output cap — hence the
+ *  deep-tier headroom this adapter did not need when Spark 1.1 had no knob. */
 export const streamMeta = makeOpenAICompatStream({
   provider: "meta",
-  label: "Muse Spark",
+  label: "Muse",
   keyEnv: "META_API_KEY",
   baseURL: "https://api.meta.ai/v1",
+  effort: "five",
+  deepMaxTokens: 32_000,
 });
 
+/** MiniMax M3.1 Flash: `reasoning_effort` low…max, VENDOR DEFAULT max, and
+ *  thinking cannot be disabled (`none` or `thinking: disabled` is a 400 —
+ *  platform.minimax.io text-openai-api, modified 2026-11-24). The M-series
+ *  interleaves reasoning INSIDE `content` as `<think>` spans, so the filter
+ *  stays; thinking tokens count against the output cap. */
 export const streamMiniMax = makeOpenAICompatStream({
   provider: "minimax",
   label: "MiniMax",
   keyEnv: "MINIMAX_API_KEY",
   baseURL: "https://api.minimax.io/v1",
   stripThink: true,
+  effort: "five",
+  deepMaxTokens: 32_000,
 });
 
-/** Kimi K3 always thinks and DEFAULTS `reasoning_effort` to max
- *  (platform.kimi.ai/docs/guide/kimi-k3-quickstart, 2026-09-11) — the
- *  reason an untuned K3 run was the slowest in the fleet. The dial's level
+/** Kimi K3.1 Pro always thinks and DEFAULTS `reasoning_effort` to max
+ *  (platform.kimi.ai/docs/guide/kimi-k3-1-pro-quickstart, 2026-11-20) — the
+ *  reason an untuned Kimi run was the slowest in the fleet. The dial's level
  *  rides through `providerEffort("three")`; Auto is resolved to a level by
  *  the route, so this adapter no longer inherits the vendor's max. */
 export const streamMoonshot = makeOpenAICompatStream({
@@ -324,40 +330,43 @@ export const streamPerplexity = makeOpenAICompatStream({
 });
 
 /**
- * DashScope thinking budgets, in reasoning tokens, per LADDER stop.
+ * Alibaba Model Studio's OpenAI-compatible endpoint (international scope).
+ * "Max" in `Qwen4 Max` is the MODEL TIER — Alibaba's flagship — and says
+ * nothing about reasoning depth, which is the separate `reasoning_effort`
+ * word below.
  *
- * Qwen's reasoning knob is a BUDGET, not an effort word, so the ladder maps
- * onto budgets. Model Studio's qwen3.8-max page (2026-09-11) lists a
- * 131,072-token output ceiling and a 262,144-token thinking ceiling — the
- * 8,192 ceiling the 2026-08 adapter carried was qwen3.7-max's, and it is what
- * made Qwen truncate sooner than any other target. Every step still stays at
- * or under HALF the output ceiling: reasoning that eats the ceiling leaves
- * nothing for the JSON envelope, which surfaces as the adapter's "hit its
- * length limit" error rather than as a result.
+ * Qwen4 changed the knob's KIND. Through Qwen3.8 it was a token budget
+ * (`enable_thinking` + `thinking_budget`), and this adapter carried a
+ * per-stop budget table. Qwen4-Max takes an effort word — low · high
+ * (default) · xhigh — and REJECTS the two together (alibabacloud.com/help/
+ * en/model-studio/qwen-api-via-openai-chat-completions, 2026-11-28), so the
+ * budget table is gone rather than kept beside the word. Left unset, the
+ * model thinks at `high` against a 131,072-token budget, which is why the
+ * route's resolved level matters here as much as on Kimi.
+ *
+ * Output: the cap covers chain-of-thought AND answer (ceiling 131,072
+ * non-thinking / 262,144 thinking), so the deep tier steps up like every
+ * other reasoning adapter. `MAX_TOKENS_QWEN` still overrides the base step
+ * for an account whose scope serves a lower range.
+ *
+ * The base URL is env-overridable because Alibaba is moving this API to a
+ * per-workspace host (`https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com
+ * /compatible-mode/v1`); the shared dashscope-intl host is the one being
+ * migrated FROM. Set QWEN_BASE_URL when your workspace is moved.
  */
-const QWEN_THINKING_BUDGET: Partial<Record<ThinkingLevel, number>> = {
-  low: 1_024,
-  medium: 4_096,
-  high: 8_192,
-  max: 16_000,
-};
+export const QWEN_BASE_URL = strEnv(
+  "QWEN_BASE_URL",
+  "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+);
 
-/** Alibaba Model Studio's OpenAI-compatible endpoint (international region).
- *  "Max" in `Qwen3.8 Max` is the MODEL TIER — Alibaba's flagship, next to Plus
- *  and Turbo — and says nothing about reasoning depth, which is the separate
- *  per-request `enable_thinking`/`thinking_budget` pair below. */
 export const streamQwen = makeOpenAICompatStream({
   provider: "qwen",
   label: "Qwen",
   keyEnv: "DASHSCOPE_API_KEY",
-  baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-  // 32k under the published 131,072 ceiling — the same runaway bound the
-  // rest of the fleet's deep tier uses, and four times the max budget. Still
-  // env-overridable: if a region serves a lower range, dial it down here
-  // rather than editing the adapter (every value outside the served range
-  // 400s on EVERY call). See docs/runbooks/providers.md.
+  baseURL: QWEN_BASE_URL,
   maxTokens: numEnv("MAX_TOKENS_QWEN", 32_000),
-  thinkingBudget: QWEN_THINKING_BUDGET,
+  deepMaxTokens: 64_000,
+  effort: "threeX",
 });
 
 /** Z.ai open platform (GLM). Reasoning arrives in a separate

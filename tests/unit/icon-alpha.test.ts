@@ -1,8 +1,8 @@
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { installedColorway } from "../../scripts/generate-icons.mjs";
+import { TILE_STROKE_SHADE, installedColorway } from "../../scripts/generate-icons.mjs";
 
 /**
  * Icon alpha contract (guardrail §6 / INV-09, audit INV-009): the `any`
@@ -80,7 +80,7 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
   /**
    * The dark tile is gone. `apple-touch-icon-dark.png` was the one home-screen
    * tile under ADR-0015, pinned to the Void colorway; ADR-0017 replaced it with
-   * the outlined tile under a name that carries no appearance. A file under the
+   * one tile under a name that carries no appearance. A file under the
    * old name would be an orphan the layout no longer links — and, worse, a
    * stale iOS capture target if a link to it ever crept back.
    */
@@ -90,39 +90,62 @@ describe("icon alpha contract (transparent any-matrix, opaque masked set)", () =
 });
 
 /**
- * The INSTALLED colorway (ADR-0017, Amendment 5) — what every installed tile
- * carries: a flat plate in the light theme's --accent-ink, and the flat Laser mark
- * on it, with NO outline.
+ * The INSTALLED colorway (ADR-0017, Amendment 7) — what every installed tile
+ * carries: a flat Laser plate, the mark filled in charcoal (the dark theme's
+ * --onyx), and a stroke painted under that fill.
  *
- * Why inverted: iOS derives the Dark Home Screen tile by segmenting the
- * foreground from the flat plate and keeping it (owner screenshots 2026-08-11
- * and 2026-09-05). A Laser mark is therefore what iOS keeps on its own
- * near-black plate, and the plate only has to be far enough from Laser for
- * the mark to read in Light. Stated as the generator's own derived colours
- * (`installedColorway()`), channel orders and luma relationships, never as
- * restated hexes: the hexes live in tokens.css and this file must not hold a
- * second opinion about the brand green (the failure tasks/lessons.md records).
+ * The owner's model is a stroke in the plate's own colour — invisible in
+ * Light, an outline once iOS has swapped the plate for its dark one. A flat
+ * PNG cannot carry that: a stroke identical to the plate is not in the file
+ * at all, and iOS, which segments the foreground from the flat plate by
+ * colour, would have nothing to keep (that tile's Dark result is recorded in
+ * Amendment 3: plate swapped, dark mark kept and invisible). So the opaque
+ * tiles shade the stroke TILE_STROKE_SHADE from Laser toward Void, and what
+ * these tests pin is exactly that: the stroke exists as pixels DISTINCT from
+ * the plate, in the derived colour. Whether iOS keeps those pixels is a
+ * device question no test here answers.
  *
- * The transparent `any` matrix is the exception: it keeps the OUTLINED mark
- * (Laser fill, Void stroke) because a launcher paints its own, unknown ground
- * behind it and the outline is what carries a Laser mark on a light one.
+ * Stated as the generator's own derived colours (`installedColorway()`), the
+ * tokens and luma relationships, never as restated hexes: the hexes live in
+ * tokens.css and this file must not hold a second opinion about the brand
+ * green (the failure tasks/lessons.md records).
+ *
+ * The transparent `any` matrix has no plate to hide a stroke against, so it
+ * carries the literal one: the full Laser token around the charcoal fill.
  */
-describe("the installed colorway — accent-ink plate, flat Laser mark, no outline", () => {
+describe("the installed colorway — Laser plate, charcoal mark, a stroke under it", () => {
   const tiles = ["apple-touch-icon.png", "maskable-192.png", "maskable-512.png"];
   const C = installedColorway();
 
+  it("derives every colour from tokens.css — and the tile stroke by the one constant", () => {
+    expect(C.plate, "the plate IS --laser").toBe(token("laser"));
+    expect(C.mark, "the mark IS the dark theme's --onyx").toBe(token("onyx"));
+    expect(C.stroke, "the literal stroke IS the plate's colour").toBe(C.plate);
+    // Recomputed here from the tokens, not read back from the generator.
+    const [laser, toward] = [channels(token("laser")), channels(token("void"))];
+    const shaded = laser.map((v, i) =>
+      Math.round(v + (toward[i]! - v) * TILE_STROKE_SHADE),
+    );
+    expect(channels(C.tileStroke), "tileStroke = mix(Laser, Void, shade)").toEqual(
+      shaded,
+    );
+    expect(
+      TILE_STROKE_SHADE,
+      "0 would be a stroke that is not in the PNG",
+    ).toBeGreaterThan(0);
+    expect(TILE_STROKE_SHADE).toBeLessThan(1);
+    expect(
+      gap(channels(C.tileStroke), channels(C.plate)),
+      "the tile stroke must be a colour of its own, not a rounding of the plate",
+    ).toBeGreaterThan(12);
+  });
+
   for (const file of tiles) {
     describe(file, () => {
-      it("has the derived accent-ink plate — green-led, darker than the mark, flat", async () => {
-        const { plate, plateFoot, mark } = await sampleTile(join(ICONS, file));
+      it("has the Laser plate — bright, green-led, flat", async () => {
+        const { plate, plateFoot } = await sampleTile(join(ICONS, file));
         expectNear(plate, C.plate, 3, "plate");
-        expect(plate.g, "plate: green leads").toBeGreaterThan(plate.r);
-        expect(plate.r, "plate: red leads blue (a green, not a teal)").toBeGreaterThan(
-          plate.b,
-        );
-        expect(plate.luma, "the plate is visibly darker than the mark").toBeLessThan(
-          mark.luma - 60,
-        );
+        expectGreenLed(plate, "plate");
         // Flat, not a ramp. iOS separates a web clip into plate and mark and
         // swaps the plate for its own dark one; a gradient plate came back
         // tinted, the flat one comes back neutral (ADR-0017, Amendment 3).
@@ -134,30 +157,39 @@ describe("the installed colorway — accent-ink plate, flat Laser mark, no outli
         }
       });
 
-      it("fills the mark with the Laser token — bright, green-led, flat", async () => {
-        const { mark } = await sampleTile(join(ICONS, file));
+      it("fills the mark with the charcoal token — far darker than the plate", async () => {
+        const { mark, plate } = await sampleTile(join(ICONS, file));
         expectNear(mark, C.mark, 4, "mark fill");
-        expectGreenLed(mark, "mark fill");
+        expect(mark.luma, "a dark mark on a bright plate").toBeLessThan(plate.luma - 100);
       });
 
-      it("carries no outline — nothing on the row through the mark is darker than the plate", async () => {
-        const { outline, plate } = await sampleTile(join(ICONS, file));
-        // `outline` is the darkest opaque pixel on the centre row. With no
-        // stroke, every pixel there is plate, mark, or a blend of the two, so
-        // none can be darker than the plate (a small allowance for resampling).
-        expect(outline.luma, "no stroke on the installed tile").toBeGreaterThanOrEqual(
-          plate.luma - 8,
+      it("carries the shaded stroke as real pixels, distinct from the plate", async () => {
+        const { stroke, plate, mark } = await sampleTile(join(ICONS, file));
+        // `stroke` is the first solid colour the centre row reaches after the
+        // plate. With no stroke in the file that would be the charcoal fill.
+        expectNear(stroke, C.tileStroke, 3, "tile stroke");
+        expect(
+          gap([stroke.r, stroke.g, stroke.b], [plate.r, plate.g, plate.b]),
+          "the stroke must not merge with the plate — a PNG has no hidden stroke",
+        ).toBeGreaterThan(12);
+        expect(stroke.luma, "shaded toward Void: below the plate…").toBeLessThan(
+          plate.luma,
+        );
+        expect(stroke.luma, "…and still far above the mark").toBeGreaterThan(
+          mark.luma + 60,
         );
       });
     });
   }
 
-  it("icon-512.png (the any matrix) is the OUTLINED Laser mark alone", async () => {
-    const { mark, outline } = await sampleTile(join(ICONS, "icon-512.png"));
+  it("icon-512.png (the any matrix) is the charcoal mark inside a full Laser stroke", async () => {
+    const { mark, stroke } = await sampleTile(join(ICONS, "icon-512.png"));
     expectNear(mark, C.mark, 4, "any-matrix mark fill");
-    expectGreenLed(mark, "any-matrix mark fill");
-    expect(outline.luma, "the Void stroke is present").toBeLessThan(48);
-    expect(outline.alpha, "the stroke is opaque, not a soft shadow").toBe(255);
+    // First solid colour on the row after the transparent ground: the stroke,
+    // outside the fill, in the plate's own colour — the literal Laser.
+    expectNear(stroke, C.stroke, 3, "any-matrix stroke");
+    expectGreenLed(stroke, "any-matrix stroke");
+    expect(stroke.alpha, "the stroke is opaque, not a soft glow").toBe(255);
   });
 });
 
@@ -170,6 +202,24 @@ type Sample = {
   b: number;
 };
 
+/** A token's hex as tokens.css declares it first — the dark-block value. */
+function token(name: string) {
+  const css = readFileSync(join(ROOT, "src", "styles", "tokens.css"), "utf8");
+  const m = css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`));
+  if (!m) throw new Error(`tokens.css: --${name} not found`);
+  return m[1]!.toUpperCase();
+}
+
+/** `#RRGGBB` → [r, g, b]. */
+function channels(hex: string) {
+  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+}
+
+/** Largest per-channel difference between two RGB triples. */
+function gap(a: number[], b: number[]) {
+  return Math.max(...[0, 1, 2].map((i) => Math.abs(a[i]! - b[i]!)));
+}
+
 /** Green-led: G leads, R trails it, B is far behind — the shape of the Laser
  *  token, and of nothing on the Void one. */
 function expectGreenLed({ r, g, b }: Sample, what: string) {
@@ -180,11 +230,7 @@ function expectGreenLed({ r, g, b }: Sample, what: string) {
 
 /** Every channel within `tol` of the generator's own derived colour. */
 function expectNear(sample: Sample, hex: string, tol: number, what: string) {
-  const want = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [
-    number,
-    number,
-    number,
-  ];
+  const want = channels(hex);
   (["r", "g", "b"] as const).forEach((ch, i) => {
     expect(
       Math.abs(sample[ch] - want[i]!),
@@ -195,9 +241,8 @@ function expectNear(sample: Sample, hex: string, tol: number, what: string) {
 
 /**
  * Four samples of any tile: the plate at (2, 2) and again at (2, h - 3), the
- * mark's fill at the centre, and the darkest opaque pixel on the row through
- * the centre — the stroke where there is one (the `any` matrix), otherwise the
- * plate itself.
+ * mark's fill at the centre, and the STROKE — the first solid colour the row
+ * through the centre reaches after its ground.
  *
  * Both corners are plate on any full-bleed tile — these are flattened, so
  * every pixel outside the mark is the plate. The plate is FLAT (ADR-0017,
@@ -206,6 +251,13 @@ function expectNear(sample: Sample, hex: string, tol: number, what: string) {
  * the mark's vertical bar at both glyph fractions this pipeline renders: frac
  * 0.74 puts the bar at 45.8–54.2 % of the width, frac 0.58 at 46.7–53.3 %, and
  * the bar spans the vertical centre in both.
+ *
+ * The centre row, read from the left edge, crosses: ground (the plate, or
+ * clear pixels on an `any` icon), the stroke on the outside of the chevron's
+ * left arm, then the arm's fill. "Solid" is two neighbouring opaque pixels
+ * that agree — which an anti-aliased edge between two colours never is, so a
+ * tile with no stroke yields the fill here, not a blend that happens to
+ * resemble one. The ring is ≥ 3.8 px wide on this row at the smallest tile.
  */
 async function sampleTile(file: string) {
   const { data, info } = await raw(file);
@@ -221,19 +273,23 @@ async function sampleTile(file: string) {
       b,
     };
   };
+  const triple = (s: Sample) => [s.r, s.g, s.b];
   const cy = info.height >> 1;
-  // The darkest OPAQUE pixel on the row: on a transparent `any` icon the row
-  // starts in clear pixels (luma 0, alpha 0), which must not win.
-  let outline: Sample | null = null;
-  for (let x = 0; x < info.width; x++) {
+  const ground = at(0, cy);
+  let stroke: Sample | null = null;
+  for (let x = 1; x < info.width - 1 && !stroke; x++) {
     const s = at(x, cy);
-    if (s.alpha === 255 && (outline === null || s.luma < outline.luma)) outline = s;
+    const next = at(x + 1, cy);
+    if (s.alpha !== 255 || next.alpha !== 255) continue;
+    // Still the ground (an opaque plate; a clear ground never gets this far).
+    if (ground.alpha === 255 && gap(triple(s), triple(ground)) <= 3) continue;
+    if (gap(triple(s), triple(next)) <= 2) stroke = s;
   }
-  if (!outline) throw new Error(`${file}: no opaque pixel on the centre row`);
+  if (!stroke) throw new Error(`${file}: no solid colour on the centre row`);
   return {
     plate: at(2, 2),
     plateFoot: at(2, info.height - 3),
     mark: at(info.width >> 1, cy),
-    outline,
+    stroke,
   };
 }

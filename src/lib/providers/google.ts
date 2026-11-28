@@ -77,13 +77,16 @@ function parseGeminiFrame(frame: string): ProviderStreamChunk[] {
  * text deltas; usageMetadata rides the trailing frames. Server-side only; key
  * never reaches the client.
  *
- * `opts.thinkingLevel` is what distinguishes a "Thinking" Gemini run from a
- * "Fast" one — both send the same model string, because Gemini 3.x has no
- * separate thinking model ID. Only `thinkingLevel` is ever sent: it and the
- * Gemini-2.5-era `thinkingBudget` are mutually exclusive, and sending both is
- * an API error. The app's ladder is translated by `providerEffort("google")`:
- * 3.8 Flash accepts low · medium · high only (no `minimal`, no `xhigh`), so
- * Max lands on high — the model's own top.
+ * `opts.thinkingLevel` rides `thinkingConfig.thinkingLevel`. Only that field
+ * is ever sent: it and the Gemini-2.5-era `thinkingBudget` are mutually
+ * exclusive, and sending both is an API error (400). Gemini 4 cannot stop
+ * thinking and rejects `minimal`, so the ladder's floor is `low`.
+ *
+ * The three Gemini 4 models do NOT share a vocabulary — Carbon accepts low ·
+ * medium · high, Neon and Hydrogen add `xhigh` — so the word set arrives per
+ * target in `opts.effortVocabulary` (config.ts). The fallback for a direct
+ * call is the NARROWER set: a value every Gemini 4 model accepts, so an
+ * unconfigured caller can under-reach but never 400.
  */
 export async function* streamGoogle(
   system: string,
@@ -113,7 +116,10 @@ export async function* streamGoogle(
   // same budget — one wall for the invocation, this timer cut from what
   // remains of it.
   const { deadline, timeoutMs } = providerBudget("google", opts.deadline);
-  const thinkingLevel = providerEffort("google", opts.thinkingLevel);
+  const thinkingLevel = providerEffort(
+    opts.effortVocabulary ?? "toHigh",
+    opts.thinkingLevel,
+  );
   const controller = new AbortController();
   const abortTotal = setTimeout(() => controller.abort(), timeoutMs);
   let abortIdle: ReturnType<typeof setTimeout> | undefined;
@@ -142,8 +148,9 @@ export async function* streamGoogle(
           // Thought tokens count against this budget, so the deep tier
           // needs headroom the fast one doesn't: a heavy reasoning pass
           // inside a tight cap truncates the JSON envelope mid-stream (turning
-          // a previously-good enhancement into a parse failure). 3.8 Flash
-          // allows 64k output tokens; this is a ceiling, not a target.
+          // a previously-good enhancement into a parse failure). Gemini 4
+          // allows 65,536 output tokens per request; this is a ceiling, not
+          // a target.
           maxOutputTokens: isDeepEffort(opts.thinkingLevel) ? 64_000 : 32_000,
           ...(thinkingLevel ? { thinkingConfig: { thinkingLevel } } : {}),
         },

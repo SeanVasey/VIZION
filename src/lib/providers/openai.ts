@@ -7,16 +7,17 @@ import {
   describeProviderFailure,
   isDeepEffort,
   providerEffort,
+  type EffortVocabulary,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
 import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
 
 /** The SDK's streaming params, widened: this SDK version types
- *  `reasoning_effort` as the low/medium/high trio, while the GPT-5.6 family
- *  and GPT-6 Astra accept `xhigh` and `max` on the same field
- *  (developers.openai.com/api/docs/guides/reasoning, 2026-09-11). Unknown
- *  values pass through to the wire as-is. */
+ *  `reasoning_effort` as the low/medium/high trio, while the GPT-6 line
+ *  accepts `xhigh` and `max` on the same field (developers.openai.com/api/
+ *  docs/guides/reasoning, 2026-11-28). Unknown values pass through to the
+ *  wire as-is. `none` is never sent: GPT-6.2 Astra and Sol reject it. */
 type OpenAIStreamParams = Omit<
   OpenAI.ChatCompletionCreateParamsStreaming,
   "reasoning_effort"
@@ -32,8 +33,9 @@ export function buildOpenAIParams(
   system: string,
   input: string,
   level?: ProviderRequestOptions["thinkingLevel"],
+  vocabulary: EffortVocabulary = "openai",
 ): OpenAIStreamParams {
-  const reasoningEffort = providerEffort("openai", level);
+  const reasoningEffort = providerEffort(vocabulary, level);
   return {
     model,
     max_completion_tokens: isDeepEffort(level) ? 32_000 : 16_000,
@@ -85,6 +87,7 @@ export async function* streamOpenAI(
         system,
         input,
         opts.thinkingLevel,
+        opts.effortVocabulary,
       ) as OpenAI.ChatCompletionCreateParamsStreaming,
     );
     // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()

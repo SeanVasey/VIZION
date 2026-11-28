@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AUTO_LADDERS,
   LONG_INPUT_CHARS,
+  defaultThinkingLevel,
   resolveAutoTarget,
   resolveAutoVisionTarget,
 } from "@/lib/enhance/auto-target";
@@ -11,7 +12,8 @@ import {
   TARGET_MODELS,
   type TargetModelId,
 } from "@/lib/constants";
-import { PROVIDER_KEY_ENV } from "@/lib/providers/config";
+import { PROVIDER_KEY_ENV, TARGETS } from "@/lib/providers/config";
+import { providerEffort } from "@/lib/providers/errors";
 import { TARGET_ROUTING, blendedPrice } from "@/lib/providers/manifest";
 
 const ROSTER = new Set<string>(TARGET_MODELS.map((m) => m.id));
@@ -134,12 +136,12 @@ describe("resolveAutoTarget — tiers and reasons", () => {
     }
   });
 
-  it("keeps the historical default: balanced + ordinary light input → Sonnet 5", () => {
+  it("keeps the historical default: balanced + ordinary light input → Sonnet 5.5", () => {
     // The one literal pin, because it is a product statement, not economics:
     // small shape-preserving jobs go to the fast Anthropic tier, exactly as
     // the original two-outcome table did.
     expect(resolveAutoTarget("polish", 100, false, "balanced", ALL).target).toBe(
-      "sonnet_5",
+      "sonnet_5_5",
     );
   });
 });
@@ -187,12 +189,12 @@ describe("resolveAutoTarget — availability", () => {
   it("resolves to the configured provider whenever any pool member is configured", () => {
     // The bug this router exists to fix: the old table could resolve to a
     // model whose key was missing and 503 a run the user never aimed there.
-    const onlyGemini = (t: TargetModelId) => t === "gemini_3_8_flash";
+    const onlyGemini = (t: TargetModelId) => t === "gemini_4_hydrogen";
     for (const mode of MODES) {
       for (const preference of AUTO_PREFERENCES) {
         expect(
           resolveAutoTarget(mode.id, 100, false, preference, onlyGemini).target,
-        ).toBe("gemini_3_8_flash");
+        ).toBe("gemini_4_hydrogen");
       }
     }
   });
@@ -212,7 +214,7 @@ describe("resolveAutoTarget — availability", () => {
     for (const env of Object.values(PROVIDER_KEY_ENV)) vi.stubEnv(env, "");
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     const { target } = resolveAutoTarget("expand", 100, false, "budget");
-    expect(["fable_5_1", "opus_5", "sonnet_5"]).toContain(target);
+    expect(["fable_5_2", "opus_5_5", "sonnet_5_5"]).toContain(target);
   });
 
   afterEach(() => {
@@ -222,10 +224,10 @@ describe("resolveAutoTarget — availability", () => {
 
 describe("resolveAutoVisionTarget", () => {
   const seeing = new Set<TargetModelId>([
-    "opus_5",
-    "gpt_5_6_sol",
-    "gemini_3_8_flash",
-    "grok_4_6",
+    "opus_5_5",
+    "gpt_6_2_sol",
+    "gemini_4_hydrogen",
+    "grok_4_7",
   ]);
   const canSee = (t: TargetModelId) => seeing.has(t);
 
@@ -244,6 +246,74 @@ describe("resolveAutoVisionTarget", () => {
   });
 
   it("falls back to the media route's long-standing default on an empty pool", () => {
-    expect(resolveAutoVisionTarget("balanced", () => false, ALL)).toBe("opus_5");
+    expect(resolveAutoVisionTarget("balanced", () => false, ALL)).toBe("opus_5_5");
+  });
+});
+
+describe("defaultThinkingLevel — the Thinking dial's Auto", () => {
+  const KNOBBED = TARGET_MODELS.map((m) => m.id).filter((id) => TARGETS[id].effort);
+
+  it("gives a heavy job `high` on every model", () => {
+    for (const id of KNOBBED) {
+      expect(defaultThinkingLevel("expand", 10, false, id), id).toBe("high");
+      expect(defaultThinkingLevel("polish", LONG_INPUT_CHARS + 1, false, id), id).toBe(
+        "high",
+      );
+      expect(defaultThinkingLevel("clarify", 10, true, id), id).toBe("high");
+    }
+  });
+
+  it("actually CHOOSES something — a light job never runs at a heavy job's depth", () => {
+    // The property the 2026-11 correction exists for, stated on the WIRE:
+    // for every model with a knob, the word sent for a light job must rank
+    // below the word sent for a heavy one. Returning `medium` everywhere
+    // failed this on every three-valued API, where medium folds onto high.
+    for (const id of KNOBBED) {
+      const vocabulary = TARGETS[id].effort!;
+      const light = providerEffort(
+        vocabulary,
+        defaultThinkingLevel("polish", 10, false, id),
+      );
+      const heavy = providerEffort(
+        vocabulary,
+        defaultThinkingLevel("expand", 10, false, id),
+      );
+      expect(light, id).not.toBe(heavy);
+    }
+  });
+
+  it("sends Medium where the API has one, and Low where it does not", () => {
+    expect(defaultThinkingLevel("polish", 10, false, "opus_5_5")).toBe("medium");
+    expect(defaultThinkingLevel("polish", 10, false, "gpt_6_2_sol")).toBe("medium");
+    expect(defaultThinkingLevel("polish", 10, false, "gemini_4_carbon")).toBe("medium");
+    expect(defaultThinkingLevel("polish", 10, false, "mistral_large_4")).toBe("medium");
+    // low · high · top — no medium of their own.
+    for (const id of ["deepseek_v4", "kimi_k3_1_pro", "glm_5_3", "qwen4_max"] as const)
+      expect(defaultThinkingLevel("polish", 10, false, id), id).toBe("low");
+  });
+
+  it("never leaves a default-max model on its vendor default", () => {
+    // Kimi, GLM, Muse Wonder and MiniMax M3.1 all default `reasoning_effort`
+    // to max. Auto must resolve to something else for every job shape.
+    for (const id of [
+      "kimi_k3_1_pro",
+      "glm_5_3",
+      "muse_wonder_1_0",
+      "minimax_m3_1_flash",
+    ] as const) {
+      for (const mode of MODES.map((m) => m.id)) {
+        const word = providerEffort(
+          TARGETS[id].effort!,
+          defaultThinkingLevel(mode, 10, false, id),
+        );
+        expect(word, `${id}/${mode}`).not.toBe("max");
+        expect(word, `${id}/${mode}`).toBeDefined();
+      }
+    }
+  });
+
+  it("falls back to the plain tier split when no target is given", () => {
+    expect(defaultThinkingLevel("polish", 10, false)).toBe("medium");
+    expect(defaultThinkingLevel("expand", 10, false)).toBe("high");
   });
 });

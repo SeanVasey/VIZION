@@ -129,6 +129,8 @@ function isPersistableView(v: unknown): v is EnhanceView {
     // Display-only provenance: any string passes (an unknown reason renders as
     // nothing), a non-string would be a garbled write worth dropping.
     (r.resolvedReason === undefined || typeof r.resolvedReason === "string") &&
+    // Display-only like the reason: an unknown level renders as nothing.
+    (r.resolvedThinking === undefined || typeof r.resolvedThinking === "string") &&
     (() => {
       // Rejected hunk indices, if present: non-negative integers. An index
       // beyond this diff's hunk count is harmless (applyDecisions matches

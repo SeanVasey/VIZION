@@ -12,17 +12,17 @@ describe("groupModelFacets", () => {
     // say, so the caller keeps its flat row.
     expect(
       groupModelFacets([
-        { id: "opus_5", count: 9 },
-        { id: "sonnet_5", count: 4 },
-        { id: "fable_5_1", count: 1 },
+        { id: "opus_5_5", count: 9 },
+        { id: "sonnet_5_5", count: 4 },
+        { id: "fable_5_2", count: 1 },
       ]),
     ).toBeNull();
   });
 
   it("groups once a second developer appears", () => {
     const groups = groupModelFacets([
-      { id: "opus_5", count: 9 },
-      { id: "grok_4_6", count: 2 },
+      { id: "opus_5_5", count: 9 },
+      { id: "grok_4_7", count: 2 },
     ]);
     expect(groups).not.toBeNull();
     expect(groups!.map((g) => g.label)).toEqual([
@@ -35,8 +35,8 @@ describe("groupModelFacets", () => {
     // xAI has the bigger count but Anthropic is earlier in the locked order —
     // the picker and the chips must agree on developer order.
     const groups = groupModelFacets([
-      { id: "grok_4_6", count: 40 },
-      { id: "opus_5", count: 1 },
+      { id: "grok_4_7", count: 40 },
+      { id: "opus_5_5", count: 1 },
     ])!;
     const positions = groups.map((g) =>
       DEVELOPER_ORDER.indexOf(g.developer as (typeof DEVELOPER_ORDER)[number]),
@@ -46,27 +46,27 @@ describe("groupModelFacets", () => {
 
   it("keeps the query's count-descending order WITHIN a group", () => {
     const groups = groupModelFacets([
-      { id: "opus_5", count: 9 },
-      { id: "sonnet_5", count: 4 },
-      { id: "fable_5_1", count: 1 },
-      { id: "grok_4_6", count: 2 },
+      { id: "opus_5_5", count: 9 },
+      { id: "sonnet_5_5", count: 4 },
+      { id: "fable_5_2", count: 1 },
+      { id: "grok_4_7", count: 2 },
     ])!;
     const anthropic = groups.find((g) => g.developer === "anthropic")!;
     expect(anthropic.models.map((m) => m.id)).toEqual([
-      "opus_5",
-      "sonnet_5",
-      "fable_5_1",
+      "opus_5_5",
+      "sonnet_5_5",
+      "fable_5_2",
     ]);
   });
 
   it("carries the label and developer each chip needs", () => {
     const groups = groupModelFacets([
-      { id: "opus_5", count: 2 },
-      { id: "kimi_k3", count: 1 },
+      { id: "opus_5_5", count: 2 },
+      { id: "kimi_k3_1_pro", count: 1 },
     ])!;
     const all = groups.flatMap((g) => g.models);
-    expect(all.find((m) => m.id === "opus_5")).toMatchObject({
-      label: "Opus 5",
+    expect(all.find((m) => m.id === "opus_5_5")).toMatchObject({
+      label: "Opus 5.5",
       developer: "anthropic",
       count: 2,
     });
@@ -76,7 +76,7 @@ describe("groupModelFacets", () => {
     // A renamed-away id leaves real saved prompts behind. Dropping its facet
     // would make those prompts unreachable by the model filter.
     const groups = groupModelFacets([
-      { id: "opus_5", count: 3 },
+      { id: "opus_5_5", count: 3 },
       { id: "gpt_5_5", count: 2 },
     ])!;
     expect(groups[groups.length - 1]).toMatchObject({
@@ -88,7 +88,7 @@ describe("groupModelFacets", () => {
 
   it("labels an unknown id with the raw id rather than nothing", () => {
     const groups = groupModelFacets([
-      { id: "opus_5", count: 1 },
+      { id: "opus_5_5", count: 1 },
       { id: "some_retired_model", count: 1 },
     ])!;
     const other = groups.find((g) => g.developer === null)!;
@@ -97,9 +97,9 @@ describe("groupModelFacets", () => {
 
   it("never drops or duplicates a facet", () => {
     const input = [
-      { id: "opus_5", count: 3 },
-      { id: "grok_4_6", count: 2 },
-      { id: "kimi_k3", count: 1 },
+      { id: "opus_5_5", count: 3 },
+      { id: "grok_4_7", count: 2 },
+      { id: "kimi_k3_1_pro", count: 1 },
       { id: "gpt_5_5", count: 1 },
     ];
     const flat = groupModelFacets(input)!.flatMap((g) => g.models);

@@ -61,7 +61,7 @@ function renderDiffView() {
       <TransformationDiff
         input={input}
         mode="clarify"
-        target="opus_5"
+        target="opus_5_5"
         result={makeResult(input, "write a concise summary")}
       />
     </ToastProvider>,

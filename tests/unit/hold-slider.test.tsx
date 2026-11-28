@@ -285,7 +285,7 @@ describe("tap vs hold", () => {
     // The live readout is a chip on the track's own glass ground, never bare
     // text colliding with whatever the composer has at that y — and it says
     // only the LEVEL: the context is on screen already and in the commit
-    // announcement, so the chip never stacks "Fable 5.1" beside "Fable 5.1".
+    // announcement, so the chip never stacks "Fable 5.2" beside "Fable 5.2".
     const label = el!.querySelector("[data-hold-slider-label]")!;
     expect(label.className).toContain("glass-solid");
     expect(label.textContent).toBe("Auto");
@@ -979,7 +979,7 @@ describe("drag, commit, and the trailing click", () => {
     // Level only — the model qualifier belongs to the announce string, not
     // to a chip floating next to the rail that already names the model.
     expect(el.textContent).toContain("Extra High");
-    expect(el.textContent).not.toContain("Fable 5.1");
+    expect(el.textContent).not.toContain("Fable 5.2");
     expect(el.querySelector("[data-tone]")!.getAttribute("data-tone")).toBe("ultra");
   });
 

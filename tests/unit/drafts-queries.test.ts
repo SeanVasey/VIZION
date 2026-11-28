@@ -92,10 +92,10 @@ describe("queryDraftsPage filters", () => {
   });
 
   it("narrows by model and mode, which are real draft columns", async () => {
-    const { done, calls } = run({ ...base, model: "sonnet_5", mode: "expand" });
+    const { done, calls } = run({ ...base, model: "sonnet_5_5", mode: "expand" });
     await done;
     expect(argsOf(calls, "eq")).toEqual([
-      ["target_model", "sonnet_5"],
+      ["target_model", "sonnet_5_5"],
       ["mode", "expand"],
     ]);
   });

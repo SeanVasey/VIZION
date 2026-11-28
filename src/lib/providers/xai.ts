@@ -7,6 +7,7 @@ import {
   describeProviderFailure,
   isDeepEffort,
   providerEffort,
+  type EffortVocabulary,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
@@ -16,7 +17,7 @@ import { providerBudget, withIdleTimeout } from "@/lib/providers/idle-timeout";
  *  at api.x.ai — no extra dependency. */
 const XAI_BASE_URL = "https://api.x.ai/v1";
 
-/** Widened like openai.ts: Grok 4.6 accepts `xhigh` on `reasoning_effort`,
+/** Widened like openai.ts: Grok 4.7 accepts `xhigh` on `reasoning_effort`,
  *  which this SDK version's trio type does not declare. */
 type XAIStreamParams = Omit<
   OpenAI.ChatCompletionCreateParamsStreaming,
@@ -34,8 +35,9 @@ export function buildXAIParams(
   system: string,
   input: string,
   level?: ProviderRequestOptions["thinkingLevel"],
+  vocabulary: EffortVocabulary = "toXhigh",
 ): XAIStreamParams {
-  const reasoningEffort = providerEffort("xai", level);
+  const reasoningEffort = providerEffort(vocabulary, level);
   return {
     model,
     max_tokens: isDeepEffort(level) ? 32_000 : 16_000,
@@ -55,7 +57,7 @@ export function buildXAIParams(
  * usage snapshot. Server-side only; key never reaches the client.
  *
  * `opts.thinkingLevel` maps onto Grok's `reasoning_effort` (low/medium/high/
- * xhigh on 4.6; the app's Max lands on xhigh, its top).
+ * xhigh on 4.7; the app's Max lands on xhigh, its top).
  */
 export async function* streamXAI(
   system: string,
@@ -84,6 +86,7 @@ export async function* streamXAI(
         system,
         input,
         opts.thinkingLevel,
+        opts.effortVocabulary,
       ) as OpenAI.ChatCompletionCreateParamsStreaming,
     );
     // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()

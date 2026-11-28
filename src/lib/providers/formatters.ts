@@ -9,37 +9,45 @@ import { LENGTH_INSTRUCTIONS, type LengthId } from "@/lib/enhance/lengths";
  * is formatted for — each provider re-renders the prompt into its own idiom.
  */
 const TARGET_CONVENTIONS: Record<TargetModelId, string> = {
-  opus_5:
+  opus_5_5:
     "Target engine: Claude Opus. Favor XML-tagged sections (e.g. <task>, <context>, <constraints>, <examples>) and chain-of-thought scaffolds where reasoning helps, all inside the one prompt. Structure for long context.",
-  sonnet_5:
+  sonnet_5_5:
     "Target engine: Claude Sonnet. Favor clear, direct instructions with XML-tagged sections for layered context; state the goal, constraints, and expected output shape explicitly — this engine follows instructions literally and rewards precision over hint-dropping.",
-  gpt_6_astra:
+  gpt_6_2_astra:
     "Target engine: GPT. State the goal and the finished-answer criteria up front, then let the engine plan — avoid over-prescriptive step lists; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
-  gpt_5_6_sol:
+  gpt_6_2_sol:
     "Target engine: GPT. Favor terse, directive instructions; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt.",
-  gpt_5_6_luna:
+  gpt_6_luna:
     "Target engine: GPT. Keep the prompt short and self-contained with the goal and expected output format stated explicitly — this small, fast tier rewards brevity and concrete instructions over elaborate scaffolding.",
-  gpt_5_6_terra:
+  gpt_6_1_terra:
     "Target engine: GPT. Favor terse, directive instructions with the goal stated first; where a machine-readable result is wanted, spell out the exact output format or schema inside the prompt — this balanced tier follows a crisp brief without heavy scaffolding.",
-  fable_5_1:
+  haiku_5_5:
+    "Target engine: Claude Haiku. Keep the prompt compact and self-contained: one clear goal, the constraints that matter, and the exact output shape — this fast, small tier follows an explicit brief precisely and gains nothing from elaborate scaffolding. A single XML-tagged block is fine where context must be separated from instructions.",
+  fable_5_2:
     "Target engine: Claude Fable. State the goal, constraints, and what a finished answer looks like, and avoid over-prescriptive step-by-step scaffolding — this engine plans best from a clear brief. XML-tagged sections are welcome for long or layered context.",
   deepseek_v4:
     "Target engine: DeepSeek. State the problem plainly and completely up front, then let the engine reason — avoid prescribing step-by-step chains. Spell out the expected output format explicitly near the end of the prompt.",
-  gemini_3_8_flash:
-    "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. Keep the goal and the constraints in clearly separated blocks so the reasoning passes have something definite to work against.",
-  muse_spark_1_1:
+  gemini_4_carbon:
+    "Target engine: Gemini. State the goal, the constraints, and what a finished answer must satisfy, then let the engine plan — this is the deep-reasoning tier, and over-prescribed step lists waste it. Keep the goal and the constraints in clearly separated blocks, name what to use and what to avoid, and spell out the expected output shape inside the prompt.",
+  gemini_4_neon:
+    "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. For engineering work, name the files, interfaces, and acceptance criteria outright; keep the goal and the constraints in clearly separated blocks so the reasoning passes have something definite to work against.",
+  gemini_4_hydrogen:
+    "Target engine: Gemini. Favor concrete, well-scoped instructions with explicit grounding — state what to use, what to avoid, and the expected output shape inside the prompt. Keep the goal and the constraints in clearly separated blocks, and keep the brief tight — this fast tier rewards a direct, complete instruction over layered scaffolding.",
+  muse_wonder_1_0:
+    "Target engine: Muse. State the goal and the done-criteria up front and leave the route to the engine — this deep-reasoning tier plans best from a clear brief rather than a prescribed procedure. Enumerate hard requirements as numbered constraints and put the output contract (format, length) near the top; it handles very long inline context.",
+  muse_spark_1_3:
     "Target engine: Muse Spark. State the goal explicitly up front, enumerate requirements as numbered constraints, and put the output contract (format, length, done-criteria) near the top — this agentic engine executes a well-specified brief best and handles very long inline context.",
-  minimax_m3:
+  minimax_m3_1_flash:
     "Target engine: MiniMax. Favor a tight brief with the goal, constraints, and deliverable stated up front; keep instructions concrete and ordered — this agentic engine executes well-scoped plans best.",
-  mistral_large_3:
+  mistral_large_4:
     "Target engine: Mistral. Favor concise, explicit instructions with the context front-loaded and the expected output format stated inline; keep the prompt tight — this engine rewards economy over elaborate scaffolding.",
-  kimi_k3:
+  kimi_k3_1_pro:
     "Target engine: Kimi. State the goal and constraints clearly and front-load the key context — this long-context engine handles large pasted material well; make the deliverable and its format explicit.",
   sonar_pro:
     "Target engine: Perplexity Sonar. Phrase the prompt as a research brief: state what to find, the time window that matters, source expectations (e.g. cite sources), and the shape of the answer — this engine searches the web, so scoping and recency cues do real work.",
-  qwen3_8_max:
+  qwen4_max:
     "Target engine: Qwen. Favor explicit, well-structured instructions with the task, context, and output format clearly separated; state language expectations when relevant — this engine is strong multilingually and rewards clean structure.",
-  grok_4_6:
+  grok_4_7:
     "Target engine: Grok. Favor direct, plain-spoken instructions with the needed context stated inline; spell out the desired output format and any tone constraints inside the prompt.",
   glm_5_3:
     "Target engine: GLM. Favor structured, explicit specs — separate the task, context, constraints, and output format into clearly labeled parts and state acceptance criteria for code or reasoning work; this engine rewards complete, unambiguous specifications.",

@@ -100,7 +100,7 @@ beforeEach(() => {
     activeMode: "polish",
     autoTarget: true,
     autoPreference: "balanced",
-    targetModel: "opus_5",
+    targetModel: "opus_5_5",
     thinkingLevel: null,
     dialTipSeen: true,
   });
@@ -322,7 +322,7 @@ describe("tuning dial commits", () => {
     // The dial tunes HOW Auto routes — and turning it is choosing Auto, the
     // shortcut the Segmented was. It never picks a MODEL.
     expect(s.autoTarget).toBe(true);
-    expect(s.targetModel).toBe("opus_5");
+    expect(s.targetModel).toBe("opus_5_5");
   });
 
   it("drags left to Budget — the un-reversed mapping would land Quality", () => {
@@ -506,7 +506,7 @@ describe("the rest of the sheet is inert to the dial", () => {
   it("a press-and-slide on a model row stays a row tap", () => {
     renderComposer();
     openSheet();
-    const row = screen.getByRole("radio", { name: "Fable 5.1" });
+    const row = screen.getByRole("radio", { name: "Fable 5.2" });
     press(row);
     fireEvent.pointerMove(row, {
       pointerId: 1,
@@ -517,7 +517,7 @@ describe("the rest of the sheet is inert to the dial", () => {
     lift(row, DOWN_X + SLOP_PX + 4);
     expect(useUIStore.getState().autoPreference).toBe("balanced");
     fireEvent.click(row);
-    expect(useUIStore.getState().targetModel).toBe("fable_5_1");
+    expect(useUIStore.getState().targetModel).toBe("fable_5_2");
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

@@ -63,7 +63,7 @@ function seed() {
         // authed spec lands on the onboarding gate instead of the app.
         password_set: true,
         theme: "dark",
-        default_model: "opus_5",
+        default_model: "opus_5_5",
         reduced_effects: false,
         created_at: NOW,
         updated_at: NOW,
@@ -79,7 +79,7 @@ function seed() {
       id,
       user_id: E2E_USER.id,
       title: `E2E prompt ${i + 1}`,
-      target_model: ["opus_5", "sonnet_5", "gpt_5_6_sol"][i],
+      target_model: ["opus_5_5", "sonnet_5_5", "gpt_6_2_sol"][i],
       tags: i === 0 ? ["e2e", "fixture"] : [],
       favorite: i === 0,
       archived_at: null,

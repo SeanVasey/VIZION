@@ -15,7 +15,7 @@ vi.mock("@/lib/providers/xai", () => ({ streamXAI: vi.fn() }));
 import { streamAnthropic } from "@/lib/providers/anthropic";
 import type { ProviderStreamChunk } from "@/lib/providers/errors";
 
-const ARGS = { input: "hi", mode: "clarify", target: "sonnet_5" } as const;
+const ARGS = { input: "hi", mode: "clarify", target: "sonnet_5_5" } as const;
 
 function feed(...chunks: ProviderStreamChunk[]) {
   vi.mocked(streamAnthropic).mockImplementation(async function* () {

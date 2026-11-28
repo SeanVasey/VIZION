@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { RATE_LIMITED_MESSAGE, writeLimited } from "@/lib/security/action-limit";
 import {
   MODES,
-  TARGET_MODELS,
   THINKING_LEVELS,
+  resolveTargetId,
   type ModeId,
   type TargetModelId,
   type ThinkingLevel,
@@ -36,7 +36,6 @@ interface DraftResult {
 }
 
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
-const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 const LEVEL_IDS = new Set<string>(THINKING_LEVELS);
 
 /** Same ceiling as the table's CHECK — rejected here so an over-long body
@@ -64,7 +63,7 @@ function validate(v: DraftInput): string | null {
   const badBody = validateBody(v.body);
   if (badBody) return badBody;
   if (!MODE_IDS.has(v.mode)) return "Unknown mode.";
-  if (!TARGET_IDS.has(v.target)) return "Unknown target model.";
+  if (!resolveTargetId(v.target)) return "Unknown target model.";
   if (v.thinkingLevel && !LEVEL_IDS.has(v.thinkingLevel)) {
     return "Unknown thinking level.";
   }
@@ -85,6 +84,10 @@ function validate(v: DraftInput): string | null {
 export async function saveDraftAction(v: DraftInput): Promise<DraftResult> {
   const invalid = validate(v);
   if (invalid) return { ok: false, error: invalid };
+  // A tab open across a roster deploy still holds last roster's id; write
+  // the live one (resolveTargetId, constants.ts).
+  const liveTarget = resolveTargetId(v.target);
+  if (liveTarget && liveTarget !== v.target) v = { ...v, target: liveTarget };
 
   const supabase = await createClient();
   const {

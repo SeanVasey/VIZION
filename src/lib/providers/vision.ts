@@ -9,7 +9,12 @@ import {
   MEDIA_TIMEOUT_MS,
   type Provider,
 } from "@/lib/providers/config";
-import { ProviderError, ProviderNotConfiguredError } from "@/lib/providers/errors";
+import {
+  ProviderError,
+  ProviderNotConfiguredError,
+  providerEffort,
+} from "@/lib/providers/errors";
+import { QWEN_BASE_URL } from "@/lib/providers/openai-compat";
 import {
   MEDIA_EXTRACT_SYSTEM,
   parseMediaAttributes,
@@ -67,11 +72,24 @@ function stripThinkSpans(raw: string): string {
   return raw.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/<think>[\s\S]*$/, "");
 }
 
+/**
+ * Headroom for a one-shot image analysis on a REASONING model.
+ *
+ * Every vision-capable model on the roster now reasons, and most cannot
+ * stop: reasoning is billed against the output cap first, so a cap sized for
+ * the JSON alone can be spent before any JSON is written — which returns
+ * empty attributes with no error (the lesson the OpenAI path learned first).
+ * The 1024 caps this file carried for Anthropic, Mistral, Meta, Kimi and
+ * Qwen were each sized when that model had no reasoning to pay for.
+ */
+const VISION_MAX_TOKENS = 4096;
+
 async function describeAnthropic(
   base64: string,
   mediaType: string,
   model: string,
   spec: VisionSpec,
+  effort?: string,
 ): Promise<RawVision> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("anthropic");
@@ -83,7 +101,10 @@ async function describeAnthropic(
   });
   const response = await client.messages.create({
     model,
-    max_tokens: 1024,
+    max_tokens: VISION_MAX_TOKENS,
+    // `output_config.effort` is the GA depth control; this SDK version's
+    // types predate it and unknown body keys pass through (anthropic.ts).
+    ...(effort ? ({ output_config: { effort } } as object) : {}),
     system: spec.system,
     messages: [
       {
@@ -113,9 +134,9 @@ async function describeAnthropic(
   };
 }
 
-/** OpenAI, xAI, and Mistral all take an image_url content part.
- *  Parity with the sibling paths (Anthropic caps at 1024; Gemini pins JSON):
- *  enforce json_object and cap the output. The cap field differs per API —
+/** Every OpenAI-compatible vision API takes an image_url content part.
+ *  Parity with the sibling paths (Anthropic and Gemini): pin JSON where the
+ *  API allows it and cap the output. The cap field differs per API —
  *  OpenAI wants max_completion_tokens, while Mistral 422s on unknown fields
  *  and (like xAI) takes classic max_tokens — so the caller picks it. */
 async function describeOpenAICompatible(
@@ -126,6 +147,10 @@ async function describeOpenAICompatible(
   model: string,
   spec: VisionSpec,
   tokenCap: { max_tokens: number } | { max_completion_tokens: number },
+  /** The model's own LOWEST effort word, when it has a knob (see
+   *  describeImage). Omitted entirely otherwise — Mistral 422s on unknown
+   *  fields, and a knob-less model must never be sent one. */
+  effort: string | undefined,
   // Perplexity takes json_schema, not json_object (and Meta keeps the same
   // conservative carve-out on the new Meta Model API) — for those the prompt
   // alone pins JSON and the tolerant parsers absorb a miss.
@@ -140,6 +165,7 @@ async function describeOpenAICompatible(
   const response = await client.chat.completions.create({
     model,
     ...tokenCap,
+    ...(effort ? ({ reasoning_effort: effort } as object) : {}),
     ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
     messages: [
       { role: "system", content: spec.system },
@@ -179,6 +205,7 @@ async function describeGoogle(
   mediaType: string,
   model: string,
   spec: VisionSpec,
+  effort?: string,
 ): Promise<RawVision> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new ProviderNotConfiguredError("google");
@@ -202,7 +229,10 @@ async function describeGoogle(
           ],
         },
       ],
-      generationConfig: { responseMimeType: "application/json" },
+      generationConfig: {
+        responseMimeType: "application/json",
+        ...(effort ? { thinkingConfig: { thinkingLevel: effort } } : {}),
+      },
     }),
   });
   // Parse defensively — a gateway can answer 401/403/404 with a non-JSON body,
@@ -248,24 +278,26 @@ async function describeGoogle(
  *  answers are search-grounded, the least neutral lens for describing an
  *  image the user attached. */
 const VISION_FALLBACK_ORDER: readonly TargetModelId[] = [
-  "opus_5",
-  "gpt_5_6_sol",
-  "gemini_3_8_flash",
-  "mistral_large_3",
-  "grok_4_6",
-  "muse_spark_1_1",
-  "kimi_k3",
-  "qwen3_8_max",
-  "minimax_m3",
+  "opus_5_5",
+  "gpt_6_2_sol",
+  "gemini_4_hydrogen",
+  "mistral_large_4",
+  "grok_4_7",
+  "muse_spark_1_3",
+  "kimi_k3_1_pro",
+  "qwen4_max",
+  "minimax_m3_1_flash",
   "sonar_pro",
 ];
 
-/** Providers whose roster flagship takes image input. DeepSeek and GLM-5.3
- *  are text-only flagships (their vision models are separate SKUs — e.g.
- *  Z.ai's glm-5v-turbo), so media analysis for those targets is routed to
- *  the fallback chain. MiniMax M3 and Qwen3.8-Max joined this set 2026-08:
- *  both flagships take image_url content parts natively (platform.minimax.io
- *  text-openai-api docs; Model Studio's qwen3.8-max page). */
+/** Providers whose roster models take image input. DeepSeek V4 Pro and
+ *  GLM-5.3 are text-only (their vision models are separate SKUs — DeepSeek's
+ *  is `deepseek-flash`, Z.ai's `glm-5v-turbo`), so media analysis for those
+ *  targets is routed to the fallback chain. Re-read 2026-11-28: every other
+ *  roster model documents image input, including the four new slots. A
+ *  provider-level set still holds because no provider mixes vision and
+ *  text-only models on the roster — the day one does, this becomes per
+ *  target like the effort vocabulary did. */
 const VISION_CAPABLE_PROVIDERS: ReadonlySet<Provider> = new Set([
   "anthropic",
   "openai",
@@ -329,6 +361,13 @@ export async function describeImage(
         ? "Transcribe the legible text as JSON."
         : "Extract the attributes as JSON.",
   };
+  // An image analysis is a bounded extraction under a 55s wall, not a
+  // reasoning job: ask for the model's LOWEST effort rather than inheriting
+  // a vendor default that is `high` on most of the roster and `max` on Kimi,
+  // Muse Wonder and MiniMax. Translated through the same per-target
+  // vocabulary the enhance path uses, so it is always a word this model
+  // accepts; undefined for a model with no knob.
+  const effort = cfg.effort ? providerEffort(cfg.effort, "low") : undefined;
   const requireKey = (env: string) => {
     const key = process.env[env];
     if (!key) throw new ProviderNotConfiguredError(cfg.provider);
@@ -346,11 +385,12 @@ export async function describeImage(
   try {
     switch (cfg.provider) {
       case "anthropic":
-        return finish(await describeAnthropic(base64, mediaType, cfg.model, spec));
+        return finish(
+          await describeAnthropic(base64, mediaType, cfg.model, spec, effort),
+        );
       case "openai":
-        // 4096, not 1024: reasoning-class models spend completion budget on
-        // reasoning tokens first — a tight cap can be consumed before any
-        // JSON is emitted, silently returning empty attributes.
+        // max_completion_tokens here, classic max_tokens everywhere else:
+        // the cap FIELD differs per API (see describeOpenAICompatible).
         return finish(
           await describeOpenAICompatible(
             requireKey(PROVIDER_KEY_ENV[cfg.provider]),
@@ -359,11 +399,11 @@ export async function describeImage(
             mediaType,
             cfg.model,
             spec,
-            { max_completion_tokens: 4096 },
+            { max_completion_tokens: VISION_MAX_TOKENS },
+            effort,
           ),
         );
       case "xai":
-        // Grok-class models reason unconditionally — same headroom as OpenAI.
         return finish(
           await describeOpenAICompatible(
             requireKey(PROVIDER_KEY_ENV[cfg.provider]),
@@ -372,7 +412,8 @@ export async function describeImage(
             mediaType,
             cfg.model,
             spec,
-            { max_tokens: 4096 },
+            { max_tokens: VISION_MAX_TOKENS },
+            effort,
           ),
         );
       case "mistral":
@@ -384,7 +425,8 @@ export async function describeImage(
             mediaType,
             cfg.model,
             spec,
-            { max_tokens: 1024 },
+            { max_tokens: VISION_MAX_TOKENS },
+            effort,
           ),
         );
       case "meta":
@@ -396,7 +438,8 @@ export async function describeImage(
             mediaType,
             cfg.model,
             spec,
-            { max_tokens: 1024 },
+            { max_tokens: VISION_MAX_TOKENS },
+            effort,
             false,
           ),
         );
@@ -409,11 +452,12 @@ export async function describeImage(
             mediaType,
             cfg.model,
             spec,
-            { max_tokens: 1024 },
+            { max_tokens: VISION_MAX_TOKENS },
+            effort,
           ),
         );
       case "perplexity":
-        // Sonar reasons before answering — same headroom as OpenAI.
+        // No effort word: the legacy Sonar chat endpoint documents none.
         return finish(
           await describeOpenAICompatible(
             requireKey(PROVIDER_KEY_ENV[cfg.provider]),
@@ -422,17 +466,17 @@ export async function describeImage(
             mediaType,
             cfg.model,
             spec,
-            { max_tokens: 4096 },
+            { max_tokens: VISION_MAX_TOKENS },
+            effort,
             false,
           ),
         );
       case "google":
-        return finish(await describeGoogle(base64, mediaType, cfg.model, spec));
+        return finish(await describeGoogle(base64, mediaType, cfg.model, spec, effort));
       case "minimax": {
-        // M3 reasons by default and interleaves the reasoning INSIDE content
-        // (the M-series signature) — same headroom as the other reasoning
-        // models, and the think spans are stripped before the parse. Base URL
-        // and jsonMode mirror `streamMiniMax` (openai-compat.ts).
+        // The M-series interleaves its reasoning INSIDE content, so the think
+        // spans are stripped before the parse. Base URL and jsonMode mirror
+        // `streamMiniMax` (openai-compat.ts).
         const r = await describeOpenAICompatible(
           requireKey(PROVIDER_KEY_ENV[cfg.provider]),
           "https://api.minimax.io/v1",
@@ -440,25 +484,26 @@ export async function describeImage(
           mediaType,
           cfg.model,
           spec,
-          { max_tokens: 4096 },
+          { max_tokens: VISION_MAX_TOKENS },
+          effort,
         );
         return finish({ ...r, raw: stripThinkSpans(r.raw) });
       }
       case "qwen":
-        // DashScope's compatible-mode endpoint, same base URL as `streamQwen`.
-        // No thinking params: DashScope only honours thinking on a STREAMED
-        // request (openai-compat.ts), and this call is buffered — so content
-        // is clean JSON and the non-reasoning 1024 cap is enough, comfortably
-        // under DashScope's 8192 output ceiling.
+        // Model Studio's compatible-mode endpoint — the SAME (env-overridable)
+        // base URL as `streamQwen`. Qwen4-Max thinks by default and its cap
+        // covers thinking and answer together, so it gets the shared
+        // headroom and the low effort word like everything else here.
         return finish(
           await describeOpenAICompatible(
             requireKey(PROVIDER_KEY_ENV[cfg.provider]),
-            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            QWEN_BASE_URL,
             base64,
             mediaType,
             cfg.model,
             spec,
-            { max_tokens: 1024 },
+            { max_tokens: VISION_MAX_TOKENS },
+            effort,
           ),
         );
       case "deepseek":

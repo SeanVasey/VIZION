@@ -18,7 +18,7 @@ import { classifyReserveError } from "@/lib/security/spend";
  *    reverted in #63) reserved each request's theoretical worst case — the
  *    target's full output ceiling at list price. Against the shipped $2.00/day
  *    cap that made Fable 5 at max effort reserve $3.20, so EVERY request was
- *    refused on an empty ledger, permanently; Opus 5 on Auto allowed two
+ *    refused on an empty ledger, permanently; Opus 5.5 on Auto allowed two
  *    enhancements a day. Measured against this project's real history the hold
  *    was 31x the largest request ever made.
  *

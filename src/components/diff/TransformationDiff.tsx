@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   MODE_LABEL,
   TARGET_DEVELOPER,
+  THINKING_LEVEL_LABEL,
   type ModeId,
   type TargetModelId,
 } from "@/lib/constants";
@@ -185,6 +186,11 @@ function TransformationDiffImpl({
    *  user-facing or persisted reads this, so the library records the model
    *  that produced the text rather than the one nobody chose. */
   const effectiveTarget = result.resolvedTarget ?? target;
+  // Typed as a plain string map on purpose: the value arrived over the wire
+  // (or out of localStorage), so it is looked up, never trusted to be a key.
+  const autoThinkingLabel = result.resolvedThinking
+    ? (THINKING_LEVEL_LABEL as Record<string, string>)[result.resolvedThinking]
+    : undefined;
 
   // The diff's input side (= the author's original, or the previous result on
   // a refine run) — drives the collapse threshold and the word count honestly.
@@ -699,8 +705,13 @@ function TransformationDiffImpl({
                 ·{" "}
               </>
             )}
-            {result.modelUsed} · {result.tokenIn}→{result.tokenOut} tok ·{" "}
-            {result.usageEstimated ? "≈" : ""}${result.costUsd.toFixed(4)}
+            {result.modelUsed}
+            {/* Depth provenance, the dial's half of the same sentence: an
+                Auto dial says which level it resolved to. Looked up, so a
+                level this build has never heard of renders as nothing. */}
+            {autoThinkingLabel ? ` · ${autoThinkingLabel} thinking (auto)` : ""} ·{" "}
+            {result.tokenIn}→{result.tokenOut} tok · {result.usageEstimated ? "≈" : ""}$
+            {result.costUsd.toFixed(4)}
           </span>
         </p>
       </div>

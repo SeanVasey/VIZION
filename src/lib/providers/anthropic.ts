@@ -6,6 +6,7 @@ import {
   ProviderNotConfiguredError,
   describeProviderFailure,
   providerEffort,
+  type EffortVocabulary,
   type ProviderRequestOptions,
   type ProviderStreamChunk,
 } from "@/lib/providers/errors";
@@ -22,7 +23,8 @@ type AnthropicStreamParams = Parameters<Anthropic["messages"]["stream"]>[0] & {
  * Pure request-params builder (exported for tests — no SDK mocking needed).
  *
  * max_tokens is a ceiling, not a target: the Claude 5 family thinks by
- * default and bills thinking as output against it, so the UNSET-effort path
+ * default (and from the 5.5 generation thinking cannot be disabled at all)
+ * and bills thinking as output against it, so the UNSET-effort path
  * needs the same headroom as an explicit mid effort — a distinct 16k default
  * tier once made Auto the tightest path in the fleet, truncating envelopes
  * exactly when no thinking level was chosen. The daily cost cap and the
@@ -37,8 +39,15 @@ export function buildAnthropicParams(
   system: string,
   input: string,
   effort?: string,
+  vocabulary: EffortVocabulary = "five",
 ): AnthropicStreamParams {
-  const wire = providerEffort("five", effort as ProviderRequestOptions["thinkingLevel"]);
+  // Every Claude model on the roster serves all five words (Haiku 5.5
+  // included), so the per-target vocabulary is "five" throughout; it is a
+  // parameter only so this adapter cannot disagree with config.ts.
+  const wire = providerEffort(
+    vocabulary,
+    effort as ProviderRequestOptions["thinkingLevel"],
+  );
   return {
     model,
     max_tokens: wire === "xhigh" || wire === "max" ? 64_000 : 32_000,
@@ -79,7 +88,7 @@ export async function* streamAnthropic(
 
   try {
     const stream = client.messages.stream(
-      buildAnthropicParams(model, system, input, effort),
+      buildAnthropicParams(model, system, input, effort, opts.effortVocabulary),
     );
     // Bounded HERE, not by the SDK: its `timeout` is cleared when fetch()
     // settles at the response headers, so it bounds nothing once the body
@@ -105,9 +114,15 @@ export async function* streamAnthropic(
       ) {
         yield { text: event.delta.text };
       } else if (event.type === "message_delta") {
+        // `stop_details` rides beside `stop_reason` on a refusal (category +
+        // explanation). This SDK version's delta type predates it, so it is
+        // read through a widened view and trusted only as a display string.
+        const category = (event.delta as { stop_details?: { category?: unknown } | null })
+          .stop_details?.category;
         yield {
           usage: { tokenIn, tokenOut: event.usage.output_tokens },
           ...(event.delta.stop_reason ? { stopReason: event.delta.stop_reason } : {}),
+          ...(typeof category === "string" ? { refusalCategory: category } : {}),
         };
       }
     }
@@ -117,8 +132,8 @@ export async function* streamAnthropic(
     // status and bury the reason inside a generic message.
     if (error instanceof ProviderError) throw error;
     if (error instanceof Anthropic.APIError) {
-      // "Anthropic", not "Opus": this one stream serves Opus 5, Sonnet 5,
-      // and Fable 5.1 — naming one model mislabels the other two's failures.
+      // "Anthropic", not "Opus": this one stream serves Fable, Opus, Sonnet
+      // and Haiku — naming one model mislabels the others' failures.
       throw new ProviderError(
         "anthropic",
         describeProviderFailure(

@@ -176,7 +176,7 @@ vi.mock("@/lib/providers/xai", () => ({ streamXAI: vi.fn() }));
 describe("enhanceStream / enhance", () => {
   it("yields decoded deltas + usage, then a done result matching the buffered drain", async () => {
     const { enhanceStream, enhance } = await import("@/lib/providers/adapter");
-    const args = { input: "hi", mode: "clarify", target: "opus_5" } as const;
+    const args = { input: "hi", mode: "clarify", target: "opus_5_5" } as const;
 
     const events = [];
     for await (const e of enhanceStream(args)) events.push(e);
@@ -208,7 +208,7 @@ describe("enhanceStream / enhance", () => {
     for await (const e of enhanceStream({
       input: "hi",
       mode: "clarify",
-      target: "gemini_3_8_flash",
+      target: "gemini_4_hydrogen",
       thinkingLevel: "high",
     })) {
       events.push(e);
@@ -220,9 +220,12 @@ describe("enhanceStream / enhance", () => {
     expect(streamGoogle).toHaveBeenCalledWith(
       expect.any(String),
       "hi",
-      "gemini-3.8-flash",
+      "gemini-4-hydrogen",
       {
         thinkingLevel: "high",
+        // The TARGET's vocabulary rides beside the level: Hydrogen takes
+        // xhigh, Carbon behind the same adapter does not.
+        effortVocabulary: "toXhigh",
       },
     );
   });

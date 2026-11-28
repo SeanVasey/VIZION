@@ -8,7 +8,7 @@ beforeEach(() => {
   localStorage.clear();
   useUIStore.setState({
     userId: null,
-    targetModel: "grok_4_6", // the device's own last pick
+    targetModel: "grok_4_7", // the device's own last pick
     autoTarget: false,
   });
   useEnhanceViewStore.setState({ view: null, userId: null });
@@ -25,8 +25,8 @@ beforeEach(() => {
 describe("ProfileHydrator × the default model", () => {
   it("populates a stored default with Auto off, even if the device left Auto on", () => {
     useUIStore.setState({ autoTarget: true }); // device toggled Auto last session
-    render(<ProfileHydrator theme="system" defaultModel="opus_5" userId="u1" />);
-    expect(useUIStore.getState().targetModel).toBe("opus_5");
+    render(<ProfileHydrator theme="system" defaultModel="opus_5_5" userId="u1" />);
+    expect(useUIStore.getState().targetModel).toBe("opus_5_5");
     expect(useUIStore.getState().autoTarget).toBe(false);
   });
 
@@ -35,7 +35,7 @@ describe("ProfileHydrator × the default model", () => {
     expect(useUIStore.getState().autoTarget).toBe(true);
     // NOT overwritten: turning Auto off mid-session must return the user to
     // their own last pick (the store's contract), not to anything stored.
-    expect(useUIStore.getState().targetModel).toBe("grok_4_6");
+    expect(useUIStore.getState().targetModel).toBe("grok_4_7");
   });
 
   it("forces Auto on under a cleared default, even if the device turned it off", () => {

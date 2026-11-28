@@ -56,7 +56,7 @@ beforeEach(() => {
     activeMode: "reformat",
     reformatFormat: null,
     autoTarget: false,
-    targetModel: "opus_5",
+    targetModel: "opus_5_5",
   });
 });
 
@@ -80,7 +80,7 @@ describe("format instructions in the system prompt", () => {
   it("appends the chosen shape for reformat", () => {
     const prompt = buildSystemPrompt({
       mode: "reformat",
-      target: "opus_5",
+      target: "opus_5_5",
       format: "xml",
     });
     expect(prompt).toContain(FORMAT_INSTRUCTIONS.xml);
@@ -92,13 +92,13 @@ describe("format instructions in the system prompt", () => {
       // The builder gates by mode, so a stale client (or a mode flipped between
       // composing and sending) can never produce a prompt that argues with
       // itself. That is why the route validates legality only.
-      const prompt = buildSystemPrompt({ mode, target: "opus_5", format: "json" });
+      const prompt = buildSystemPrompt({ mode, target: "opus_5_5", format: "json" });
       expect(prompt).not.toContain(FORMAT_INSTRUCTIONS.json);
     },
   );
 
   it("leaves reformat's prompt unchanged when no shape is chosen", () => {
-    const withoutKnob = buildSystemPrompt({ mode: "reformat", target: "opus_5" });
+    const withoutKnob = buildSystemPrompt({ mode: "reformat", target: "opus_5_5" });
     for (const id of FORMATS) {
       expect(withoutKnob).not.toContain(FORMAT_INSTRUCTIONS[id]);
     }
@@ -109,7 +109,7 @@ describe("format instructions in the system prompt", () => {
     // reason it is appended rather than substituted.
     const prompt = buildSystemPrompt({
       mode: "reformat",
-      target: "opus_5",
+      target: "opus_5_5",
       format: "steps",
     });
     expect(prompt).toContain('"output" MUST be the first field');

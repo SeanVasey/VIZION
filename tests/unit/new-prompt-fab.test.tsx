@@ -48,7 +48,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   pathnameMock.value = "/library";
   draftActions.saveDraftAction.mockResolvedValue({ ok: true, draftId: "d1" });
-  useUIStore.setState({ editorDraft: "", targetModel: "opus_5", activeMode: "clarify" });
+  useUIStore.setState({
+    editorDraft: "",
+    targetModel: "opus_5_5",
+    activeMode: "clarify",
+  });
 });
 
 describe("showsNewPromptFab", () => {
@@ -99,7 +103,7 @@ describe("New prompt button", () => {
   it("saves the whole composer state, then clears and navigates", async () => {
     useUIStore.setState({
       editorDraft: "keep me",
-      targetModel: "sonnet_5",
+      targetModel: "sonnet_5_5",
       activeMode: "expand",
       thinkingLevel: "high",
     });
@@ -110,7 +114,7 @@ describe("New prompt button", () => {
     await vi.waitFor(() =>
       expect(draftActions.saveDraftAction).toHaveBeenCalledWith({
         body: "keep me",
-        target: "sonnet_5",
+        target: "sonnet_5_5",
         mode: "expand",
         // Resuming into a different model would change what the user gets
         // back, so the target's dial rides along with the body.

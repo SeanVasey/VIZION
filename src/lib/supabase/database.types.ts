@@ -550,23 +550,27 @@ export type Database = {
       enhance_mode: "clarify" | "polish" | "expand" | "condense" | "reformat" | "target";
       media_kind: "image" | "video" | "audio";
       model_target:
-        | "opus_5"
-        | "sonnet_5"
-        | "gpt_5_6_sol"
-        | "gpt_6_astra"
-        | "fable_5_1"
+        | "opus_5_5"
+        | "sonnet_5_5"
+        | "haiku_5_5"
+        | "gpt_6_2_sol"
+        | "gpt_6_2_astra"
+        | "fable_5_2"
         | "deepseek_v4"
-        | "gemini_3_8_flash"
-        | "muse_spark_1_1"
-        | "minimax_m3"
-        | "mistral_large_3"
-        | "kimi_k3"
+        | "gemini_4_carbon"
+        | "gemini_4_neon"
+        | "gemini_4_hydrogen"
+        | "muse_wonder_1_0"
+        | "muse_spark_1_3"
+        | "minimax_m3_1_flash"
+        | "mistral_large_4"
+        | "kimi_k3_1_pro"
         | "sonar_pro"
-        | "qwen3_8_max"
-        | "grok_4_6"
+        | "qwen4_max"
+        | "grok_4_7"
         | "glm_5_3"
-        | "gpt_5_6_luna"
-        | "gpt_5_6_terra";
+        | "gpt_6_luna"
+        | "gpt_6_1_terra";
       oauth_provider: "github" | "google";
       theme: "dark" | "light" | "system";
     };

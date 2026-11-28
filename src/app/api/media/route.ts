@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { writeErrorLogLine } from "@/lib/supabase/errors";
 import {
   AUTO_PREFERENCES,
-  TARGET_MODELS,
+  resolveTargetId,
   type AutoPreference,
   type TargetModelId,
 } from "@/lib/constants";
@@ -36,7 +36,6 @@ import { getAppSettings, isOwnerUser } from "@/lib/owner/settings";
 // cap rejects the JSON envelope first (effective decoded ceiling ~3.4 MB), so
 // this in-route 413 binds only where no platform cap exists (MED-009).
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // ~5 MB of base64-decoded image
-const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 
 /** Analysis intents (2026-07 attachment roles). `reference` and `describe`
  *  share the full attribute extraction; `style` reads only how it looks;
@@ -114,10 +113,13 @@ export async function POST(request: NextRequest) {
   if (typeof dataUrl !== "string") return err(400, "Missing image data.");
   // Analysis runs on the user's selected target model; older clients that
   // send no target keep the original Opus behavior.
-  if (target !== undefined && (typeof target !== "string" || !TARGET_IDS.has(target))) {
+  // Retired ids fold forward (resolveTargetId): an open tab across a roster
+  // deploy still sends last roster's id.
+  const liveTarget = target === undefined ? undefined : resolveTargetId(target);
+  if (target !== undefined && !liveTarget) {
     return err(400, "Unknown target model.");
   }
-  const typedTarget = (target as TargetModelId | undefined) ?? "opus_5";
+  const typedTarget: TargetModelId = liveTarget ?? "opus_5_5";
   // Auto rides BESIDE the target fallback, exactly like the enhance route —
   // a bare "no target" can't signal it, because older clients already send
   // nothing and must keep the Opus default. Same legality-only stance on the

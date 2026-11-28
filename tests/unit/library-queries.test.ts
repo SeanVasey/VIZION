@@ -50,7 +50,7 @@ function row(id: string, updated_at: string) {
   return {
     id,
     title: `t-${id}`,
-    target_model: "opus_5",
+    target_model: "opus_5_5",
     tags: [],
     created_at: updated_at,
     updated_at,

@@ -15,7 +15,7 @@ vi.mock("@/lib/providers/xai", () => ({ streamXAI: vi.fn() }));
 import { streamAnthropic } from "@/lib/providers/anthropic";
 import type { ProviderStreamChunk } from "@/lib/providers/errors";
 
-const ARGS = { input: "hi", mode: "clarify", target: "sonnet_5" } as const;
+const ARGS = { input: "hi", mode: "clarify", target: "sonnet_5_5" } as const;
 
 function feed(...chunks: ProviderStreamChunk[]) {
   vi.mocked(streamAnthropic).mockImplementation(async function* () {
@@ -98,6 +98,56 @@ describe("enhanceStream salvage + stop reasons", () => {
       for await (const e of enhanceStream(ARGS)) void e;
     };
     await expect(run()).rejects.toThrow("The model returned a non-JSON response.");
+  });
+
+  it("names a REFUSAL as a refusal — not as a non-JSON response", async () => {
+    // A classifier ended the turn: HTTP 200, stop_reason refusal, nothing
+    // usable. Falling through to the parse error blamed the model's format
+    // and offered no next step.
+    feed({ usage: { tokenIn: 12, tokenOut: 3 } }, { stopReason: "refusal" });
+    const { enhanceStream } = await import("@/lib/providers/adapter");
+    const { ProviderRefusalError } = await import("@/lib/providers/errors");
+    const run = async () => {
+      for await (const e of enhanceStream(ARGS)) void e;
+    };
+    await expect(run()).rejects.toBeInstanceOf(ProviderRefusalError);
+    await expect(run()).rejects.toThrow(/declined this request/);
+    await expect(run()).rejects.not.toThrow(/non-JSON/);
+  });
+
+  it("relays the provider's refusal category, verbatim", async () => {
+    feed({ stopReason: "refusal", refusalCategory: "cyber" });
+    const { enhanceStream } = await import("@/lib/providers/adapter");
+    const run = async () => {
+      for await (const e of enhanceStream(ARGS)) void e;
+    };
+    await expect(run()).rejects.toThrow("The model declined this request (cyber).");
+  });
+
+  it("still reports usage before a refusal — a declined run can be billed", async () => {
+    // The route settles the ledger from usage events it saw before the throw.
+    feed({ usage: { tokenIn: 12, tokenOut: 3 } }, { stopReason: "refusal" });
+    const { enhanceStream } = await import("@/lib/providers/adapter");
+    const seen = [];
+    try {
+      for await (const e of enhanceStream(ARGS)) seen.push(e);
+    } catch {
+      /* the refusal */
+    }
+    expect(seen).toEqual([{ type: "usage", tokenIn: 12, tokenOut: 3 }]);
+  });
+
+  it("keeps a COMPLETE output even when a filter stop follows it", async () => {
+    // The refusal branch is for an empty turn only. A finished envelope that
+    // happens to end on a filter stop was paid for and is whole.
+    feed(
+      { text: '{"output":"A finished prompt.","rationale":"r"}' },
+      { stopReason: "content_filter" },
+    );
+    const events = await drain();
+    const done = events.at(-1);
+    if (done?.type !== "done") throw new Error("expected a done event");
+    expect(done.result.output).toBe("A finished prompt.");
   });
 
   it("stop-reason chunks emit no delta or usage events of their own", async () => {

@@ -1,7 +1,12 @@
 import "server-only";
 import type { ModeId, TargetModelId, ThinkingLevel } from "@/lib/constants";
 import { TARGETS, computeCost, type Provider } from "@/lib/providers/config";
-import type { ProviderRequestOptions, ProviderStreamChunk } from "@/lib/providers/errors";
+import {
+  ProviderRefusalError,
+  REFUSAL_STOPS,
+  type ProviderRequestOptions,
+  type ProviderStreamChunk,
+} from "@/lib/providers/errors";
 import {
   buildSystemPrompt,
   parseEnhancePayload,
@@ -142,8 +147,13 @@ export async function* enhanceStream({
   // the no-usage fallback below; provider-reported usage is authoritative.
   let reasoningFloor = 0;
 
+  let refusalCategory: string | undefined;
+
   for await (const chunk of streams[cfg.provider](system, userInput, cfg.model, {
     thinkingLevel,
+    // The TARGET's vocabulary, not the provider's: two models behind one
+    // adapter can accept different effort words (Gemini 4 Carbon vs Neon).
+    ...(cfg.effort ? { effortVocabulary: cfg.effort } : {}),
     deadline,
   })) {
     if (chunk.text) {
@@ -164,6 +174,7 @@ export async function* enhanceStream({
       };
     }
     if (chunk.stopReason) stopReason = chunk.stopReason;
+    if (chunk.refusalCategory) refusalCategory = chunk.refusalCategory;
     if (chunk.estReasoningTokens) reasoningFloor += chunk.estReasoningTokens;
   }
 
@@ -192,6 +203,18 @@ export async function* enhanceStream({
       // result. Recover it; the rationale is honestly empty.
       payload = { output: decoded.trim(), rationale: "" };
       salvaged = true;
+    } else if (
+      stopReason !== undefined &&
+      REFUSAL_STOPS.has(stopReason) &&
+      decoded.trim() === ""
+    ) {
+      // The model DECLINED: a clean HTTP 200 whose stop reason is a refusal,
+      // with nothing usable in it. Say that, in those words — falling through
+      // to the parse error told the user the model "returned a non-JSON
+      // response", which blames the wrong thing and suggests no next step.
+      // Only when nothing decoded: a filter that fires after a complete
+      // output is the salvage branch above, and what streamed was paid for.
+      throw new ProviderRefusalError(cfg.provider, refusalCategory);
     } else if (
       stopReason !== undefined &&
       LENGTH_STOPS.has(stopReason) &&

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { RATE_LIMITED_MESSAGE, writeLimited } from "@/lib/security/action-limit";
 import { createClient } from "@/lib/supabase/server";
-import { MODES, TARGET_MODELS, type ModeId, type TargetModelId } from "@/lib/constants";
+import { MODES, resolveTargetId, type ModeId, type TargetModelId } from "@/lib/constants";
 import { describeWriteError, writeErrorLogLine } from "@/lib/supabase/errors";
 import { deriveTitle } from "@/lib/library/util";
 import { contentHash } from "@/lib/library/hash";
@@ -53,7 +53,6 @@ async function ownerId(supabase: Db): Promise<string | null> {
 }
 
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
-const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 
 interface VersionInput {
   input: string;
@@ -72,8 +71,18 @@ interface VersionInput {
 function validate(v: VersionInput): string | null {
   if (!v.input.trim() || !v.output.trim()) return "Nothing to save.";
   if (!MODE_IDS.has(v.mode)) return "Unknown mode.";
-  if (!TARGET_IDS.has(v.target)) return "Unknown target model.";
+  if (!resolveTargetId(v.target)) return "Unknown target model.";
   return null;
+}
+
+/** Fold a retired target id forward BEFORE anything reads it. A save can be
+ *  queued in the offline outbox under one roster and replayed under the
+ *  next; the id it carries is then last roster's. The hash, the insert and
+ *  the duplicate check must all see the live id, or the replay either fails
+ *  the enum or files a card the dedupe cannot match. Call after validate. */
+function withLiveTarget(v: VersionInput): VersionInput {
+  const target = resolveTargetId(v.target);
+  return target && target !== v.target ? { ...v, target } : v;
 }
 
 /** Save an enhancement as a new Prompt + its first immutable PromptVersion.
@@ -86,6 +95,7 @@ export async function savePromptAction(
 ): Promise<SaveResult> {
   const invalid = validate(v);
   if (invalid) return { ok: false, error: invalid };
+  v = withLiveTarget(v);
 
   const supabase = await createClient();
   const {
@@ -160,6 +170,7 @@ export async function addVersionAction(
 ): Promise<SaveResult> {
   const invalid = validate(v);
   if (invalid) return { ok: false, error: invalid };
+  v = withLiveTarget(v);
 
   const supabase = await createClient();
   const {

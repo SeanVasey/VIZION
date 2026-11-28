@@ -70,7 +70,7 @@ describe("streamGoogle request body", () => {
   });
 
   it("folds the legacy `minimal` onto low — 3.8 Flash rejects minimal", async () => {
-    // Gemini 3.8 Flash accepts low · medium · high only (ai.google.dev,
+    // Gemini 4 Hydrogen accepts low · medium · high only (ai.google.dev,
     // 2026-09-11); a pre-2026-09 store or draft can still carry `minimal`.
     const body = await capture({ thinkingLevel: "minimal" });
     expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "low" });

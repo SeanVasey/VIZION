@@ -43,7 +43,7 @@ vi.mock("@/lib/providers/vision", () => vision);
 // a mock so these tests pin the ROUTE's contract — what gets resolved, what
 // gets validated, what 503s — not the ladder economics.
 const router = vi.hoisted(() => ({
-  resolveAutoVisionTarget: vi.fn(() => "opus_5" as const),
+  resolveAutoVisionTarget: vi.fn(() => "opus_5_5" as const),
 }));
 vi.mock("@/lib/enhance/auto-target", () => router);
 
@@ -100,7 +100,7 @@ describe("POST /api/media", () => {
   });
 
   it("settles with mode 'extract' and returns the usage block on success", async () => {
-    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5" }));
+    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5_5" }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(spend.settleSpend).toHaveBeenCalledWith(
@@ -108,7 +108,7 @@ describe("POST /api/media", () => {
       "r1",
       expect.objectContaining({ mode: "extract", tokenIn: 100, tokenOut: 50 }),
     );
-    expect(body.usage).toMatchObject({ target: "opus_5", tokenIn: 100, tokenOut: 50 });
+    expect(body.usage).toMatchObject({ target: "opus_5_5", tokenIn: 100, tokenOut: 50 });
     expect(body.fallbackFrom).toBeUndefined();
   });
 
@@ -119,7 +119,7 @@ describe("POST /api/media", () => {
       tokenOut: 0,
       usageEstimated: true,
     });
-    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5" }));
+    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5_5" }));
     const body = await res.json();
     expect(body.usage.estimated).toBe(true);
     expect(spend.settleSpend).toHaveBeenCalledWith(
@@ -131,7 +131,7 @@ describe("POST /api/media", () => {
 
   it("releases the hold when the provider fails without reporting usage", async () => {
     vision.describeImage.mockRejectedValue(new ProviderError("anthropic", "boom", 500));
-    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5" }));
+    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5_5" }));
     expect(res.status).toBe(502);
     expect(spend.releaseSpend).toHaveBeenCalledWith(supabaseMock, "r1");
     expect(spend.settleSpend).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe("POST /api/media", () => {
       new ProviderError("google", "policy stop", 400, { tokenIn: 80, tokenOut: 20 }),
     );
     const res = await POST(
-      request({ dataUrl: PNG_DATA_URL, target: "gemini_3_8_flash" }),
+      request({ dataUrl: PNG_DATA_URL, target: "gemini_4_hydrogen" }),
     );
     expect(res.status).toBe(502);
     expect(spend.releaseSpend).not.toHaveBeenCalled();
@@ -155,7 +155,7 @@ describe("POST /api/media", () => {
 
   it("retries a config-shaped failure on the fallback and reports fallbackFrom", async () => {
     vision.isVisionConfigError.mockReturnValue(true);
-    vision.visionFallbackTarget.mockReturnValue("gpt_5_6_sol");
+    vision.visionFallbackTarget.mockReturnValue("gpt_6_2_sol");
     vision.describeImage
       .mockRejectedValueOnce(new ProviderError("anthropic", "key rejected", 403))
       .mockResolvedValueOnce({
@@ -163,11 +163,11 @@ describe("POST /api/media", () => {
         tokenIn: 10,
         tokenOut: 5,
       });
-    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5" }));
+    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5_5" }));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.fallbackFrom).toBe("opus_5");
-    expect(body.usage.target).toBe("gpt_5_6_sol");
+    expect(body.fallbackFrom).toBe("opus_5_5");
+    expect(body.usage.target).toBe("gpt_6_2_sol");
     // One hold covers the retry — settled exactly once.
     expect(spend.settleSpend).toHaveBeenCalledTimes(1);
   });
@@ -178,25 +178,25 @@ describe("POST /api/media", () => {
     // under the fallback's target/model — pricing them at the original's rates
     // and ledgering them under the original model corrupts the daily-cap.
     vision.isVisionConfigError.mockReturnValue(true);
-    vision.visionFallbackTarget.mockReturnValue("gpt_5_6_sol");
+    vision.visionFallbackTarget.mockReturnValue("gpt_6_2_sol");
     vision.describeImage
       .mockRejectedValueOnce(new ProviderError("anthropic", "key rejected", 403))
       .mockRejectedValueOnce(
         new ProviderError("openai", "content stop", 400, { tokenIn: 40, tokenOut: 12 }),
       );
-    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5" }));
+    const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "opus_5_5" }));
     expect(res.status).toBe(502);
     expect(spend.releaseSpend).not.toHaveBeenCalled();
     expect(spend.settleSpend).toHaveBeenCalledWith(
       supabaseMock,
       "r1",
-      expect.objectContaining({ target: "gpt_5_6_sol", tokenIn: 40, tokenOut: 12 }),
+      expect.objectContaining({ target: "gpt_6_2_sol", tokenIn: 40, tokenOut: 12 }),
     );
   });
 
   it("routes a text-only flagship to the fallback up front", async () => {
     vision.supportsVision.mockReturnValue(false);
-    vision.visionFallbackTarget.mockReturnValue("opus_5");
+    vision.visionFallbackTarget.mockReturnValue("opus_5_5");
     const res = await POST(request({ dataUrl: PNG_DATA_URL, target: "deepseek_v4" }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -216,7 +216,7 @@ describe("POST /api/media — auto routing", () => {
   beforeEach(() => {
     // clearAllMocks clears calls, not return values — re-pin the default so a
     // test's mockReturnValue can't leak into its neighbours.
-    router.resolveAutoVisionTarget.mockReturnValue("opus_5" as never);
+    router.resolveAutoVisionTarget.mockReturnValue("opus_5_5" as never);
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -240,16 +240,16 @@ describe("POST /api/media — auto routing", () => {
     // The format/length convention: a stale client can't produce a request
     // that argues with itself.
     const res = await POST(
-      request({ dataUrl: PNG_DATA_URL, target: "opus_5", autoPreference: "budget" }),
+      request({ dataUrl: PNG_DATA_URL, target: "opus_5_5", autoPreference: "budget" }),
     );
     expect(res.status).toBe(200);
     expect(router.resolveAutoVisionTarget).not.toHaveBeenCalled();
-    expect((await res.json()).usage.target).toBe("opus_5");
+    expect((await res.json()).usage.target).toBe("opus_5_5");
   });
 
   it("resolves auto through the vision ladder and does NOT report it as a fallback", async () => {
     vi.stubEnv("GOOGLE_API_KEY", "g-test");
-    router.resolveAutoVisionTarget.mockReturnValue("gemini_3_8_flash" as never);
+    router.resolveAutoVisionTarget.mockReturnValue("gemini_4_hydrogen" as never);
     const res = await POST(
       request({
         dataUrl: PNG_DATA_URL,
@@ -264,7 +264,7 @@ describe("POST /api/media — auto routing", () => {
       vision.supportsVision,
     );
     const body = await res.json();
-    expect(body.usage.target).toBe("gemini_3_8_flash");
+    expect(body.usage.target).toBe("gemini_4_hydrogen");
     // Routing is a choice, not a fallback — the client re-labels from
     // usage.target without a fallback banner.
     expect(body.fallbackFrom).toBeUndefined();
@@ -284,7 +284,7 @@ describe("POST /api/media — auto routing", () => {
 
   it("503s before any hold when auto's pick has no key configured", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
-    router.resolveAutoVisionTarget.mockReturnValue("opus_5" as never);
+    router.resolveAutoVisionTarget.mockReturnValue("opus_5_5" as never);
     const res = await POST(request({ dataUrl: PNG_DATA_URL, auto: true }));
     expect(res.status).toBe(503);
     expect(spend.reserveSpend).not.toHaveBeenCalled();
@@ -294,9 +294,9 @@ describe("POST /api/media — auto routing", () => {
     // Not the client's pinned fallback: the request was aimed at what routing
     // picked, so that is what the retry fell back FROM.
     vi.stubEnv("ANTHROPIC_API_KEY", "a-test");
-    router.resolveAutoVisionTarget.mockReturnValue("opus_5" as never);
+    router.resolveAutoVisionTarget.mockReturnValue("opus_5_5" as never);
     vision.isVisionConfigError.mockReturnValue(true);
-    vision.visionFallbackTarget.mockReturnValue("gpt_5_6_sol");
+    vision.visionFallbackTarget.mockReturnValue("gpt_6_2_sol");
     vision.describeImage
       .mockRejectedValueOnce(new ProviderError("anthropic", "key rejected", 403))
       .mockResolvedValueOnce({ attrs: { source: "proxy" }, tokenIn: 10, tokenOut: 5 });
@@ -305,7 +305,7 @@ describe("POST /api/media — auto routing", () => {
     );
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.fallbackFrom).toBe("opus_5");
-    expect(body.usage.target).toBe("gpt_5_6_sol");
+    expect(body.fallbackFrom).toBe("opus_5_5");
+    expect(body.usage.target).toBe("gpt_6_2_sol");
   });
 });

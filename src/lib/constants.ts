@@ -67,33 +67,52 @@ export const DEVELOPER_LABEL: Record<Developer, string> = {
  *  order everywhere: grouped by developer (per DEVELOPER_ORDER), best model
  *  first within each developer. */
 export const TARGET_MODELS = [
-  // Fable 5.1 is the 2026-09-01 point release (platform.claude.com, checked
-  // 2026-09-11): same $10/$50 rate, the same five effort levels, and Fable 5
-  // moved to the legacy list. Same slot, versioned id — the roster's rule.
-  { id: "fable_5_1", label: "Fable 5.1", developer: "anthropic" },
-  { id: "opus_5", label: "Opus 5", developer: "anthropic" },
-  { id: "sonnet_5", label: "Sonnet 5", developer: "anthropic" },
-  // GPT-6 Astra is OpenAI's frontier tier above the 5.6 family (2026-09
-  // re-verify) — a NEW slot, not a rename: the 5.6 tiers stay served and
-  // priced as their own products.
-  { id: "gpt_6_astra", label: "GPT-6 Astra", developer: "openai" },
-  // Sol > Terra > Luna is OpenAI's own tiering (flagship / balanced mid /
-  // small) — the roster briefly had Terra and Luna's roles swapped, which the
-  // 2026-08 pricing re-verify corrected.
-  { id: "gpt_5_6_sol", label: "GPT-5.6 Sol", developer: "openai" },
-  { id: "gpt_5_6_terra", label: "GPT-5.6 Terra", developer: "openai" },
-  { id: "gpt_5_6_luna", label: "GPT-5.6 Luna", developer: "openai" },
+  // The 2026-11 frontier re-verify (platform.claude.com, checked 2026-11-28):
+  // every Anthropic slot moved a point release — Fable 5.2 ($8/$40, a price
+  // cut), Opus 5.5 ($4/$20), Sonnet 5.5 — and the small tier joined the
+  // roster as its own slot. Same slot, versioned id — the roster's rule.
+  { id: "fable_5_2", label: "Fable 5.2", developer: "anthropic" },
+  { id: "opus_5_5", label: "Opus 5.5", developer: "anthropic" },
+  { id: "sonnet_5_5", label: "Sonnet 5.5", developer: "anthropic" },
+  // Haiku 5.5 is a NEW slot (2026-11): Anthropic's small tier, $0.10/$0.50,
+  // the same five effort words as its siblings.
+  { id: "haiku_5_5", label: "Haiku 5.5", developer: "anthropic" },
+  // Astra > Sol > Terra > Luna is OpenAI's own tiering (frontier / everyday
+  // flagship / balanced mid / small). The tiers version independently now:
+  // Astra and Sol are 6.2, Terra is 6.1, Luna is 6 (developers.openai.com
+  // pricing + model pages, 2026-11-28) — each label carries its own version
+  // rather than a family number that would be wrong for two of the four.
+  { id: "gpt_6_2_astra", label: "GPT-6.2 Astra", developer: "openai" },
+  { id: "gpt_6_2_sol", label: "GPT-6.2 Sol", developer: "openai" },
+  { id: "gpt_6_1_terra", label: "GPT-6.1 Terra", developer: "openai" },
+  { id: "gpt_6_luna", label: "GPT-6 Luna", developer: "openai" },
   { id: "deepseek_v4", label: "DeepSeek V4 Pro", developer: "deepseek" },
-  // Google's frontier line is the Flash line (3.6 → 3.7 → 3.8 in eight
-  // weeks; the newest Pro on the model list is still 3.1). 3.8 is the slot.
-  { id: "gemini_3_8_flash", label: "Gemini 3.8 Flash", developer: "google" },
-  { id: "muse_spark_1_1", label: "Muse Spark 1.1", developer: "meta" },
-  { id: "minimax_m3", label: "MiniMax M3", developer: "minimax" },
-  { id: "mistral_large_3", label: "Mistral Large 3", developer: "mistral" },
-  { id: "kimi_k3", label: "Kimi K3", developer: "moonshot" },
+  // Gemini 4 is named by element, not by Pro/Flash, and the names do not
+  // sort themselves: Carbon is Google's strongest reasoning model, Neon sits
+  // between (and is the one Google points at complex engineering work),
+  // Hydrogen is the fast general-purpose default (aistudio.google.com/docs/
+  // choosing-a-model, 2026-11-28). Best first, like every other developer.
+  // Hydrogen inherits the old Flash slot (same $1.50/$7.50 rate); Carbon and
+  // Neon are NEW slots.
+  { id: "gemini_4_carbon", label: "Gemini 4 Carbon", developer: "google" },
+  { id: "gemini_4_neon", label: "Gemini 4 Neon", developer: "google" },
+  { id: "gemini_4_hydrogen", label: "Gemini 4 Hydrogen", developer: "google" },
+  // Muse Wonder is "Meta's most capable model" (dev.meta.ai/docs/models,
+  // 2026-11-28) — a NEW slot above Spark, in preview on the pay-as-you-go
+  // Model API at $4/$20. Spark moved 1.1 → 1.3 in the same slot and price.
+  { id: "muse_wonder_1_0", label: "Muse Wonder 1.0", developer: "meta" },
+  { id: "muse_spark_1_3", label: "Muse Spark 1.3", developer: "meta" },
+  // M3.1 Flash is "the latest M-series language model" (platform.minimax.io,
+  // 2026-10-19) and, despite the tier word, the stronger of the two MiniMax
+  // serves: half M3's price and the first M-series with an effort knob.
+  { id: "minimax_m3_1_flash", label: "MiniMax M3.1 Flash", developer: "minimax" },
+  // Mistral Large 4 — the launch post's "le Chonk" is a nickname; the docs,
+  // the pricing page and the model list all say Mistral Large 4.
+  { id: "mistral_large_4", label: "Mistral Large 4", developer: "mistral" },
+  { id: "kimi_k3_1_pro", label: "Kimi K3.1 Pro", developer: "moonshot" },
   { id: "sonar_pro", label: "Sonar Pro", developer: "perplexity" },
-  { id: "qwen3_8_max", label: "Qwen3.8 Max", developer: "qwen" },
-  { id: "grok_4_6", label: "Grok 4.6", developer: "xai" },
+  { id: "qwen4_max", label: "Qwen4 Max", developer: "qwen" },
+  { id: "grok_4_7", label: "Grok 4.7", developer: "xai" },
   { id: "glm_5_3", label: "GLM-5.3", developer: "zai" },
 ] as const satisfies readonly { id: string; label: string; developer: Developer }[];
 export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
@@ -104,29 +123,65 @@ export type TargetModelId = (typeof TARGET_MODELS)[number]["id"];
  *  rename with no entry here leaves a stale persisted selection that 400s on
  *  `/api/enhance`. Order is migration order, oldest first. */
 export const LEGACY_TARGET_IDS: Record<string, TargetModelId> = {
-  gpt_5_5: "gpt_5_6_sol",
-  // Renamed three times (gemini_pro_3_1 → gemini_3_5_thinking →
-  // gemini_3_6_flash → gemini_3_8_flash). Every link in a rename chain points
-  // at the CURRENT id, not the next hop — a value that is no longer a live
-  // target fails the enum contract test.
-  gemini_pro_3_1: "gemini_3_8_flash",
-  opus_4_8: "opus_5",
-  llama_4_maverick: "muse_spark_1_1",
-  minimax_m2_7: "minimax_m3",
-  kimi_k2_6: "kimi_k3",
-  gemini_3_5_thinking: "gemini_3_8_flash",
-  qwen3_7_max: "qwen3_8_max",
+  gpt_5_5: "gpt_6_2_sol",
+  // Renamed four times (gemini_pro_3_1 → gemini_3_5_thinking →
+  // gemini_3_6_flash → gemini_3_8_flash → gemini_4_hydrogen). Every link in a
+  // rename chain points at the CURRENT id, not the next hop — a value that is
+  // no longer a live target fails the enum contract test.
+  gemini_pro_3_1: "gemini_4_hydrogen",
+  opus_4_8: "opus_5_5",
+  llama_4_maverick: "muse_spark_1_3",
+  minimax_m2_7: "minimax_m3_1_flash",
+  kimi_k2_6: "kimi_k3_1_pro",
+  gemini_3_5_thinking: "gemini_4_hydrogen",
+  qwen3_7_max: "qwen4_max",
   // The 2026-09 frontier re-verify (20260911120000_frontier_roster).
-  fable_5: "fable_5_1",
-  gemini_3_6_flash: "gemini_3_8_flash",
-  grok_4_5: "grok_4_6",
+  fable_5: "fable_5_2",
+  gemini_3_6_flash: "gemini_4_hydrogen",
+  grok_4_5: "grok_4_7",
   glm_5_2: "glm_5_3",
+  // The 2026-11 frontier re-verify (20261128120000_frontier_roster): fourteen
+  // of the seventeen slots moved in one pass.
+  fable_5_1: "fable_5_2",
+  opus_5: "opus_5_5",
+  sonnet_5: "sonnet_5_5",
+  gpt_6_astra: "gpt_6_2_astra",
+  gpt_5_6_sol: "gpt_6_2_sol",
+  gpt_5_6_terra: "gpt_6_1_terra",
+  gpt_5_6_luna: "gpt_6_luna",
+  gemini_3_8_flash: "gemini_4_hydrogen",
+  muse_spark_1_1: "muse_spark_1_3",
+  minimax_m3: "minimax_m3_1_flash",
+  mistral_large_3: "mistral_large_4",
+  kimi_k3: "kimi_k3_1_pro",
+  qwen3_8_max: "qwen4_max",
+  grok_4_6: "grok_4_7",
 };
 
 /** Developer for a target id (for the model picker + result chips). */
 export const TARGET_DEVELOPER: Record<TargetModelId, Developer> = Object.fromEntries(
   TARGET_MODELS.map((m) => [m.id, m.developer]),
 ) as Record<TargetModelId, Developer>;
+
+/**
+ * Resolve a target id that arrived from OUTSIDE this build to a live one.
+ *
+ * A roster rename and a deploy are not atomic for a client. A tab left open
+ * across the deploy still holds the old id in memory (the persisted store's
+ * migration only runs on the next load), and a save queued in the offline
+ * outbox carries whatever id was current when it was queued. Both then
+ * present a retired id to the server — which is not a bad request, it is a
+ * request made one roster ago. Fold it forward instead of 400ing: the 2026-11
+ * rename moved the DEFAULT target, so without this every open tab's next run
+ * would have failed until its owner thought to reload.
+ *
+ * Returns undefined for anything that was never a target.
+ */
+export function resolveTargetId(id: unknown): TargetModelId | undefined {
+  if (typeof id !== "string") return undefined;
+  if (Object.hasOwn(TARGET_DEVELOPER, id)) return id as TargetModelId;
+  return Object.hasOwn(LEGACY_TARGET_IDS, id) ? LEGACY_TARGET_IDS[id] : undefined;
+}
 
 /**
  * The reasoning-depth WIRE vocabulary, weakest first. This is what the route
@@ -195,34 +250,41 @@ export function normalizeThinkingLevel(level: ThinkingLevel): ThinkingLadderLeve
  * a new roster entry is a compile error here rather than a silent "no dial".
  * `false` = the provider exposes no knob through our adapters, so the
  * composer shows no Thinking rail for that target (under Auto the rail always
- * shows — routing may land on a knob model, and an out-of-ladder level is
- * advisory there, dropped by the route, never a 400).
+ * shows — routing may land on a knob model, and a level sent toward a
+ * knob-less one is advisory there, dropped by the route, never a 400).
  *
- * Verified against each vendor's API reference 2026-09-11; the wire parameter
- * per provider is documented on `providerEffort` in `providers/errors.ts`.
+ * This is the CLIENT's view. The server's is `TARGETS[id].effort` in
+ * providers/config.ts — which vocabulary, not merely whether — and
+ * tests/unit/models.test.tsx pins the two to each other, because they are
+ * the same fact stated on both sides of the wire.
+ *
+ * Verified against each vendor's API reference 2026-11-28. Every model on
+ * the roster but one now takes an effort word: Mistral (Large 4), Meta (Muse
+ * 1.2+) and MiniMax (M3.1) all shipped a knob since the 2026-09 pass.
  */
 export const TARGET_HAS_THINKING: Record<TargetModelId, boolean> = {
-  fable_5_1: true,
-  opus_5: true,
-  sonnet_5: true,
-  gpt_6_astra: true,
-  gpt_5_6_sol: true,
-  gpt_5_6_terra: true,
-  gpt_5_6_luna: true,
-  // deepseek-v4-pro: `reasoning_effort` low · high · max (thinking on by
-  // default at high) — api-docs.deepseek.com/guides/thinking_mode.
+  fable_5_2: true,
+  opus_5_5: true,
+  sonnet_5_5: true,
+  haiku_5_5: true,
+  gpt_6_2_astra: true,
+  gpt_6_2_sol: true,
+  gpt_6_1_terra: true,
+  gpt_6_luna: true,
   deepseek_v4: true,
-  gemini_3_8_flash: true,
-  muse_spark_1_1: false,
-  minimax_m3: false,
-  mistral_large_3: false,
-  // kimi-k3: `reasoning_effort` low · high · max, DEFAULT max — which is why
-  // an untuned Kimi run was the slowest thing in the fleet (platform.kimi.ai).
-  kimi_k3: true,
+  gemini_4_carbon: true,
+  gemini_4_neon: true,
+  gemini_4_hydrogen: true,
+  muse_wonder_1_0: true,
+  muse_spark_1_3: true,
+  minimax_m3_1_flash: true,
+  mistral_large_4: true,
+  kimi_k3_1_pro: true,
+  // Sonar Pro's reasoning control lives on Perplexity's Agent API; the legacy
+  // chat endpoint this adapter still calls documents none.
   sonar_pro: false,
-  qwen3_8_max: true,
-  grok_4_6: true,
-  // glm-5.3: `reasoning_effort` low · high · max, default max (docs.z.ai).
+  qwen4_max: true,
+  grok_4_7: true,
   glm_5_3: true,
 };
 

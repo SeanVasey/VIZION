@@ -82,7 +82,7 @@ describe("questions in the envelope", () => {
 
 describe("the questions contract in the system prompt", () => {
   it("is offered to clarify", () => {
-    const prompt = buildSystemPrompt({ mode: "clarify", target: "opus_5" });
+    const prompt = buildSystemPrompt({ mode: "clarify", target: "opus_5_5" });
     expect(prompt).toContain('"questions" (optional, array of strings)');
     expect(prompt).toContain('NEVER replaces "output"');
   });
@@ -92,7 +92,7 @@ describe("the questions contract in the system prompt", () => {
     (mode) => {
       // Only Clarify's job is resolving ambiguity; inviting questions from
       // Polish or Condense would be asking for scope the mode can't act on.
-      const prompt = buildSystemPrompt({ mode, target: "opus_5" });
+      const prompt = buildSystemPrompt({ mode, target: "opus_5_5" });
       expect(prompt).not.toContain('"questions" (optional');
     },
   );
@@ -103,7 +103,7 @@ describe("the questions contract in the system prompt", () => {
     // what the model is looking at.
     const prompt = buildSystemPrompt({
       mode: "clarify",
-      target: "opus_5",
+      target: "opus_5_5",
       refine: { kind: "answers", baseInput: "Q: a\nA: b" },
     });
     expect(prompt).toContain("author's ORIGINAL request");
@@ -121,7 +121,7 @@ describe("the questions contract in the system prompt", () => {
   it("forbids a second round of questions on the answered pass", () => {
     const prompt = buildSystemPrompt({
       mode: "clarify",
-      target: "opus_5",
+      target: "opus_5_5",
       refine: { kind: "answers", baseInput: "Q: a\nA: b" },
     });
     expect(prompt).toContain("do not return a `questions` field");
@@ -168,7 +168,7 @@ beforeEach(() => {
   useUIStore.setState({
     editorDraft: "",
     activeMode: "clarify",
-    targetModel: "opus_5",
+    targetModel: "opus_5_5",
     autoTarget: false,
     lengthByMode: {},
     reformatFormat: null,

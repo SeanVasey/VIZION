@@ -58,7 +58,7 @@ const CARD: DraftCard = {
   // here on purpose: an editor seeded from this instead of the fetched body
   // would silently truncate the draft on save.
   preview: "the full saved body",
-  target_model: "sonnet_5",
+  target_model: "sonnet_5_5",
   mode: "expand",
   thinking_level: "high",
   created_at: "2026-07-30T00:00:00Z",
@@ -114,7 +114,7 @@ beforeEach(() => {
   });
   useUIStore.setState({
     editorDraft: "",
-    targetModel: "opus_5",
+    targetModel: "opus_5_5",
     activeMode: "clarify",
     thinkingLevel: null,
   });
@@ -131,7 +131,7 @@ describe("Drafts list", () => {
     const s = useUIStore.getState();
     // A draft written against one target must not resume into another — that
     // would silently change what the user gets back.
-    expect(s.targetModel).toBe("sonnet_5");
+    expect(s.targetModel).toBe("sonnet_5_5");
     expect(s.activeMode).toBe("expand");
     expect(s.thinkingLevel).toBe("high");
     expect(routerMock.push).toHaveBeenCalledWith("/enhance");

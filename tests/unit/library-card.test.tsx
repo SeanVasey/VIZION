@@ -31,7 +31,7 @@ import { LibraryBrowser } from "@/components/library/LibraryBrowser";
 const CARD: PromptCard = {
   id: "p1",
   title: "Launch email",
-  target_model: "opus_5",
+  target_model: "opus_5_5",
   tags: ["marketing"],
   created_at: "2026-07-01T00:00:00Z",
   updated_at: "2026-07-27T00:00:00Z",
@@ -52,7 +52,7 @@ function renderBrowser(cards: PromptCard[] = [CARD]) {
         nextCursor={null}
         filter={{ view: "all", sort: "updated" }}
         facets={{
-          models: [{ id: "opus_5", count: 1 }],
+          models: [{ id: "opus_5_5", count: 1 }],
           tags: ["marketing"],
           collections: [],
         }}
@@ -71,7 +71,7 @@ describe("library card", () => {
     expect(screen.getByText("Launch email")).toBeTruthy();
     // Stored id `target` renders through MODE_LABEL as Adapt.
     expect(screen.getByText(/Adapt · /)).toBeTruthy();
-    expect(screen.getByText("Opus 5")).toBeTruthy();
+    expect(screen.getByText("Opus 5.5")).toBeTruthy();
     expect(screen.getByText(/friendly launch email/)).toBeTruthy();
     expect(screen.getByLabelText("Favorite")).toBeTruthy();
     expect(screen.getByText(/3 versions/)).toBeTruthy();
@@ -159,7 +159,7 @@ describe("library page seams (LIB-003 — the DraftsList lesson, replayed)", () 
           initialCards={cards}
           nextCursor="c1"
           filter={{ view: "all", sort: "updated" }}
-          facets={{ models: [{ id: "opus_5", count: 1 }], tags: [], collections: [] }}
+          facets={{ models: [{ id: "opus_5_5", count: 1 }], tags: [], collections: [] }}
         />
       </ToastProvider>,
     );
@@ -213,7 +213,7 @@ describe("library page seams (LIB-003 — the DraftsList lesson, replayed)", () 
           initialCards={[PAGE2, CARD]}
           nextCursor="c1"
           filter={{ view: "all", sort: "updated" }}
-          facets={{ models: [{ id: "opus_5", count: 1 }], tags: [], collections: [] }}
+          facets={{ models: [{ id: "opus_5_5", count: 1 }], tags: [], collections: [] }}
         />
       </ToastProvider>,
     );

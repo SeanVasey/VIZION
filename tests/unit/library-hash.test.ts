@@ -7,28 +7,34 @@ describe("contentHash", () => {
     //   ||chr(31)||'opus_5', 'sha256'), 'hex')
     // — executed on the hosted project 2026-08-01 (Q5: target joined the
     // formula; the pre-Q5 three-part fixture was pinned 2026-07-27).
+    //
+    // `opus_5` here is a LITERAL from that query, not a roster id: this pins
+    // the formula's bytes, so it must not follow a roster rename (a sweep
+    // that renamed it changes the digest and proves nothing). What a rename
+    // does to STORED hashes is a real effect, handled where it belongs —
+    // supabase/migrations/20261128120100_rehash_after_roster_rename.sql.
     expect(contentHash("hello", "world", "polish", "opus_5")).toBe(
       "ed7fe59f65467baf9681bef517f84e544ed613dc8a9a115b7a3616bcdbc33873",
     );
   });
 
   it("distinguishes the same content saved for a different target (Q5)", () => {
-    expect(contentHash("a", "b", "clarify", "opus_5")).not.toBe(
-      contentHash("a", "b", "clarify", "kimi_k3"),
+    expect(contentHash("a", "b", "clarify", "opus_5_5")).not.toBe(
+      contentHash("a", "b", "clarify", "kimi_k3_1_pro"),
     );
   });
 
   it("is order-sensitive and separator-guarded", () => {
-    expect(contentHash("a", "b", "clarify", "opus_5")).not.toBe(
-      contentHash("b", "a", "clarify", "opus_5"),
+    expect(contentHash("a", "b", "clarify", "opus_5_5")).not.toBe(
+      contentHash("b", "a", "clarify", "opus_5_5"),
     );
     // The 0x1f separator prevents "ab"+"c" colliding with "a"+"bc".
     expect(contentHash("ab", "c", "m", "t")).not.toBe(contentHash("a", "bc", "m", "t"));
   });
 
   it("handles multibyte text as utf8 (same as Postgres)", () => {
-    const h = contentHash("café ☕", "naïve — résumé", "expand", "opus_5");
+    const h = contentHash("café ☕", "naïve — résumé", "expand", "opus_5_5");
     expect(h).toMatch(/^[0-9a-f]{64}$/);
-    expect(h).toBe(contentHash("café ☕", "naïve — résumé", "expand", "opus_5"));
+    expect(h).toBe(contentHash("café ☕", "naïve — résumé", "expand", "opus_5_5"));
   });
 });

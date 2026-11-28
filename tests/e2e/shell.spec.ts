@@ -70,7 +70,7 @@ test.describe("VIZION shell + auth gate", () => {
     }
   });
 
-  test("the icon head pins ONE home-screen tile, unconditionally — the outlined one", async ({
+  test("the icon head pins ONE home-screen tile, unconditionally — the stroked one", async ({
     page,
     request,
   }) => {
@@ -85,8 +85,9 @@ test.describe("VIZION shell + auth gate", () => {
     //      that tried to make the tile FOLLOW the appearance — a complementary
     //      `media` pair, that pair reordered, and a JS matcher — all shipped an
     //      invisible mark, and one link is what stays (ADR-0015). What ADR-0017
-    //      changed is the ARTWORK behind the link: the outlined tile is legible
-    //      on either ground, so it no longer has to be the dark colorway.
+    //      changed is the ARTWORK behind the link: the mark carries a stroke of
+    //      its own, so the tile no longer has to be the dark colorway. (How iOS
+    //      treats the current tile is not device-verified — Amendment 7.)
     //   2. NO `media` on it. iOS does not evaluate `media` on icons (it does on
     //      apple-touch-startup-image, which is why the splash links resolve per
     //      device). A query here would imply a selection that never happens.
@@ -160,7 +161,7 @@ test.describe("VIZION shell + auth gate", () => {
     }
   });
 
-  test("the app icon's plate follows the appearance; the outlined mark does not", async ({
+  test("the app icon's plate follows the appearance; the stroked mark does not", async ({
     page,
     browserName,
   }) => {
@@ -175,11 +176,15 @@ test.describe("VIZION shell + auth gate", () => {
       "WebKit does not apply prefers-color-scheme to <img>-embedded SVG; see ios-verification.md",
     );
 
-    // The requirement, stated as pixels (ADR-0017 Amendment 5): the PLATE
-    // follows the appearance — the light theme's accent ink in light, Void in dark — while
-    // the MARK is the same flat Laser mark in both, with no outline. This is
-    // the SVG-aware consumers' rendition of the installed tile; it does not
-    // reach the iPhone Home Screen while the Apple link exists (runbook).
+    // The requirement, stated as pixels (ADR-0017 Amendment 7): the PLATE
+    // follows the appearance — Laser in light, Void in dark — while the MARK
+    // is the same drawing in both: a charcoal fill over a stroke that IS the
+    // Laser token. So in light the stroke is the plate's own colour and none
+    // of its pixels can be told from the plate; in dark the very same stroke
+    // is a Laser outline around the mark. This is the SVG-aware consumers'
+    // rendition of the installed tile; it does not reach the iPhone Home
+    // Screen while the Apple link exists (runbook), and the PNG that does
+    // carries a shaded stroke instead (icon-alpha.test.ts).
     //
     // RENDERED, not read: asserting the media query is in the markup would pass
     // on an SVG whose rule never applies (a fill attribute shadowing the class,
@@ -193,8 +198,9 @@ test.describe("VIZION shell + auth gate", () => {
         `<body style="margin:0"><img id="i" src="${uri}" width="400" height="400"></body>`,
       );
       // (8,8) is plate; (200,151) sits inside the mark's vertical bar at this
-      // 400px render; the darkest pixel on the row y=151 from the left edge to
-      // the bar is the plate itself now that there is no outline.
+      // 400px render. The row y=151, from the left edge to the bar, crosses
+      // the chevron's left arm, the ring and the bar's own edge — so it holds
+      // plate, fill, and the stroke on the outside of each.
       return page.evaluate(async (dataUri: string) => {
         const img = new Image();
         img.src = dataUri;
@@ -208,57 +214,48 @@ test.describe("VIZION shell + auth gate", () => {
           const d = ctx.getImageData(x, y, 1, 1).data;
           return { r: d[0]!, g: d[1]!, b: d[2]! };
         };
-        const luma = (p: { r: number; g: number; b: number }) =>
-          0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
-        let darkest = 255;
-        for (let x = 0; x <= 200; x++) darkest = Math.min(darkest, luma(px(x, 151)));
-        return { plate: px(8, 8), mark: px(200, 151), darkest };
+        const row = Array.from({ length: 201 }, (_, x) => px(x, 151));
+        return { plate: px(8, 8), mark: px(200, 151), row };
       }, uri);
     };
 
     const light = await sample("light");
     const dark = await sample("dark");
 
-    const luma = (p: { r: number; g: number; b: number }) =>
-      0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
-    const greenLed = (p: { r: number; g: number; b: number }, what: string) => {
+    type Px = { r: number; g: number; b: number };
+    const luma = (p: Px) => 0.2126 * p.r + 0.7152 * p.g + 0.0722 * p.b;
+    const greenLed = (p: Px, what: string) => {
       expect(p.g, `${what}: green leads`).toBeGreaterThan(p.r);
       expect(p.r, `${what}: red leads blue — a lime, not a teal`).toBeGreaterThan(p.b);
       expect(p.g, `${what}: strong green`).toBeGreaterThan(200);
     };
 
-    // Light: the accent-ink plate and the flat Laser mark, read against the
-    // generator's derived colours, not restated hexes.
+    // Read against the generator's derived colours, not restated hexes.
     const C = installedColorway();
     const channels = (hex: string) =>
       [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
-    const near = (
-      p: { r: number; g: number; b: number },
-      hex: string,
-      tol: number,
-      what: string,
-    ) => {
+    const off = (p: Px, hex: string) => {
       const want = channels(hex);
-      (["r", "g", "b"] as const).forEach((ch, i) => {
-        expect(
-          Math.abs(p[ch] - want[i]!),
-          `${what} ${ch}: within ${tol} of ${hex}`,
-        ).toBeLessThanOrEqual(tol);
-      });
+      return Math.max(
+        Math.abs(p.r - want[0]),
+        Math.abs(p.g - want[1]),
+        Math.abs(p.b - want[2]),
+      );
     };
-    near(light.plate, C.plate, 4, "light plate");
-    near(light.mark, C.mark, 4, "light mark");
-    greenLed(light.mark, "light mark");
-    expect(
-      luma(light.mark),
-      "the mark is visibly brighter than the plate",
-    ).toBeGreaterThan(luma(light.plate) + 60);
-    expect(
-      light.darkest,
-      "no outline: nothing on the row through the mark is darker than the plate",
-    ).toBeGreaterThanOrEqual(luma(light.plate) - 8);
+    const near = (p: Px, hex: string, tol: number, what: string) => {
+      expect(off(p, hex), `${what}: within ${tol} of ${hex}`).toBeLessThanOrEqual(tol);
+    };
 
-    // Dark: the plate is Void (the swap applied), the mark is the SAME fill.
+    // Light: the Laser plate and the charcoal mark on it.
+    near(light.plate, C.plate, 4, "light plate");
+    greenLed(light.plate, "light plate");
+    near(light.mark, C.mark, 4, "light mark");
+    expect(luma(light.mark), "a dark mark on a bright plate").toBeLessThan(
+      luma(light.plate) - 100,
+    );
+
+    // Dark: the plate is Void (the swap applied), the mark is the SAME fill —
+    // and the stroke shows: Laser pixels on a row whose plate is now dark.
     expect(luma(dark.plate), "the dark plate must be dark").toBeLessThan(40);
     expect(dark.mark, "the mark's fill must not move with the appearance").toEqual(
       light.mark,
@@ -266,6 +263,22 @@ test.describe("VIZION shell + auth gate", () => {
     expect(dark.plate, "the plate must move with the appearance").not.toEqual(
       light.plate,
     );
+    const strokeXs = dark.row.flatMap((p, x) => (off(p, C.stroke) <= 4 ? [x] : []));
+    expect(
+      strokeXs.length,
+      "dark: the Laser stroke is a visible outline around the mark",
+    ).toBeGreaterThan(8);
+
+    // …and those very pixels are the plate's own colour in light: the stroke
+    // is there, and cannot be seen.
+    for (const x of strokeXs) {
+      near(
+        light.row[x]!,
+        C.plate,
+        4,
+        `light: the stroke pixel at x=${x} is plate-coloured`,
+      );
+    }
   });
 
   test("the home-screen tile does NOT move with the appearance", async ({ page }) => {
@@ -274,8 +287,8 @@ test.describe("VIZION shell + auth gate", () => {
     // that: iOS freezes the tile at "Add to Home Screen" and auto-darkens the
     // frozen copy under dark appearance, so matching could only ever choose
     // WHICH capture a user got, never avoid the darkening. Invariance is the
-    // fix — one tile (ADR-0015), now the outlined one that is legible under
-    // either treatment (ADR-0017).
+    // fix — one tile (ADR-0015), whose mark now carries its own stroke rather
+    // than relying on the plate (ADR-0017; Amendment 7 is not device-verified).
     //
     // Checked WITHOUT a reload: an appearance change while the page is open must
     // not move the tile, because whatever is in the head is what the next capture
@@ -401,7 +414,7 @@ test.describe("VIZION shell + auth gate", () => {
     request,
   }) => {
     const res = await request.post("/api/enhance", {
-      data: { input: "write a summary", mode: "clarify", target: "opus_5" },
+      data: { input: "write a summary", mode: "clarify", target: "opus_5_5" },
     });
     expect(res.status()).toBe(401);
   });
