@@ -127,3 +127,14 @@ describe("cursor", () => {
     expect(decodeCursor(encodeCursor("2026-01-01", "abc-123"))).toBeNull();
   });
 });
+
+describe("parseLibraryParams — retired model ids", () => {
+  it("folds a bookmarked pre-rename model filter forward instead of dropping it", () => {
+    expect(parseLibraryParams({ model: "opus_5" }).model).toBe("opus_5_5");
+    expect(parseLibraryParams({ model: "gemini_3_8_flash" }).model).toBe(
+      "gemini_4_hydrogen",
+    );
+    expect(parseLibraryParams({ model: "opus_5_5" }).model).toBe("opus_5_5");
+    expect(parseLibraryParams({ model: "not-a-model" }).model).toBeUndefined();
+  });
+});

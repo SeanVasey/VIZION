@@ -8,11 +8,10 @@ import {
   type OutboxOutcome,
 } from "@/lib/pwa/outbox";
 import { savePromptAction } from "@/lib/library/actions";
-import { MODES, TARGET_MODELS } from "@/lib/constants";
+import { MODES, resolveTargetId } from "@/lib/constants";
 import { useToast } from "@/components/ui/Toast";
 
 const MODE_IDS = new Set<string>(MODES.map((m) => m.id));
-const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
 
 /**
  * Runtime shape guard for a persisted save-prompt payload (Q10 / TYP-002).
@@ -21,7 +20,7 @@ const TARGET_IDS = new Set<string>(TARGET_MODELS.map((m) => m.id));
  * handler on every foreground event forever. A payload that fails this check
  * can never succeed on any flush: it parks as poison instead of retrying.
  */
-function isSavePromptPayload(p: unknown): boolean {
+export function isSavePromptPayload(p: unknown): boolean {
   if (typeof p !== "object" || p === null) return false;
   const r = p as Record<string, unknown>;
   return (
@@ -29,8 +28,14 @@ function isSavePromptPayload(p: unknown): boolean {
     typeof r.output === "string" &&
     typeof r.mode === "string" &&
     MODE_IDS.has(r.mode) &&
+    // A RETIRED target id is still a valid payload: a save queued before a
+    // roster rename carries last roster's id, and savePromptAction folds it
+    // forward (resolveTargetId). Requiring a LIVE id here parked exactly
+    // those saves as poison before the server could rewrite them — and a
+    // rename that moves the default target would have set aside every
+    // offline save made before the deploy.
     typeof r.target === "string" &&
-    TARGET_IDS.has(r.target) &&
+    resolveTargetId(r.target) !== undefined &&
     typeof r.modelUsed === "string" &&
     typeof r.tokenIn === "number" &&
     typeof r.tokenOut === "number"
